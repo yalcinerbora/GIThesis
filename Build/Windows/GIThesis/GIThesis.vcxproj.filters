@@ -2,5 +2,81 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\main.cpp" />
+    <ClCompile Include="..\..\..\Source\WindowInput.cpp">
+      <Filter>WindowInput</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MayaInput.cpp">
+      <Filter>WindowInput</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\Window.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\FPSInput.cpp">
+      <Filter>WindowInput</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\GFGLoader.cpp">
+      <Filter>GFGLoad</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\Source\Macros.h" />
+    <ClInclude Include="..\..\..\Source\GLHeader.h" />
+    <ClInclude Include="..\..\..\Source\GLHeaderLite.h" />
+    <ClInclude Include="..\..\..\Source\WindowInput.h">
+      <Filter>WindowInput</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\InputManI.h">
+      <Filter>WindowInput</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MayaInput.h">
+      <Filter>WindowInput</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\FPSInput.h">
+      <Filter>WindowInput</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GPUBuffer.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\ArrayStruct.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\DrawBuffer.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Material.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Window.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Globals.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\NoInput.h">
+      <Filter>WindowInput</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GFGLoader.h">
+      <Filter>GFGLoad</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="WindowInput">
+      <UniqueIdentifier>{403a9336-ef1a-4f13-9930-bf52e6a650c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GFGLoad">
+      <UniqueIdentifier>{daf8c31f-2ce7-4b60-bf7b-818596aa5e4a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GI">
+      <UniqueIdentifier>{c82b1b51-0cee-41f7-a1aa-09a0535213cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render">
+      <UniqueIdentifier>{33358c58-a6bd-4e79-8141-21dc60f78f0c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utility">
+      <UniqueIdentifier>{0c0c5d97-d5a8-4fc4-b022-6907a5f9f17d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{0b0be54b-6ea0-4ecc-ad07-7472afcb8661}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

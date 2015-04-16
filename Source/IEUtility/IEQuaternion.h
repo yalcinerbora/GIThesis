@@ -10,7 +10,7 @@ Column Major Vector Matrix
 #define SLERP_TO_LERP_SWITCH_THRESHOLD 0.01f
 
 #include <algorithm>
-#include "IEMacros.h"
+#include <cassert>
 
 class IEVector3;
 

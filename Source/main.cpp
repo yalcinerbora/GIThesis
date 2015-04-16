@@ -47,11 +47,6 @@ int main()
 		// Implementation is a 
 
 
-		
-
-
-
-
 		// End of the Loop
 		mainWindow.Present();
 		glfwPollEvents();

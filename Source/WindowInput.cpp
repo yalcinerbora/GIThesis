@@ -7,7 +7,6 @@ void WindowInput::WindowPosChangedFunc(int x, int y)
 
 void WindowInput::WindowFBChangedFunc(int width, int height)
 {
-	glew
 }
 
 void WindowInput::WindowSizeChangedFunc(int width, int height)

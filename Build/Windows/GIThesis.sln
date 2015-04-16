@@ -65,7 +65,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Images", "Images", "{4DBBD9
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shaders", "Shaders", "{67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}"
 	ProjectSection(SolutionItems) = preProject
-		..\..\WorkingDir\Shaders\GBufferPass.glsl = ..\..\WorkingDir\Shaders\GBufferPass.glsl
+		..\..\WorkingDir\Shaders\AGenericMaterial.frag = ..\..\WorkingDir\Shaders\AGenericMaterial.frag
+		..\..\WorkingDir\Shaders\GWriteGeneric.frag = ..\..\WorkingDir\Shaders\GWriteGeneric.frag
+		..\..\WorkingDir\Shaders\GWriteGeneric.vert = ..\..\WorkingDir\Shaders\GWriteGeneric.vert
 	EndProjectSection
 EndProject
 Global

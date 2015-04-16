@@ -8,8 +8,11 @@ Helper Class that loads GFG directly to the buffer
 #define __GFGLOADER_H__
 
 #include "GFG/GFGFileLoader.h"
-#include "GPUBuffer.h"
 #include "Material.h"
+
+class GPUBuffer;
+class DrawBuffer;
+class Material;
 
 enum class GFGLoadError
 {
@@ -20,7 +23,7 @@ enum class GFGLoadError
 	NOT_ENOUGH_SIZE,
 
 	// Material Related
-	TEXTURE_NOT_FOUND,	// Texture Path Does not relate to 
+	TEXTURE_NOT_FOUND,
 
 
 
@@ -30,17 +33,11 @@ enum class GFGLoadError
 namespace GFGLoader
 {
 	// Mesh Related
-	GFGLoadError	LoadToBuffer(GPUBuffer& buffer,
-								 const Array32<const char*> gfgFilenames);	// Load every mesh on the files specified
-	GFGLoadError	LoadToBuffer(GPUBuffer& buffer,
-								 const char* gfgFilename,
-								 const Array32<uint32_t> meshIDs);			// Load Specific Meshes on a GFG File
+	GFGLoadError	LoadGFG(GPUBuffer& buffer,
+							DrawBuffer& drawBuff,
+							const char* gfgFilename);
 
-	// Material Related
-	GFGLoadError	LoadMaterial(Material& material,
-								 const char* gfgFilename,
-								 const Array32<uint32_t> materialIDs);
-
+	//Material		GFGToMaterial(const GFGMaterialHeader& mat, );
 };
 
 #endif //__GFGLOADER_H__

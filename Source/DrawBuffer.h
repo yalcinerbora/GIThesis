@@ -21,11 +21,11 @@ class DrawBuffer
 	private:
 		GLuint							drawParamBuffer;
 		GLuint							transformBuffer;
-
 		bool							dataEdited;
+
 		std::vector<DrawPointIndexed>	drawData;
 		std::vector<IEMatrix4x4>		transformData;
-
+		std::vector<Material>			material;
 
 	protected:
 	public:
@@ -36,7 +36,9 @@ class DrawBuffer
 										~DrawBuffer();
 
 		// 
-		void							AddDrawCall(DrawPointIndexed, IEMatrix4x4);
+		void							AddDrawCall(DrawPointIndexed, 
+													const Material& material,
+													IEMatrix4x4);
 		void							Draw();
 
 };

@@ -47,3 +47,5 @@ Bin/
 !Lib/**/*.dll
 
 !Lib/**/*.pch
+*.tga
+*.png

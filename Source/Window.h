@@ -57,12 +57,13 @@ class Window
 		static void				MouseScrolledGLFW(GLFWwindow*, double, double);
 
 		// OGL Debug Context Callback
-		static void _stdcall	OGLCallbackRender(GLenum source, GLenum type,
+		static void __stdcall	OGLCallbackRender(GLenum source,
+												  GLenum type,
 												  GLuint id,
 												  GLenum severity,
 												  GLsizei length,
 												  const GLchar* message,
-												  void* userParam);
+												  const void* userParam);
 
 	protected:
 	public:

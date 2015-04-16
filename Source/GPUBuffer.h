@@ -59,25 +59,33 @@ struct VertexElement
 class GPUBuffer
 {
 	private:
-		GLuint				vertexBuffer;
-		GLuint				indexBuffer;
+		GLuint						vertexBuffer;
+		GLuint						indexBuffer;
 
-		GLuint				vao;
+		GLuint						vao;
+
+		std::vector<VertexElement>	vElements;
 
 	protected:
 
 	public:
 		// Constructors & Destructor
-							GPUBuffer(const Array32<VertexElement>, size_t vertexCount);
-							GPUBuffer(const GPUBuffer&) = delete;
-		const GPUBuffer&	operator= (const GPUBuffer&) = delete;
-		~GPUBuffer();
+									GPUBuffer(const Array32<VertexElement>, size_t vertexCount);
+									GPUBuffer(const GPUBuffer&) = delete;
+		const GPUBuffer&			operator= (const GPUBuffer&) = delete;
+									~GPUBuffer();
 
 		//
-		DrawPointIndexed	AddMesh(const uint8_t data[],
-									const uint8_t indexData[],
-									size_t vertexCount);
+		bool						AddMesh(DrawPointIndexed& result,
+											const uint8_t data[],
+											const uint8_t indexData[],
+											size_t vertexCount,
+											size_t indexCount);
+		
+		bool						IsSuitedGFGMesh(const GFGMeshHeader &);
+		bool						HasEnoughSpaceFor(uint32_t vertexCount);
 
+		void						Bind();
 
 };
 #endif //__GPUBUFFER_H__

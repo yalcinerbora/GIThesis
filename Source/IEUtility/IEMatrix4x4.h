@@ -8,7 +8,7 @@ Column Major Vector Matrix
 #define __IE_MATRIX4X4_H__
 
 #include <algorithm>
-#include "IEMacros.h"
+#include <cassert>
 
 class IEVector3;
 class IEVector4;

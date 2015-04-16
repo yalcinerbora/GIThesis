@@ -133,12 +133,13 @@ void Window::MouseScrolledGLFW(GLFWwindow* w, double xoffset, double yoffset)
 	}
 }
 
-void _stdcall Window::OGLCallbackRender(GLenum, GLenum type,
-										GLuint id,
-										GLenum severity,
-										GLsizei,
-										const GLchar* message,
-										void*)
+void __stdcall Window::OGLCallbackRender(GLenum, 
+										 GLenum type,
+										 GLuint id,
+										 GLenum severity,
+										 GLsizei,
+										 const GLchar* message,
+										 const void*)
 {
 	// Dont Show Others For Now
 	if(type == GL_DEBUG_TYPE_OTHER)
@@ -289,6 +290,19 @@ Window::Window(InputManI& input,
 	GI_LOG("GLSL\t: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
 	GI_LOG("Device\t: %s", glGetString(GL_RENDERER));
 	GI_LOG("");
+
+	if(DEBUG)
+	{
+		// Add Callback
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		glDebugMessageCallback(Window::OGLCallbackRender, nullptr);
+		glDebugMessageControl(GL_DONT_CARE,
+							  GL_DONT_CARE,
+							  GL_DEBUG_SEVERITY_HIGH,
+							  0,
+							  nullptr,
+							  GL_TRUE);
+	}
 
 	// Set Callbacks
 	glfwSetWindowPosCallback(window, Window::WindowPosGLFW);

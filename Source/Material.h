@@ -11,9 +11,10 @@ Material Definition
 #include <cstdint>
 #include "GLHeader.h"
 
-struct BasicPhong
+struct ColorNormalMaterial
 {
-
+	char* colorFileName;
+	char* normalFileName;
 };
 
 class Material
@@ -29,13 +30,15 @@ class Material
 	protected:
 	public:
 		// Constructors & Destructor
-										Material(BasicPhong);
+										Material(ColorNormalMaterial);
 										Material(const Material&) = delete;
 		const Material&					operator=(const Material&) = delete;
 										~Material();
 
-		// 
-		void							BindMaterial();
+		// Equavilency Check
+		bool							operator==(const Material&) const;
+		bool							operator!=(const Material&) const;
 
+		void							BindMaterial();
 };
 #endif //__MATERIAL_H__

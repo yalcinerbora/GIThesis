@@ -2,32 +2,28 @@
 
 Globals For Rendering
 
-ATM only Camera
-
 */
 
 
 #ifndef __GLOBALS_H__
 #define __GLOBALS_H__
 
-#include "IEUtility/IEMatrix4x4.h"
-#include "IEUtility/IEVector3.h"
+// Generic Binding Points
 
-struct Camera
-{
-	IEMatrix4x4		perspectiveProjection;
+// VertexData
+#define IN_POS 0
+#define IN_NORMAL 1
+#define IN_UV 2
 
-	// Camera Orientation
-	IEVector3		pos;
-	IEVector3		at;
-	IEVector3		up;
-};
+// Textures
+#define T_COLOR 0
+#define T_NORMAL 1
 
-static Camera mainRenderCamera = 
-{
-	IEMatrix4x4::IdentityMatrix,
-	IEVector3::ZeroVector,
-	IEVector3(0.0f, 0.0f, 1.0f),
-	IEVector3::Yaxis
-};
-#endif //__NOINPUT_H__
+// Unfiorm
+#define U_FRAME_TRANSFORM 0
+#define U_MODEL_TRANSFORMS 1
+
+// Large Uniform
+
+
+#endif //__GLOBALS_H__

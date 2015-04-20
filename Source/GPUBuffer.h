@@ -14,6 +14,7 @@ Draw Points Struct Applicable to the Indirect Command Buffer in OGL
 #include <cstdint>
 #include "GLHeader.h"
 #include "ArrayStruct.h"
+#include "GFG/GFGMeshHeader.h"
 
 //struct DrawPoint
 //{
@@ -32,7 +33,7 @@ struct DrawPointIndexed
 	uint32_t	baseInstance;
 };
 
-enum class GPUDataType
+enum class GPUDataType : GLenum
 {
 	INT8 = GL_BYTE,
 	INT16 = GL_SHORT,
@@ -48,7 +49,6 @@ enum class GPUDataType
 
 struct VertexElement
 {
-	uint32_t			bufferIndex;		
 	uint32_t			inputPosition;		
 	GPUDataType			type;
 	uint32_t			typeCount;			
@@ -59,10 +59,15 @@ struct VertexElement
 class GPUBuffer
 {
 	private:
+		static uint32_t				totalVertexCount;
+		static uint32_t				totalIndexCount;
+
 		GLuint						vertexBuffer;
 		GLuint						indexBuffer;
 
 		GLuint						vao;
+		uint32_t					usedVertexAmount;
+		uint32_t					usedIndexAmount;
 
 		std::vector<VertexElement>	vElements;
 
@@ -70,7 +75,7 @@ class GPUBuffer
 
 	public:
 		// Constructors & Destructor
-									GPUBuffer(const Array32<VertexElement>, size_t vertexCount);
+									GPUBuffer(const Array32<VertexElement>);
 									GPUBuffer(const GPUBuffer&) = delete;
 		const GPUBuffer&			operator= (const GPUBuffer&) = delete;
 									~GPUBuffer();
@@ -83,7 +88,8 @@ class GPUBuffer
 											size_t indexCount);
 		
 		bool						IsSuitedGFGMesh(const GFGMeshHeader &);
-		bool						HasEnoughSpaceFor(uint32_t vertexCount);
+		bool						HasEnoughSpaceFor(uint64_t vertexCount,
+													  uint64_t indexCount);
 
 		void						Bind();
 

@@ -35,6 +35,18 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector4.cpp">
       <Filter>IEUtility</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\Material.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\DrawBuffer.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\GPUBuffer.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -99,6 +111,15 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\IEUtility\IEVector4.h">
       <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\TGALoad.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\FrameTransformBuffer.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Camera.h">
+      <Filter>Utility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -18,6 +18,7 @@ class NoInput : public WindowInput
 	private:
 	protected:
 	public:
+						NoInput(Camera& cam) : WindowInput(cam) {}
 
 		virtual void	KeyboardUsedFunc(int, int, int, int) override {};
 		virtual void	MouseMovedFunc(double, double) override {};

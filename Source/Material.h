@@ -11,34 +11,27 @@ Material Definition
 #include <cstdint>
 #include "GLHeader.h"
 
-struct ColorNormalMaterial
+struct ColorMaterial
 {
 	char* colorFileName;
-	char* normalFileName;
 };
 
 class Material
 {
 	private:
-		std::vector<GLuint>				textures;
-		GLuint							uniformBuffer;
-
-		bool							dataEdited;
-		std::vector<uint8_t>			uniformData;
-
+		GLuint							texture;
+		GLuint							sampler;
 
 	protected:
 	public:
 		// Constructors & Destructor
-										Material(ColorNormalMaterial);
+										Material(ColorMaterial);
+										Material(Material&&);
 										Material(const Material&) = delete;
-		const Material&					operator=(const Material&) = delete;
+		Material&						operator=(const Material&) = delete;
 										~Material();
 
 		// Equavilency Check
-		bool							operator==(const Material&) const;
-		bool							operator!=(const Material&) const;
-
 		void							BindMaterial();
 };
 #endif //__MATERIAL_H__

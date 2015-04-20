@@ -5,33 +5,30 @@
 #include "GPUBuffer.h"
 #include "DrawBuffer.h"
 #include "Material.h"
+#include "IEUtility/IEMatrix4x4.h"
 
 GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
-								DrawBuffer& glDrawBuffer,
+								DrawBuffer& drawBuffer,
 								const char* gfgFilename)
 {
-	struct DrawCallMaterialPair
-	{
-		DrawPointIndexed drawCall;
-		uint32_t materialIndex;
-	};
-
 	std::ifstream stream(gfgFilename, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
 	GFGFileLoader gfgFile(&stlFileReader);
-	std::vector<DrawCallMaterialPair> materialDrawCall;
-	std::vector<Material> materials;
+	std::vector<DrawPointIndexed> drawCalls;
+	gfgFile.ValidateAndOpen();
 
 	// Validate that the all vertex definitions are the same
 	// and suits the VAO of the GPU Buffer
 	uint64_t vertexCount = 0;
+	uint64_t indexCount = 0;
 	for(const GFGMeshHeader mesh : gfgFile.Header().meshes)
 	{
 		if(!buffer.IsSuitedGFGMesh(mesh))
 			return GFGLoadError::VAO_MISMATCH;
 		vertexCount += mesh.headerCore.vertexCount;
+		indexCount += mesh.headerCore.indexCount;
 	}
-	if(!buffer.HasEnoughSpaceFor(vertexCount))
+	if(!buffer.HasEnoughSpaceFor(vertexCount, indexCount))
 		return GFGLoadError::NOT_ENOUGH_SIZE;
 
 	// Get All Mesh Vertex Data
@@ -52,12 +49,11 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 		return GFGLoadError::FATAL_ERROR;
 	}
 
-	uint64_t vertexCount = 0;
 	for(const GFGMeshHeader mesh : gfgFile.Header().meshes)
 	{
-		DrawPointIndexed drawCallParams;
-		materialDrawCall.emplace_back();
-		if(!buffer.AddMesh(materialDrawCall.back().drawCall, 
+		assert(mesh.headerCore.indexSize == sizeof(uint32_t));
+		drawCalls.emplace_back();
+		if(!buffer.AddMesh(drawCalls.back(),
 							vertexData.data() + (mesh.headerCore.vertexStart - gfgFile.Header().meshes[0].headerCore.vertexStart),
 							indexData.data() + (mesh.headerCore.indexStart - gfgFile.Header().meshes[0].headerCore.indexStart),
 							mesh.headerCore.vertexCount,
@@ -68,32 +64,36 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 		}
 	}
 
-
+	int matIndex = -1;
 	for(const GFGMaterialHeader& mat : gfgFile.Header().materials)
 	{
-		// Get Color and Normal Material File Names
+		matIndex++;
 
-		ColorNormalMaterial material
+		// Get Color and Normal Material File Names
+		std::vector<uint8_t> texNames;
+		texNames.resize(gfgFile.MaterialTextureDataSize(matIndex));
+		gfgFile.MaterialTextureData(texNames.data(), matIndex);
+
+		ColorMaterial material
 		{
 			new char[mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringSize],
-			new char[mat.textureList[static_cast<int>(GFGMayaPhongLoc::)].stringSize]
 		};
-		mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringSize;
-
-
-
-		Material m;
-
-
+		uint64_t start = mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringLocation;
+		uint64_t end = start + mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringSize;
+		std::copy(texNames.data() + start, texNames.data() + end, material.colorFileName);
+		drawBuffer.AddMaterial(material);
 	}
 
 	for(const GFGMeshMatPair& pair : gfgFile.Header().meshMaterialConnections.pairs)
 	{
-		pair.
+		DrawPointIndexed dpi = drawCalls[pair.meshIndex];
+		dpi.firstIndex += static_cast<uint32_t>(pair.indexOffset);
+		dpi.count = static_cast<uint32_t>(pair.indexCount);
 
+		drawBuffer.AddDrawCall(dpi,
+							   pair.materialIndex,
+							   {IEMatrix4x4::IdentityMatrix,
+								IEMatrix3x3::IdentityMatrix});
 	}
-
-
-
 	return GFGLoadError::OK;
 }

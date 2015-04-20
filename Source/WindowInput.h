@@ -14,11 +14,17 @@ Does not interfere with keyboard mouse input
 
 #include "InputManI.h"
 
+struct Camera;
+
 class WindowInput : public InputManI
 {
 	private:
+		Camera&			camera;
+
 	protected:
 	public:
+						WindowInput(Camera& cam) : camera(cam) {}
+
 		virtual void	WindowPosChangedFunc(int, int) override;
 		virtual void	WindowFBChangedFunc(int, int) override;
 		virtual void	WindowSizeChangedFunc(int, int) override;
@@ -28,10 +34,10 @@ class WindowInput : public InputManI
 		virtual void	WindowMinimizedFunc(bool) override;
 
 		// Explicitly showing un-implemented functions
-		virtual void	KeyboardUsedFunc(int, int, int, int) = 0;
-		virtual void	MouseMovedFunc(double, double) = 0;
-		virtual void	MousePressedFunc(int, int, int) = 0;
-		virtual void	MouseScrolledFunc(double, double) = 0;
+		virtual void	KeyboardUsedFunc(int, int, int, int);
+		virtual void	MouseMovedFunc(double, double);
+		virtual void	MousePressedFunc(int, int, int);
+		virtual void	MouseScrolledFunc(double, double);
 		
 };
 

@@ -2,6 +2,7 @@
 #include "Macros.h"
 #include "GLHeader.h"
 #include "InputManI.h"
+#include "Globals.h"
 
 #include <GLFW/glfw3.h>
 
@@ -202,7 +203,6 @@ Window::Window(InputManI& input,
 			GI_ERROR_LOG("Fatal Error: Could not Init GLFW");
 			assert(false);
 		}
-
 		glfwSetErrorCallback(ErrorCallbackGLFW);
 	}
 
@@ -272,6 +272,7 @@ Window::Window(InputManI& input,
 	glfwMakeContextCurrent(window);
 
 	// Now Init GLEW
+	glewExperimental = GL_TRUE;
 	GLenum err = glewInit();
 	if(err != GLEW_OK)
 	{
@@ -298,11 +299,17 @@ Window::Window(InputManI& input,
 		glDebugMessageCallback(Window::OGLCallbackRender, nullptr);
 		glDebugMessageControl(GL_DONT_CARE,
 							  GL_DONT_CARE,
-							  GL_DEBUG_SEVERITY_HIGH,
+							  GL_DONT_CARE,
 							  0,
 							  nullptr,
 							  GL_TRUE);
 	}
+
+	// Get Some GPU Limitations
+	// DEBUG
+	GLint uniformBufferOffsetAlignment, ssbOffsetAlignment;
+	glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &uniformBufferOffsetAlignment);
+	glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &ssbOffsetAlignment);
 
 	// Set Callbacks
 	glfwSetWindowPosCallback(window, Window::WindowPosGLFW);
@@ -317,7 +324,9 @@ Window::Window(InputManI& input,
 	glfwSetCursorPosCallback(window, Window::MouseMovedGLFW);
 	glfwSetMouseButtonCallback(window, Window::MousePressedGLFW);
 	glfwSetScrollCallback(window, Window::MouseScrolledGLFW);
-	
+
+	glfwSwapInterval(0);
+
 	windowMappings.insert(std::make_pair(window, this));
 	glfwShowWindow(window);
 }

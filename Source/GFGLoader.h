@@ -24,9 +24,6 @@ enum class GFGLoadError
 
 	// Material Related
 	TEXTURE_NOT_FOUND,
-
-
-
 	FATAL_ERROR
 };
 
@@ -34,7 +31,7 @@ namespace GFGLoader
 {
 	// Mesh Related
 	GFGLoadError	LoadGFG(GPUBuffer& buffer,
-							DrawBuffer& drawBuff,
+							DrawBuffer& drawBuffer,
 							const char* gfgFilename);
 
 	//Material		GFGToMaterial(const GFGMaterialHeader& mat, );

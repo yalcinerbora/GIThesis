@@ -3,6 +3,7 @@
 #include "Macros.h"
 
 #include <vector>
+#include <fstream>
 
 GLuint Shader::shaderPipelineID = 0;
 
@@ -29,11 +30,19 @@ GLenum Shader::ShaderTypeToGLBit(ShaderType t)
 	return values[static_cast<int>(t)];
 }
 
-Shader::Shader(ShaderType t, const char source[])
+Shader::Shader(ShaderType t, const char fileName[])
 	: valid(false)
 	, shaderID(0)
 	, shaderType(t)
 {
+	std::vector<char> source;
+	source.resize(std::ifstream(fileName, std::ifstream::ate | std::ifstream::binary).tellg());
+	std::ifstream shaderFile(fileName);
+	shaderFile.read(source.data(), source.size());
+
+
+
+
 	// Create Pipeline If not Avail
 	if(shaderPipelineID == 0)
 	{
@@ -42,7 +51,8 @@ Shader::Shader(ShaderType t, const char source[])
 	}
 
 	// Compile
-	shaderID = glCreateShaderProgramv(ShaderTypeToGL(shaderType), 1, (const GLchar**) &source);
+	const char* sourcePtr = source.data();
+	shaderID = glCreateShaderProgramv(ShaderTypeToGL(shaderType), 1, (const GLchar**) &sourcePtr);
 
 	GLint result;
 	glGetProgramiv(shaderID, GL_LINK_STATUS, &result);
@@ -55,7 +65,7 @@ Shader::Shader(ShaderType t, const char source[])
 		{
 			std::vector<GLchar> log(blen);
 			glGetProgramInfoLog(shaderID, blen, &blen, &log[0]);
-			GI_ERROR_LOG("Shader Compilation Error \n%s", &log[0]);
+			GI_ERROR_LOG("Shader Compilation Error on File %s :\n%s", fileName, &log[0]);
 		}
 	}
 	else

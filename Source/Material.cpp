@@ -11,7 +11,13 @@ Material::Material(ColorMaterial c)
 	// Load Texture
 	// Texture is Targa
 	TGAFILE tga;
-	LoadTGAFile(&tga, c.colorFileName);
+
+	// Change Abs Path to WorkingDir Path
+	std::string s(c.colorFileName);
+	s = s.substr(s.find_last_of('/') + 1);
+	s = "Images/" + s;
+	
+	assert(LoadTGAFile(&tga, s.c_str()) == true);
 
 	// Has to be RGB uncompressed
 	assert(tga.imageTypeCode == 2);

@@ -40,6 +40,8 @@ void WindowInput::KeyboardUsedFunc(int key, int, int action, int)
 {
 	//Numpad 4-6 to change between input schemes
 	//Numpad 8-2 to change betweeen solutions
+
+
 }
 
 void WindowInput::MouseMovedFunc(double x, double y)

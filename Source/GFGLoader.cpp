@@ -68,19 +68,16 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 	for(const GFGMaterialHeader& mat : gfgFile.Header().materials)
 	{
 		matIndex++;
-
 		// Get Color and Normal Material File Names
 		std::vector<uint8_t> texNames;
 		texNames.resize(gfgFile.MaterialTextureDataSize(matIndex));
 		gfgFile.MaterialTextureData(texNames.data(), matIndex);
 
-		ColorMaterial material
-		{
-			new char[mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringSize],
-		};
+		ColorMaterial material;
 		uint64_t start = mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringLocation;
 		uint64_t end = start + mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringSize;
-		std::copy(texNames.data() + start, texNames.data() + end, material.colorFileName);
+		assert(mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringType == GFGStringType::UTF8);
+		material.colorFileName = reinterpret_cast<char*>(texNames.data() + start);
 		drawBuffer.AddMaterial(material);
 	}
 

@@ -11,7 +11,13 @@ Material::Material(ColorMaterial c)
 	// Load Texture
 	// Texture is Targa
 	TGAFILE tga;
-	LoadTGAFile(&tga, c.colorFileName);
+
+	// Change Abs Path to WorkingDir Path
+	std::string s(c.colorFileName);
+	s = s.substr(s.find_last_of('/') + 1);
+	s = "Images/" + s;
+	
+	assert(LoadTGAFile(&tga, s.c_str()) == true);
 
 	// Has to be RGB uncompressed
 	assert(tga.imageTypeCode == 2);
@@ -46,6 +52,9 @@ Material::Material(ColorMaterial c)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_BLUE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ALPHA);
 
+	
+	// TODO: too many samplers since all texture sampled as same
+	// this can be reduced
 	glGenSamplers(1, &sampler);
 	glSamplerParameteri(sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glSamplerParameteri(sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);

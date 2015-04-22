@@ -13,7 +13,8 @@ Material Definition
 
 struct ColorMaterial
 {
-	char* colorFileName;
+	std::string	colorFileName;
+	std::string normalFileName;
 };
 
 class Material

@@ -37,6 +37,11 @@ int main()
 	FPSInput fpsInput(mainRenderCamera);
 	MayaInput mayaInput(mainRenderCamera);
 
+	InputManI* inputs[3];
+	inputs[0] = &nullInput;
+	inputs[1] = &fpsInput;
+	inputs[2] = &mayaInput;
+
 	// Window Init
 	WindowProperties winProps
 	{

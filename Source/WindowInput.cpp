@@ -1,5 +1,16 @@
 #include "WindowInput.h"
 #include "Camera.h"
+#include "Macros.h"
+
+WindowInput::WindowInput(Camera& cam,
+						 uint32_t& currentSolution,
+						 uint32_t& currentScene,
+						 uint32_t& currentInput)
+	: camera(cam)
+	, currentSolution(currentSolution)
+	, currentScene(currentScene)
+	, currentInput(currentInput)
+{}
 
 void WindowInput::WindowPosChangedFunc(int x, int y)
 {
@@ -36,12 +47,12 @@ void WindowInput::WindowMinimizedFunc(bool minimized)
 
 }
 
-void WindowInput::KeyboardUsedFunc(int key, int, int action, int)
+void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 {
 	//Numpad 4-6 to change between input schemes
 	//Numpad 8-2 to change betweeen solutions
 
-
+	GI_DEBUG_LOG("KeyPressed");
 }
 
 void WindowInput::MouseMovedFunc(double x, double y)
@@ -49,11 +60,11 @@ void WindowInput::MouseMovedFunc(double x, double y)
 	
 }
 
-void WindowInput::MousePressedFunc(int button, int action, int)
+void WindowInput::MousePressedFunc(int button, int action, int modifier)
 {
 	
 }
 
-void WindowInput::MouseScrolledFunc(double xOffset, double)
+void WindowInput::MouseScrolledFunc(double xOffset, double yOffset)
 {
 }

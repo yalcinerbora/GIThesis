@@ -13,8 +13,8 @@ Super Simple Array Structs
 template <class T>
 struct Array32
 {
-	T*			arr;
-	uint32_t	length;
+	T*				arr;
+	const uint32_t	length;
 };
 
 template <class T>

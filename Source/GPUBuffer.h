@@ -75,7 +75,7 @@ class GPUBuffer
 
 	public:
 		// Constructors & Destructor
-									GPUBuffer(const Array32<VertexElement>);
+									GPUBuffer(const Array32<const VertexElement>);
 									GPUBuffer(const GPUBuffer&) = delete;
 		const GPUBuffer&			operator= (const GPUBuffer&) = delete;
 									~GPUBuffer();

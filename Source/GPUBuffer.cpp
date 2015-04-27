@@ -5,7 +5,7 @@
 uint32_t GPUBuffer::totalVertexCount = 2 * 1024 * 1024;
 uint32_t GPUBuffer::totalIndexCount = 4 * 1024 * 1024;
 
-GPUBuffer::GPUBuffer(const Array32<VertexElement> elements)
+GPUBuffer::GPUBuffer(const Array32<const VertexElement> elements)
 	: usedVertexAmount(0)
 	, usedIndexAmount(0)
 	, vao(0)

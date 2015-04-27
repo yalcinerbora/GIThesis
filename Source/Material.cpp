@@ -15,7 +15,7 @@ Material::Material(ColorMaterial c)
 	// Change Abs Path to WorkingDir Path
 	std::string s(c.colorFileName);
 	s = s.substr(s.find_last_of('/') + 1);
-	s = "Images/" + s;
+	s = "Textures/" + s;
 	
 	assert(LoadTGAFile(&tga, s.c_str()) == true);
 

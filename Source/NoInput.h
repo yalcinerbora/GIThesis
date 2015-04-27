@@ -18,12 +18,12 @@ class NoInput : public WindowInput
 	private:
 	protected:
 	public:
-						NoInput(Camera& cam) : WindowInput(cam) {}
-
-		virtual void	KeyboardUsedFunc(int, int, int, int) override {};
-		virtual void	MouseMovedFunc(double, double) override {};
-		virtual void	MousePressedFunc(int, int, int) override {};
-		virtual void	MouseScrolledFunc(double, double) override {};
-
+						NoInput(Camera& cam,
+								uint32_t& currentSolution,
+								uint32_t& currentScene,
+								uint32_t& currentInput) : WindowInput(cam,
+																	  currentSolution,
+																	  currentScene,
+																	  currentInput) {}
 };
 #endif //__NOINPUT_H__

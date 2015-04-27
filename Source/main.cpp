@@ -15,6 +15,7 @@
 #include "GPUBuffer.h"
 #include "Shader.h"
 #include "Camera.h"
+#include "Scene.h"
 
 #include "GLFW/glfw3.h"
 
@@ -32,15 +33,18 @@ int main()
 		IEVector3::Yaxis
 	};
 
-	// Input Schemes
-	NoInput nullInput(mainRenderCamera);		// No Input from peripheral devices
-	FPSInput fpsInput(mainRenderCamera);
-	MayaInput mayaInput(mainRenderCamera);
+	uint32_t currentSolution = 0, currentScene = 0, currentInputScheme = 0;
+	std::vector<SolutionI*>	solutions;
+	std::vector<SceneI*>	scenes;
+	std::vector<InputManI*>	inputSchemes;
 
-	InputManI* inputs[3];
-	inputs[0] = &nullInput;
-	inputs[1] = &fpsInput;
-	inputs[2] = &mayaInput;
+	// Input Schemes
+	NoInput nullInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
+	FPSInput fpsInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
+	MayaInput mayaInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
+	inputSchemes.push_back(&nullInput);
+	inputSchemes.push_back(&fpsInput);
+	inputSchemes.push_back(&mayaInput);
 
 	// Window Init
 	WindowProperties winProps
@@ -52,48 +56,16 @@ int main()
 	Window mainWindow(nullInput,
 					  winProps);
 
-
-	// Vertex Element
-	struct VAO
-	{
-		float vPos[3];
-		float vNormal[3];
-		float vUV[2];
-	};
-	VertexElement element[] = 
-	{
-		{
-			0,
-			GPUDataType::FLOAT,
-			3,
-			offsetof(struct VAO, vPos),
-			sizeof(VAO)
-		},
-		{
-			1,
-			GPUDataType::FLOAT,
-			3,
-			offsetof(struct VAO, vNormal),
-			sizeof(VAO)
-		},
-		{
-			2,
-			GPUDataType::FLOAT,
-			2,
-			offsetof(struct VAO, vUV),
-			sizeof(VAO)
-		}
-	};
-	GPUBuffer vertices({element, 3});
-	DrawBuffer draw;
+	// Camera GPU
 	FrameTransformBuffer cameraTransform;
 
-	// Load GFG
-	GFGLoader::LoadGFG(vertices, draw, "crySponza.gfg");
-
-	// Load Shader
+	// Shaders
 	Shader vertexGBufferWrite(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert");
 	Shader fragmentGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag");
+
+	// Scenes
+	Scene crySponza(Scene::sponzaFileName);
+	scenes.push_back(&crySponza);
 
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
@@ -102,6 +74,9 @@ int main()
 	// Render Loop
 	while(!mainWindow.WindowClosed())
 	{
+		// Constantly Check Input Scheme Change
+		mainWindow.ChangeInputScheme(*inputSchemes[currentInputScheme % inputSchemes.size()]);
+
 		// Start With a VP Set
 		// Using a callback is not necessarly true since it may alter some framebuffer's viewport
 		// but we have to be sure that it alters main fbo viewport
@@ -121,12 +96,9 @@ int main()
 		vertexGBufferWrite.Bind();
 		fragmentGBufferWrite.Bind();
 
-		// Vertices
-		vertices.Bind();
-
-		// Finally Draw Call
-		draw.Draw();
-
+		// DrawCall
+		scenes[currentScene % scenes.size()]->Draw();
+		
 		// End of the Loop
 		mainWindow.Present();
 		glfwPollEvents();

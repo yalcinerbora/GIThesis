@@ -18,7 +18,10 @@ class FPSInput : public WindowInput
 	private:
 	protected:
 	public:
-						FPSInput(Camera& cam) : WindowInput(cam) {}
+						FPSInput(Camera& cam,
+										uint32_t& currentSolution,
+										uint32_t& currentScene,
+										uint32_t& currentInput);
 
 		virtual void	KeyboardUsedFunc(int, int, int, int) override;
 		virtual void	MouseMovedFunc(double, double) override;

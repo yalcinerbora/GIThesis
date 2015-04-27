@@ -13,32 +13,42 @@ Does not interfere with keyboard mouse input
 #define __WINDOWINPUT_H__
 
 #include "InputManI.h"
+#include "ArrayStruct.h"
+#include  <vector>
 
 struct Camera;
+class SolutionI;
+class SceneI;
+class Window;
 
 class WindowInput : public InputManI
 {
 	private:
-		Camera&			camera;
+		Camera&				camera;
+		uint32_t&			currentSolution;
+		uint32_t&			currentScene;
+		uint32_t&			currentInput;
 
 	protected:
 	public:
-						WindowInput(Camera& cam) : camera(cam) {}
+							WindowInput(Camera& cam,
+										uint32_t& currentSolution,
+										uint32_t& currentScene,
+										uint32_t& currentInput);
 
-		virtual void	WindowPosChangedFunc(int, int) override;
-		virtual void	WindowFBChangedFunc(int, int) override;
-		virtual void	WindowSizeChangedFunc(int, int) override;
-		virtual void	WindowClosedFunc() override;
-		virtual void	WindowRefreshedFunc() override;
-		virtual void	WindowFocusedFunc(bool) override;
-		virtual void	WindowMinimizedFunc(bool) override;
+		virtual void		WindowPosChangedFunc(int posX, int posY) override;
+		virtual void		WindowFBChangedFunc(int fbWidth, int fbHeight) override;
+		virtual void		WindowSizeChangedFunc(int width, int height) override;
+		virtual void		WindowClosedFunc() override;
+		virtual void		WindowRefreshedFunc() override;
+		virtual void		WindowFocusedFunc(bool) override;
+		virtual void		WindowMinimizedFunc(bool) override;
 
 		// Explicitly showing un-implemented functions
-		virtual void	KeyboardUsedFunc(int, int, int, int);
-		virtual void	MouseMovedFunc(double, double);
-		virtual void	MousePressedFunc(int, int, int);
-		virtual void	MouseScrolledFunc(double, double);
-		
+		virtual void		KeyboardUsedFunc(int key, int osKey, int action, int modifier);
+		virtual void		MouseMovedFunc(double x, double y);
+		virtual void		MousePressedFunc(int button, int action, int modifier);
+		virtual void		MouseScrolledFunc(double xOffset, double yOffset);
 };
 
 #endif //__WINDOWINPUT_H__

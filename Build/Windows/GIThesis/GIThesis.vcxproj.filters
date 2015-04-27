@@ -47,6 +47,9 @@
     <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp">
       <Filter>Render</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\Scene.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -121,6 +124,12 @@
     <ClInclude Include="..\..\..\Source\Camera.h">
       <Filter>Utility</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\SceneI.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Scene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -143,6 +152,9 @@
     </Filter>
     <Filter Include="IEUtility">
       <UniqueIdentifier>{2073ad5f-7a9c-4110-8afc-ce1777fd65fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{809f6aad-b0e7-4b5e-a87e-c2c0b7689b28}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

@@ -28,7 +28,6 @@ struct WindowProperties
 	int					width;
 	int					height;
 	WindowScreenType	screenType;
-	
 };
 
 class Window

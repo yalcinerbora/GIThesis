@@ -18,7 +18,10 @@ class MayaInput : public WindowInput
 	private:
 	protected:
 	public:
-						MayaInput(Camera& cam) : WindowInput(cam) {}
+						MayaInput(Camera& cam,
+								 uint32_t& currentSolution,
+								 uint32_t& currentScene,
+								 uint32_t& currentInput);
 
 		virtual void	KeyboardUsedFunc(int, int, int, int) override;
 		virtual void	MouseMovedFunc(double, double) override;

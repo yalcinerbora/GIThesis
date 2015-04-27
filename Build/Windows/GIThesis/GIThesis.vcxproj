@@ -108,6 +108,7 @@
     <ClCompile Include="..\..\..\Source\main.cpp" />
     <ClCompile Include="..\..\..\Source\Material.cpp" />
     <ClCompile Include="..\..\..\Source\MayaInput.cpp" />
+    <ClCompile Include="..\..\..\Source\Scene.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
@@ -135,7 +136,9 @@
     <ClInclude Include="..\..\..\Source\Material.h" />
     <ClInclude Include="..\..\..\Source\MayaInput.h" />
     <ClInclude Include="..\..\..\Source\NoInput.h" />
+    <ClInclude Include="..\..\..\Source\SceneI.h" />
     <ClInclude Include="..\..\..\Source\Shader.h" />
+    <ClInclude Include="..\..\..\Source\Scene.h" />
     <ClInclude Include="..\..\..\Source\TGALoad.h" />
     <ClInclude Include="..\..\..\Source\Window.h" />
     <ClInclude Include="..\..\..\Source\WindowInput.h" />

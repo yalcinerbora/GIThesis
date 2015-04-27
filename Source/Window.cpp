@@ -346,7 +346,9 @@ Window::~Window()
 
 void Window::ChangeInputScheme(InputManI& newInput)
 {
-	input = &newInput;
+	// Adress check is fine here
+	if(&newInput != input)
+		input = &newInput;
 }
 
 bool Window::WindowClosed() const

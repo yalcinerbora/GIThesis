@@ -68,16 +68,29 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 	for(const GFGMaterialHeader& mat : gfgFile.Header().materials)
 	{
 		matIndex++;
-		// Get Color and Normal Material File Names
+
+		assert(mat.headerCore.logic == GFGMaterialLogic::MAYA_PHONG);
+		assert(gfgFile.MaterialTextureDataSize(matIndex) > 0);
+
+		ColorMaterial material;	
 		std::vector<uint8_t> texNames;
 		texNames.resize(gfgFile.MaterialTextureDataSize(matIndex));
 		gfgFile.MaterialTextureData(texNames.data(), matIndex);
-
-		ColorMaterial material;
-		uint64_t start = mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringLocation;
-		uint64_t end = start + mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringSize;
-		assert(mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringType == GFGStringType::UTF8);
-		material.colorFileName = reinterpret_cast<char*>(texNames.data() + start);
+		if(mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringSize > 0)
+		{
+			uint64_t start = mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringLocation;
+			uint64_t end = start + mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringSize;
+			assert(mat.textureList[static_cast<int>(GFGMayaPhongLoc::COLOR)].stringType == GFGStringType::UTF8);
+			material.colorFileName = reinterpret_cast<char*>(texNames.data() + start);
+		}
+			
+		//if(mat.textureList[static_cast<int>(GFGMayaPhongLoc::BUMP)].stringSize > 0)
+		//{
+		//	uint64_t start = mat.textureList[static_cast<int>(GFGMayaPhongLoc::BUMP)].stringLocation;
+		//	uint64_t end = start + mat.textureList[static_cast<int>(GFGMayaPhongLoc::BUMP)].stringSize;
+		//	assert(mat.textureList[static_cast<int>(GFGMayaPhongLoc::BUMP)].stringType == GFGStringType::UTF8);
+		//	material.normalFileName = reinterpret_cast<char*>(texNames.data() + start);
+		//}
 		drawBuffer.AddMaterial(material);
 	}
 
@@ -87,10 +100,36 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 		dpi.firstIndex += static_cast<uint32_t>(pair.indexOffset);
 		dpi.count = static_cast<uint32_t>(pair.indexCount);
 
+		IEMatrix4x4 transform = IEMatrix4x4::IdentityMatrix;
+		IEMatrix3x3 transformRotation = IEMatrix3x3::IdentityMatrix;
+		for(const GFGNode& node : gfgFile.Header().sceneHierarchy.nodes)
+		{
+			if(node.meshReference == pair.meshIndex)
+			{
+				const GFGNode* parent = &node;
+				while(parent->parentIndex != -1)
+				{
+					const GFGTransform& t = gfgFile.Header().transformData.transforms[parent->transformIndex];
+
+					transform = IEMatrix4x4::Rotate(t.rotate[0], IEVector3::Xaxis) * transform;
+					transform = IEMatrix4x4::Rotate(t.rotate[1], IEVector3::Yaxis) * transform;
+					transform = IEMatrix4x4::Rotate(t.rotate[2], IEVector3::Zaxis) * transform;
+					transform = IEMatrix4x4::Scale(t.scale[0], t.scale[1], t.scale[2]) * transform;
+					transform = IEMatrix4x4::Translate({t.translate[0], t.translate[1], t.translate[2]}) * transform;
+
+					transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[0], IEVector3::Xaxis);
+					transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[1], IEVector3::Yaxis);
+					transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[2], IEVector3::Zaxis);
+
+					parent = &gfgFile.Header().sceneHierarchy.nodes[parent->parentIndex];
+				}											
+			}
+		}
+
 		drawBuffer.AddDrawCall(dpi,
 							   pair.materialIndex,
-							   {IEMatrix4x4::IdentityMatrix,
-								IEMatrix3x3::IdentityMatrix});
+							   {transform,
+			  				    transformRotation});
 	}
 	return GFGLoadError::OK;
 }

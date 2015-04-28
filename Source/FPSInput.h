@@ -16,6 +16,13 @@ LMB locks and hids the mouse to the center
 class FPSInput : public WindowInput
 {
 	private:
+		static double	Sensitivity;
+		static double	MoveRatio;
+		
+		bool			FPSMode;
+		double			mouseX;
+		double			mouseY;
+
 	protected:
 	public:
 						FPSInput(Camera& cam,

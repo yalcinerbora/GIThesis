@@ -23,13 +23,13 @@ int main()
 {
 	Camera mainRenderCamera =
 	{
-		80.0f,
+		60.0f,
 		0.1f,
 		10000.0f,
 		1280,
 		720,
-		{ 600.0f, -400.0f, -4.5f },
-		IEVector3::ZeroVector,
+		{ 150.0f, -145.0f, 0.3f },
+		{ -0.15f, -37.0f, 3.4f },
 		IEVector3::Yaxis
 	};
 
@@ -40,11 +40,11 @@ int main()
 
 	// Input Schemes
 	NoInput nullInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
-	FPSInput fpsInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
 	MayaInput mayaInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
+	FPSInput fpsInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
 	inputSchemes.push_back(&nullInput);
-	inputSchemes.push_back(&fpsInput);
 	inputSchemes.push_back(&mayaInput);
+	inputSchemes.push_back(&fpsInput);
 
 	// Window Init
 	WindowProperties winProps
@@ -65,10 +65,13 @@ int main()
 
 	// Scenes
 	Scene crySponza(Scene::sponzaFileName);
+	Scene cornellBox(Scene::cornellboxFileName);
 	scenes.push_back(&crySponza);
+	scenes.push_back(&cornellBox);
 
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
 
 	// All Init
 	// Render Loop

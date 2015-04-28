@@ -49,3 +49,4 @@ Bin/
 !Lib/**/*.pch
 *.tga
 *.png
+*.swatch

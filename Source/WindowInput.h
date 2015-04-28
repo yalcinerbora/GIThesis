@@ -24,12 +24,13 @@ class Window;
 class WindowInput : public InputManI
 {
 	private:
-		Camera&				camera;
 		uint32_t&			currentSolution;
 		uint32_t&			currentScene;
 		uint32_t&			currentInput;
 
 	protected:
+		Camera&				camera;
+
 	public:
 							WindowInput(Camera& cam,
 										uint32_t& currentSolution,

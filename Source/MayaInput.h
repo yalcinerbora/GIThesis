@@ -16,6 +16,15 @@ other than that it is comparable to Autodesk Maya Input
 class MayaInput : public WindowInput
 {
 	private:
+		bool			moveMode;
+		bool			translateMode;
+		double			mouseX;
+		double			mouseY;
+
+		static double	Sensitivity;
+		static double	ZoomPrecentage;
+		static double	TranslateModifier;
+
 	protected:
 	public:
 						MayaInput(Camera& cam,

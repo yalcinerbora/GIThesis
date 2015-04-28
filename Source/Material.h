@@ -10,11 +10,12 @@ Material Definition
 #include <vector>
 #include <cstdint>
 #include "GLHeader.h"
+#include "IEUtility/IEVector3.h"
 
 struct ColorMaterial
 {
-	std::string	colorFileName;
-	std::string normalFileName;
+	std::string		colorFileName;
+	std::string		normalFileName;
 };
 
 class Material

@@ -3,7 +3,7 @@
 #include "GFGLoader.h"
 
 const char* Scene::sponzaFileName = "crySponza.gfg";
-const char* Scene::cornellboxFileName = "cornellBox.gfg";
+const char* Scene::cornellboxFileName = "cornell.gfg";
 
 Scene::Scene(const char* sceneFileName)
 	: sceneVertex({element, 3})

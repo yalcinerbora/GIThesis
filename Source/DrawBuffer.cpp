@@ -107,6 +107,6 @@ void DrawBuffer::Draw()
 						  sizeof(ModelTransform));
 		glDrawElementsIndirect(GL_TRIANGLES,
 							   GL_UNSIGNED_INT,
-							   (void * ) (i * sizeof(DrawPointIndexed)));
+							   (void *) (i * sizeof(DrawPointIndexed)));
 	}
 }

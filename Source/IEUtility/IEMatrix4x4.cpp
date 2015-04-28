@@ -147,7 +147,6 @@ void IEMatrix4x4::operator*=(const IEMatrix4x4& matrix)
 
 void IEMatrix4x4::operator*=(float t)
 {
-	// Using Normal Loop isntead of unrolled one since this code will not be used as frequent.
 	for(int i = 0; i < 16; i++)
 	{
 		v[i] *= t;
@@ -156,7 +155,6 @@ void IEMatrix4x4::operator*=(float t)
 
 void IEMatrix4x4::operator+=(const IEMatrix4x4& matrix)
 {
-	// Using Normal Loop isntead of unrolled one since this code will not be used as frequent.
 	for(int i = 0; i < 16; i++)
 	{
 		v[i] += matrix.v[i];
@@ -165,7 +163,6 @@ void IEMatrix4x4::operator+=(const IEMatrix4x4& matrix)
 
 void IEMatrix4x4::operator-=(const IEMatrix4x4& matrix)
 {
-	// Using Normal Loop isntead of unrolled one since this code will not be used as frequent.
 	for(int i = 0; i < 16; i++)
 	{
 		v[i] -= matrix.v[i];
@@ -175,7 +172,6 @@ void IEMatrix4x4::operator-=(const IEMatrix4x4& matrix)
 void IEMatrix4x4::operator/=(float t)
 {
 	assert(t != 0.0f);
-	// Using Normal Loop isntead of unrolled one since this code will not be used as frequent.
 	float tinv = 1.0f / t;
 	for(int i = 0; i < 16; i++)
 	{

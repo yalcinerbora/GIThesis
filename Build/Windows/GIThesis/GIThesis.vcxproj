@@ -30,6 +30,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 7.0.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -51,15 +52,15 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
       <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;GI_DEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\Lib\x64;$(SolutionDir)..\..\Lib\x64\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glew32.lib;glfw3dll.lib;GFGFileIO.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\Lib\x64;$(SolutionDir)..\..\Lib\x64\$(Configuration);$(CudaToolkitLibDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>cudart.lib;glew32.lib;glfw3dll.lib;GFGFileIO.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy $(SolutionDir)..\..\Lib\x64\*.dll $(OutDir) /Y /I</Command>
@@ -75,7 +76,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
       <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;NDEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
@@ -84,8 +85,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\Lib\x64;$(SolutionDir)..\..\Lib\x64\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glew32.lib;glfw3dll.lib;GFGFileIO.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\Lib\x64;$(SolutionDir)..\..\Lib\x64\$(Configuration);$(CudaToolkitLibDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>cudart.lib;glew32.lib;glfw3dll.lib;GFGFileIO.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy $(SolutionDir)..\..\Lib\x64\*.dll $(OutDir) /Y /I</Command>
@@ -103,6 +104,7 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEQuaternion.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IETimer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector4.cpp" />
     <ClCompile Include="..\..\..\Source\main.cpp" />
@@ -116,10 +118,13 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\ArrayStruct.h" />
     <ClInclude Include="..\..\..\Source\Camera.h" />
+    <ClInclude Include="..\..\..\Source\CMatrix.cuh" />
+    <ClInclude Include="..\..\..\Source\COpenGLCommon.cuh" />
     <ClInclude Include="..\..\..\Source\DrawBuffer.h" />
     <ClInclude Include="..\..\..\Source\FPSInput.h" />
     <ClInclude Include="..\..\..\Source\FrameTransformBuffer.h" />
     <ClInclude Include="..\..\..\Source\GFGLoader.h" />
+    <ClInclude Include="..\..\..\Source\GIKernels.cuh" />
     <ClInclude Include="..\..\..\Source\GLHeader.h" />
     <ClInclude Include="..\..\..\Source\GLHeaderLite.h" />
     <ClInclude Include="..\..\..\Source\Globals.h" />
@@ -129,6 +134,7 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IEMatrix3x3.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEMatrix4x4.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEQuaternion.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IETimer.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEVector3.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEVector4.h" />
     <ClInclude Include="..\..\..\Source\InputManI.h" />
@@ -140,10 +146,15 @@
     <ClInclude Include="..\..\..\Source\Shader.h" />
     <ClInclude Include="..\..\..\Source\Scene.h" />
     <ClInclude Include="..\..\..\Source\TGALoad.h" />
+    <ClInclude Include="..\..\..\Source\CVoxel.cuh" />
     <ClInclude Include="..\..\..\Source\Window.h" />
     <ClInclude Include="..\..\..\Source\WindowInput.h" />
   </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="..\..\..\Source\VoxelTransform.cu" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 7.0.targets" />
   </ImportGroup>
 </Project>

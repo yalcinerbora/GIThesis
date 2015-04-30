@@ -17,7 +17,8 @@ Material::Material(ColorMaterial c)
 	s = s.substr(s.find_last_of('/') + 1);
 	s = "Textures/" + s;
 	
-	assert(LoadTGAFile(&tga, s.c_str()) == true);
+	bool result = LoadTGAFile(&tga, s.c_str());
+	assert(result == true);
 
 	// Has to be RGB uncompressed
 	assert(tga.imageTypeCode == 2);

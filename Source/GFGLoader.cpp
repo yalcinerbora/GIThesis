@@ -6,11 +6,15 @@
 #include "DrawBuffer.h"
 #include "Material.h"
 #include "IEUtility/IEMatrix4x4.h"
+#include "IEUtility/IETimer.h"
 
 GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 								DrawBuffer& drawBuffer,
 								const char* gfgFilename)
 {
+	IETimer timer;
+	timer.Start();
+
 	std::ifstream stream(gfgFilename, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
 	GFGFileLoader gfgFile(&stlFileReader);
@@ -131,5 +135,8 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 							   {transform,
 			  				    transformRotation});
 	}
+
+	timer.Stop();
+	GI_LOG("Loading \"%s\" took %f ms", gfgFilename, timer.ElapsedMilliS());
 	return GFGLoadError::OK;
 }

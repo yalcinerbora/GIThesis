@@ -24,31 +24,34 @@ void FPSInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 {
 	WindowInput::KeyboardUsedFunc(key, osKey, action, modifier);
 
-	IEVector3 lookDir = (camera.pos - camera.at).NormalizeSelf();
-	IEVector3 side = camera.up.CrossProduct(lookDir).NormalizeSelf();
-	switch(key)
+	if(!(action == GLFW_RELEASE))
 	{
-		
-		case GLFW_KEY_W:
-			camera.pos += lookDir * static_cast<float>(-MoveRatio);
-			camera.at += lookDir * static_cast<float>(-MoveRatio);
-			break;
-		case GLFW_KEY_A:
-			
-			camera.pos += side * static_cast<float>(-MoveRatio);
-			camera.at += side * static_cast<float>(-MoveRatio);
-			break;
-		case GLFW_KEY_S:
-			camera.pos += lookDir * static_cast<float>(MoveRatio);
-			camera.at += lookDir * static_cast<float>(MoveRatio);
-			break;
-		case GLFW_KEY_D:
-			camera.pos += side * static_cast<float>(MoveRatio);
-			camera.at += side * static_cast<float>(MoveRatio);
-			break;
+		IEVector3 lookDir = (camera.pos - camera.at).NormalizeSelf();
+		IEVector3 side = camera.up.CrossProduct(lookDir).NormalizeSelf();
+		switch(key)
+		{
 
-		default:
-			break;
+			case GLFW_KEY_W:
+				camera.pos += lookDir * static_cast<float>(-MoveRatio);
+				camera.at += lookDir * static_cast<float>(-MoveRatio);
+				break;
+			case GLFW_KEY_A:
+
+				camera.pos += side * static_cast<float>(-MoveRatio);
+				camera.at += side * static_cast<float>(-MoveRatio);
+				break;
+			case GLFW_KEY_S:
+				camera.pos += lookDir * static_cast<float>(MoveRatio);
+				camera.at += lookDir * static_cast<float>(MoveRatio);
+				break;
+			case GLFW_KEY_D:
+				camera.pos += side * static_cast<float>(MoveRatio);
+				camera.at += side * static_cast<float>(MoveRatio);
+				break;
+
+			default:
+				break;
+		}
 	}
 }
 

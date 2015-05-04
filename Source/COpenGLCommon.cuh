@@ -10,8 +10,9 @@ Data Transfer Structs between ogl and cuda
 #define __COPENGLCOMMON_H__
 
 #include "CMatrix.cuh"
+#include "CAxisAlignedBB.cuh"
 
-/// Object Transform Data
+// Object Transform Data
 // Comes from OGL Render Pipeline
 struct CObjectTransformOGL
 {
@@ -19,10 +20,11 @@ struct CObjectTransformOGL
 	CMatrix3x3 rotation;
 };
 
-struct CObjectAABBOGL
+typedef CAABB CObjectAABBOGL;
+
+struct CObjectVoxelInfo
 {
-	float3 min;
-	float3 max;
+	unsigned int voxelCount;
 };
 
 #endif //__COPENGLCOMMON_H__

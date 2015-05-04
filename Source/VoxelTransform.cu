@@ -6,10 +6,12 @@
 
 __global__ void VoxelTransform(CVoxelPacked* gVoxelData,
 							   CVoxelRender* gVoxelRenderData,
+							   unsigned int* gEmptyMarkArray,
+							   unsigned int& gEmptyMarkIndex,
 							   const CObjectTransformOGL* gObjTransforms,
-							   const CVoxelGrid& globalVoxel)
+							   const CVoxelGrid& gGridInfo)
 {
-	unsigned int globalId;
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	uint3 voxPos;
 	float3 normal;
 	unsigned int objectId;
@@ -21,9 +23,9 @@ __global__ void VoxelTransform(CVoxelPacked* gVoxelData,
 	// Non static object. Transform voxel & normal
 	// Generate World Position
 	float4 worldPos;
-	worldPos.x = globalVoxel.position.x + voxPos.x * globalVoxel.dimentions.w;
-	worldPos.y = globalVoxel.position.y + voxPos.y * globalVoxel.dimentions.w;
-	worldPos.z = globalVoxel.position.z + voxPos.z * globalVoxel.dimentions.w;
+	worldPos.x = gGridInfo.position.x + voxPos.x * gGridInfo.position.w;
+	worldPos.y = gGridInfo.position.y + voxPos.y * gGridInfo.position.w;
+	worldPos.z = gGridInfo.position.z + voxPos.z * gGridInfo.position.w;
 	worldPos.w = 1.0f;
 
 	// Normal Fetch (12 byte per wrap, 4 byte stride)
@@ -38,23 +40,32 @@ __global__ void VoxelTransform(CVoxelPacked* gVoxelData,
 	MultMatrixSelf(normal, rotation);
 
 	// Reconstruct Voxel Indices
-	float invSpan = 1.0f / globalVoxel.dimentions.w;
-	worldPos.x -= globalVoxel.position.x;
-	worldPos.y -= globalVoxel.position.y;
-	worldPos.z -= globalVoxel.position.z;
+	worldPos.x -= gGridInfo.position.x;
+	worldPos.y -= gGridInfo.position.y;
+	worldPos.z -= gGridInfo.position.z;
 
-	outOfBounds = worldPos.x < 0;
-	outOfBounds |= worldPos.y < 0;
-	outOfBounds |= worldPos.z < 0;
+	outOfBounds = (worldPos.x) < 0 || (worldPos.x > gGridInfo.dimension.x * gGridInfo.span);
+	outOfBounds |= (worldPos.y) < 0 || (worldPos.x > gGridInfo.dimension.y * gGridInfo.span);
+	outOfBounds |= (worldPos.z) < 0 || (worldPos.x > gGridInfo.dimension.z * gGridInfo.span);
 
-	voxPos.x = static_cast<unsigned int>((worldPos.x -= globalVoxel.position.x) * invSpan);
-	voxPos.y = static_cast<unsigned int>((worldPos.y -= globalVoxel.position.y) * invSpan);
-	voxPos.z = static_cast<unsigned int>((worldPos.z -= globalVoxel.position.z) * invSpan);
+	float invSpan = 1.0f / gGridInfo.span;
+	voxPos.x = static_cast<unsigned int>((worldPos.x) * invSpan);
+	voxPos.y = static_cast<unsigned int>((worldPos.y) * invSpan);
+	voxPos.z = static_cast<unsigned int>((worldPos.z) * invSpan);
 
 	// Now Write
+	// Discard the out of bound voxel since other kernel calls will introduce if the obj
+	// will come back into the grid
 	if(!outOfBounds)
 	{
 		PackVoxelData(gVoxelData[globalId], voxPos, objectId);
 		gVoxelRenderData[globalId].normal = normal;
+	}
+	else
+	{
+		// Mark this node as deleted so that voxel introduce kernel
+		// Adds a voxel to this node
+		unsigned int index = atomicAdd(&gEmptyMarkIndex, 1);
+		gEmptyMarkArray[index] = globalId;
 	}
 }

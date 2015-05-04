@@ -148,6 +148,12 @@
     <ClInclude Include="..\..\..\Source\GIKernels.cuh">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSparseVoxelOctree.cuh">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CAxisAlignedBB.cuh">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -183,6 +189,12 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
+      <Filter>GI\Thesis</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu">
+      <Filter>GI\Thesis</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\VoxelIntroduce.cu">
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
   </ItemGroup>

@@ -53,6 +53,9 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IETimer.cpp">
       <Filter>IEUtility</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\GICudaAllocator.cpp">
+      <Filter>GI\Thesis</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -136,22 +139,28 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IETimer.h">
       <Filter>IEUtility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CVoxel.cuh">
-      <Filter>GI\Thesis</Filter>
+    <ClInclude Include="..\..\..\Source\CAxisAlignedBB.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CMatrix.cuh">
-      <Filter>GI\Thesis</Filter>
+      <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\COpenGLCommon.cuh">
-      <Filter>GI\Thesis</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\GIKernels.cuh">
-      <Filter>GI\Thesis</Filter>
+      <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CSparseVoxelOctree.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CVoxel.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GIKernels.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GICudaAllocator.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CAxisAlignedBB.cuh">
+    <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
   </ItemGroup>
@@ -171,9 +180,6 @@
     <Filter Include="Utility">
       <UniqueIdentifier>{0c0c5d97-d5a8-4fc4-b022-6907a5f9f17d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders">
-      <UniqueIdentifier>{0b0be54b-6ea0-4ecc-ad07-7472afcb8661}</UniqueIdentifier>
-    </Filter>
     <Filter Include="IEUtility">
       <UniqueIdentifier>{2073ad5f-7a9c-4110-8afc-ce1777fd65fb}</UniqueIdentifier>
     </Filter>
@@ -183,19 +189,25 @@
     <Filter Include="GI\Thesis">
       <UniqueIdentifier>{afa03737-38bd-4ee1-83ab-546a12b2b587}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GI\None">
+    <Filter Include="GI\Thesis\Kernels">
+      <UniqueIdentifier>{4f34e759-a7c5-4373-8e03-cced9f1d8520}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GI\NoGI">
       <UniqueIdentifier>{80b0a780-589a-471a-8ac7-b016ee8c3c69}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
-      <Filter>GI\Thesis</Filter>
-    </CudaCompile>
     <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu">
-      <Filter>GI\Thesis</Filter>
+      <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelIntroduce.cu">
-      <Filter>GI\Thesis</Filter>
+      <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\CMatrix.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

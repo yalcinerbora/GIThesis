@@ -14,13 +14,13 @@ Data Transfer Structs between ogl and cuda
 
 // Object Transform Data
 // Comes from OGL Render Pipeline
-struct CObjectTransformOGL
+struct CObjectTransform
 {
 	CMatrix4x4 transform;
 	CMatrix3x3 rotation;
 };
 
-typedef CAABB CObjectAABBOGL;
+typedef CAABB CObjectAABB;
 
 struct CObjectVoxelInfo
 {

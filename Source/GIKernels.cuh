@@ -7,38 +7,33 @@ Global Illumination Kernels
 #ifndef __GIKERNELS_H__
 #define __GIKERNELS_H__
 
-#include <cuda_runtime.h>
-#include <cuda.h>
+#include "GICudaAllocator.h"
 
-struct CVoxelPacked;
+struct CAABB;
+typedef CAABB CObjectAABB;
+typedef uint2 CVoxelPacked;
+struct CObjectTransform;
 struct CVoxelRender;
-struct CObjectTransformOGL;
+struct CVoxelData;
 struct CVoxelGrid;
-struct CObjectAABBOGL;
 struct CSVONode;
 
 // Voxel Transform
 // Transforms existing voxels in order to cut voxel reconstruction each frame
 // Call Logic "per voxel in the grid"
-__global__ void VoxelTransform(CVoxelPacked* gVoxelData,
-							   CVoxelRender* gVoxelRenderData,
-							   unsigned int* gEmptyMarkArray,
-							   unsigned int& gEmptyMarkIndex,
-							   const CObjectTransformOGL* gObjTransforms,
-							   const CVoxelGrid& gGridInfo);
-
+__global__ void VoxelTransform(CVoxelData* gVoxelData,
+							   CVoxelGrid& gGridInfo,
+							   const float3 newGridPos,
+							   const CObjectTransform* gObjTransformsRelative);
 
 // Voxel Introduce
 // Introduces existing voxel to the voxel grid
 // Call Logic "per voxel in an object"
-__global__ void VoxelIntroduce(CVoxelPacked* gVoxelData,
-							   CVoxelRender* gVoxelRenderData,
-							   unsigned int* gEmptyMarkArray,
-							   unsigned int& gEmptyMarkIndex,
+__global__ void VoxelIntroduce(CVoxelData* gVoxelData,
 							   const CVoxelPacked* gObjectVoxelCache,
 							   const CVoxelRender* gObjectVoxelRenderCache,
-							   const CObjectTransformOGL& gObjTransform,
-							   const CVoxelGrid& gGridInfo));
+							   const CObjectTransform& gObjTransform,
+							   const CVoxelGrid& gGridInfo);
 
 // Voxel Introduce Helper Function
 // Object Cull
@@ -46,8 +41,8 @@ __global__ void VoxelIntroduce(CVoxelPacked* gVoxelData,
 // Call Logic "per object"
 __global__ void VoxelObjectCull(unsigned int* gObjectIndices,
 								unsigned int& gIndicesIndex,
-								const CObjectAABBOGL* gObjectAABB,
-								const CObjectTransformOGL* gObjTransforms,
+								const CObjectAABB* gObjectAABB,
+								const CObjectTransform* gObjTransforms,
 								const CVoxelGrid& gGridInfo);
 
 // Reconstruct SVO
@@ -55,17 +50,11 @@ __global__ void VoxelObjectCull(unsigned int* gObjectIndices,
 // Implementation is opposite of parallel reduction
 // Call Logic "per svo node (varying)"
 __global__ void SVOReconstruct(CSVONode* svo,
-	
-								const CVoxelPacked* gVoxelData,
-
-							   );
+							   const CVoxelPacked* gVoxelData);
 
 
 // Voxelize
 // Do Voxelization of a mesh
 // Its better to use OGL here since we render triangles to a array
-
-
-
 
 #endif //__GIKERNELS_H__

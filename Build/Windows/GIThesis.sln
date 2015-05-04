@@ -10,6 +10,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shaders", "Shaders", "{67A1
 		..\..\WorkingDir\Shaders\AGenericMaterial.frag = ..\..\WorkingDir\Shaders\AGenericMaterial.frag
 		..\..\WorkingDir\Shaders\GWriteGeneric.frag = ..\..\WorkingDir\Shaders\GWriteGeneric.frag
 		..\..\WorkingDir\Shaders\GWriteGeneric.vert = ..\..\WorkingDir\Shaders\GWriteGeneric.vert
+		..\..\WorkingDir\Shaders\VoxelizeGeom.frag = ..\..\WorkingDir\Shaders\VoxelizeGeom.frag
+		..\..\WorkingDir\Shaders\VoxelizeGeom.vert = ..\..\WorkingDir\Shaders\VoxelizeGeom.vert
 	EndProjectSection
 EndProject
 Global

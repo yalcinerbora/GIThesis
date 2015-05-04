@@ -16,7 +16,7 @@ struct CAABB
 	float3	max;	// Voxel Grid Dimentions last component voxel span
 };
 
-__device__ bool Intersects(const CAABB& boxA, const CAABB& boxB)
+__device__ inline  bool Intersects(const CAABB& boxA, const CAABB& boxB)
 {
 	bool result = true;
 	result &= (boxA.max.x >= boxB.min.x) && (boxB.max.x >= boxA.min.x);	

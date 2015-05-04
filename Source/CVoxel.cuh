@@ -29,10 +29,24 @@ struct CVoxelRender
 };
 
 //
-__device__ void ExpandVoxelData(uint3& voxPos, unsigned int& objID, 
-								const CVoxelPacked& packedVoxData);
-__device__ void PackVoxelData(CVoxelPacked& packedVoxData,
-							  const uint3& voxPos, 
-							  const unsigned int& objID);
+__device__ inline void ExpandVoxelData(uint3& voxPos, 
+									   unsigned int& objId,
+									   const CVoxelPacked& packedVoxData)
+{
+	voxPos.x	= (packedVoxData.x && 0x0000FFFF);
+	voxPos.y	= (packedVoxData.x && 0xFFFF0000) >> 16;
+	voxPos.z	= (packedVoxData.y && 0x0000FFFF);
+	objId		= (packedVoxData.y && 0xFFFF0000) >> 16;
+}
+
+__device__  inline void PackVoxelData(CVoxelPacked& packedVoxData,
+									  const uint3& voxPos,
+									  const unsigned int& objId)
+{
+	packedVoxData.x  = voxPos.x;
+	packedVoxData.x |= voxPos.y << 16;
+	packedVoxData.y  = voxPos.z;
+	packedVoxData.y |= objId	<< 16;
+}
 
 #endif //__CVOXEL_H__

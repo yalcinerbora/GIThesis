@@ -15,18 +15,35 @@ Holds draw point buffer
 #include "Material.h"
 #include "IEUtility/IEMatrix4x4.h"
 #include "IEUtility/IEMatrix3x3.h"
+#include "IEUtility/IEVector4.h"
 
 struct DrawPointIndexed;
 
+#pragma pack(push, 1)
 struct ModelTransform
 {
 	IEMatrix4x4 model;
-	IEMatrix3x3 modelRotation;
+	// Because of the std140 rule (each column of 3x3 matrix should be 
+	// interleaved vec4 boundaries
+	IEVector4 modelRotationC1;
+	IEVector4 modelRotationC2;
+	IEVector4 modelRotationC3;
 
 	// TODO: This is a bullshit solution it only works on my cards but w/e
-	// OffsetAlignment
-	uint8_t offset[256 - sizeof(IEMatrix4x4) - sizeof(IEMatrix3x3)];
+	// OffsetAlignment is 256 on my GTX660Ti and Quadro 4000
+	uint8_t offset[256 - sizeof(IEMatrix4x4) - (sizeof(IEVector4) * 3)];
 };
+
+struct AABBData
+{
+	float min[4];
+	float max[4];
+
+	// TODO: This is a bullshit solution it only works on my cards but w/e
+	// OffsetAlignment is 256 on my GTX660Ti and Quadro 4000
+	uint8_t offset[256 - sizeof(float) * 8];
+};
+#pragma pack(pop)
 
 class DrawBuffer
 {

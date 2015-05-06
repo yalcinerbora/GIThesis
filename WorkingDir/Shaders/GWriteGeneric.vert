@@ -22,8 +22,8 @@
 #define OUT_UV layout(location = 0)
 #define OUT_NORMAL layout(location = 1)
 
-#define U_FTRANSFORM layout(binding = 0)
-#define U_RENDER layout(binding = 1)
+#define U_FTRANSFORM layout(std140, binding = 0)
+#define U_RENDER layout(std140, binding = 1)
 
 // Input
 in IN_POS vec3 vPos;
@@ -42,7 +42,7 @@ U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
 	mat4 projection;
-	mat3 viewRotation;
+	mat4 viewRotation;
 };
 
 U_RENDER uniform ModelTransform

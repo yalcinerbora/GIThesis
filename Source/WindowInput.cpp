@@ -56,9 +56,11 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 		// Solution Change
 		case GLFW_KEY_KP_7:
 			GI_LOG("Changing Solution");
+			currentSolution++;
 			break;
 		case GLFW_KEY_KP_9:
 			GI_LOG("Changing Solution");
+			currentSolution--;
 			break;
 
 		// Scene Change

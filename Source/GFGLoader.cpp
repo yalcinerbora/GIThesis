@@ -6,15 +6,13 @@
 #include "DrawBuffer.h"
 #include "Material.h"
 #include "IEUtility/IEMatrix4x4.h"
-#include "IEUtility/IETimer.h"
+#include "Scene.h"
 
-GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
+GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
+								GPUBuffer& buffer,
 								DrawBuffer& drawBuffer,
 								const char* gfgFilename)
 {
-	IETimer timer;
-	timer.Start();
-
 	std::ifstream stream(gfgFilename, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
 	GFGFileLoader gfgFile(&stlFileReader);
@@ -34,6 +32,8 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 	}
 	if(!buffer.HasEnoughSpaceFor(vertexCount, indexCount))
 		return GFGLoadError::NOT_ENOUGH_SIZE;
+	params.totalPolygons = indexCount / 3;
+	
 
 	// Get All Mesh Vertex Data
 	std::vector<uint8_t> vertexData;
@@ -66,7 +66,9 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 			GI_ERROR_LOG("Failed to Load Mesh to GPU Buffer %s", gfgFilename);
 			return GFGLoadError::FATAL_ERROR;
 		}
+		params.objectCount++;
 	}
+	
 
 	int matIndex = -1;
 	for(const GFGMaterialHeader& mat : gfgFile.Header().materials)
@@ -96,6 +98,7 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 		//	material.normalFileName = reinterpret_cast<char*>(texNames.data() + start);
 		//}
 		drawBuffer.AddMaterial(material);
+		params.materialCount++;
 	}
 
 	for(const GFGMeshMatPair& pair : gfgFile.Header().meshMaterialConnections.pairs)
@@ -130,13 +133,18 @@ GFGLoadError GFGLoader::LoadGFG(GPUBuffer& buffer,
 			}
 		}
 
-		drawBuffer.AddDrawCall(dpi,
-							   pair.materialIndex,
-							   {transform,
-			  				    transformRotation});
+		drawBuffer.AddDrawCall
+		(
+			dpi,
+			pair.materialIndex,
+			{ 
+				transform,
+				IEVector4(transformRotation(1, 1), transformRotation(2, 1), transformRotation(3, 1), 0.0f),
+				IEVector4(transformRotation(1, 2), transformRotation(2, 2), transformRotation(3, 2), 0.0f),
+				IEVector4(transformRotation(1, 3), transformRotation(2, 3), transformRotation(3, 3), 0.0f) 
+			}
+		);
+		params.drawCallCount++;
 	}
-
-	timer.Stop();
-	GI_LOG("Loading \"%s\" took %f ms", gfgFilename, timer.ElapsedMilliS());
 	return GFGLoadError::OK;
 }

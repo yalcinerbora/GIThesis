@@ -59,11 +59,15 @@ class GICudaAllocator
 
 
 		// Utility
+		// Voxel caches
 		uint32_t	CreateVoxelCache(GLuint& createdBuffer,
 									 size_t voxelCount,
 									 const CObjectAABB& aabb,
 									 const CObjectVoxelInfo& info);
 		bool		DeleteVoxelCache(uint32_t cacheId);
+
+		// Per-Object buffer Related
+		void		LinkAABBBufferFromOGL(GLuint bufferId);
 		void		LinkTransformBufferFromOGL(GLuint bufferId);
 		void		LinkRelativeTransformBufferFromOGL(GLuint bufferId);
 

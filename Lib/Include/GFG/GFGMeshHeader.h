@@ -30,6 +30,12 @@ struct GFGVertexComponent
 	uint64_t				stride;			// Stride of this data structure (in bytes)
 };
 
+struct GFGAABB
+{
+	float min[3];
+	float max[3];
+};
+
 // Core Header
 struct GFGMeshHeaderCore
 {
@@ -44,6 +50,8 @@ struct GFGMeshHeaderCore
 	uint64_t			vertexStart;	// Starting Location of Vertex Data (byte offset relative to Data Start)
 	uint64_t			indexStart;		// Starting Location of Index Data (byte offset relative to Data Start)
 
+	GFGAABB				aabb;			// Axis Aligned bounding box (object space)
+
 	// Components
 	uint32_t			componentCount;	// # of components
 };
@@ -56,7 +64,8 @@ struct GFGMeshHeader
 
 static_assert (sizeof(GFGMeshHeaderCore) ==
 			   sizeof(uint64_t) * 4
-			   + sizeof(uint32_t) * 3,
+			   + sizeof(uint32_t) * 3
+			   + sizeof(float) * 6,
 			   "Mesh Header Core Size Mismatch from GFG Definition");
 
 static_assert (sizeof(GFGVertexComponent) ==

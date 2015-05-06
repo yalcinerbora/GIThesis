@@ -20,10 +20,6 @@ class GICudaVoxelScene
 
 	public:
 
-
-
-
-
 		// Determines and Allocates the initial Page Size for the first frame
 		void				AllocateInitialPages();
 

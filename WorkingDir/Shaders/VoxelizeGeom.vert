@@ -9,7 +9,6 @@
 		Voxelizes Geometry
 */
 
-
 #define IN_POS layout(location = 0)
 #define IN_NORMAL layout(location = 1)
 #define IN_UV layout(location = 2)
@@ -18,7 +17,7 @@
 #define OUT_NORMAL layout(location = 1)
 #define OUT_POS layout(location = 1)
 
-#define U_RENDER layout(binding = 1)
+#define U_FTRANSFORM layout(binding = 0)
 
 // Input
 in IN_POS vec3 vPos;
@@ -33,17 +32,16 @@ out OUT_NORMAL vec3 fNormal;
 // Textures
 
 // Uniforms
-U_RENDER uniform ModelTransform
+U_FTRANSFORM uniform FrameTransform
 {
-	mat4 model;
-	mat3 modelRotation;
+	mat4 view;
+	mat4 projection;
+	mat4 viewRotation;
 };
 
 void main(void)
 {
 	fUV = vUV;
-	fNormal = modelRotation * vNormal;
-	fPosition =
-
-	gl_Position =  model * vec4(vPos.xyz, 1.0f);
+	fNormal = vNormal;
+	gl_Position = projection * vec4(vPos.xyz, 1.0f);
 }

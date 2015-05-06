@@ -30,4 +30,7 @@ __device__ void MultMatrixSelf(CMatrix4x4&, const CMatrix4x4&);
 __device__ void MultMatrixSelf(float3&, const CMatrix3x3&);
 __device__ void MultMatrixSelf(CMatrix3x3&, const CMatrix3x3&);
 
+__device__ float3 ExtractScaleInfo(const CMatrix4x4&);
+__device__ float3 ExtractScaleInfo(const CMatrix3x3&);
+
 #endif //__CMATRIX4X4_H__

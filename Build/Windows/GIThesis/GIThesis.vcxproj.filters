@@ -56,6 +56,12 @@
     <ClCompile Include="..\..\..\Source\GICudaAllocator.cpp">
       <Filter>GI\Thesis</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\EmptyGISolution.cpp">
+      <Filter>GI\NoGI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\ThesisSolution.cpp">
+      <Filter>GI\Thesis</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -163,6 +169,15 @@
     <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\ThesisSolution.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\SolutionI.h">
+      <Filter>GI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\EmptyGISolution.h">
+      <Filter>GI\NoGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -194,6 +209,9 @@
     </Filter>
     <Filter Include="GI\NoGI">
       <UniqueIdentifier>{80b0a780-589a-471a-8ac7-b016ee8c3c69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GI\Thesis\OGL">
+      <UniqueIdentifier>{0ba2f6db-f4c0-4910-9fbe-02c4444b0d3f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

@@ -7,15 +7,15 @@
 #include "COpenGLCommon.cuh"
 
 __global__ void VoxelIntroduce(CVoxelData* gVoxelData,
+							   const unsigned int gPageAmount,
 							   const CVoxelPacked* gObjectVoxelCache,
 							   const CVoxelRender* gObjectVoxelRenderCache,
 							   const CObjectTransform& gObjTransform,
 							   const CObjectAABB& objAABB,
+							   const float objectGridSpan,
 							   const CVoxelGrid& gGridInfo)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	//unsigned int pageId = blockIdx.x % GI_BLOCK_PER_PAGE;
-	//unsigned int pageLocalId = threadIdx.x + pageId * blockDim.x;
 
 	// Mem Fetch
 	unsigned int objectId;
@@ -24,46 +24,71 @@ __global__ void VoxelIntroduce(CVoxelData* gVoxelData,
 
 	// Generate Model Space Position from voxel
 	float4 localPos;
-	localPos.x = objAABB.min.x + voxPos.x * gGridInfo.span;
-	localPos.y = objAABB.min.y + voxPos.y * gGridInfo.span;
-	localPos.z = objAABB.min.z + voxPos.z * gGridInfo.span;
+	localPos.x = objAABB.min.x + voxPos.x * objectGridSpan;
+	localPos.y = objAABB.min.y + voxPos.y * objectGridSpan;
+	localPos.z = objAABB.min.z + voxPos.z * objectGridSpan;
 	localPos.w = 1.0f;
+
+	// Convert it to world space
 	MultMatrixSelf(localPos, gObjTransform.transform);
 
-	// Compare world pos with grid
-	// Reconstruct Voxel Indices relative to the new pos of the grid
-	localPos.x -= gGridInfo.position.x;
-	localPos.y -= gGridInfo.position.y;
-	localPos.z -= gGridInfo.position.z;
+	// We need to check scaling and adjust span
+	// Objects may have different voxel sizes and voxel sizes may change after scaling
+	float3 scaling = ExtractScaleInfo(gObjTransform.transform);
+	uint3 voxelDim;
+	voxelDim.x = static_cast<unsigned int>(objectGridSpan * scaling.x / gGridInfo.span);
+	voxelDim.y = static_cast<unsigned int>(objectGridSpan * scaling.y / gGridInfo.span);
+	voxelDim.z = static_cast<unsigned int>(objectGridSpan * scaling.z / gGridInfo.span);
 
-	bool outOfBounds;
-	outOfBounds = (localPos.x) < 0 || (localPos.x > gGridInfo.dimension.x * gGridInfo.span);
-	outOfBounds |= (localPos.y) < 0 || (localPos.x > gGridInfo.dimension.y * gGridInfo.span);
-	outOfBounds |= (localPos.z) < 0 || (localPos.x > gGridInfo.dimension.z * gGridInfo.span);
+	// Discard if voxel is too small
+	if(voxelDim.x * voxelDim.y * voxelDim.z == 0.0f) return;
 
-	if(!outOfBounds)
+	// We need to construct additional voxels if this voxel spans multiple gird locations
+	for(unsigned int i = 0; i < voxelDim.x * voxelDim.y * voxelDim.z; i++)
 	{
-		float3 normal = gObjectVoxelRenderCache[globalId].normal;
-		MultMatrixSelf(normal, gObjTransform.rotation);
+		float3 localPosSubVox;  
+		localPosSubVox.x = localPos.x + (2 * (i % voxelDim.x) - voxelDim.x) * objectGridSpan / 0.5f;
+		localPosSubVox.y = localPos.y + (2 * (i % voxelDim.y) - voxelDim.y) * objectGridSpan / 0.5f;
+		localPosSubVox.z = localPos.z + (2 * (i % voxelDim.z) - voxelDim.z) * objectGridSpan / 0.5f;
 
-		float invSpan = 1.0f / gGridInfo.span;
-		voxPos.x = static_cast<unsigned int>((localPos.x) * invSpan);
-		voxPos.y = static_cast<unsigned int>((localPos.y) * invSpan);
-		voxPos.z = static_cast<unsigned int>((localPos.z) * invSpan);
+		// For each newly introduced voxel
+		// Compare world pos with grid
+		// Reconstruct Voxel Indices relative to the new pos of the grid
+		localPosSubVox.x -= gGridInfo.position.x;
+		localPosSubVox.y -= gGridInfo.position.y;
+		localPosSubVox.z -= gGridInfo.position.z;
 
-		// Determine A Position
-		// TODO: Optimize this (template loop unrolling)
-		// page size should be adjusted to compensate that (multiples of two)
-		for(unsigned int i = 0; i < gPageAmount; i++)
+		bool outOfBounds;
+		outOfBounds = (localPosSubVox.x) < 0 || (localPosSubVox.x > gGridInfo.dimension.x * gGridInfo.span);
+		outOfBounds |= (localPosSubVox.y) < 0 || (localPosSubVox.x > gGridInfo.dimension.y * gGridInfo.span);
+		outOfBounds |= (localPosSubVox.z) < 0 || (localPosSubVox.x > gGridInfo.dimension.z * gGridInfo.span);
+
+		if(!outOfBounds)
 		{
-			// Check this pages empty spaces
-			unsigned int location;
-			location = atomicDec(&gVoxelData[i].dEmptyElementIndex, 0xFFFFFFFF);
-			if(location != 0xFFFFFFFF)
+			float3 normal = gObjectVoxelRenderCache[globalId].normal;
+			MultMatrixSelf(normal, gObjTransform.rotation);
+
+			float invSpan = 1.0f / gGridInfo.span;
+			voxPos.x = static_cast<unsigned int>((localPos.x) * invSpan);
+			voxPos.y = static_cast<unsigned int>((localPos.y) * invSpan);
+			voxPos.z = static_cast<unsigned int>((localPos.z) * invSpan);
+
+			// Determine A Position
+			// TODO: Optimize this (template loop unrolling)
+			// page size should be adjusted to compensate that (multiples of two)
+			// shoudl be like 256 pages at most
+			for(unsigned int i = 0; i < gPageAmount; i++)
 			{
-				// Found a Space
-				PackVoxelData(gVoxelData[i].dGridVoxels[location], voxPos, globalId + 1);
-				gVoxelData[i].dVoxelsRenderData[location].normal = normal;
+				// Check this pages empty spaces
+				unsigned int location;
+				location = atomicDec(&gVoxelData[i].dEmptyElementIndex, 0xFFFFFFFF);
+				if(location != 0xFFFFFFFF)
+				{
+					// Found a Space
+					// Write
+					PackVoxelData(gVoxelData[i].dGridVoxels[location], voxPos, globalId + 1);
+					gVoxelData[i].dVoxelsRenderData[location].normal = normal;
+				}
 			}
 		}
 	}

@@ -30,9 +30,11 @@ __global__ void VoxelTransform(CVoxelData* gVoxelData,
 // Introduces existing voxel to the voxel grid
 // Call Logic "per voxel in an object"
 __global__ void VoxelIntroduce(CVoxelData* gVoxelData,
+							   const unsigned int gPageAmount,
 							   const CVoxelPacked* gObjectVoxelCache,
 							   const CVoxelRender* gObjectVoxelRenderCache,
 							   const CObjectTransform& gObjTransform,
+							   const CObjectAABB& objAABB,
 							   const CVoxelGrid& gGridInfo);
 
 // Voxel Introduce Helper Function

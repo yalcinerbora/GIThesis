@@ -13,6 +13,7 @@ Helper Class that loads GFG directly to the buffer
 class GPUBuffer;
 class DrawBuffer;
 class Material;
+struct SceneParams;
 
 enum class GFGLoadError
 {
@@ -30,7 +31,8 @@ enum class GFGLoadError
 namespace GFGLoader
 {
 	// Mesh Related
-	GFGLoadError	LoadGFG(GPUBuffer& buffer,
+	GFGLoadError	LoadGFG(SceneParams& params,
+							GPUBuffer& buffer,
 							DrawBuffer& drawBuffer,
 							const char* gfgFilename);
 

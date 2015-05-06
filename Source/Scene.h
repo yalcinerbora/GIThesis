@@ -9,12 +9,28 @@
 #include "GPUBuffer.h"
 #include "DrawBuffer.h"
 
+struct SceneParams
+{
+	size_t				materialCount;
+	size_t				objectCount;
+	size_t				drawCallCount;
+	size_t				totalPolygons;
+};
+
+
 class Scene : public SceneI
 {
 	private:
 		// Props
 		GPUBuffer			sceneVertex;
 		DrawBuffer			drawParams;
+	//	AABBBuffer			aabbBuffer;
+
+		// Some Data Related to the scene
+		size_t				materialCount;
+		size_t				objectCount;
+		size_t				drawCallCount;
+		size_t				totalPolygons;
 
 	protected:
 	public:

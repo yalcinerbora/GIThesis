@@ -16,6 +16,7 @@ Holds draw point buffer
 #include "IEUtility/IEMatrix4x4.h"
 #include "IEUtility/IEMatrix3x3.h"
 #include "IEUtility/IEVector4.h"
+#include "StructuredBuffer.h"
 
 struct DrawPointIndexed;
 
@@ -41,43 +42,40 @@ struct AABBData
 
 	// TODO: This is a bullshit solution it only works on my cards but w/e
 	// OffsetAlignment is 256 on my GTX660Ti and Quadro 4000
-	uint8_t offset[256 - sizeof(IEVector4) * 2];
+	//uint8_t offset[256 - sizeof(IEVector4) * 2];
 };
 #pragma pack(pop)
 
 class DrawBuffer
 {
 	private:
-		static uint32_t					drawParamSize;
-		static uint32_t					drawParamFactor;
-		static uint32_t					transformFactor;
-		static uint32_t					transformSize;
+		static uint32_t						initialCapacity;
+		
+		StructuredBuffer<DrawPointIndexed>	drawPoints;
+		StructuredBuffer<ModelTransform>	drawTransforms;
+		StructuredBuffer<AABBData>			drawAABBs;
 
-		GLuint							drawParamBuffer;
-		GLuint							transformBuffer;
-		uint32_t						transSize;
-		uint32_t						dpSize;
-		bool							dataChanged;
-
-		std::vector<DrawPointIndexed>	drawData;
-		std::vector<ModelTransform>		transformData;
-		std::vector<uint32_t>			materialIndex;
-		std::vector<Material>			materials;
+		std::vector<uint32_t>				materialIndex;
+		std::vector<Material>				materials;
 
 	protected:
 	public:
 		// Constructors & Destructor
-										DrawBuffer();
-										DrawBuffer(const DrawBuffer&) = delete;
-		const DrawBuffer&				operator=(const DrawBuffer&) = delete;
-										~DrawBuffer();
+											DrawBuffer();
+											DrawBuffer(const DrawBuffer&) = delete;
+		const DrawBuffer&					operator=(const DrawBuffer&) = delete;
+											~DrawBuffer() = default;
 
 		// 
-		void							AddMaterial(ColorMaterial);
-		void							AddDrawCall(DrawPointIndexed, 
-													uint32_t materialIndex,
-													ModelTransform modelTransform,
-													AABBData aabb);
-		void							Draw();
+		void								AddMaterial(const ColorMaterial&);
+		void								AddDrawCall(const DrawPointIndexed&,
+														uint32_t materialIndex,
+														const ModelTransform& modelTransform,
+														const AABBData& aabb);
+		void								Draw();
+
+
+		StructuredBuffer<ModelTransform>&	getModelTransformBuffer();
+		StructuredBuffer<AABBData>&			getAABBBuffer();
 };
 #endif //__DRAWBUFFER_H__

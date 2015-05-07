@@ -93,6 +93,7 @@ Shader::~Shader()
 void Shader::Bind()
 {
 	glUseProgramStages(shaderPipelineID, ShaderTypeToGLBit(shaderType), shaderID);
+	glActiveShaderProgram(shaderPipelineID, shaderID);
 }
 
 bool Shader::IsValid() const

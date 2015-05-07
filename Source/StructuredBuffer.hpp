@@ -1,6 +1,6 @@
 
 template <class T>
-float StructuredBuffer<T>::resizeFactor = 1.5f;
+size_t StructuredBuffer<T>::resizeFactor = 2;
 
 template <class T>
 StructuredBuffer<T>::StructuredBuffer(size_t initialCapacity)
@@ -8,6 +8,7 @@ StructuredBuffer<T>::StructuredBuffer(size_t initialCapacity)
 	, bufferCapacity(initialCapacity)
 	, dataChanged(true)
 {
+	assert(initialCapacity != 0);
 	glGenBuffers(1, &bufferId);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
 	glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),
@@ -27,14 +28,15 @@ void  StructuredBuffer<T>::ResendData()
 	{
 		if(dataGPUImage.size() > bufferCapacity)
 		{
-			bufferCapacity = static_cast<size_t>(bufferCapacity * resizeFactor);
+			bufferCapacity = bufferCapacity * resizeFactor;
 
 			GLuint newBuffer;
 
 			// Param Buffer
 			glGenBuffers(1, &newBuffer);
 			glBindBuffer(GL_COPY_WRITE_BUFFER, newBuffer);
-			glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),
+			glBufferData(GL_COPY_WRITE_BUFFER, 
+						 bufferCapacity * sizeof(T),
 						 nullptr,
 						 GL_DYNAMIC_DRAW);
 			glDeleteBuffers(1, &bufferId);
@@ -110,5 +112,48 @@ void StructuredBuffer<T>::BindAsShaderStorageBuffer(GLuint location)
 template <class T>
 void StructuredBuffer<T>::BindAsDrawIndirectBuffer()
 {
+	ResendData();
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, bufferId);
+}
+
+template <class T>
+void StructuredBuffer<T>::Resize(size_t count)
+{
+	if(count < bufferCapacity) return;
+
+	GLuint newBuffer;
+	glGenBuffers(1, &newBuffer);
+
+	glBindBuffer(GL_COPY_WRITE_BUFFER, newBuffer);
+	glBufferData(GL_COPY_WRITE_BUFFER, count * sizeof(T), 
+				 nullptr,
+				 GL_DYNAMIC_DRAW);
+
+	glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
+	glCopyBufferSubData(GL_COPY_READ_BUFFER,
+						GL_COPY_WRITE_BUFFER,
+						0, 0,
+						dataGPUImage.size() * sizeof(T));
+
+	glDeleteBuffers(1, &bufferId);
+	bufferId = newBuffer;
+	bufferCapacity = count;
+}
+
+template <class T>
+void StructuredBuffer<T>::SyncData(size_t newSize)
+{
+	// Data Altered on the buffer
+	// Move this data to CPU
+	dataGPUImage.resize(newSize);
+	glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
+	glGetBufferSubData(GL_COPY_READ_BUFFER, 0, newSize * sizeof(T),
+					   dataGPUImage.data());
+
+}
+
+template <class T>
+const std::vector<T>& StructuredBuffer<T>::CPUData() const
+{
+	return dataGPUImage;
 }

@@ -10,14 +10,9 @@
 */
 
 // Definitions
-#define IN_UV layout(location = 0)
-#define IN_NORMAL layout(location = 1)
-
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
 
 // Input
-in IN_UV vec2 fUV;
-in IN_NORMAL vec3 fNormal;
 
 // Output
 

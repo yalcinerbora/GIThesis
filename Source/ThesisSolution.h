@@ -12,6 +12,27 @@ Solution implementtion
 #include "Shader.h"
 #include "FrameTransformBuffer.h"
 #include "GICudaVoxelScene.h"
+#include "StructuredBuffer.h"
+#include "IEUtility/IEVector3.h"
+
+#pragma pack(push, 1)
+struct ObjGridInfo
+{
+	float span;
+	uint32_t voxCount;
+};
+
+struct VoxelData
+{
+	uint32_t vox[2];
+};
+
+struct VoxelRenderData
+{
+	IEVector3 normal;
+	uint32_t color;
+};
+#pragma pack(pop)
 
 class ThesisSolution : public SolutionI
 {
@@ -28,15 +49,16 @@ class ThesisSolution : public SolutionI
 
 		FrameTransformBuffer	cameraTransform;
 
-		std::vector<GLuint>		voxelObjectData;
-		std::vector<GLuint>		voxelObjectRenderData;
-		std::vector<GLuint>		voxelVAO;
-
-		std::vector<size_t>		objVoxelSizes;
-		GLuint					objGridInfoBuffer;
+		StructuredBuffer<ObjGridInfo>				objectGridInfo;
+		std::vector<StructuredBuffer<VoxelData>>	voxelData;
+		std::vector<StructuredBuffer<VoxelData>>	voxelRenderData;
+		std::vector<GLuint>							voxelVAO;
 
 		// Cuda Segment
 		GICudaVoxelScene		voxelScene;
+
+		static size_t			InitialObjectGridSize;
+		static size_t			InitialVoxelBufferSizes;
 
 	protected:
 		void					CreateVoxel(size_t index);
@@ -44,6 +66,8 @@ class ThesisSolution : public SolutionI
 
 	public:
 								ThesisSolution();
+								ThesisSolution(const ThesisSolution&) = delete;
+		const ThesisSolution&	operator= (const ThesisSolution&) = delete;
 								~ThesisSolution() = default;
 
 		// Interface

@@ -16,7 +16,7 @@ template <class T>
 class StructuredBuffer
 {
 	private:
-		static	float			resizeFactor;
+		static	size_t			resizeFactor;
 
 		GLuint					bufferId;
 		size_t					bufferCapacity;
@@ -46,6 +46,11 @@ class StructuredBuffer
 														  GLuint countSize);
 		void					BindAsShaderStorageBuffer(GLuint location);
 		void					BindAsDrawIndirectBuffer();
+
+		void					Resize(size_t count);
+		void					SyncData(size_t newSize);
+
+		const std::vector<T>&	CPUData() const;
 };
 #include "StructuredBuffer.hpp"
 #endif //__SCENE_H__

@@ -36,12 +36,12 @@ struct ModelTransform
 
 struct AABBData
 {
-	float min[4];
-	float max[4];
+	IEVector4 min;
+	IEVector4 max;
 
 	// TODO: This is a bullshit solution it only works on my cards but w/e
 	// OffsetAlignment is 256 on my GTX660Ti and Quadro 4000
-	uint8_t offset[256 - sizeof(float) * 8];
+	uint8_t offset[256 - sizeof(IEVector4) * 2];
 };
 #pragma pack(pop)
 
@@ -76,7 +76,8 @@ class DrawBuffer
 		void							AddMaterial(ColorMaterial);
 		void							AddDrawCall(DrawPointIndexed, 
 													uint32_t materialIndex,
-													ModelTransform modelTransform);
+													ModelTransform modelTransform,
+													AABBData aabb);
 		void							Draw();
 };
 #endif //__DRAWBUFFER_H__

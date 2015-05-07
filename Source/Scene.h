@@ -43,6 +43,8 @@ class Scene : public SceneI
 		static const char*		cornellboxFileName;
 
 		void					Draw() override;
+		DrawBuffer&				getDrawBuffer() override;
+		size_t					ObjectCount() const override;
 };
 
 #endif //__SCENE_H__

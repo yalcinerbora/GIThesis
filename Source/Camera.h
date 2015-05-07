@@ -38,7 +38,7 @@ struct Camera
 		{
 			IEMatrix4x4::LookAt(pos, at, up),
 			IEMatrix4x4::Perspective(fov, width / height, near, far),
-			IEMatrix3x3::IdentityMatrix
+			IEMatrix4x4::IdentityMatrix
 		};
 	}
 };

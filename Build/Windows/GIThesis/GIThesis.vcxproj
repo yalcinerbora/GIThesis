@@ -120,6 +120,7 @@
     <ClCompile Include="..\..\..\Source\MayaInput.cpp" />
     <ClCompile Include="..\..\..\Source\Scene.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
+    <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
@@ -156,6 +157,7 @@
     <ClInclude Include="..\..\..\Source\Material.h" />
     <ClInclude Include="..\..\..\Source\MayaInput.h" />
     <ClInclude Include="..\..\..\Source\NoInput.h" />
+    <ClInclude Include="..\..\..\Source\StructuredBuffer.h" />
     <ClInclude Include="..\..\..\Source\SceneI.h" />
     <ClInclude Include="..\..\..\Source\Shader.h" />
     <ClInclude Include="..\..\..\Source\Scene.h" />

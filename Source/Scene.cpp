@@ -32,9 +32,19 @@ Scene::Scene(const char* sceneFileName)
 	GI_LOG("----------");
 }
 
+DrawBuffer& Scene::getDrawBuffer()
+{
+	return drawParams;
+}
+
 // Interface
 void Scene::Draw()
 {
 	sceneVertex.Bind();
 	drawParams.Draw();
+}
+
+size_t Scene::ObjectCount() const
+{
+	return objectCount;
 }

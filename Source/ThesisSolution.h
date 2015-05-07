@@ -22,16 +22,24 @@ class ThesisSolution : public SolutionI
 		Shader					fragmentDebugVoxel;
 
 		Shader					vertexVoxelizeObject;
-		Shader					fragmenVoxelizeObject;
+		Shader					fragmentVoxelizeObject;
+		Shader					fragmentVoxelizeCount;
+		Shader					computeDetermineVoxSpan;
 
 		FrameTransformBuffer	cameraTransform;
 
 		std::vector<GLuint>		voxelObjectData;
 		std::vector<GLuint>		voxelObjectRenderData;
+		std::vector<GLuint>		voxelVAO;
 
+		std::vector<size_t>		objVoxelSizes;
+		GLuint					objGridInfoBuffer;
+
+		// Cuda Segment
 		GICudaVoxelScene		voxelScene;
 
 	protected:
+		void					CreateVoxel(size_t index);
 		void					DrawVoxel(size_t index);
 
 	public:

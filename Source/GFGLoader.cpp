@@ -142,6 +142,10 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 				IEVector4(transformRotation(1, 1), transformRotation(2, 1), transformRotation(3, 1), 0.0f),
 				IEVector4(transformRotation(1, 2), transformRotation(2, 2), transformRotation(3, 2), 0.0f),
 				IEVector4(transformRotation(1, 3), transformRotation(2, 3), transformRotation(3, 3), 0.0f) 
+			},
+			{ 
+				IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.min)),
+				IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.max)),
 			}
 		);
 		params.drawCallCount++;

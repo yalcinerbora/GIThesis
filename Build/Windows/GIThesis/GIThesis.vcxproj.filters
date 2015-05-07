@@ -178,6 +178,12 @@
     <ClInclude Include="..\..\..\Source\EmptyGISolution.h">
       <Filter>GI\NoGI</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\StructuredBuffer.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp">
+      <Filter>Render</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

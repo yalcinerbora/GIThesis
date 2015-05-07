@@ -24,5 +24,5 @@ void FrameTransformBuffer::Update(FrameTransformBufferData ftd)
 }
 void FrameTransformBuffer::Bind()
 {
-	glBindBufferBase(GL_UNIFORM_BUFFER, U_FRAME_TRANSFORM, bufferId);
+	glBindBufferBase(GL_UNIFORM_BUFFER, U_FTRANSFORM, bufferId);
 }

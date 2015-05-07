@@ -43,7 +43,8 @@ void DrawBuffer::AddMaterial(ColorMaterial c)
 
 void DrawBuffer::AddDrawCall(DrawPointIndexed dp,
 							 uint32_t mIndex,
-							 ModelTransform modelTransform)
+							 ModelTransform modelTransform,
+							 AABBData aabb)
 {
 	dataChanged = true;
 	transformData.push_back(modelTransform);
@@ -102,7 +103,7 @@ void DrawBuffer::Draw()
 	for(unsigned int i = 0; i < transformData.size(); i++)
 	{
 		materials[materialIndex[i]].BindMaterial();
-		glBindBufferRange(GL_UNIFORM_BUFFER, U_MODEL_TRANSFORMS, transformBuffer,
+		glBindBufferRange(GL_UNIFORM_BUFFER, U_MTRANSFORM, transformBuffer,
 						  i * sizeof(ModelTransform),
 						  sizeof(ModelTransform));
 		glDrawElementsIndirect(GL_TRIANGLES,

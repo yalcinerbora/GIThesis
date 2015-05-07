@@ -10,19 +10,14 @@
 */
 
 // Definitions
-#define OUT_RT0 layout(location = 0)
-#define OUT_RT1 layout(location = 1)
-#define OUT_RT2 layout(location = 2)
-
 #define IN_UV layout(location = 0)
 #define IN_NORMAL layout(location = 1)
-#define IN_POS layout(location = 1)
 
 #define LU_VOXEL layout(std430, binding = 0)
 #define LU_VOXEL_RENDER layout(std430, binding = 1)
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
 
-#define U_OBJECT layout(std140, binding = 0)
+#define U_OBJECT layout(std140, binding = 2)
 
 #define T_COLOR layout(binding = 0)
 

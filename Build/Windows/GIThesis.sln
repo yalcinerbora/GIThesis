@@ -7,11 +7,14 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GIThesis", "GIThesis\GIThes
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shaders", "Shaders", "{67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}"
 	ProjectSection(SolutionItems) = preProject
-		..\..\WorkingDir\Shaders\AGenericMaterial.frag = ..\..\WorkingDir\Shaders\AGenericMaterial.frag
+		..\..\WorkingDir\Shaders\DetermineVoxSpan.glsl = ..\..\WorkingDir\Shaders\DetermineVoxSpan.glsl
 		..\..\WorkingDir\Shaders\GWriteGeneric.frag = ..\..\WorkingDir\Shaders\GWriteGeneric.frag
 		..\..\WorkingDir\Shaders\GWriteGeneric.vert = ..\..\WorkingDir\Shaders\GWriteGeneric.vert
 		..\..\WorkingDir\Shaders\VoxelizeGeom.frag = ..\..\WorkingDir\Shaders\VoxelizeGeom.frag
 		..\..\WorkingDir\Shaders\VoxelizeGeom.vert = ..\..\WorkingDir\Shaders\VoxelizeGeom.vert
+		..\..\WorkingDir\Shaders\VoxelizeGeomCount.frag = ..\..\WorkingDir\Shaders\VoxelizeGeomCount.frag
+		..\..\WorkingDir\Shaders\VoxRender.frag = ..\..\WorkingDir\Shaders\VoxRender.frag
+		..\..\WorkingDir\Shaders\VoxRender.vert = ..\..\WorkingDir\Shaders\VoxRender.vert
 	EndProjectSection
 EndProject
 Global

@@ -23,7 +23,7 @@
 #define OUT_NORMAL layout(location = 1)
 
 #define U_FTRANSFORM layout(std140, binding = 0)
-#define U_RENDER layout(std140, binding = 1)
+#define U_MTRANSFORM layout(std140, binding = 1)
 
 // Input
 in IN_POS vec3 vPos;
@@ -45,7 +45,7 @@ U_FTRANSFORM uniform FrameTransform
 	mat4 viewRotation;
 };
 
-U_RENDER uniform ModelTransform
+U_MTRANSFORM uniform ModelTransform
 {
 	mat4 model;
 	mat3 modelRotation;
@@ -54,7 +54,7 @@ U_RENDER uniform ModelTransform
 void main(void)
 {
 	fUV = vUV;
-	fNormal =  viewRotation * modelRotation * vNormal;
+	fNormal =  mat3(viewRotation) * modelRotation * vNormal;
 
 	// Rasterizer
 	gl_Position = projection * view * model  * vec4(vPos.xyz, 1.0f);

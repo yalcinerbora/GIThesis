@@ -15,7 +15,6 @@
 
 #define OUT_UV layout(location = 0)
 #define OUT_NORMAL layout(location = 1)
-#define OUT_POS layout(location = 1)
 
 #define U_FTRANSFORM layout(binding = 0)
 

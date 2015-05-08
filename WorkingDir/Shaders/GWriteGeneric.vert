@@ -57,5 +57,5 @@ void main(void)
 	fNormal =  mat3(viewRotation) * modelRotation * vNormal;
 
 	// Rasterizer
-	gl_Position = projection * view * model  * vec4(vPos.xyz, 1.0f);
+	gl_Position = projection * view * model * vec4(vPos.xyz, 1.0f);
 }

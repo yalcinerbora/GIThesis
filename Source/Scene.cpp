@@ -37,14 +37,27 @@ DrawBuffer& Scene::getDrawBuffer()
 	return drawParams;
 }
 
-// Interface
-void Scene::Draw()
+GPUBuffer& Scene::getGPUBuffer()
 {
-	sceneVertex.Bind();
-	drawParams.Draw();
+	return sceneVertex;
 }
 
 size_t Scene::ObjectCount() const
 {
 	return objectCount;
+}
+
+size_t Scene::PolyCount() const
+{
+	return totalPolygons;
+}
+
+size_t Scene::MaterialCount() const
+{
+	return  materialCount;
+}
+
+size_t Scene::DrawCount() const
+{
+	return drawCallCount;
 }

@@ -42,9 +42,13 @@ class Scene : public SceneI
 		static const char*		sponzaFileName;
 		static const char*		cornellboxFileName;
 
-		void					Draw() override;
 		DrawBuffer&				getDrawBuffer() override;
+		GPUBuffer&				getGPUBuffer() override;
+
 		size_t					ObjectCount() const override;
+		size_t					PolyCount() const override;
+		size_t					MaterialCount() const override;
+		size_t					DrawCount() const override;
 };
 
 #endif //__SCENE_H__

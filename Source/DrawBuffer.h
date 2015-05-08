@@ -72,10 +72,12 @@ class DrawBuffer
 														uint32_t materialIndex,
 														const ModelTransform& modelTransform,
 														const AABBData& aabb);
-		void								Draw();
-
 
 		StructuredBuffer<ModelTransform>&	getModelTransformBuffer();
 		StructuredBuffer<AABBData>&			getAABBBuffer();
+		StructuredBuffer<DrawPointIndexed>&	getDrawParamBuffer();
+
+		void								BindMaterialForDraw(uint32_t meshIndex);
+		
 };
 #endif //__DRAWBUFFER_H__

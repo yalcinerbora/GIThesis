@@ -1,6 +1,8 @@
 #include "EmptyGISolution.h"
 #include "Camera.h"
 #include "SceneI.h"
+#include "DrawBuffer.h"
+#include "Globals.h"
 
 EmptyGISolution::EmptyGISolution()
 	: currentScene(nullptr)
@@ -18,6 +20,8 @@ void EmptyGISolution::Init(SceneI& s)
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
+	glDisable(GL_MULTISAMPLE);	
+	glDepthMask(true);
 	currentScene = &s;
 }
 
@@ -43,5 +47,16 @@ void EmptyGISolution::Frame(const Camera& mainRenderCamera)
 	fragmentGBufferWrite.Bind();
 
 	// DrawCall
-	currentScene->Draw();
+	DrawBuffer& dBuffer = currentScene->getDrawBuffer();
+	currentScene->getGPUBuffer().Bind();
+	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
+
+	for(unsigned int i = 0; i < currentScene->DrawCount(); i++)
+	{
+		dBuffer.BindMaterialForDraw(i);
+		dBuffer.getModelTransformBuffer().BindAsUniformBuffer(U_MTRANSFORM, i, 1);
+		glDrawElementsIndirect(GL_TRIANGLES,
+							   GL_UNSIGNED_INT,
+							   (void *) (i * sizeof(DrawPointIndexed)));
+	}
 }

@@ -40,7 +40,6 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 	std::vector<uint8_t> indexData;
 	vertexData.resize(gfgFile.AllMeshVertexDataSize());
 	indexData.resize(gfgFile.AllMeshIndexDataSize());
-
 	if(gfgFile.AllMeshVertexData(vertexData.data()) != GFGFileError::OK)
 	{
 		GI_ERROR_LOG("Failed to Load mesh vertex data on file %s", gfgFilename);
@@ -53,6 +52,7 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 		return GFGLoadError::FATAL_ERROR;
 	}
 
+	params.objectCount = 0;
 	for(const GFGMeshHeader mesh : gfgFile.Header().meshes)
 	{
 		assert(mesh.headerCore.indexSize == sizeof(uint32_t));
@@ -101,6 +101,7 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 		params.materialCount++;
 	}
 
+	params.drawCallCount = 0;
 	for(const GFGMeshMatPair& pair : gfgFile.Header().meshMaterialConnections.pairs)
 	{
 		DrawPointIndexed dpi = drawCalls[pair.meshIndex];

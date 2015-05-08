@@ -650,7 +650,7 @@ IEMatrix4x4 IEMatrix4x4::Ortogonal(float left, float right,
 	//	orto	orto	orto	1
 	float xt = - ((right + left) / (right - left));
 	float yt = - ((top + bottom) / (top - bottom));
-	float zt = - ((farPlane + nearPlane) / (farPlane - nearPlane));
+	float zt = ((farPlane + nearPlane) / (farPlane - nearPlane));
 
 	return IEMatrix4x4(	2.0f / (right - left),		0.0f,					0.0f,						0.0f,
 						0.0f,						2.0f / (top - bottom),	0.0f,						0.0f,

@@ -28,19 +28,6 @@ void DrawBuffer::AddDrawCall(const DrawPointIndexed& dp,
 	materialIndex.push_back(mIndex);
 }
 
-void DrawBuffer::Draw()
-{	
-	drawPoints.BindAsDrawIndirectBuffer();
-	for(unsigned int i = 0; i < drawPoints.Count(); i++)
-	{
-		materials[materialIndex[i]].BindMaterial();
-		drawTransforms.BindAsUniformBuffer(U_MTRANSFORM, i, 1);
-		glDrawElementsIndirect(GL_TRIANGLES,
-							   GL_UNSIGNED_INT,
-							   (void *) (i * sizeof(DrawPointIndexed)));
-	}
-}
-
 StructuredBuffer<ModelTransform>& DrawBuffer::getModelTransformBuffer()
 {
 	return drawTransforms;
@@ -49,4 +36,14 @@ StructuredBuffer<ModelTransform>& DrawBuffer::getModelTransformBuffer()
 StructuredBuffer<AABBData>& DrawBuffer::getAABBBuffer()
 {
 	return drawAABBs;
+}
+
+StructuredBuffer<DrawPointIndexed>& DrawBuffer::getDrawParamBuffer()
+{
+	return drawPoints;
+}
+
+void DrawBuffer::BindMaterialForDraw(uint32_t meshIndex)
+{
+	materials[materialIndex[meshIndex]].BindMaterial();
 }

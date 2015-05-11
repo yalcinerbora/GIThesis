@@ -157,3 +157,15 @@ const std::vector<T>& StructuredBuffer<T>::CPUData() const
 {
 	return dataGPUImage;
 }
+
+template <class T>
+T StructuredBuffer<T>::GetData(uint32_t index)
+{
+	assert(index < dataGPUImage.size());
+
+	T result;
+	glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
+	glGetBufferSubData(GL_COPY_READ_BUFFER, index * sizeof(T), sizeof(T),
+					   &result);
+	return result;
+}

@@ -49,6 +49,7 @@ class StructuredBuffer
 
 		void					Resize(size_t count);
 		void					SyncData(size_t newSize);
+		T						GetData(uint32_t index);
 
 		const std::vector<T>&	CPUData() const;
 };

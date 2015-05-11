@@ -72,7 +72,7 @@ void main(void)
 	uint colorPacked = PackColor(color);
 
 	// DEBUG
-	colorDebug =  vec4(color.rgb, 1.0f);
+	//colorDebug =  vec4(color.rgb, 1.0f);
 
 	// xy is straightforward
 	// z is stored as 0-1 value (unless you change it from api)
@@ -89,6 +89,6 @@ void main(void)
 	
 	// TODO: Average the voxel results
 	// At the moment it is overwrite
-	//imageStore(voxelData, ivec3(voxelCoord), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
-	imageStore(voxelData, ivec3(voxelCoord), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
+	imageStore(voxelData, ivec3(voxelCoord), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
+	//imageStore(voxelData, ivec3(voxelCoord), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
 }

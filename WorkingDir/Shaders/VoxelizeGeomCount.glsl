@@ -26,7 +26,7 @@ uniform I_VOX_READ image3D voxelData;
 
 // Uniforms
 U_OBJ_ID uniform uint objId;
-U_TOTAL_VOX_DIM uniform uvec3 voxDim;
+U_TOTAL_VOX_DIM uniform uvec4 voxDim;
 
 LU_OBJECT_GRID_INFO buffer GridInfo
 {
@@ -41,11 +41,12 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 void main(void)
 {
 	uvec3 voxId;
-	voxId.xyz  = uvec3(gl_LocalInvocationID.xy * (gl_WorkGroupID.x % 16), 
-						gl_WorkGroupID.x / 16);
+	voxId.xyz  = uvec3(gl_LocalInvocationID.xy * (gl_WorkGroupID.x % voxDim.w), 
+						gl_WorkGroupID.x / voxDim.w);
 
 	if(voxId.x >= voxDim.x || 
-		voxId.y >= voxDim.y) return;
+		voxId.y >= voxDim.y ||
+		voxId.z >= voxDim.z) return;
 
 	vec4 voxData = imageLoad(voxelData, ivec3(voxId));
 

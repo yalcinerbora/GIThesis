@@ -14,6 +14,7 @@ Solution implementtion
 #include "GICudaVoxelScene.h"
 #include "StructuredBuffer.h"
 #include "IEUtility/IEVector3.h"
+#include "VoxelRenderTexture.h"
 
 #pragma pack(push, 1)
 struct ObjGridInfo
@@ -44,10 +45,12 @@ class ThesisSolution : public SolutionI
 
 		Shader					vertexVoxelizeObject;
 		Shader					fragmentVoxelizeObject;
-		Shader					fragmentVoxelizeCount;
+		Shader					computeVoxelizeCount;
+		Shader					computePackObjectVoxels;
 		Shader					computeDetermineVoxSpan;
 
 		FrameTransformBuffer	cameraTransform;
+		VoxelRenderTexture		voxelRenderTexture;
 
 		StructuredBuffer<ObjGridInfo>				objectGridInfo;
 		std::vector<StructuredBuffer<VoxelData>>	voxelData;

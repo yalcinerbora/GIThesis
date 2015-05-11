@@ -52,20 +52,25 @@ static const VertexElement element[] =
 #define IN_NORMAL 1
 #define IN_UV 2
 
-// Textures
+// Textures (Bind Uniforms)
 #define T_COLOR 0
 #define T_NORMAL 1
+
+#define I_VOX_READ 2
+#define I_VOX_WRITE 2
+
+#define U_TOTAL_VOX_DIM 3
+#define U_OBJ_ID 4
+#define U_TOTAL_OBJ_COUNT 4
 
 // Unfiorm
 #define U_FTRANSFORM 0
 #define U_MTRANSFORM 1
-#define U_OBJECT 2
-#define U_TOTAL_OBJ_COUNT 3
 
 // Large Uniform
 #define LU_VOXEL 0
 #define LU_VOXEL_RENDER 1
 #define LU_OBJECT_GRID_INFO 2
-#define LU_OBJECT 3
+#define LU_AABB 3
 
 #endif //__GLOBALS_H__

@@ -62,6 +62,9 @@
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp">
       <Filter>GI\Thesis</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\VoxelRenderStorage.cpp">
+      <Filter>GI\Thesis\OGL</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -183,6 +186,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp">
       <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h">
+      <Filter>GI\Thesis\OGL</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

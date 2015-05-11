@@ -22,11 +22,11 @@ GPUBuffer::GPUBuffer(const Array32<const VertexElement> elements)
 
 	// TODO: Hand Edited Part
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, totalVertexCount * sizeof(uint32_t), nullptr,
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, totalIndexCount * sizeof(uint32_t), nullptr,
 					GL_DYNAMIC_DRAW);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-	glBufferData(GL_ARRAY_BUFFER, totalIndexCount * sizeof(float) * 8, nullptr,
+	glBufferData(GL_ARRAY_BUFFER, totalVertexCount * sizeof(float) * 8, nullptr,
 				 GL_DYNAMIC_DRAW);
 
 	for(unsigned int i = 0; i < elements.length; i++)

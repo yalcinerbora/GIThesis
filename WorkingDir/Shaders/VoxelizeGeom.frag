@@ -13,50 +13,43 @@
 #define IN_UV layout(location = 0)
 #define IN_NORMAL layout(location = 1)
 
-#define LU_VOXEL layout(std430, binding = 0)
-#define LU_VOXEL_RENDER layout(std430, binding = 1)
+#define LU_AABB layout(std430, binding = 3)
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
 
-#define U_OBJECT layout(std140, binding = 2)
-
 #define T_COLOR layout(binding = 0)
+#define I_VOX_WRITE layout(rgba32f, binding = 2) restrict writeonly
+#define U_OBJ_ID layout(location = 4)
 
 // Input
 in IN_UV vec2 fUV;
 in IN_NORMAL vec3 fNormal;
 
 // Output
+out vec4 colorDebug;
 
 // Textures
 uniform T_COLOR sampler2D colorTex;
-
-// Textures
+uniform I_VOX_WRITE image3D voxelData;
 
 // Uniforms
-U_OBJECT uniform Object
+U_OBJ_ID uniform uint objId;
+
+LU_AABB buffer AABB
 {
-	vec3 aabbMin;
-	vec3 aabbMax;
+	struct
+	{
+		vec4 aabbMin;
+		vec4 aabbMax;
+	} objectAABBInfo[];
 };
 
 LU_OBJECT_GRID_INFO buffer GridInfo
 {
-	float span;
-	uint voxCount;
-};
-
-LU_VOXEL buffer VoxelArray
-{
-	uvec2 voxelPacked[];
-};
-
-LU_VOXEL_RENDER buffer VoxelArrayRender
-{
 	struct
 	{
-		vec3 normal;
-		uint color;
-	} voxelArrayRender[];
+		float span;
+		uint voxCount;
+	} objectGridInfo[];
 };
 
 uint PackColor(vec3 color) 
@@ -70,34 +63,26 @@ uint PackColor(vec3 color)
     return result;
 }
 
-uvec2 PackVoxelData(in uvec3 voxCoord)
-{
-	uvec2 vec;
-	vec.x = voxCoord.x;
-	vec.x |= voxCoord.y << 16;
-	vec.y = voxCoord.z;
-	vec.y |= 0 << 16;
-	return vec;
-}
-
 void main(void)
 {
-	// Get a unique location 
-	uint location = atomicAdd(voxCount, 1);
-
 	// Data Packing forming
 	vec3 color = texture2D(colorTex, fUV).rgb;
 	uint colorPacked = PackColor(color);
+
+	// DEBUG
+	colorDebug =  vec4(fNormal.rgb, 1.0f);
 
 	// xy is straightforward
 	// z is stored as 0-1 value (unless you change it from api)
 	// this form is optimized form generic form is different
 	// ogl has its pixel positions defined in midpoint we also compansate that
-	float zWindow = (gl_FragCoord.z) * (aabbMax.z - aabbMin.z) / span;
-	uvec3 voxelCoord = uvec3(uvec2(gl_FragCoord.xy - vec2(0.5f)), uint(zWindow));
-
-	// Writeback
-	voxelPacked[location].xy = PackVoxelData(voxelCoord);
-	voxelArrayRender[location].color = colorPacked;
-	voxelArrayRender[location].normal = fNormal;
+	float zWindow = (gl_FragCoord.z) * 
+					(objectAABBInfo[objId].aabbMax.z - objectAABBInfo[objId].aabbMin.z) / 
+					objectGridInfo[objId].span;
+	uvec3 voxelCoord = uvec3(uvec2(gl_FragCoord.xy - vec2(0.5f)), uint(0));
+	
+	// TODO: Average the voxel results
+	// At the moment it is overwrite
+	imageStore(voxelData, ivec3(voxelCoord), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
+	//imageStore(voxelData, ivec3(voxelCoord), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
 }

@@ -12,7 +12,8 @@ ThesisSolution::ThesisSolution()
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 	, vertexVoxelizeObject(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert")
 	, fragmentVoxelizeObject(ShaderType::FRAGMENT, "Shaders/VoxelizeGeom.frag")
-	, fragmentVoxelizeCount(ShaderType::FRAGMENT, "Shaders/VoxelizeGeomCount.frag")
+	, computeVoxelizeCount(ShaderType::COMPUTE, "Shaders/VoxelizeGeomCount.glsl")
+	, computePackObjectVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.glsl")
 	, computeDetermineVoxSpan(ShaderType::COMPUTE, "Shaders/DetermineVoxSpan.glsl")
 	, objectGridInfo(InitialObjectGridSize)
 {}
@@ -39,11 +40,10 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 	computeDetermineVoxSpan.Bind();
 
 	objectGridInfo.Resize(currentScene->DrawCount());
-	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_OBJECT);
+	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(currentScene->DrawCount()));
 
-	// Launch Compute
 	size_t blockCount = (currentScene->DrawCount() / 128);
 	size_t factor = ((currentScene->DrawCount() % 128) == 0) ? 0 : 1;
 	blockCount += factor;
@@ -51,39 +51,60 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	objectGridInfo.SyncData(currentScene->DrawCount());
 
-	// Determine each ojects total voxel count (sparse)
-	vertexVoxelizeObject.Bind();
-	fragmentVoxelizeCount.Bind();
-
+	// Render Objects to Voxel Grid
+	// Use MSAA to prevent missing triangles on small voxels
+	// (Instead of conservative rendering, visible surface determination)
+	
+	// Buffers
 	cameraTransform.Bind();
 	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
 	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	currentScene->getGPUBuffer().Bind();
 
+	// Render Image
+	voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
+
+	// State
 	glEnable(GL_MULTISAMPLE);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glDepthMask(false);
 	//glColorMask(false, false, false, false);
+
+	// For Each Object
 	for(unsigned int i = 0; i < currentScene->DrawCount(); i++)
 	{
+		// Clear Voxel 3D Texture
+		voxelRenderTexture.Clear();
+
+		// First Call Voxelize over 3D Texture
+		vertexVoxelizeObject.Bind();
+		fragmentVoxelizeObject.Bind();
+
 		const AABBData& objAABB = currentScene->getDrawBuffer().
 			getAABBBuffer().
 			CPUData()[i];
-		glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(i));
+		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
 
 
 		//DEBUG
-		dBuffer.BindMaterialForDraw(i);
 		if(i >= 324 &&
 		   i <= 330)
 		GI_LOG("%d\tx\t%d", 
 			   static_cast<GLsizei>((objAABB.max.getX() - objAABB.min.getX()) / objectGridInfo.CPUData()[i].span),
 			   static_cast<GLsizei>((objAABB.max.getY() - objAABB.min.getY()) / objectGridInfo.CPUData()[i].span));
+		//========
 
+		// Material Buffer we need to fetch color from material
+		dBuffer.BindMaterialForDraw(i);
+
+		// We need to set viewport coords to match the voxel dims
 		glViewport(0, 0,
 				   std::max(static_cast<GLsizei>((objAABB.max.getX() - objAABB.min.getX()) / objectGridInfo.CPUData()[i].span), 1),
 				   std::max(static_cast<GLsizei>((objAABB.max.getY() - objAABB.min.getY()) / objectGridInfo.CPUData()[i].span), 1));
+
+
+		// Orto Projection (TODO: This is slow use AABB to generate this on shader)
 		cameraTransform.Update
 		({
 			IEMatrix4x4::IdentityMatrix,
@@ -93,16 +114,28 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 			IEMatrix4x4::IdentityMatrix
 		});
 
+		// Draw Call
 		glDrawElementsIndirect(GL_TRIANGLES,
 							   GL_UNSIGNED_INT,
 							   (void *) (i * sizeof(DrawPointIndexed)));
+
+		// Reflect Changes for the next process
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		// Second Call: Determine voxel count
+
+		// Create sparse voxel array according to the size of voxel count
+
+		// Last Call: Pack Draw Calls to the buffer
+
+		// Voxelization Done!
 	}
-	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+	
 
 	GI_LOG("----------------------------------------------");
 
 	// DEBUG
-	objectGridInfo.SyncData(currentScene->DrawCount());
+	//objectGridInfo.SyncData(currentScene->DrawCount());
 	//for(const ObjGridInfo& ogrd : objectGridInfo.CPUData())
 	//{
 	//	GI_LOG("\t%d", ogrd.voxCount);

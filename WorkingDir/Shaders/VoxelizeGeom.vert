@@ -43,4 +43,6 @@ void main(void)
 	fUV = vUV;
 	fNormal = vNormal;
 	gl_Position = projection * vec4(vPos.xyz, 1.0f);
+
+
 }

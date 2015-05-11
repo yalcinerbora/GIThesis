@@ -122,8 +122,10 @@
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
+    <ClCompile Include="..\..\..\Source\VoxelRenderStorage.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
+    <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\ArrayStruct.h" />

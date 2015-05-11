@@ -44,6 +44,7 @@ class ThesisSolution : public SolutionI
 		Shader					fragmentDebugVoxel;
 
 		Shader					vertexVoxelizeObject;
+		Shader					geomVoxelizeObject;
 		Shader					fragmentVoxelizeObject;
 		Shader					computeVoxelizeCount;
 		Shader					computePackObjectVoxels;

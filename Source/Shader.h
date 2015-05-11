@@ -13,8 +13,9 @@ enum class ShaderType
 {
 	VERTEX,
 	FRAGMENT,
-	COMPUTE
-	// TODO: Add Tesseletion and Geometry If necessary
+	COMPUTE,
+	GEOMETRY
+	// TODO: Add Tesseletion If necessary
 };
 
 class Shader
@@ -44,6 +45,7 @@ class Shader
 		void				Bind();
 		bool				IsValid() const;
 
+		static void			Unbind(ShaderType);
 };
 
 #endif //__SHADER_H__

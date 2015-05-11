@@ -22,7 +22,10 @@ void EmptyGISolution::Init(SceneI& s)
 	glEnable(GL_CULL_FACE);
 	glDisable(GL_MULTISAMPLE);	
 	glDepthMask(true);
+	glColorMask(true, true, true, true);
 	currentScene = &s;
+	Shader::Unbind(ShaderType::GEOMETRY);
+	Shader::Unbind(ShaderType::COMPUTE);
 }
 
 void EmptyGISolution::Frame(const Camera& mainRenderCamera)

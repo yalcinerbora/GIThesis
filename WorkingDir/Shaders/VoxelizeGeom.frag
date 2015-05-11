@@ -12,6 +12,7 @@
 // Definitions
 #define IN_UV layout(location = 0)
 #define IN_NORMAL layout(location = 1)
+#define IN_POS layout(location = 2)
 
 #define LU_AABB layout(std430, binding = 3)
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
@@ -23,6 +24,7 @@
 // Input
 in IN_UV vec2 fUV;
 in IN_NORMAL vec3 fNormal;
+in IN_POS vec3 fPos;
 
 // Output
 out vec4 colorDebug;
@@ -70,19 +72,23 @@ void main(void)
 	uint colorPacked = PackColor(color);
 
 	// DEBUG
-	colorDebug =  vec4(fNormal.rgb, 1.0f);
+	colorDebug =  vec4(color.rgb, 1.0f);
 
 	// xy is straightforward
 	// z is stored as 0-1 value (unless you change it from api)
 	// this form is optimized form generic form is different
 	// ogl has its pixel positions defined in midpoint we also compansate that
-	float zWindow = (gl_FragCoord.z) * 
-					(objectAABBInfo[objId].aabbMax.z - objectAABBInfo[objId].aabbMin.z) / 
-					objectGridInfo[objId].span;
-	uvec3 voxelCoord = uvec3(uvec2(gl_FragCoord.xy - vec2(0.5f)), uint(0));
+	
+	vec3 voxelCoord = fPos - objectAABBInfo[objId].aabbMin.xyz;
+	voxelCoord /= objectGridInfo[objId].span;
+
+	//uvec3 voxCoords = (aabbSize - fPos)
+	//				(objectAABBInfo[objId].aabbMax.z - objectAABBInfo[objId].aabbMin.z) / 
+	//				objectGridInfo[objId].span;
+	//uvec3 voxelCoord = uvec3(uvec2(gl_FragCoord.xy - vec2(0.5f)), zWindow);//uint(0));
 	
 	// TODO: Average the voxel results
 	// At the moment it is overwrite
-	imageStore(voxelData, ivec3(voxelCoord), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
-	//imageStore(voxelData, ivec3(voxelCoord), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
+	//imageStore(voxelData, ivec3(voxelCoord), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
+	imageStore(voxelData, ivec3(voxelCoord), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
 }

@@ -11,6 +11,7 @@ ThesisSolution::ThesisSolution()
 	, vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 	, vertexVoxelizeObject(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert")
+	, geomVoxelizeObject(ShaderType::GEOMETRY, "Shaders/VoxelizeGeom.geom")
 	, fragmentVoxelizeObject(ShaderType::FRAGMENT, "Shaders/VoxelizeGeom.frag")
 	, computeVoxelizeCount(ShaderType::COMPUTE, "Shaders/VoxelizeGeomCount.glsl")
 	, computePackObjectVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.glsl")
@@ -65,7 +66,7 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 	voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
 
 	// State
-	glEnable(GL_MULTISAMPLE);
+	//glEnable(GL_MULTISAMPLE);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glDepthMask(false);
@@ -79,40 +80,28 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 
 		// First Call Voxelize over 3D Texture
 		vertexVoxelizeObject.Bind();
+		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
+		geomVoxelizeObject.Bind();
 		fragmentVoxelizeObject.Bind();
-
-		const AABBData& objAABB = currentScene->getDrawBuffer().
-			getAABBBuffer().
-			CPUData()[i];
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
 
-
+		
 		//DEBUG
-		if(i >= 324 &&
-		   i <= 330)
-		GI_LOG("%d\tx\t%d", 
-			   static_cast<GLsizei>((objAABB.max.getX() - objAABB.min.getX()) / objectGridInfo.CPUData()[i].span),
-			   static_cast<GLsizei>((objAABB.max.getY() - objAABB.min.getY()) / objectGridInfo.CPUData()[i].span));
+		//if(i >= 324 &&
+		//   i <= 330)
+		//GI_LOG("%d\tx\t%d", 
+		//	   static_cast<GLsizei>((objAABB.max.getX() - objAABB.min.getX()) / objectGridInfo.CPUData()[i].span),
+		//	   static_cast<GLsizei>((objAABB.max.getY() - objAABB.min.getY()) / objectGridInfo.CPUData()[i].span));
 		//========
 
 		// Material Buffer we need to fetch color from material
 		dBuffer.BindMaterialForDraw(i);
 
 		// We need to set viewport coords to match the voxel dims
+		const AABBData& objAABB = currentScene->getDrawBuffer().getAABBBuffer().CPUData()[i];
 		glViewport(0, 0,
 				   std::max(static_cast<GLsizei>((objAABB.max.getX() - objAABB.min.getX()) / objectGridInfo.CPUData()[i].span), 1),
 				   std::max(static_cast<GLsizei>((objAABB.max.getY() - objAABB.min.getY()) / objectGridInfo.CPUData()[i].span), 1));
-
-
-		// Orto Projection (TODO: This is slow use AABB to generate this on shader)
-		cameraTransform.Update
-		({
-			IEMatrix4x4::IdentityMatrix,
-			IEMatrix4x4::Ortogonal(objAABB.min.getX(), objAABB.max.getX(),
-									objAABB.max.getY(), objAABB.min.getY(),
-									objAABB.min.getZ(), objAABB.max.getZ()),
-			IEMatrix4x4::IdentityMatrix
-		});
 
 		// Draw Call
 		glDrawElementsIndirect(GL_TRIANGLES,
@@ -130,9 +119,8 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 
 		// Voxelization Done!
 	}
-	
 
-	GI_LOG("----------------------------------------------");
+	//GI_LOG("----------------------------------------------");
 
 	// DEBUG
 	//objectGridInfo.SyncData(currentScene->DrawCount());

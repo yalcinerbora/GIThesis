@@ -14,7 +14,8 @@ GLenum Shader::ShaderTypeToGL(ShaderType t)
 	{
 		GL_VERTEX_SHADER,
 		GL_FRAGMENT_SHADER,
-		GL_COMPUTE_SHADER
+		GL_COMPUTE_SHADER,
+		GL_GEOMETRY_SHADER
 	};
 	return values[static_cast<int>(t)];
 }
@@ -25,7 +26,8 @@ GLenum Shader::ShaderTypeToGLBit(ShaderType t)
 	{
 		GL_VERTEX_SHADER_BIT,
 		GL_FRAGMENT_SHADER_BIT,
-		GL_COMPUTE_SHADER_BIT
+		GL_COMPUTE_SHADER_BIT,
+		GL_GEOMETRY_SHADER_BIT
 	};
 	return values[static_cast<int>(t)];
 }
@@ -39,9 +41,6 @@ Shader::Shader(ShaderType t, const char fileName[])
 	source.resize(std::ifstream(fileName, std::ifstream::ate | std::ifstream::binary).tellg());
 	std::ifstream shaderFile(fileName);
 	shaderFile.read(source.data(), source.size());
-
-
-
 
 	// Create Pipeline If not Avail
 	if(shaderPipelineID == 0)
@@ -99,4 +98,10 @@ void Shader::Bind()
 bool Shader::IsValid() const
 {
 	return valid;
+}
+
+void  Shader::Unbind(ShaderType shaderType)
+{
+	glUseProgramStages(shaderPipelineID, ShaderTypeToGLBit(shaderType), 0);
+	glActiveShaderProgram(shaderPipelineID, 0);
 }

@@ -12,6 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shaders", "Shaders", "{67A1
 		..\..\WorkingDir\Shaders\GWriteGeneric.vert = ..\..\WorkingDir\Shaders\GWriteGeneric.vert
 		..\..\WorkingDir\Shaders\PackObjectVoxels.glsl = ..\..\WorkingDir\Shaders\PackObjectVoxels.glsl
 		..\..\WorkingDir\Shaders\VoxelizeGeom.frag = ..\..\WorkingDir\Shaders\VoxelizeGeom.frag
+		..\..\WorkingDir\Shaders\VoxelizeGeom.geom = ..\..\WorkingDir\Shaders\VoxelizeGeom.geom
 		..\..\WorkingDir\Shaders\VoxelizeGeom.vert = ..\..\WorkingDir\Shaders\VoxelizeGeom.vert
 		..\..\WorkingDir\Shaders\VoxelizeGeomCount.glsl = ..\..\WorkingDir\Shaders\VoxelizeGeomCount.glsl
 		..\..\WorkingDir\Shaders\VoxRender.frag = ..\..\WorkingDir\Shaders\VoxRender.frag

@@ -44,7 +44,7 @@ uniform I_VOX_READ image3D voxelData;
 
 uvec2 PackVoxelData(in uvec3 voxCoord, in uint objId)
 {
-	uvec2 vec;
+	uvec2 vec = uvec2(0);
 	vec.x = voxCoord.x;
 	vec.x |= voxCoord.y << 16;
 	vec.y = voxCoord.z;

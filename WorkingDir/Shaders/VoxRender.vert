@@ -70,9 +70,9 @@ U_MTRANSFORM uniform ModelTransform
 uvec4 UnpackVoxelData(in uvec2 voxPacked)
 {
 	uvec4 vec;
-	vec.x = voxPacked.x >> 0;
+	vec.x = voxPacked.x >> 0 & 0x0000FFFF;
 	vec.y = voxPacked.x >> 16;
-	vec.z = voxPacked.y >> 0;
+	vec.z = voxPacked.y >> 0 & 0x0000FFFF;
 	vec.w = voxPacked.y >> 16;
 	return vec;
 }
@@ -81,16 +81,16 @@ void main(void)
 {
 	fColor = vec3(0.0f, 1.0f, 1.0f);//voxColor.rgb;
 
-	uvec4 voxIndex = UnpackVoxelData(voxPos);
-	uint objId = voxIndex.w;
-	float span = objectGridInfo[objId].span;
-	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + 
-					(span * 
-					vec3(voxIndex.xyz));
-	mat4 voxModel =	mat4(10.0f,			0.0f,		0.0f,		0.0f,
-						  0.0f,			10.0f,		0.0f,		0.0f,
-						  0.0f,			0.0f,		10.0f,		0.0f,
+	//uvec4 voxIndex = UnpackVoxelData(voxPos);
+	//uint objId = voxIndex.w;
+	//float span = objectGridInfo[objId].span;
+	//vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + 
+	//				(span * 
+	//				vec3(voxIndex.xyz));
+	mat4 voxModel =	mat4(200.0f,			0.0f,		0.0f,		0.0f,
+						  0.0f,			200.0f,		0.0f,		0.0f,
+						  0.0f,			0.0f,		200.0f,		0.0f,
 						  0.0f,			0.0f,		0.0f,		1.0f);
-						  //deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);
-	gl_Position = projection * view * model /* voxModel */* vec4(vPos, 1.0f);
+						 // deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);
+	gl_Position = projection * view * model * voxModel * vec4(vPos, 1.0f);
 }

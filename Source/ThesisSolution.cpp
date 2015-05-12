@@ -44,8 +44,8 @@ void ThesisSolution::Init(SceneI& s)
 	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(currentScene->DrawCount()));
 
-	size_t blockCount = (currentScene->DrawCount() / VOXEL_SIZE);
-	size_t factor = ((currentScene->DrawCount() % VOXEL_SIZE) == 0) ? 0 : 1;
+	size_t blockCount = (currentScene->DrawCount() / 128);
+	size_t factor = ((currentScene->DrawCount() % 128) == 0) ? 0 : 1;
 	blockCount += factor;
 	glDispatchCompute(static_cast<GLuint>(blockCount), 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -121,7 +121,7 @@ void ThesisSolution::Init(SceneI& s)
 		glDispatchCompute(static_cast<GLuint>(voxDimZ * blockPerSlice), 1, 1);
 
 		// Reflect Changes to Next Process
-		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
 		ObjGridInfo info = objectGridInfo.GetData(i);
 		totalSceneVoxCount += info.voxCount;
@@ -141,8 +141,6 @@ void ThesisSolution::Init(SceneI& s)
 					 static_cast<GLuint>(blockPerSlice));
 		glDispatchCompute(static_cast<GLuint>(voxDimZ * blockPerSlice), 1, 1);
 		glMemoryBarrier(GL_ALL_BARRIER_BITS);
-
-		glFlush();
 
 		// Debug VAO
 		voxelVAO.emplace_back(voxelData.back(), voxelRenderData.back(), info.voxCount);
@@ -172,6 +170,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			GL_DEPTH_BUFFER_BIT);
 
 	// Debug Voxelize Scene
+	Shader::Unbind(ShaderType::GEOMETRY);
 	vertexDebugVoxel.Bind();
 	fragmentDebugVoxel.Bind();
 

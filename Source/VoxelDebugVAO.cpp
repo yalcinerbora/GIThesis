@@ -54,11 +54,12 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 						voxDataBuffer.getGLBuffer(),
 						voxRenderDataBuffer.getGLBuffer()};
 	GLintptr offsets[] = { 0, 0, 0 };
-	GLsizei strides[] = { 0, sizeof(VoxelData), sizeof(VoxelRenderData) }; 
+	GLsizei strides[] = { sizeof(float) * 3, sizeof(VoxelData), sizeof(VoxelRenderData) }; 
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
 
 	glBindVertexBuffers(0, 3, buffers, offsets, strides);
+	//glBindVertexBuffer(0, voxelCubeData.vertexBuffer, 0, sizeof(float) * 3);
 	// Cube Pos
 	glEnableVertexAttribArray(0);
 	glVertexAttribFormat(0,
@@ -78,25 +79,25 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 	glVertexAttribDivisor(2, 1);
 	glVertexAttribBinding(2, 1);
 
-	// Vox Color 
-	glEnableVertexAttribArray(1);
-	glVertexAttribFormat(1,
-						 4,
-						 GL_UNSIGNED_BYTE,
-						 GL_TRUE,
-						 sizeof(IEVector3));
-	glVertexAttribDivisor(1, 1);
-	glVertexAttribBinding(1, 2);
+	//// Vox Color 
+	//glEnableVertexAttribArray(1);
+	//glVertexAttribFormat(1,
+	//					 4,
+	//					 GL_UNSIGNED_BYTE,
+	//					 GL_TRUE,
+	//					 sizeof(IEVector3));
+	//glVertexAttribDivisor(1, 1);
+	//glVertexAttribBinding(1, 2);
 
-	// Vox Normal
-	glEnableVertexAttribArray(3);
-	glVertexAttribFormat(3,
-						 3,
-						 GL_FLOAT,
-						 GL_FALSE,
-						 0);
-	glVertexAttribDivisor(3, 1);
-	glVertexAttribBinding(3, 2);
+	//// Vox Normal
+	//glEnableVertexAttribArray(3);
+	//glVertexAttribFormat(3,
+	//					 3,
+	//					 GL_FLOAT,
+	//					 GL_FALSE,
+	//					 0);
+	//glVertexAttribDivisor(3, 1);
+	//glVertexAttribBinding(3, 2);
 }
 
 VoxelDebugVAO::~VoxelDebugVAO()
@@ -107,11 +108,11 @@ VoxelDebugVAO::~VoxelDebugVAO()
 void VoxelDebugVAO::Draw()
 {
 	glBindVertexArray(vaoId);
-	//glDrawElementsInstanced(GL_TRIANGLES,
-	//						voxelCubeData.indexCount,
-	//						GL_UNSIGNED_INT,
-	//						nullptr,
-	//						voxelCount);
-	glDrawElements(GL_TRIANGLES, voxelCubeData.indexCount,
-				   GL_UNSIGNED_INT, nullptr);
+	glDrawElementsInstanced(GL_TRIANGLES,
+							voxelCubeData.indexCount,
+							GL_UNSIGNED_INT,
+							nullptr,
+							1);
+	//glDrawElements(GL_TRIANGLES, voxelCubeData.indexCount,
+	//			   GL_UNSIGNED_INT, nullptr);
 }

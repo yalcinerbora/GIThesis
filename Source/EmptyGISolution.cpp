@@ -25,7 +25,6 @@ void EmptyGISolution::Init(SceneI& s)
 	glColorMask(true, true, true, true);
 	currentScene = &s;
 	Shader::Unbind(ShaderType::GEOMETRY);
-	Shader::Unbind(ShaderType::COMPUTE);
 }
 
 void EmptyGISolution::Frame(const Camera& mainRenderCamera)

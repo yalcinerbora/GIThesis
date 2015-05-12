@@ -41,8 +41,6 @@ out gl_PerVertex
     //float gl_ClipDistance[];
 };
 
-uniform mat4 voxSpace;
-
 const mat4 xOrtho = mat4(0.0f, 0.0f, 1.0f, 0.0f,
 						 0.0f, 1.0f, 0.0f, 0.0f,
 						 -1.0f, 0.0f, 0.0f, 0.0f,
@@ -71,7 +69,7 @@ void main(void)
 	// For Each Vertex
 	for(unsigned int i = 0; i < gl_in.length(); i++)
 	{	
-		vec4 newPos;
+		vec4 newPos = vec4(0.0f);
 		if(axis.x == 1.0f)
 		{
 			newPos = xOrtho * gl_in[i].gl_Position;

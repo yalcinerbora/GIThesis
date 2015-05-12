@@ -7,15 +7,15 @@
 
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
+#define U_VOX_SLICE layout(location = 5)
 
 #define I_VOX_READ layout(rgba32f, binding = 2) restrict readonly
 
-#define MAX_GRID_DIM 128.0f
-#define INCREMENT_FACTOR 0.2f
-
 // I-O
-U_TOTAL_VOX_DIM uniform uvec3 voxDim;
 U_OBJ_ID uniform uint objId;
+U_TOTAL_VOX_DIM uniform uvec3 voxDim;
+U_VOX_SLICE uniform uvec2 voxSlice;
+
 
 LU_VOXEL buffer VoxelArray
 {
@@ -56,11 +56,21 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 void main(void)
 {
 	uvec3 voxId;
-	voxId.xyz  = uvec3(gl_LocalInvocationID.xy * (gl_WorkGroupID.x % 16), 
-						gl_WorkGroupID.x / 16);
+	uint localBlockID = gl_WorkGroupID.x % voxSlice.y;
+	voxId.xy  = gl_LocalInvocationID.xy + 
+				uvec2( localBlockID % voxSlice.x, localBlockID / voxSlice.x ) * uvec2(32); 
+	voxId.z = gl_WorkGroupID.x / voxSlice.y;
 
 	if(voxId.x >= voxDim.x || 
-		voxId.y >= voxDim.y) return;
+		voxId.y >= voxDim.y ||
+		voxId.z >= voxDim.z) return;
+
+	if(gl_GlobalInvocationID.x == 0 &&
+		gl_GlobalInvocationID.y == 0)
+		atomicExchange(objectGridInfo[objId].voxCount, 0);
+
+	// Force Sync
+	memoryBarrier();
 
 	vec4 voxData = imageLoad(voxelData, ivec3(voxId));
 

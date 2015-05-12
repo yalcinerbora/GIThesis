@@ -11,6 +11,7 @@ whgen data chagnes it resend the data bind time
 
 #include "GLHeaderLite.h"
 #include <vector>
+#include <cstdint>
 
 template <class T>
 class StructuredBuffer
@@ -28,7 +29,9 @@ class StructuredBuffer
 	protected:
 
 	public:
+		// Constructors & Destructor
 								StructuredBuffer(size_t initialCapacity);
+								StructuredBuffer(StructuredBuffer&&);
 								StructuredBuffer(const StructuredBuffer&) = delete;
 		const StructuredBuffer&	operator= (const StructuredBuffer&) = delete;
 								~StructuredBuffer();
@@ -54,4 +57,4 @@ class StructuredBuffer
 		const std::vector<T>&	CPUData() const;
 };
 #include "StructuredBuffer.hpp"
-#endif //__SCENE_H__
+#endif //__STRUCTUREDBUFFER_H__

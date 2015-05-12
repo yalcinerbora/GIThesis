@@ -43,8 +43,8 @@ out gl_PerVertex
 
 uniform mat4 voxSpace;
 
-const mat4 xOrtho = mat4(0.0f, 0.0f, -1.0f, 0.0f,
-						 0.0f, -1.0f, 0.0f, 0.0f,
+const mat4 xOrtho = mat4(0.0f, 0.0f, 1.0f, 0.0f,
+						 0.0f, 1.0f, 0.0f, 0.0f,
 						 -1.0f, 0.0f, 0.0f, 0.0f,
 						 0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -54,8 +54,8 @@ const mat4 yOrtho = mat4(1.0f, 0.0f, 0.0f, 0.0f,
 						 0.0f, 0.0f, 0.0f, 1.0f);
 
 const mat4 zOrtho = mat4(1.0f, 0.0f, 0.0f, 0.0f,
-						 0.0f, -1.0f, 0.0f, 0.0f,
-						 0.0f, 0.0f, -1.0f, 0.0f,
+						 0.0f, 1.0f, 0.0f, 0.0f,
+						 0.0f, 0.0f, 1.0f, 0.0f,
 						 0.0f, 0.0f, 0.0f, 1.0f);
 
 void main(void)

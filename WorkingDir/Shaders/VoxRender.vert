@@ -10,22 +10,24 @@
 */
 
 #define IN_POS layout(location = 0)
-#define IN_COLOR layout(location = 1)
+#define IN_VOX_COLOR layout(location = 1)
 #define IN_VOX_POS layout(location = 2)
+#define IN_VOX_NORMAL layout(location = 3)
 
 #define OUT_COLOR layout(location = 0)
 
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
+#define LU_AABB layout(std430, binding = 3)
 
-#define U_FTRANSFORM layout(binding = 0)
-#define U_OBJECT layout(std140, binding = 2)
+#define U_FTRANSFORM layout(std140, binding = 0)
 #define U_MTRANSFORM layout(std140, binding = 1)
 
 // Input
 in IN_POS vec3 vPos;
 
-in IN_COLOR vec3 voxColor;
+in IN_VOX_COLOR vec4 voxColor;
 in IN_VOX_POS uvec2 voxPos;
+in IN_VOX_NORMAL vec3 voxNormal;
 
 // Output
 out gl_PerVertex {vec4 gl_Position;};	// Mandatory
@@ -43,14 +45,20 @@ U_FTRANSFORM uniform FrameTransform
 
 LU_OBJECT_GRID_INFO buffer GridInfo
 {
-	float span;
-	uint voxCount;
+	struct
+	{
+		float span;
+		uint voxCount;
+	} objectGridInfo[];
 };
 
-U_OBJECT uniform Object
+LU_AABB buffer AABB
 {
-	vec3 aabbMin;
-	vec3 aabbMax;
+	struct
+	{
+		vec4 aabbMin;
+		vec4 aabbMax;
+	} objectAABBInfo[];
 };
 
 U_MTRANSFORM uniform ModelTransform
@@ -59,22 +67,30 @@ U_MTRANSFORM uniform ModelTransform
 	mat3 modelRotation;
 };
 
-uvec3 UnpackVoxelData(in uvec2 voxPacked)
+uvec4 UnpackVoxelData(in uvec2 voxPacked)
 {
-	uvec3 vec;
+	uvec4 vec;
 	vec.x = voxPacked.x >> 0;
 	vec.y = voxPacked.x >> 16;
 	vec.z = voxPacked.y >> 0;
+	vec.w = voxPacked.y >> 16;
 	return vec;
 }
 
 void main(void)
 {
-	fColor = voxColor;
-	mat4 scaleSpan = mat4(span, 0.0f, 0.0f, 0.0f,
-						  0.0f, span, 0.0f, 0.0f,
-						  0.0f, 0.0f, span, 0.0f,
-						  0.0f, 0.0f, 0.0f, 1.0f);
-	vec3 pos = aabbMin + (span * vec3(UnpackVoxelData(voxPos))) + vPos.xyz;
-	gl_Position = projection * view * model * scaleSpan * vec4(pos, 1.0f);
+	fColor = vec3(0.0f, 1.0f, 1.0f);//voxColor.rgb;
+
+	uvec4 voxIndex = UnpackVoxelData(voxPos);
+	uint objId = voxIndex.w;
+	float span = objectGridInfo[objId].span;
+	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + 
+					(span * 
+					vec3(voxIndex.xyz));
+	mat4 voxModel =	mat4(10.0f,			0.0f,		0.0f,		0.0f,
+						  0.0f,			10.0f,		0.0f,		0.0f,
+						  0.0f,			0.0f,		10.0f,		0.0f,
+						  0.0f,			0.0f,		0.0f,		1.0f);
+						  //deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);
+	gl_Position = projection * view * model /* voxModel */* vec4(vPos, 1.0f);
 }

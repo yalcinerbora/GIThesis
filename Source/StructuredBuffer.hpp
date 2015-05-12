@@ -16,6 +16,18 @@ StructuredBuffer<T>::StructuredBuffer(size_t initialCapacity)
 }
 
 template <class T>
+StructuredBuffer<T>::StructuredBuffer(StructuredBuffer&& other)
+	: bufferId(other.bufferId)
+	, bufferCapacity(other.bufferCapacity)
+	, dataChanged(other.dataChanged)
+	, dataGPUImage(std::move(other.dataGPUImage))
+{
+	other.bufferId = 0;
+	other.bufferCapacity = 0;
+	other.dataChanged = true;
+}
+
+template <class T>
 StructuredBuffer<T>::~StructuredBuffer()
 {
 	glDeleteBuffers(1, &bufferId);
@@ -149,7 +161,6 @@ void StructuredBuffer<T>::SyncData(size_t newSize)
 	glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
 	glGetBufferSubData(GL_COPY_READ_BUFFER, 0, newSize * sizeof(T),
 					   dataGPUImage.data());
-
 }
 
 template <class T>
@@ -162,10 +173,8 @@ template <class T>
 T StructuredBuffer<T>::GetData(uint32_t index)
 {
 	assert(index < dataGPUImage.size());
-
-	T result;
 	glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
 	glGetBufferSubData(GL_COPY_READ_BUFFER, index * sizeof(T), sizeof(T),
-					   &result);
-	return result;
+					   dataGPUImage.data() + index);
+	return dataGPUImage[index];
 }

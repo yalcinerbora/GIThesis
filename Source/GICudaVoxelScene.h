@@ -36,4 +36,4 @@ class GICudaVoxelScene
 
 };
 
-#endif //__GICUDAALLOCATOR_H_
+#endif //__GICUDAVOXELSCENE_H__

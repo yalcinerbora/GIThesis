@@ -80,6 +80,7 @@ void main(void)
 	// ogl has its pixel positions defined in midpoint we also compansate that
 	
 	vec3 voxelCoord = fPos - objectAABBInfo[objId].aabbMin.xyz;
+	voxelCoord = max(voxelCoord, vec3(0.0f));
 	voxelCoord /= objectGridInfo[objId].span;
 
 	//uvec3 voxCoords = (aabbSize - fPos)
@@ -90,5 +91,5 @@ void main(void)
 	// TODO: Average the voxel results
 	// At the moment it is overwrite
 	imageStore(voxelData, ivec3(voxelCoord), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
-	//imageStore(voxelData, ivec3(voxelCoord), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
+	//imageStore(voxelData, ivec3(uvec3(voxelCoord)), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
 }

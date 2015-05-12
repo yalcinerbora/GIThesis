@@ -3,6 +3,7 @@
 #include "SceneI.h"
 #include "DrawBuffer.h"
 #include "Macros.h"
+#include "Camera.h"
 
 size_t ThesisSolution::InitialObjectGridSize = 512;
 
@@ -24,16 +25,14 @@ bool ThesisSolution::IsCurrentScene(SceneI& scene)
 {
 	return &scene == currentScene;
 }
+
 void ThesisSolution::Init(SceneI& s)
 {
 	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 	currentScene = &s;
-
 	objectGridInfo.Resize(currentScene->DrawCount());
-}
 
-void ThesisSolution::Frame(const Camera& mainWindowCamera)
-{
+	//
 	glClear(GL_COLOR_BUFFER_BIT);
 	DrawBuffer& dBuffer = currentScene->getDrawBuffer();
 
@@ -55,12 +54,11 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 	// Render Objects to Voxel Grid
 	// Use MSAA to prevent missing triangles on small voxels
 	// (Instead of conservative rendering, visible surface determination)
-	
+
 	// Buffers
 	cameraTransform.Bind();
 	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
 	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
-	currentScene->getGPUBuffer().Bind();
 
 	// Render Image
 	voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
@@ -70,7 +68,8 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glDepthMask(false);
-	//glColorMask(false, false, false, false);
+	glColorMask(false, false, false, false);
+	glViewport(0, 0, VOXEL_SIZE, VOXEL_SIZE);
 
 	// For Each Object
 	uint32_t totalSceneVoxCount = 0;
@@ -85,20 +84,18 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 		geomVoxelizeObject.Bind();
 		fragmentVoxelizeObject.Bind();
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
+		currentScene->getGPUBuffer().Bind();
 
 		// Material Buffer we need to fetch color from material
 		dBuffer.BindMaterialForDraw(i);
 
 		// We need to set viewport coords to match the voxel dims
 		const AABBData& objAABB = currentScene->getDrawBuffer().getAABBBuffer().CPUData()[i];
-		GLuint voxDimX, voxDimY, voxDimZ, one;
-		one = 1;
+		GLuint voxDimX, voxDimY, voxDimZ, one = 1;
 		voxDimX = std::max(static_cast<GLuint>((objAABB.max.getX() - objAABB.min.getX()) / objectGridInfo.CPUData()[i].span), one);
 		voxDimY = std::max(static_cast<GLuint>((objAABB.max.getY() - objAABB.min.getY()) / objectGridInfo.CPUData()[i].span), one);
 		voxDimZ = std::max(static_cast<GLuint>((objAABB.max.getZ() - objAABB.min.getZ()) / objectGridInfo.CPUData()[i].span), one);
 
-		glViewport(0, 0, voxDimX, voxDimY);
-				   
 		// Draw Call
 		glDrawElementsIndirect(GL_TRIANGLES,
 							   GL_UNSIGNED_INT,
@@ -108,66 +105,92 @@ void ThesisSolution::Frame(const Camera& mainWindowCamera)
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		// Second Call: Determine voxel count
-		objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 		computeVoxelizeCount.Bind();
-		size_t blockPerSliceX = (VOXEL_SIZE / voxDimX);
-		size_t factor = ((VOXEL_SIZE % voxDimX) == 0) ? 0 : 1;
+		size_t blockPerSliceX = (voxDimX / 32);
+		size_t factor = ((voxDimX % 32) == 0) ? 0 : 1;
 		blockPerSliceX += factor;
-		size_t blockPerSliceY = (VOXEL_SIZE / voxDimY);
-		factor = ((VOXEL_SIZE % voxDimY) == 0) ? 0 : 1;
+		size_t blockPerSliceY = (voxDimY / 32);
+		factor = ((voxDimY % 32) == 0) ? 0 : 1;
 		blockPerSliceY += factor;
-		size_t blockPerSlice = blockPerSliceX + blockPerSliceY;
+		size_t blockPerSlice = blockPerSliceX * blockPerSliceY;
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-		glUniform4ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ, 
+		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
+		glUniform2ui(U_VOX_SLICE,
+					 static_cast<GLuint>(blockPerSliceX),
 					 static_cast<GLuint>(blockPerSlice));
-
-		// Compute Generation
 		glDispatchCompute(static_cast<GLuint>(voxDimZ * blockPerSlice), 1, 1);
-		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+		// Reflect Changes to Next Process
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
 		ObjGridInfo info = objectGridInfo.GetData(i);
 		totalSceneVoxCount += info.voxCount;
 
 		// Create sparse voxel array according to the size of voxel count
+		voxelData.emplace_back(info.voxCount);
+		voxelRenderData.emplace_back(info.voxCount);
 
 		// Last Call: Pack Draw Calls to the buffer
+		computePackObjectVoxels.Bind();
+		voxelData.back().BindAsShaderStorageBuffer(LU_VOXEL);
+		voxelRenderData.back().BindAsShaderStorageBuffer(LU_VOXEL_RENDER);
+		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
+		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
+		glUniform2ui(U_VOX_SLICE,
+					 static_cast<GLuint>(blockPerSliceX),
+					 static_cast<GLuint>(blockPerSlice));
+		glDispatchCompute(static_cast<GLuint>(voxDimZ * blockPerSlice), 1, 1);
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+		glFlush();
+
+		// Debug VAO
+		voxelVAO.emplace_back(voxelData.back(), voxelRenderData.back(), info.voxCount);
 
 		// Voxelization Done!
 	}
-
 	GI_LOG("Total Vox : %d", totalSceneVoxCount);
 
-	// DEBUG
-	//objectGridInfo.SyncData(currentScene->DrawCount());
-	//for(const ObjGridInfo& ogrd : objectGridInfo.CPUData())
-	//{
-	//	GI_LOG("\t%d", ogrd.voxCount);
-	//}
+}
 
-	// Allocate Buffers According to the counts
+void ThesisSolution::Frame(const Camera& mainRenderCamera)
+{
+	// Frame Viewport
+	glViewport(0, 0,
+			   static_cast<GLsizei>(mainRenderCamera.width),
+			   static_cast<GLsizei>(mainRenderCamera.height));
 
-	//// Same Thing bu render voxels to buffer
-	//vertexVoxelizeObject.Bind();
-	//fragmentVoxelizeObject.Bind();
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
-	//glEnable(GL_MULTISAMPLE);
-	//for(unsigned int i = 0; i < s.ObjectCount(); i++)
-	//{
-	//	const AABBData& objAABB = currentScene->getDrawBuffer().
-	//		getAABBBuffer().
-	//		CPUData()[i];
-	//	cameraTransform.Update
-	//		({
-	//		IEMatrix4x4::Ortogonal(objAABB.min.getX(), objAABB.max.getX(),
-	//		objAABB.min.getY(), objAABB.max.getY(),
-	//		objAABB.min.getZ(), objAABB.max.getZ()),
-	//		IEMatrix4x4::IdentityMatrix
-	//	});
+	glDisable(GL_MULTISAMPLE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDepthMask(true);
+	glColorMask(true, true, true, true);
 
-	//	// Render Object
+	glClear(GL_COLOR_BUFFER_BIT |
+			GL_DEPTH_BUFFER_BIT);
 
-	//}
-//	glDisable(GL_MULTISAMPLE);
+	// Debug Voxelize Scene
+	vertexDebugVoxel.Bind();
+	fragmentDebugVoxel.Bind();
 
-	// Render Voxel Cache of each object
+	cameraTransform.Bind();
+	cameraTransform.Update(mainRenderCamera.generateTransform());
+
+	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
+	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
+	cameraTransform.Bind();
+	
+	auto voxelVaoIt = voxelVAO.begin();
+	for(unsigned int i = 0; i < 100; i++)
+	{
+		// Bind Model Transform
+		DrawBuffer& dBuffer = currentScene->getDrawBuffer();
+		dBuffer.getModelTransformBuffer().BindAsUniformBuffer(U_MTRANSFORM, i, 1);
+
+		// Draw Call
+		voxelVaoIt->Draw();
+		voxelVaoIt++;
+	}
 }

@@ -29,4 +29,4 @@ class VoxelRenderTexture
 		void						BindAsImage(uint32_t index,  GLenum access);
 		void						Clear();
 };
-#endif //__WINDOWINPUT_H__
+#endif //__VOXELRENDERTEXTURE_H__

@@ -8,6 +8,7 @@ Solution implementtion
 #define __THESISSOLUTION_H__
 
 #include <vector>
+#include <list>
 #include "SolutionI.h"
 #include "Shader.h"
 #include "FrameTransformBuffer.h"
@@ -15,6 +16,7 @@ Solution implementtion
 #include "StructuredBuffer.h"
 #include "IEUtility/IEVector3.h"
 #include "VoxelRenderTexture.h"
+#include "VoxelDebugVAO.h"
 
 #pragma pack(push, 1)
 struct ObjGridInfo
@@ -53,10 +55,10 @@ class ThesisSolution : public SolutionI
 		FrameTransformBuffer	cameraTransform;
 		VoxelRenderTexture		voxelRenderTexture;
 
-		StructuredBuffer<ObjGridInfo>				objectGridInfo;
-		std::vector<StructuredBuffer<VoxelData>>	voxelData;
-		std::vector<StructuredBuffer<VoxelData>>	voxelRenderData;
-		std::vector<GLuint>							voxelVAO;
+		StructuredBuffer<ObjGridInfo>					objectGridInfo;
+		std::list<StructuredBuffer<VoxelData>>			voxelData;
+		std::list<StructuredBuffer<VoxelRenderData>>	voxelRenderData;
+		std::list<VoxelDebugVAO>						voxelVAO;
 
 		// Cuda Segment
 		GICudaVoxelScene		voxelScene;

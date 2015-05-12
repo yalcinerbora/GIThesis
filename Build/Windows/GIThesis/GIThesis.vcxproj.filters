@@ -65,6 +65,9 @@
     <ClCompile Include="..\..\..\Source\VoxelRenderStorage.cpp">
       <Filter>GI\Thesis\OGL</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp">
+      <Filter>GI\Thesis\OGL</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -188,6 +191,9 @@
       <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h">
+      <Filter>GI\Thesis\OGL</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h">
       <Filter>GI\Thesis\OGL</Filter>
     </ClInclude>
   </ItemGroup>

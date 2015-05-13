@@ -38,6 +38,7 @@ void ThesisSolution::Init(SceneI& s)
 	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 	currentScene = &s;
 	objectGridInfo.Resize(currentScene->DrawCount());
+	VoxelRenderTexture		voxelRenderTexture;
 
 	//
 	glClear(GL_COLOR_BUFFER_BIT);

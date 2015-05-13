@@ -53,7 +53,6 @@ class ThesisSolution : public SolutionI
 		Shader					computeDetermineVoxSpan;
 
 		FrameTransformBuffer	cameraTransform;
-		VoxelRenderTexture		voxelRenderTexture;
 
 		StructuredBuffer<ObjGridInfo>			objectGridInfo;
 		StructuredBuffer<VoxelData>				voxelData;

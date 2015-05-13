@@ -73,7 +73,7 @@ void StructuredBuffer<T>::AddData(const T& t)
 template <class T>
 GLuint StructuredBuffer<T>::getGLBuffer()
 {
-	ResendData();
+	//ResendData();
 	return bufferId;
 }
 

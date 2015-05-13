@@ -121,7 +121,8 @@ void ThesisSolution::Init(SceneI& s)
 		glDispatchCompute(static_cast<GLuint>(voxDimZ * blockPerSlice), 1, 1);
 
 		// Reflect Changes to Next Process
-		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | 
+						GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		ObjGridInfo info = objectGridInfo.GetData(i);
 		totalSceneVoxCount += info.voxCount;

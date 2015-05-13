@@ -61,13 +61,13 @@ void main(void)
 				uvec2( localBlockID % voxSlice.x, localBlockID / voxSlice.x ) * uvec2(32); 
 	voxId.z = gl_WorkGroupID.x / voxSlice.y;
 
-	if(voxId.x >= voxDim.x || 
-		voxId.y >= voxDim.y ||
-		voxId.z >= voxDim.z) return;
-
 	if(gl_GlobalInvocationID.x == 0 &&
 		gl_GlobalInvocationID.y == 0)
 		atomicExchange(objectGridInfo[objId].voxCount, 0);
+
+	if(voxId.x >= voxDim.x || 
+		voxId.y >= voxDim.y ||
+		voxId.z >= voxDim.z) return;
 
 	// Force Sync
 	memoryBarrier();

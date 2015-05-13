@@ -78,7 +78,6 @@ void main(void)
 	// z is stored as 0-1 value (unless you change it from api)
 	// this form is optimized form generic form is different
 	// ogl has its pixel positions defined in midpoint we also compansate that
-	
 	vec3 voxelCoord = fPos - objectAABBInfo[objId].aabbMin.xyz;
 	voxelCoord = max(voxelCoord, vec3(0.0f));
 	voxelCoord /= objectGridInfo[objId].span;

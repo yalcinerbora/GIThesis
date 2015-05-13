@@ -7,6 +7,7 @@
 #define U_TOTAL_OBJ_COUNT layout(location = 4)
 
 #define MAX_GRID_DIM 128.0f
+#define MIN_SPAN 1.0f
 
 U_TOTAL_OBJ_COUNT uniform uint objCount;
 
@@ -39,6 +40,7 @@ void main(void)
 
 	dim.xyz = dim.xyz / MAX_GRID_DIM;
 	float span = max(max(dim.x, dim.y), dim.z);
+	span = max(span, MIN_SPAN);
 	
 	objectGridInfo[globalId].span = span;
 	objectGridInfo[globalId].voxCount = 0;

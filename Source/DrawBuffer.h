@@ -73,6 +73,8 @@ class DrawBuffer
 														const ModelTransform& modelTransform,
 														const AABBData& aabb);
 
+		void								SendToGPU();
+
 		StructuredBuffer<ModelTransform>&	getModelTransformBuffer();
 		StructuredBuffer<AABBData>&			getAABBBuffer();
 		StructuredBuffer<DrawPointIndexed>&	getDrawParamBuffer();

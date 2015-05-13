@@ -217,7 +217,7 @@ Window::Window(InputManI& input,
 	glfwWindowHint(GLFW_DEPTH_BITS, 24);
 	glfwWindowHint(GLFW_STENCIL_BITS, 8);
 
-	glfwWindowHint(GLFW_SAMPLES, 32);
+	glfwWindowHint(GLFW_SAMPLES, 16);
 
 	glfwWindowHint(GLFW_REFRESH_RATE, GLFW_DONT_CARE);
 	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);

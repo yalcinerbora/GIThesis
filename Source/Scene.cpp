@@ -16,6 +16,7 @@ Scene::Scene(const char* sceneFileName)
 
 	SceneParams sceneParams = {0};
 	GFGLoader::LoadGFG(sceneParams, sceneVertex, drawParams, sceneFileName);
+	drawParams.SendToGPU();
 	timer.Stop();
 
 	materialCount = sceneParams.materialCount;

@@ -36,10 +36,8 @@ void VoxelDebugVAO::InitVoxelCube()
 }
 
 VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
-							 StructuredBuffer<VoxelRenderData>& voxRenderDataBuffer,
-							 uint32_t voxelCount)
+							 StructuredBuffer<VoxelRenderData>& voxRenderDataBuffer)
 	: vaoId(0)
-	, voxelCount(voxelCount)
 {
 	if(voxelCubeData.indexBuffer == 0 &&
 	   voxelCubeData.vertexBuffer == 0)
@@ -71,11 +69,10 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 
 	// VoxData
 	glEnableVertexAttribArray(2);
-	glVertexAttribFormat(2,
-						 2,
-						 GL_UNSIGNED_INT,
-						 GL_FALSE,
-						 0);
+	glVertexAttribIFormat(2,
+						  2,
+						  GL_UNSIGNED_INT,
+						  0);
 	glVertexAttribDivisor(2, 1);
 	glVertexAttribBinding(2, 1);
 
@@ -105,14 +102,17 @@ VoxelDebugVAO::~VoxelDebugVAO()
 	glDeleteVertexArrays(1, &vaoId);
 }
 
-void VoxelDebugVAO::Draw()
+void VoxelDebugVAO::Bind()
 {
 	glBindVertexArray(vaoId);
-	glDrawElementsInstanced(GL_TRIANGLES,
-							voxelCubeData.indexCount,
-							GL_UNSIGNED_INT,
-							nullptr,
-							1);
-	//glDrawElements(GL_TRIANGLES, voxelCubeData.indexCount,
-	//			   GL_UNSIGNED_INT, nullptr);
+}
+
+void VoxelDebugVAO::Draw(uint32_t voxelCount, uint32_t offset)
+{
+	glDrawElementsInstancedBaseInstance(GL_TRIANGLES,
+										voxelCubeData.indexCount,
+										GL_UNSIGNED_INT,
+										nullptr,
+										std::min(voxelCount, 5000000u),
+										offset);
 }

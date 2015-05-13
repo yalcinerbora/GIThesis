@@ -1,13 +1,13 @@
 #version 430
 				
 // Definitions
-#define LU_AABB layout(std430, binding = 3)
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
+#define LU_AABB layout(std430, binding = 3) readonly
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent 
 
 #define U_TOTAL_OBJ_COUNT layout(location = 4)
 
-#define MAX_GRID_DIM 128.0f
-#define MIN_SPAN 1.0f
+#define MAX_GRID_DIM 256.0f
+#define MIN_SPAN 1.8f
 
 U_TOTAL_OBJ_COUNT uniform uint objCount;
 
@@ -41,7 +41,7 @@ void main(void)
 	dim.xyz = dim.xyz / MAX_GRID_DIM;
 	float span = max(max(dim.x, dim.y), dim.z);
 	span = max(span, MIN_SPAN);
-	
+
 	objectGridInfo[globalId].span = span;
 	objectGridInfo[globalId].voxCount = 0;
 }

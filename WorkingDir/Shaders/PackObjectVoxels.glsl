@@ -1,21 +1,26 @@
 #version 430
 				
 // Definitions
-#define LU_VOXEL layout(std430, binding = 0)
-#define LU_VOXEL_RENDER layout(std430, binding = 1)
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
+#define LU_VOXEL layout(std430, binding = 0) coherent 
+#define LU_VOXEL_RENDER layout(std430, binding = 1) coherent 
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent readonly
+#define LU_INDEX_CHECK layout(std430, binding = 4) coherent
 
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
-#define U_VOX_SLICE layout(location = 5)
+#define U_MAX_CACHE_SIZE layout(location = 5)
 
-#define I_VOX_READ layout(rgba32f, binding = 2) restrict readonly
+#define I_VOX_READ layout(rgba32f, binding = 2) coherent
 
 // I-O
 U_OBJ_ID uniform uint objId;
 U_TOTAL_VOX_DIM uniform uvec3 voxDim;
-U_VOX_SLICE uniform uvec2 voxSlice;
+U_MAX_CACHE_SIZE uniform uint maxSize;
 
+LU_INDEX_CHECK buffer CountArray
+{
+	uint writeIndex;
+};
 
 LU_VOXEL buffer VoxelArray
 {
@@ -52,37 +57,32 @@ uvec2 PackVoxelData(in uvec3 voxCoord, in uint objId)
 	return vec;
 }
 		
-layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {
-	uvec3 voxId;
-	uint localBlockID = gl_WorkGroupID.x % voxSlice.y;
-	voxId.xy  = gl_LocalInvocationID.xy + 
-				uvec2( localBlockID % voxSlice.x, localBlockID / voxSlice.x ) * uvec2(32); 
-	voxId.z = gl_WorkGroupID.x / voxSlice.y;
-
-	if(gl_GlobalInvocationID.x == 0 &&
-		gl_GlobalInvocationID.y == 0)
-		atomicExchange(objectGridInfo[objId].voxCount, 0);
-
-	if(voxId.x >= voxDim.x || 
-		voxId.y >= voxDim.y ||
-		voxId.z >= voxDim.z) return;
-
-	// Force Sync
-	memoryBarrier();
-
-	vec4 voxData = imageLoad(voxelData, ivec3(voxId));
-
-	// Empty Normal Means its vox is empty
-	if(voxData.x == 0.0f &&
-		voxData.y == 0.0f &&
-		voxData.z == 0.0f)
+	uvec3 voxId = gl_GlobalInvocationID.xyz;
+	if(voxId.x <= voxDim.x &&
+		voxId.y <= voxDim.y &&
+		voxId.z <= voxDim.z)
 	{
-		uint writeIndex = atomicAdd(objectGridInfo[objId].voxCount, 1);
-		voxelArrayRender[writeIndex].normal = voxData.xyz;
-		voxelArrayRender[writeIndex].color = floatBitsToUint(voxData.w);
+		//memoryBarrier();
+		vec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
-		voxelPacked[writeIndex] = PackVoxelData(voxId, objId);
+		// Empty Normal Means its vox is empty
+		if(voxData.x != 0.0f ||
+			voxData.y != 0.0f ||
+			voxData.z != 0.0f)
+		{
+			uint index = atomicAdd(writeIndex, 1);
+			if(index <= maxSize)
+			{
+				voxelArrayRender[index].normal = voxData.xyz;
+				voxelArrayRender[index].color = floatBitsToUint(voxData.w);
+				voxelPacked[index] = PackVoxelData(voxId, objId);
+			}
+		}
 	}
+	// Reset Color For next iteration
+	imageStore(voxelData, ivec3(voxId), vec4(0.0f));
+	//memoryBarrier();
 }

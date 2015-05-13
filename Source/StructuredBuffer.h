@@ -22,9 +22,6 @@ class StructuredBuffer
 		GLuint					bufferId;
 		size_t					bufferCapacity;
 		std::vector<T>			dataGPUImage;
-		bool					dataChanged;
-
-		void					ResendData();
 
 	protected:
 
@@ -53,8 +50,9 @@ class StructuredBuffer
 		void					Resize(size_t count);
 		void					SyncData(size_t newSize);
 		T						GetData(uint32_t index);
+		void					SendData();
 
-		const std::vector<T>&	CPUData() const;
+		std::vector<T>&			CPUData();
 };
 #include "StructuredBuffer.hpp"
 #endif //__STRUCTUREDBUFFER_H__

@@ -16,8 +16,8 @@
 
 #define OUT_COLOR layout(location = 0)
 
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
-#define LU_AABB layout(std430, binding = 3)
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent
+#define LU_AABB layout(std430, binding = 3) coherent readonly
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_MTRANSFORM layout(std140, binding = 1)
@@ -79,17 +79,18 @@ uvec4 UnpackVoxelData(in uvec2 voxPacked)
 
 void main(void)
 {
-	fColor = vec3(0.0f, 1.0f, 1.0f);//voxColor.rgb;
+	fColor = voxColor.rgb;
 
 	uvec4 voxIndex = UnpackVoxelData(voxPos);
 	uint objId = voxIndex.w;
 	float span = objectGridInfo[objId].span;
 	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + 
-					(span * vec3(voxIndex.xyz));
-	mat4 voxModel =	mat4(200.0f,			0.0f,		0.0f,		0.0f,
-						  0.0f,			200.0f,		0.0f,		0.0f,
-						  0.0f,			0.0f,		200.0f,		0.0f,
-						  0.0f,			0.0f,		0.0f,		1.0f);
-						  //deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);
+					(span * vec3(voxIndex.xyz)) +
+					vec3(span * 0.5f);
+	mat4 voxModel =	mat4( span,		0.0f,		0.0f,		0.0f,
+						  0.0f,			span,		0.0f,		0.0f,
+						  0.0f,			0.0f,		span,		0.0f,
+						  //0.0f,			0.0f,		0.0f,		1.0f);
+						  deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);
 	gl_Position = projection * view * model * voxModel * vec4(vPos, 1.0f);
 }

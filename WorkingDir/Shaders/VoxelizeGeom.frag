@@ -14,11 +14,11 @@
 #define IN_NORMAL layout(location = 1)
 #define IN_POS layout(location = 2)
 
-#define LU_AABB layout(std430, binding = 3)
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
+#define LU_AABB layout(std430, binding = 3) readonly
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent readonly
 
 #define T_COLOR layout(binding = 0)
-#define I_VOX_WRITE layout(rgba32f, binding = 2) restrict writeonly
+#define I_VOX_WRITE layout(rgba32f, binding = 2) coherent writeonly
 #define U_OBJ_ID layout(location = 4)
 
 // Input
@@ -58,9 +58,9 @@ uint PackColor(vec3 color)
 {
 	uint result;
 	color *= vec3(255.0f);
-    result = uint(color.x) << 0;
-	result = uint(color.x) << 8;
-	result = uint(color.x) << 16;
+    result = uint(color.r) << 0;
+	result |= uint(color.g) << 8;
+	result |= uint(color.b) << 16;
     
     return result;
 }
@@ -81,14 +81,9 @@ void main(void)
 	vec3 voxelCoord = fPos - objectAABBInfo[objId].aabbMin.xyz;
 	voxelCoord = max(voxelCoord, vec3(0.0f));
 	voxelCoord /= objectGridInfo[objId].span;
-
-	//uvec3 voxCoords = (aabbSize - fPos)
-	//				(objectAABBInfo[objId].aabbMax.z - objectAABBInfo[objId].aabbMin.z) / 
-	//				objectGridInfo[objId].span;
-	//uvec3 voxelCoord = uvec3(uvec2(gl_FragCoord.xy - vec2(0.5f)), zWindow);//uint(0));
 	
 	// TODO: Average the voxel results
 	// At the moment it is overwrite
-	imageStore(voxelData, ivec3(voxelCoord), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
-	//imageStore(voxelData, ivec3(uvec3(voxelCoord)), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
+	//imageStore(voxelData, ivec3(uvec3(voxelCoord)), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
+	imageStore(voxelData, ivec3(uvec3(voxelCoord)), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
 }

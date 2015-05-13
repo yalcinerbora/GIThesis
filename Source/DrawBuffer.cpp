@@ -28,6 +28,13 @@ void DrawBuffer::AddDrawCall(const DrawPointIndexed& dp,
 	materialIndex.push_back(mIndex);
 }
 
+void DrawBuffer::SendToGPU()
+{
+	drawTransforms.SendData();
+	drawAABBs.SendData();
+	drawPoints.SendData();
+}
+
 StructuredBuffer<ModelTransform>& DrawBuffer::getModelTransformBuffer()
 {
 	return drawTransforms;

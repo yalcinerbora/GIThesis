@@ -33,20 +33,19 @@ class VoxelDebugVAO
 		void				InitVoxelCube();
 
 		GLuint				vaoId;
-		uint32_t			voxelCount;
 
 	protected:
 
 	public:
 		// Cosntructors & Destructor
 								VoxelDebugVAO(StructuredBuffer<VoxelData>&,
-											  StructuredBuffer<VoxelRenderData>&,
-											  uint32_t voxelCount);
+											  StructuredBuffer<VoxelRenderData>&);
 								VoxelDebugVAO(const VoxelDebugVAO&) = delete;
 		const VoxelDebugVAO&	operator= (const VoxelDebugVAO&) = delete;
 								~VoxelDebugVAO();
 
-		void					Draw();
+		void					Draw(uint32_t voxelCount, uint32_t offset);
+		void					Bind();
 
 
 };

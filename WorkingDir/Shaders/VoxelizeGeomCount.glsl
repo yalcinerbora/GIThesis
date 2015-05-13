@@ -10,13 +10,12 @@
 */
 
 // Definitions
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2)
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent
 
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
-#define U_VOX_SLICE layout(location = 5)
 
-#define I_VOX_READ layout(rgba32f, binding = 2) restrict readonly
+#define I_VOX_READ layout(rgba32f, binding = 2) coherent readonly
 
 // Input
 
@@ -28,7 +27,6 @@ uniform I_VOX_READ image3D voxelData;
 // Uniforms
 U_OBJ_ID uniform uint objId;
 U_TOTAL_VOX_DIM uniform uvec3 voxDim;
-U_VOX_SLICE uniform uvec2 voxSlice;
 
 LU_OBJECT_GRID_INFO buffer GridInfo
 {
@@ -39,19 +37,15 @@ LU_OBJECT_GRID_INFO buffer GridInfo
 	} objectGridInfo[];
 };
 
-layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {
-	uvec3 voxId;
-	uint localBlockID = gl_WorkGroupID.x % voxSlice.y;
-	voxId.xy  = gl_LocalInvocationID.xy + 
-				uvec2( localBlockID % voxSlice.x, localBlockID / voxSlice.x ) * uvec2(32); 
-	voxId.z = gl_WorkGroupID.x / voxSlice.y;
+	uvec3 voxId = gl_GlobalInvocationID.xyz;
+	if(voxId.x > voxDim.x || 
+		voxId.y > voxDim.y ||
+		voxId.z > voxDim.z) return;
 
-	if(voxId.x >= voxDim.x || 
-		voxId.y >= voxDim.y ||
-		voxId.z >= voxDim.z) return;
-
+	//memoryBarrier();
 	vec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
 	// Empty Normal Means its vox is empty
@@ -61,4 +55,5 @@ void main(void)
 	{
 		atomicAdd(objectGridInfo[objId].voxCount, 1);
 	}
+	//memoryBarrier();
 }

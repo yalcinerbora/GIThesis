@@ -55,16 +55,18 @@ class ThesisSolution : public SolutionI
 		FrameTransformBuffer	cameraTransform;
 		VoxelRenderTexture		voxelRenderTexture;
 
-		StructuredBuffer<ObjGridInfo>					objectGridInfo;
-		std::list<StructuredBuffer<VoxelData>>			voxelData;
-		std::list<StructuredBuffer<VoxelRenderData>>	voxelRenderData;
-		std::list<VoxelDebugVAO>						voxelVAO;
+		StructuredBuffer<ObjGridInfo>			objectGridInfo;
+		StructuredBuffer<VoxelData>				voxelData;
+		StructuredBuffer<VoxelRenderData>		voxelRenderData;
+		StructuredBuffer<uint32_t>				voxelCacheUsageSize;
+		VoxelDebugVAO							voxelVAO;
 
 		// Cuda Segment
 		GICudaVoxelScene		voxelScene;
 
 		static size_t			InitialObjectGridSize;
 		static size_t			InitialVoxelBufferSizes;
+		static size_t			MaxVoxelCacheSize;
 
 	protected:
 		void					CreateVoxel(size_t index);

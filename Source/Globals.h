@@ -62,7 +62,7 @@ static const VertexElement element[] =
 #define U_TOTAL_VOX_DIM 3
 #define U_OBJ_ID 4
 #define U_TOTAL_OBJ_COUNT 4
-#define U_VOX_SLICE 5
+#define U_MAX_CACHE_SIZE 5
 
 // Unfiorm
 #define U_FTRANSFORM 0
@@ -73,6 +73,6 @@ static const VertexElement element[] =
 #define LU_VOXEL_RENDER 1
 #define LU_OBJECT_GRID_INFO 2
 #define LU_AABB 3
-#define LU_MTRANSFORM 4
+#define LU_INDEX_CHECK 4
 
 #endif //__GLOBALS_H__

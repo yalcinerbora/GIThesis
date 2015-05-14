@@ -10,12 +10,12 @@
 */
 
 // Definitions
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict
 
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
 
-#define I_VOX_READ layout(rgba32f, binding = 2) coherent readonly
+#define I_VOX_READ layout(rgba32f, binding = 2) restrict readonly
 
 // Input
 

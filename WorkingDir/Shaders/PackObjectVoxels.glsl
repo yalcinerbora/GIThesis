@@ -1,16 +1,16 @@
 #version 430
 				
 // Definitions
-#define LU_VOXEL layout(std430, binding = 0) coherent 
-#define LU_VOXEL_RENDER layout(std430, binding = 1) coherent 
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent readonly
-#define LU_INDEX_CHECK layout(std430, binding = 4) coherent
+#define LU_VOXEL layout(std430, binding = 0) restrict 
+#define LU_VOXEL_RENDER layout(std430, binding = 1) restrict 
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict readonly
+#define LU_INDEX_CHECK layout(std430, binding = 4) restrict
 
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
 #define U_MAX_CACHE_SIZE layout(location = 5)
 
-#define I_VOX_READ layout(rgba32f, binding = 2) coherent
+#define I_VOX_READ layout(rgba32f, binding = 2) restrict
 
 // I-O
 U_OBJ_ID uniform uint objId;

@@ -41,20 +41,20 @@ out gl_PerVertex
     //float gl_ClipDistance[];
 };
 
-const mat4 xOrtho = mat4(0.0f, 0.0f, 1.0f, 0.0f,
-						 0.0f, 1.0f, 0.0f, 0.0f,
-						 -1.0f, 0.0f, 0.0f, 0.0f,
-						 0.0f, 0.0f, 0.0f, 1.0f);
+const mat4 xRotate = mat4(0.0f, 0.0f, 1.0f, 0.0f,
+						  0.0f, 1.0f, 0.0f, 0.0f,
+						  -1.0f, 0.0f, 0.0f, 0.0f,
+						  0.0f, 0.0f, 0.0f, 1.0f);
 
-const mat4 yOrtho = mat4(1.0f, 0.0f, 0.0f, 0.0f,
-						 0.0f, 0.0f, 1.0f, 0.0f,
-						 0.0f, -1.0f, 0.0f, 0.0f,
-						 0.0f, 0.0f, 0.0f, 1.0f);
+const mat4 yRotate = mat4(1.0f, 0.0f, 0.0f, 0.0f,
+						  0.0f, 0.0f, 1.0f, 0.0f,
+						  0.0f, -1.0f, 0.0f, 0.0f, 
+						  0.0f, 0.0f, 0.0f, 1.0f);
 
-const mat4 zOrtho = mat4(1.0f, 0.0f, 0.0f, 0.0f,
-						 0.0f, 1.0f, 0.0f, 0.0f,
-						 0.0f, 0.0f, 1.0f, 0.0f,
-						 0.0f, 0.0f, 0.0f, 1.0f);
+const mat4 zRotate = mat4(1.0f, 0.0f, 0.0f, 0.0f,
+						  0.0f, 1.0f, 0.0f, 0.0f,
+						  0.0f, 0.0f, 1.0f, 0.0f,
+						  0.0f, 0.0f, 0.0f, 1.0f);
 
 void main(void)
 {
@@ -69,18 +69,18 @@ void main(void)
 	// For Each Vertex
 	for(unsigned int i = 0; i < gl_in.length(); i++)
 	{	
-		vec4 newPos = vec4(0.0f);
+		vec4 newPos = gl_in[i].gl_Position;
 		if(axis.x == 1.0f)
 		{
-			newPos = xOrtho * gl_in[i].gl_Position;
+			newPos = xRotate * gl_in[i].gl_Position;
 		}	
 		else if(axis.y == 1.0f)
 		{
-			newPos = yOrtho * gl_in[i].gl_Position;
+			newPos = yRotate * gl_in[i].gl_Position;
 		}
 		else if(axis.z == 1.0f)
 		{
-			newPos = zOrtho * gl_in[i].gl_Position;
+			newPos = zRotate * gl_in[i].gl_Position;
 		}
 	
 		gl_Position = newPos;

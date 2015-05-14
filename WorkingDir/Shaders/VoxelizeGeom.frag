@@ -15,10 +15,10 @@
 #define IN_POS layout(location = 2)
 
 #define LU_AABB layout(std430, binding = 3) readonly
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent readonly
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict readonly
 
 #define T_COLOR layout(binding = 0)
-#define I_VOX_WRITE layout(rgba32f, binding = 2) coherent writeonly
+#define I_VOX_WRITE layout(rgba32f, binding = 2) restrict writeonly
 #define U_OBJ_ID layout(location = 4)
 
 // Input
@@ -72,18 +72,14 @@ void main(void)
 	uint colorPacked = PackColor(color);
 
 	// DEBUG
-	//colorDebug =  vec4(color.rgb, 1.0f);
-
-	// xy is straightforward
-	// z is stored as 0-1 value (unless you change it from api)
-	// this form is optimized form generic form is different
-	// ogl has its pixel positions defined in midpoint we also compansate that
+	colorDebug =  vec4(color.rgb, 1.0f);
+	
+	// interpolated object space pos
 	vec3 voxelCoord = fPos - objectAABBInfo[objId].aabbMin.xyz;
-	voxelCoord = max(voxelCoord, vec3(0.0f));
 	voxelCoord /= objectGridInfo[objId].span;
 	
 	// TODO: Average the voxel results
 	// At the moment it is overwrite
-	//imageStore(voxelData, ivec3(uvec3(voxelCoord)), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
-	imageStore(voxelData, ivec3(uvec3(voxelCoord)), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
+	imageStore(voxelData, ivec3(uvec3(voxelCoord)), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
+	//imageStore(voxelData, ivec3(voxelCoord), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
 }

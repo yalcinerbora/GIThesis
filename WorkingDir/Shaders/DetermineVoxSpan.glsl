@@ -2,7 +2,7 @@
 				
 // Definitions
 #define LU_AABB layout(std430, binding = 3) readonly
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent 
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict 
 
 #define U_TOTAL_OBJ_COUNT layout(location = 4)
 

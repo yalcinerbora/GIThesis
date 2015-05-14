@@ -16,8 +16,8 @@
 
 #define OUT_COLOR layout(location = 0)
 
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) coherent
-#define LU_AABB layout(std430, binding = 3) coherent readonly
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict
+#define LU_AABB layout(std430, binding = 3) restrict readonly
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_MTRANSFORM layout(std140, binding = 1)

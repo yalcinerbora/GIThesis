@@ -90,7 +90,6 @@ void main(void)
 	mat4 voxModel =	mat4( span,		0.0f,		0.0f,		0.0f,
 						  0.0f,			span,		0.0f,		0.0f,
 						  0.0f,			0.0f,		span,		0.0f,
-						  //0.0f,			0.0f,		0.0f,		1.0f);
 						  deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);
 	gl_Position = projection * view * model * voxModel * vec4(vPos, 1.0f);
 }

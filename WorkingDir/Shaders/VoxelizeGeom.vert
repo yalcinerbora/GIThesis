@@ -51,13 +51,13 @@ mat4 orthoFromAABB()
 	// any of the min max components can be equal (this makes scales zero and we dont want that
 
 	// Near Far Left Right Top Bottom
-	vec2 nf = vec2(objectAABBInfo[objId].aabbMin.z, objectAABBInfo[objId].aabbMax.z);
-	vec2 lr = vec2(objectAABBInfo[objId].aabbMin.x, objectAABBInfo[objId].aabbMax.x);
+	vec2 nf = vec2(objectAABBInfo[objId].aabbMin.z - 1.0f, objectAABBInfo[objId].aabbMax.z + 1.0f);
+	vec2 lr = vec2(objectAABBInfo[objId].aabbMin.x - 1.0f, objectAABBInfo[objId].aabbMax.x + 1.0f);
 	vec2 tb = vec2(objectAABBInfo[objId].aabbMax.y, objectAABBInfo[objId].aabbMin.y);
 
-	vec3 diff = vec3((nf.y - nf.x) == 0.0f ? 0.0001f : (nf.y - nf.x),
-					(lr.y - lr.x) == 0.0f ? 0.0001f : (lr.y - lr.x),
-					(tb.x - tb.y) == 0.0f ? 0.0001f : (tb.x - tb.y)); 
+	vec3 diff = vec3((nf.y - nf.x) < 0.00001f ? 0.00001f : (nf.y - nf.x),
+					(lr.y - lr.x) < 0.00001f ? 0.00001f : (lr.y - lr.x),
+					(tb.x - tb.y) < 0.00001f ? 0.00001f : (tb.x - tb.y)); 
 
 	vec3 translate = vec3(-(lr.y + lr.x),
 						  -(tb.x + tb.y),

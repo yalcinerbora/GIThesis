@@ -10,9 +10,9 @@ VoxelRenderTexture::VoxelRenderTexture()
 	glTexStorage3D(GL_TEXTURE_3D,
 				   1,
 				   GL_RGBA32F,
-				   VOXEL_SIZE,
-				   VOXEL_SIZE,
-				   VOXEL_SIZE);
+				   VOXEL_GRID_SIZE,
+				   VOXEL_GRID_SIZE,
+				   VOXEL_GRID_SIZE);
 }
 
 VoxelRenderTexture::~VoxelRenderTexture()

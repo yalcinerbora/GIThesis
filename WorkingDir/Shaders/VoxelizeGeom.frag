@@ -72,14 +72,19 @@ void main(void)
 	uint colorPacked = PackColor(color);
 
 	// DEBUG
-	colorDebug =  vec4(color.rgb, 1.0f);
+	//colorDebug =  vec4(color.rgb, 1.0f);
 	
 	// interpolated object space pos
 	vec3 voxelCoord = fPos - objectAABBInfo[objId].aabbMin.xyz;
 	voxelCoord /= objectGridInfo[objId].span;
+	voxelCoord = clamp(voxelCoord, vec3(0.0f), vec3(imageSize(voxelData) - 1.0f));
 	
 	// TODO: Average the voxel results
 	// At the moment it is overwrite
-	imageStore(voxelData, ivec3(uvec3(voxelCoord)), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
-	//imageStore(voxelData, ivec3(voxelCoord), vec4(color.xyz, uintBitsToFloat(colorPacked))); 
+	// Should i need barrier here or some sort of snyc?
+	// its ok if these writes atomic, but if vec4 write to tex is not
+	// atomic there will be mutated voxels which is bad.
+	imageStore(voxelData, ivec3(voxelCoord), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
+	//imageStore(voxelData, ivec3(voxelCoord), vec4(color.rgb, uintBitsToFloat(colorPacked))); 
+	//imageStore(voxelData, ivec3(0), vec4(1.0f)); 
 }

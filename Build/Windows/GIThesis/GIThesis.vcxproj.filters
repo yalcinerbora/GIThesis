@@ -62,10 +62,10 @@
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp">
       <Filter>GI\Thesis</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\VoxelRenderStorage.cpp">
+    <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp">
       <Filter>GI\Thesis\OGL</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp">
+    <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp">
       <Filter>GI\Thesis\OGL</Filter>
     </ClCompile>
   </ItemGroup>

@@ -60,6 +60,8 @@ class ThesisSolution : public SolutionI
 		StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 		VoxelDebugVAO							voxelVAO;
 
+		VoxelRenderTexture voxelRenderTexture;
+
 		// Cuda Segment
 		GICudaVoxelScene		voxelScene;
 

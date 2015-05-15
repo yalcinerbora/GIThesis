@@ -39,6 +39,10 @@ void ThesisSolution::Init(SceneI& s)
 	currentScene = &s;
 	objectGridInfo.Resize(currentScene->DrawCount());
 
+	GLuint queryID;
+	glGenQueries(1, &queryID);
+	glBeginQuery(GL_TIME_ELAPSED, queryID);
+
 	//
 	glClear(GL_COLOR_BUFFER_BIT);
 	DrawBuffer& dBuffer = currentScene->getDrawBuffer();
@@ -135,14 +139,25 @@ void ThesisSolution::Init(SceneI& s)
 //		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 		// Voxelization Done!
 	}
+	glEndQuery(GL_TIME_ELAPSED);
+
+	GLuint64 timeElapsed;
+	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
 
 	objectGridInfo.SyncData(currentScene->DrawCount());
 	voxelCacheUsageSize.SyncData(1);
 	uint32_t totalSceneVoxCount = 0;
 	for(int i = 0; i < currentScene->DrawCount(); i++)
 		totalSceneVoxCount += objectGridInfo.CPUData()[i].voxCount;
+
+	GI_LOG("------------------------------------");
+	GI_LOG("GI Thesis Solution Init Complete");
+	GI_LOG("Scene Voxelization Time: %f ms", timeElapsed / 1000000.0);
 	GI_LOG("Total Vox : %d", totalSceneVoxCount);
-	GI_LOG("Total Vox Written : %d", voxelCacheUsageSize.CPUData()[0]);
+	GI_LOG("Total Vox Memory: %f MB", static_cast<double>(totalSceneVoxCount * 24) / (1024.0 * 1024.0));
+	GI_LOG("------------------------------------");
+
+	glDeleteQueries(1, &queryID);
 }
 
 void ThesisSolution::Frame(const Camera& mainRenderCamera)

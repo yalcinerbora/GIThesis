@@ -60,7 +60,11 @@ class ThesisSolution : public SolutionI
 		StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 		VoxelDebugVAO							voxelVAO;
 
-		VoxelRenderTexture voxelRenderTexture;
+		// Uncomment this for debugging voxelization 
+		// Normally this texture allocated and deallocated 
+		// at init time and
+		// Comment the one at Init function
+		//VoxelRenderTexture voxelRenderTexture;
 
 		// Cuda Segment
 		GICudaVoxelScene		voxelScene;

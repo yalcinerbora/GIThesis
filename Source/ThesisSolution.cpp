@@ -63,8 +63,8 @@ void ThesisSolution::Init(SceneI& s)
 	objectGridInfo.SyncData(currentScene->DrawCount());
 
 	// Render Objects to Voxel Grid
-	// Use MSAA to prevent missing triangles on small voxels
-	// (Instead of conservative rendering, visible surface determination)
+	// Use MSAA to prevent missing small triangles on voxels
+	// (Instead of conservative rendering)
 
 	// Buffers
 	cameraTransform.Bind();
@@ -113,7 +113,7 @@ void ThesisSolution::Init(SceneI& s)
 							   (void *) (i * sizeof(DrawPointIndexed)));
 
 		// Reflect Changes for the next process
-	//	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+//		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
 		// Second Call: Determine voxel count
 		computeVoxelizeCount.Bind();
@@ -123,7 +123,7 @@ void ThesisSolution::Init(SceneI& s)
 		glDispatchCompute(VOXEL_GRID_SIZE / 8, VOXEL_GRID_SIZE / 8, VOXEL_GRID_SIZE / 8);
 
 		// Reflect Changes to Next Process
-	//	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+//		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
 		// Create sparse voxel array according to the size of voxel count
 		// Last Call: Pack Draw Calls to the buffer

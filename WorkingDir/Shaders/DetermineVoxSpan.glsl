@@ -7,7 +7,7 @@
 #define U_TOTAL_OBJ_COUNT layout(location = 4)
 
 #define MAX_GRID_DIM 256.0f
-#define MIN_SPAN 1.8f
+#define MIN_SPAN 2.3f
 
 U_TOTAL_OBJ_COUNT uniform uint objCount;
 

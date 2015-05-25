@@ -196,6 +196,9 @@
     <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h">
       <Filter>GI\Thesis\OGL</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\GBuffer.h">
+      <Filter>GI\NoGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

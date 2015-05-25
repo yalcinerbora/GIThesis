@@ -24,29 +24,43 @@ in IN_UV vec2 fUV;
 in IN_NORMAL vec3 fNormal;
 
 // Output
-out OUT_RT0 vec4 albedoRGB_emptyA;
-//out OUT_RT1 vec4 normalXYZ_emptyW;
+out OUT_RT0 vec4 albedoRGB_specPowA;
+out OUT_RT1 uvec2 normalXY;
 
 // Textures
 
 // Uniforms
 
 // Here User Defined Material Will Come
-void GBufferPopulate(out vec3 gNormal, out vec3 gColor, out vec2 gMetalSpecular);
+void GBufferPopulate(out vec3 gNormal, out vec3 gColor, out float gSpec);
+
+uvec2 PackNormal(vec3 normal)
+{
+	// 1615 XY Format
+	// 32 bit format LS 16 bits are X
+	// MSB is the sign of Z
+	// Rest is Y
+	// both x and y is SNORM types
+	uvec2 result;
+	result.x = uint(normal.x + 1.0f * 0.5f * 65536.0f);
+	result.y = uint(normal.y + 1.0f * 0.5f * 32768.0f);
+	result.y |= 0x8000 & (floatBitsToUint(normal.z) >> 16);
+}
 
 void main(void)
 {
 	// Call Used Define Function
 	vec3 gColor;
 	vec3 gNormal;
-	vec2 gMetalSpecular;
+	float gSpec;
 
 	// User Defines this function (Custom Materials)
-	GBufferPopulate(gNormal, gColor, gMetalSpecular);
+	GBufferPopulate(gNormal, gColor, gSpec);
 
 	// GBuffer Write
-	albedoRGB_emptyA.rgb = gColor.rgb;//vec3(1.0f, 1.0f, 0.0f);//gColor.rgb;
-//	normalXYZ_emptyW.rgb = gColor.xyz;
+	albedoRGB_specPowA.rgb = gColor;
+	albedoRGB_specPowA.a = gSpec;
+	normalXY = PackNormal(gNormal);
 
 	// Depth Write is auto, so all done!!!
 }
@@ -78,11 +92,10 @@ void main(void)
 uniform T_COLOR sampler2D colorTex;
 
 // Uniforms
-
 // Entry
-void GBufferPopulate(out vec3 gNormal, out vec3 gColor, out vec2 gMetalSpecular)
+void GBufferPopulate(out vec3 gNormal, out vec3 gColor, out float gSpec)
 {
 	gColor = texture2D(colorTex, fUV).rgb;
 	gNormal = fNormal;
-	gMetalSpecular = vec2(0.0f, 0.0f);
+	gSpec = 1.0f;
 }

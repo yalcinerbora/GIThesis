@@ -68,6 +68,9 @@
     <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp">
       <Filter>GI\Thesis\OGL</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\GBuffer.cpp">
+      <Filter>GI\NoGI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />

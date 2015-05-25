@@ -11,6 +11,7 @@ Just Renders the scene
 #include "SolutionI.h"
 #include "Shader.h"
 #include "FrameTransformBuffer.h"
+#include "GBuffer.h"
 
 class EmptyGISolution : public SolutionI
 {
@@ -18,6 +19,7 @@ class EmptyGISolution : public SolutionI
 		SceneI*					currentScene;
 		Shader					vertexGBufferWrite;
 		Shader					fragmentGBufferWrite;
+		GBuffer					gBuffer;
 		FrameTransformBuffer	cameraTransform;
 
 	protected:

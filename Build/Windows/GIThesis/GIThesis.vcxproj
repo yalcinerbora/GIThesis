@@ -106,6 +106,7 @@
     <ClCompile Include="..\..\..\Source\EmptyGISolution.cpp" />
     <ClCompile Include="..\..\..\Source\FPSInput.cpp" />
     <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp" />
+    <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
     <ClCompile Include="..\..\..\Source\GICudaAllocator.cpp" />
     <ClCompile Include="..\..\..\Source\GPUBuffer.cpp" />

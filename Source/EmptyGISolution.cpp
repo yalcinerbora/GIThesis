@@ -6,10 +6,10 @@
 
 EmptyGISolution::EmptyGISolution()
 	: currentScene(nullptr)
+	, gBuffer(1280, 720)
 	, vertexGBufferWrite(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert")
 	, fragmentGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag")
 {}
-
 
 bool EmptyGISolution::IsCurrentScene(SceneI& scene)
 {
@@ -33,6 +33,7 @@ void EmptyGISolution::Frame(const Camera& mainRenderCamera)
 	// Start With a VP Set
 	// Using a callback is not necessarly true since it may alter some framebuffer's viewport
 	// but we have to be sure that it alters main fbo viewport
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0,
 			   static_cast<GLsizei>(mainRenderCamera.width),
 			   static_cast<GLsizei>(mainRenderCamera.height));

@@ -163,6 +163,7 @@ void ThesisSolution::Init(SceneI& s)
 void ThesisSolution::Frame(const Camera& mainRenderCamera)
 {
 	// Frame Viewport
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0,
 			   static_cast<GLsizei>(mainRenderCamera.width),
 			   static_cast<GLsizei>(mainRenderCamera.height));

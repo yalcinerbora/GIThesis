@@ -17,8 +17,16 @@ class EmptyGISolution : public SolutionI
 {
 	private:
 		SceneI*					currentScene;
+
 		Shader					vertexGBufferWrite;
 		Shader					fragmentGBufferWrite;
+
+		Shader					vertLightPass;
+		Shader					fragLightPass;
+
+		Shader					vertPPGeneric;
+		Shader					fragLightApply;
+
 		GBuffer					gBuffer;
 		FrameTransformBuffer	cameraTransform;
 

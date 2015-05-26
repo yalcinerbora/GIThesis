@@ -18,6 +18,7 @@
 in IN_POS vec2 vPos;
 
 // Output
+out gl_PerVertex {vec4 gl_Position;};	// Mandatory
 out OUT_UV vec2 fUV;
 
 void main(void)

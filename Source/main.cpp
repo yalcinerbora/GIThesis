@@ -55,8 +55,8 @@ int main()
 					  winProps);
 
 	// Scenes
-	Scene crySponza(Scene::sponzaFileName);
-	Scene cornellBox(Scene::cornellboxFileName);
+	Scene crySponza(Scene::sponzaFileName, {{}, 0});
+	Scene cornellBox(Scene::cornellboxFileName, {{}, 0});
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);
 

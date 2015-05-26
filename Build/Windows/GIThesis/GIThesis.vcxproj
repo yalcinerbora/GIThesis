@@ -120,8 +120,10 @@
     <ClCompile Include="..\..\..\Source\Material.cpp" />
     <ClCompile Include="..\..\..\Source\MayaInput.cpp" />
     <ClCompile Include="..\..\..\Source\Scene.cpp" />
+    <ClCompile Include="..\..\..\Source\SceneLights.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
     <ClInclude Include="..\..\..\Source\GBuffer.h" />
+    <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
     <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp" />

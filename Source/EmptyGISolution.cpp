@@ -9,6 +9,10 @@ EmptyGISolution::EmptyGISolution()
 	, gBuffer(1280, 720)
 	, vertexGBufferWrite(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert")
 	, fragmentGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag")
+	, vertLightPass(ShaderType::VERTEX, "Shaders/LightPass.vert")
+	, fragLightPass(ShaderType::FRAGMENT, "Shaders/LightPass.frag")
+	, vertPPGeneric(ShaderType::VERTEX, "Shaders/PProcessGeneric.vert")
+	, fragLightApply(ShaderType::FRAGMENT, "Shaders/PPLightPresent.frag")
 {}
 
 bool EmptyGISolution::IsCurrentScene(SceneI& scene)

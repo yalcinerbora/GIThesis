@@ -9,9 +9,10 @@ whgen data chagnes it resend the data bind time
 #ifndef __STRUCTUREDBUFFER_H__
 #define __STRUCTUREDBUFFER_H__
 
-#include "GLHeaderLite.h"
+#include "GLHeader.h"
 #include <vector>
 #include <cstdint>
+#include <cassert>
 
 template <class T>
 class StructuredBuffer

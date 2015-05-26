@@ -8,6 +8,7 @@
 #include "SceneI.h"
 #include "GPUBuffer.h"
 #include "DrawBuffer.h"
+#include "SceneLights.h"
 
 struct SceneParams
 {
@@ -17,25 +18,26 @@ struct SceneParams
 	size_t				totalPolygons;
 };
 
-
 class Scene : public SceneI
 {
 	private:
 		// Props
-		GPUBuffer			sceneVertex;
-		DrawBuffer			drawParams;
-	//	AABBBuffer			aabbBuffer;
+		GPUBuffer				sceneVertex;
+		DrawBuffer				drawParams;
+
+		SceneLights				sceneLights;
 
 		// Some Data Related to the scene
-		size_t				materialCount;
-		size_t				objectCount;
-		size_t				drawCallCount;
-		size_t				totalPolygons;
+		size_t					materialCount;
+		size_t					objectCount;
+		size_t					drawCallCount;
+		size_t					totalPolygons;
 
 	protected:
 	public:
 		// Constructors & Destructor
-								Scene(const char* sceneFileName);
+								Scene(const char* sceneFileName,
+									  const Array32<Light>& light);
 								~Scene() = default;
 
 		// Static Files

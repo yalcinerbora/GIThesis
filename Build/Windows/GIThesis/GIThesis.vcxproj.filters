@@ -71,6 +71,9 @@
     <ClCompile Include="..\..\..\Source\GBuffer.cpp">
       <Filter>GI\NoGI</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\SceneLights.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -201,6 +204,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\GBuffer.h">
       <Filter>GI\NoGI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\SceneLights.h">
+      <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

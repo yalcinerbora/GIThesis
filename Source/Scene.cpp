@@ -7,9 +7,11 @@
 const char* Scene::sponzaFileName = "crySponza.gfg";
 const char* Scene::cornellboxFileName = "cornell.gfg";
 
-Scene::Scene(const char* sceneFileName)
+Scene::Scene(const char* sceneFileName,
+			 const Array32<Light>& lights)
 	: sceneVertex({element, 3})
 	, drawParams()
+	, sceneLights(lights)
 {
 	IETimer timer;
 	timer.Start();

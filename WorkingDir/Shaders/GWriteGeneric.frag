@@ -44,7 +44,8 @@ uvec2 PackNormal(vec3 normal)
 	uvec2 result;
 	result.x = uint(normal.x + 1.0f * 0.5f * 65536.0f);
 	result.y = uint(normal.y + 1.0f * 0.5f * 32768.0f);
-	result.y |= 0x8000 & (floatBitsToUint(normal.z) >> 16);
+	result.y |= 0x8000 & (floatBitsToUint(normal.z) >> 16	);
+	return result;
 }
 
 void main(void)

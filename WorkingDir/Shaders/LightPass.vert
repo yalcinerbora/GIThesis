@@ -12,6 +12,7 @@
 
 // Definitions
 #define IN_POS layout(location = 0)
+#define IN_INDEX layout(location = 0)
 
 #define OUT_INDEX layout(location = 0)
 
@@ -24,6 +25,7 @@ in IN_POS vec3 vPos;
 in IN_INDEX int vIndex;
 
 // Output
+out gl_PerVertex {vec4 gl_Position;};	// Mandatory
 flat out OUT_INDEX int fIndex;
 
 // Uniforms
@@ -56,7 +58,7 @@ void main(void)
 {
 	// Translate and Scale
 	// Also Rotation Needed for Area Light
-	mat4 modelTransform;
+	mat4 model;
 	// ...
 
 

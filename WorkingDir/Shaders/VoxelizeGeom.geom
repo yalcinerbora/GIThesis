@@ -19,7 +19,7 @@
 #define OUT_POS layout(location = 2)
 
 layout(triangles) in;
-layout(triangle_strip, max_vertices=3) out;
+layout(triangle_strip, max_vertices = 3) out;
 
 in IN_NORMAL vec3 gNormal[];
 in IN_UV vec2 gUV[];

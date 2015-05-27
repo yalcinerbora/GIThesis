@@ -6,21 +6,35 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GIThesis", "GIThesis\GIThesis.vcxproj", "{94B71C19-CC4A-4562-ADB1-63AC79E31CB9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shaders", "Shaders", "{67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxelRelated", "VoxelRelated", "{E1A6E462-843D-4491-90A8-8137B528F211}"
 	ProjectSection(SolutionItems) = preProject
 		..\..\WorkingDir\Shaders\DetermineVoxSpan.glsl = ..\..\WorkingDir\Shaders\DetermineVoxSpan.glsl
-		..\..\WorkingDir\Shaders\GWriteGeneric.frag = ..\..\WorkingDir\Shaders\GWriteGeneric.frag
-		..\..\WorkingDir\Shaders\GWriteGeneric.vert = ..\..\WorkingDir\Shaders\GWriteGeneric.vert
-		..\..\WorkingDir\Shaders\LightPass.frag = ..\..\WorkingDir\Shaders\LightPass.frag
-		..\..\WorkingDir\Shaders\LightPass.vert = ..\..\WorkingDir\Shaders\LightPass.vert
-		..\..\WorkingDir\Shaders\PackObjectVoxels.glsl = ..\..\WorkingDir\Shaders\PackObjectVoxels.glsl
-		..\..\WorkingDir\Shaders\PPLightPresent.frag = ..\..\WorkingDir\Shaders\PPLightPresent.frag
-		..\..\WorkingDir\Shaders\PProcessGeneric.vert = ..\..\WorkingDir\Shaders\PProcessGeneric.vert
 		..\..\WorkingDir\Shaders\VoxelizeGeom.frag = ..\..\WorkingDir\Shaders\VoxelizeGeom.frag
 		..\..\WorkingDir\Shaders\VoxelizeGeom.geom = ..\..\WorkingDir\Shaders\VoxelizeGeom.geom
 		..\..\WorkingDir\Shaders\VoxelizeGeom.vert = ..\..\WorkingDir\Shaders\VoxelizeGeom.vert
 		..\..\WorkingDir\Shaders\VoxelizeGeomCount.glsl = ..\..\WorkingDir\Shaders\VoxelizeGeomCount.glsl
 		..\..\WorkingDir\Shaders\VoxRender.frag = ..\..\WorkingDir\Shaders\VoxRender.frag
 		..\..\WorkingDir\Shaders\VoxRender.vert = ..\..\WorkingDir\Shaders\VoxRender.vert
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42F0F4B2-2641-411B-8938-15FBF14395FA}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\GWriteGeneric.frag = ..\..\WorkingDir\Shaders\GWriteGeneric.frag
+		..\..\WorkingDir\Shaders\GWriteGeneric.vert = ..\..\WorkingDir\Shaders\GWriteGeneric.vert
+		..\..\WorkingDir\Shaders\LightPass.frag = ..\..\WorkingDir\Shaders\LightPass.frag
+		..\..\WorkingDir\Shaders\LightPass.vert = ..\..\WorkingDir\Shaders\LightPass.vert
+		..\..\WorkingDir\Shaders\PPLightPresent.frag = ..\..\WorkingDir\Shaders\PPLightPresent.frag
+		..\..\WorkingDir\Shaders\PProcessGeneric.vert = ..\..\WorkingDir\Shaders\PProcessGeneric.vert
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShadowMaps", "ShadowMaps", "{CEC68846-BCA8-4FEC-9016-2B716037C75A}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\ShadowMap.frag = ..\..\WorkingDir\Shaders\ShadowMap.frag
+		..\..\WorkingDir\Shaders\ShadowMap.vert = ..\..\WorkingDir\Shaders\ShadowMap.vert
+		..\..\WorkingDir\Shaders\ShadowMapA.geom = ..\..\WorkingDir\Shaders\ShadowMapA.geom
+		..\..\WorkingDir\Shaders\ShadowMapD.geom = ..\..\WorkingDir\Shaders\ShadowMapD.geom
+		..\..\WorkingDir\Shaders\ShadowMapP.geom = ..\..\WorkingDir\Shaders\ShadowMapP.geom
 	EndProjectSection
 EndProject
 Global
@@ -36,5 +50,10 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{E1A6E462-843D-4491-90A8-8137B528F211} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
+		{42F0F4B2-2641-411B-8938-15FBF14395FA} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
+		{CEC68846-BCA8-4FEC-9016-2B716037C75A} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 	EndGlobalSection
 EndGlobal

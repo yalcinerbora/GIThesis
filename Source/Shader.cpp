@@ -37,6 +37,9 @@ Shader::Shader(ShaderType t, const char fileName[])
 	, shaderID(0)
 	, shaderType(t)
 {
+	std::string onlyFileName(fileName);
+	onlyFileName = onlyFileName.substr(onlyFileName.find_last_of("/") + 1);
+
 	std::vector<char> source;
 	source.resize(std::ifstream(fileName, std::ifstream::ate | std::ifstream::binary).tellg());
 	std::ifstream shaderFile(fileName);
@@ -64,12 +67,12 @@ Shader::Shader(ShaderType t, const char fileName[])
 		{
 			std::vector<GLchar> log(blen);
 			glGetProgramInfoLog(shaderID, blen, &blen, &log[0]);
-			GI_ERROR_LOG("Shader Compilation Error on File %s :\n%s", fileName, &log[0]);
+			GI_ERROR_LOG("Shader Compilation Error on File %s :\n%s", onlyFileName.c_str(), &log[0]);
 		}
 	}
 	else
 	{
-		GI_LOG("Shader Compiled Successfully. Shader ID: %d", shaderID);
+		GI_LOG("Shader Compiled Successfully. Shader ID: %d, Name: %s", shaderID, onlyFileName.c_str());
 		valid = true;
 	}
 

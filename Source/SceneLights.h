@@ -6,42 +6,57 @@
 #define __SCENELIGHTS_H__
 
 #include "IEUtility/IEVector4.h"
+#include "IEUtility/IEMatrix4x4.h"
 #include "StructuredBuffer.h"
 #include "ArrayStruct.h"
+#include "Shader.h"
 #include <cstdint>
 
 class DrawBuffer;
 class GPUBuffer;
+class FrameTransformBuffer;
 
 struct Light
 {
 	IEVector4 position;			// position.w is the light type
-	IEVector4 direction;		// direction.w holds shadow map index
+	IEVector4 direction;		// direction.w is empty
 	IEVector4 color;			// color.a is effecting radius
 };
 
 enum class LightType
 {
-	POINT,
-	DIRECTIONAL,
-	AREA
+	POINT = 0,
+	DIRECTIONAL = 1,
+	AREA = 2
 };
 
 class SceneLights
 {
 	private:
+		static const GLsizei	shadowMapW;
+		static const GLsizei	shadowMapH;
+
+		static const IEVector3	pLightDir[6];
+		static const IEVector3	pLightUp[6];
+
+		static const IEVector3	aLightDir[6];
+		static const IEVector3	aLightUp[6];
+
 		// Sparse texture cubemap array
 		// One Shadowmap for each light
 		// Directional Lights have one side used (others not allocated)
 		// Area Lights only use 5 sides of the cube map
-		StructuredBuffer<Light> lightsGPU;
-		GLuint					lightShadowMaps;
+		StructuredBuffer<Light>			lightsGPU;
+		StructuredBuffer<IEMatrix4x4>	viewMatrices;
+		GLuint							lightShadowMaps;
+		std::vector<GLuint>				shadowMapFBOs;
 
-		// Some Data Related to the scene
-		size_t					materialCount;
-		size_t					objectCount;
-		size_t					drawCallCount;
-		size_t					totalPolygons;
+		// Shader for lightmap
+		Shader					fragShadowMap;
+		Shader					vertShadowMap;
+		Shader					geomAreaShadowMap;
+		Shader					geomPointShadowMap;
+		Shader					geomDirShadowMap;
 
 	protected:
 	public:
@@ -51,7 +66,11 @@ class SceneLights
 		SceneLights&			operator=(const SceneLights&) = delete;
 								~SceneLights();
 
-		void					GenerateShadowMaps(DrawBuffer&, GPUBuffer&);
+		void					GenerateShadowMaps(DrawBuffer&, GPUBuffer&,
+												   FrameTransformBuffer& fTransform,
+												   unsigned int drawCount,
+												   IEVector3 frustumMin,
+												   IEVector3 frustumMax);
 
 		void					ChangeLightPos(uint32_t index, IEVector3 position);
 		void					ChangeLightType(uint32_t index, LightType);

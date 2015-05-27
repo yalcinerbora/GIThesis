@@ -140,7 +140,7 @@ void StructuredBuffer<T>::Resize(size_t count)
 }
 
 template <class T>
-void StructuredBuffer<T>::SyncData(size_t newSize)
+void StructuredBuffer<T>::RecieveData(size_t newSize)
 {
 	// Data Altered on the buffer
 	// Move this data to CPU
@@ -148,6 +148,16 @@ void StructuredBuffer<T>::SyncData(size_t newSize)
 	glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
 	glGetBufferSubData(GL_COPY_READ_BUFFER, 0, newSize * sizeof(T),
 					   dataGPUImage.data());
+}
+
+template <class T>
+void StructuredBuffer<T>::ChangeData(uint32_t index, const T& newData)
+{
+	assert(index < dataGPUImage.size());
+	dataGPUImage[index] = newData;
+	glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
+	glBufferSubData(GL_COPY_READ_BUFFER, index * sizeof(T), sizeof(T),
+					   dataGPUImage.data() + index);
 }
 
 template <class T>

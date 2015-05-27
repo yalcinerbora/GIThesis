@@ -67,6 +67,7 @@ static const VertexElement element[] =
 // Unfiorm
 #define U_FTRANSFORM 0
 #define U_MTRANSFORM 1
+#define U_SHADOW_VIEW 2
 
 // Large Uniform
 #define LU_VOXEL 0

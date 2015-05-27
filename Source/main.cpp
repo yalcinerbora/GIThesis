@@ -55,8 +55,33 @@ int main()
 					  winProps);
 
 	// Scenes
-	Scene crySponza(Scene::sponzaFileName, {{}, 0});
-	Scene cornellBox(Scene::cornellboxFileName, {{}, 0});
+	Light sponzaLights[] = 
+	{
+		// Directional Light
+		// White Color
+		// 1-2 PM Sunlight direction (if you consider lionhead is at north)
+		{
+			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL)},
+			{ 1.0f, 1.0f, 1.0f, 0.0f },
+			{ 0.0f, -0.994f, 0.104f, std::numeric_limits<float>::infinity()}
+		}
+		// TODO:
+		// Add Some point lights
+	};
+	Light cornellLights[] =
+	{
+		// Area Light
+		// White Color
+		// Top of the room (center of white rectangle)
+		// Covers Entire Room
+		{
+			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::AREA)},
+			{ 1.0f, 1.0f, 1.0f, 0.0f },
+			{ 0.0f, -1.0f, 0.0f, 220.0f}
+		}
+	};
+	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 1});
+	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1});
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);
 

@@ -60,7 +60,7 @@ void ThesisSolution::Init(SceneI& s)
 	blockCount += factor;
 	glDispatchCompute(static_cast<GLuint>(blockCount), 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-	objectGridInfo.SyncData(currentScene->DrawCount());
+	objectGridInfo.RecieveData(currentScene->DrawCount());
 
 	// Render Objects to Voxel Grid
 	// Use MSAA to prevent missing small triangles on voxels
@@ -144,8 +144,8 @@ void ThesisSolution::Init(SceneI& s)
 	GLuint64 timeElapsed;
 	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
 
-	objectGridInfo.SyncData(currentScene->DrawCount());
-	voxelCacheUsageSize.SyncData(1);
+	objectGridInfo.RecieveData(currentScene->DrawCount());
+	voxelCacheUsageSize.RecieveData(1);
 	uint32_t totalSceneVoxCount = 0;
 	for(int i = 0; i < currentScene->DrawCount(); i++)
 		totalSceneVoxCount += objectGridInfo.CPUData()[i].voxCount;

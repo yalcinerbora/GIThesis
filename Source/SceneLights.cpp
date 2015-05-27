@@ -139,6 +139,8 @@ void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffe
 			case LightType::DIRECTIONAL:
 			{
 				// Render to one sheet
+				geomDirShadowMap.Bind();
+
 				// Camera Direction should be
 				viewTransform = IEMatrix4x4::LookAt(currentLight.position, 
 													currentLight.position + currentLight.direction,

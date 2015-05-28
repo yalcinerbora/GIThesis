@@ -14,7 +14,6 @@ layout(triangle_strip, max_vertices = 3) out;
 
 // Definitions
 #define U_FTRANSFORM layout(std140, binding = 0)
-#define U_SHADOW_VIEW layout(std140, binding = 2)
 
 // Input
 in gl_PerVertex 
@@ -38,12 +37,6 @@ U_FTRANSFORM uniform FrameTransform
 	mat4 view;
 	mat4 projection;
 	mat4 viewRotation;
-};
-
-// Uniforms
-U_SHADOW_VIEW uniform ShadowViewMatrices
-{
-	mat4 viewMatrices[6];
 };
 
 void main(void)

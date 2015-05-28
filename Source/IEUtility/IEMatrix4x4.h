@@ -88,7 +88,7 @@ class IEMatrix4x4
 		static IEMatrix4x4			Scale(float x, float y, float z);
 		static IEMatrix4x4			Rotate(float angle, const IEVector3&);
 		static IEMatrix4x4			Rotate(const IEQuaternion&);
-		static IEMatrix4x4			Perspective(float fovDegrees, float aspectRatio,
+		static IEMatrix4x4			Perspective(float fovXDegrees, float aspectRatio,
 												float nearPlane, float farPlane);
 		static IEMatrix4x4			Ortogonal(float left, float right, 
 												float top, float bottom,

@@ -621,22 +621,22 @@ IEMatrix4x4 IEMatrix4x4::Rotate(const IEQuaternion& quat)
 	return result;
 }
 
-IEMatrix4x4 IEMatrix4x4::Perspective(float fovDegrees, float aspectRatio,
+IEMatrix4x4 IEMatrix4x4::Perspective(float fovXDegrees, float aspectRatio,
 										float nearPlane, float farPlane)
 {
 	//	p		0		0		0
 	//	0		p		0		0
 	//	0		0		p		-1
 	//	0		0		p		0
-	float fovRadians = IEMath::ToRadians(fovDegrees);
-	float f = 1.0f / IEMath::TanF(fovRadians * 0.5f);
+	float fovXRadians = IEMath::ToRadians(fovXDegrees);
+	float f = 1.0f / IEMath::TanF(fovXRadians * 0.5f);
 	float m33 = (farPlane + nearPlane) / (nearPlane - farPlane);
 	float m34 = (2 * farPlane * nearPlane) /  (nearPlane - farPlane);
 
-	return IEMatrix4x4(	f / aspectRatio,	0.0f,		0.0f,		0.0f,
-						0.0f,				f,			0.0f,		0.0f,
-						0.0f,				0.0f,		m33,		-1.0f,
-						0.0f,				0.0f,		m34,		1.0f
+	return IEMatrix4x4(	f,			0.0f,				0.0f,		0.0f,
+						0.0f,		f * aspectRatio,	0.0f,		0.0f,
+						0.0f,		0.0f,				m33,		-1.0f,
+						0.0f,		0.0f,				m34,		1.0f
 						);
 }
 
@@ -664,15 +664,15 @@ IEMatrix4x4 IEMatrix4x4::LookAt(const IEVector3& eyePos,
 								const IEVector3& up)
 {
 	// Calculate Ortogonal Vectors for this rotation
-	IEVector3 zAxis = (center - eyePos).NormalizeSelf();
+	IEVector3 zAxis = (eyePos - center).NormalizeSelf();
 	IEVector3 xAxis = up.CrossProduct(zAxis).NormalizeSelf();
-	IEVector3 yAxis = zAxis.CrossProduct(xAxis);				// Isnt This last cross is redundant? up.Normalize() is equavilent (prob slow) (fuck this comment)
-	
+	IEVector3 yAxis = zAxis.CrossProduct(xAxis);
+
 	// Also Add Translation part
 	return IEMatrix4x4(	xAxis.getX(),				yAxis.getX(),				zAxis.getX(),				0.0f,
 						xAxis.getY(),				yAxis.getY(),				zAxis.getY(),				0.0f,
 						xAxis.getZ(),				yAxis.getZ(),				zAxis.getZ(),				0.0f,
-						xAxis.DotProduct(eyePos),	yAxis.DotProduct(eyePos),	zAxis.DotProduct(eyePos),	1.0f
+						-xAxis.DotProduct(eyePos),	-yAxis.DotProduct(eyePos),	-zAxis.DotProduct(eyePos),	1.0f
 						);
 }
 

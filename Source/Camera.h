@@ -19,7 +19,7 @@ ATM only Camera
 struct Camera
 {
 	// Perspective Projection Params
-	float						fov;
+	float						fovX;
 	float						near;
 	float						far;
 
@@ -29,15 +29,15 @@ struct Camera
 
 	// Camera Orientation
 	IEVector3					pos;
-	IEVector3					at;
+	IEVector3					centerOfInterest;
 	IEVector3					up;
 
 	FrameTransformBufferData	generateTransform() const
 	{
 		return
 		{
-			IEMatrix4x4::LookAt(pos, at, up),
-			IEMatrix4x4::Perspective(fov, width / height, near, far),
+			IEMatrix4x4::LookAt(pos, centerOfInterest, up),
+			IEMatrix4x4::Perspective(fovX, width / height, near, far),
 			IEMatrix4x4::IdentityMatrix
 		};
 	}

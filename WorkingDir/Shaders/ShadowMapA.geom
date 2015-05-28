@@ -10,7 +10,7 @@
 */
 
 layout(triangles) in;
-layout(triangle_strip, max_vertices = 15) out;
+layout(triangle_strip, max_vertices = 18) out;
 
 // Definitions
 #define U_FTRANSFORM layout(std140, binding = 0)

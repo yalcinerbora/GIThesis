@@ -49,6 +49,7 @@ class SceneLights
 		StructuredBuffer<Light>			lightsGPU;
 		StructuredBuffer<IEMatrix4x4>	viewMatrices;
 		GLuint							lightShadowMaps;
+		std::vector<GLuint>				shadowMapViews;
 		std::vector<GLuint>				shadowMapFBOs;
 
 		// Shader for lightmap

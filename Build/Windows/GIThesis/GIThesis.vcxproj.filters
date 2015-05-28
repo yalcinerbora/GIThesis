@@ -68,11 +68,11 @@
     <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp">
       <Filter>GI\Thesis\OGL</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\GBuffer.cpp">
-      <Filter>GI\NoGI</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\SceneLights.cpp">
       <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\GBuffer.cpp">
+      <Filter>Render</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -202,11 +202,11 @@
     <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h">
       <Filter>GI\Thesis\OGL</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\GBuffer.h">
-      <Filter>GI\NoGI</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\SceneLights.h">
       <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GBuffer.h">
+      <Filter>Render</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

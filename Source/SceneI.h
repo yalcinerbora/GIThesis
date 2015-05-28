@@ -7,6 +7,7 @@
 
 class DrawBuffer;
 class GPUBuffer;
+class SceneLights;
 
 class SceneI 
 {
@@ -18,6 +19,7 @@ class SceneI
 		// Interface
 		virtual DrawBuffer&		getDrawBuffer() = 0;
 		virtual GPUBuffer&		getGPUBuffer() = 0;
+		virtual SceneLights&	getSceneLights() = 0;
 
 		virtual size_t			ObjectCount() const = 0;
 		virtual size_t			DrawCount() const = 0;

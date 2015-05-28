@@ -15,19 +15,21 @@
 #include "Camera.h"
 #include "Scene.h"
 
+#include "IEUtility/IEMath.h"
+
 #include "GLFW/glfw3.h"
 
 int main()
 {
 	Camera mainRenderCamera =
 	{
-		60.0f,
+		90.0f,
 		0.1f,
-		10000.0f,
+		900.0f,
 		1280,
 		720,
-		{ 150.0f, -145.0f, 0.3f },
-		{ -0.15f, -37.0f, 3.4f },
+		{ -180.0f, 145.0f, 0.3f },
+		IEVector3::ZeroVector,
 		IEVector3::Yaxis
 	};
 
@@ -62,8 +64,8 @@ int main()
 		// 1-2 PM Sunlight direction (if you consider lionhead is at north)
 		{
 			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL)},
-			{ 1.0f, 1.0f, 1.0f, 0.0f },
-			{ 0.0f, -0.994f, 0.104f, std::numeric_limits<float>::infinity()}
+			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(17.0f)), -IEMath::SinF(IEMath::ToRadians(17.0f)), 0.0f },
+			{ 1.0f, 1.0f, 1.0f, std::numeric_limits<float>::infinity() }
 		}
 		// TODO:
 		// Add Some point lights
@@ -76,8 +78,8 @@ int main()
 		// Covers Entire Room
 		{
 			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::AREA)},
-			{ 1.0f, 1.0f, 1.0f, 0.0f },
-			{ 0.0f, -1.0f, 0.0f, 220.0f}
+			{ 0.0f, 1.0f, 0.0f, 0.0f },
+			{ 1.0f, 1.0f, 1.0f, 220.0f }
 		}
 	};
 	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 1});

@@ -60,21 +60,25 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	, geomDirShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapD.geom")
 	, geomPointShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapP.geom")
 {
-	
+	viewMatrices.RecieveData(6);
 	glGenTextures(1, &lightShadowMaps);
 	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, lightShadowMaps);
-	glTextureStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT32F, shadowMapW, shadowMapH, lights.length);
+	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT24, shadowMapW, shadowMapH, 6 * lights.length);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 	
 	shadowMapFBOs.resize(lights.length);
+	shadowMapViews.resize(lights.length);
 	glGenFramebuffers(lights.length, shadowMapFBOs.data());
+	glGenTextures(lights.length, shadowMapViews.data());
 
 	for(unsigned int i = 0; i < lights.length; i++)
 	{
 		lightsGPU.AddData(lights.arr[i]);
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBOs[i]);
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, lightShadowMaps, i);
+		glTextureView(shadowMapViews[i], GL_TEXTURE_CUBE_MAP, lightShadowMaps, GL_DEPTH_COMPONENT24,
+					  0, 1, 6 * i, 6);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMapViews[i], 0);
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 	}		
 	lightsGPU.SendData();
@@ -84,13 +88,15 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 SceneLights::~SceneLights()
 {
 	glDeleteTextures(1, &lightShadowMaps);
+	glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()), shadowMapFBOs.data());
+	glDeleteTextures(static_cast<GLsizei>(shadowMapViews.size()), shadowMapViews.data());
 }
 
 void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffer,
 									 FrameTransformBuffer& fTransform,
 									 unsigned int drawCount,
-									 IEVector3 frustumMin,
-	 								 IEVector3 frustumMax)
+									 IEVector3 wFrustumMin,
+	 								 IEVector3 wFrustumMax)
 {
 	fragShadowMap.Bind();
 	vertShadowMap.Bind();
@@ -133,7 +139,7 @@ void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffe
 				}
 				viewMatrices.SendData();
 				projection = IEMatrix4x4::Perspective(90.0f, 1.0f,
-													  0.1f, currentLight.color.getW() + 10.0f);
+													  0.1f, currentLight.color.getW() + 1000.0f);
 				break;
 			}				
 			case LightType::DIRECTIONAL:
@@ -145,9 +151,13 @@ void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffe
 				viewTransform = IEMatrix4x4::LookAt(currentLight.position, 
 													currentLight.position + currentLight.direction,
 													IEVector3::Yaxis);
-				projection = IEMatrix4x4::Ortogonal(frustumMin.getX(), frustumMax.getX(),
-													frustumMax.getY(), frustumMin.getY(),
-													frustumMin.getZ(), frustumMax.getZ());
+
+				// Span area on viewSpace coordiantes
+				IEVector3 vFrustumMin = viewTransform * wFrustumMin;
+				IEVector3 vFrustumMax = viewTransform * wFrustumMax;
+				projection = IEMatrix4x4::Ortogonal(vFrustumMin.getX(), vFrustumMax.getX(),
+													vFrustumMax.getY(), vFrustumMin.getY(),
+													-500, 500);
 				break;
 			}
 			case LightType::AREA:
@@ -155,7 +165,7 @@ void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffe
 				// Render to cube but only 5 sides (6th side is not illuminated)
 				geomAreaShadowMap.Bind();
 				// we'll use 5 sides but each will comply different ares that a point light
-				for(unsigned int i = 0; i < 5; i++)
+				for(unsigned int i = 0; i < 6; i++)
 				{
 					viewMatrices.CPUData()[i] = IEMatrix4x4::LookAt(currentLight.position,
 																	currentLight.position + aLightDir[i],
@@ -166,9 +176,9 @@ void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffe
 				// Put a 45 degree frustum projection matrix to the viewTransform part of the
 				// FrameTransformUniform Buffer it'll be required on area light omni directional frustum
 				viewTransform = IEMatrix4x4::Perspective(45.0f, 1.0f,
-														 0.1f, currentLight.color.getW() + 10.0f);
+														 0.1f, currentLight.color.getW() + 10000.0f);
 				projection = IEMatrix4x4::Perspective(90.0f, 1.0f, 
-													  0.1f, currentLight.color.getW() + 10.0f);
+													  0.1f, currentLight.color.getW() + 10000.0f);
 				break;
 			}
 		}
@@ -187,6 +197,7 @@ void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffe
 		
 		// FBO Bind and render calls
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBOs[i]);
+		glClear(GL_DEPTH_BUFFER_BIT);
 		for(unsigned int i = 0; i < drawCount; i++)
 		{
 			drawBuffer.getModelTransformBuffer().BindAsUniformBuffer(U_MTRANSFORM, i, 1);

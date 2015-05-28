@@ -26,27 +26,27 @@ void FPSInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 
 	if(!(action == GLFW_RELEASE))
 	{
-		IEVector3 lookDir = (camera.pos - camera.at).NormalizeSelf();
+		IEVector3 lookDir = (camera.centerOfInterest - camera.pos).NormalizeSelf();
 		IEVector3 side = camera.up.CrossProduct(lookDir).NormalizeSelf();
 		switch(key)
 		{
 
 			case GLFW_KEY_W:
-				camera.pos += lookDir * static_cast<float>(-MoveRatio);
-				camera.at += lookDir * static_cast<float>(-MoveRatio);
+				camera.pos += lookDir * static_cast<float>(MoveRatio);
+				camera.centerOfInterest += lookDir * static_cast<float>(MoveRatio);
 				break;
 			case GLFW_KEY_A:
 
-				camera.pos += side * static_cast<float>(-MoveRatio);
-				camera.at += side * static_cast<float>(-MoveRatio);
+				camera.pos += side * static_cast<float>(MoveRatio);
+				camera.centerOfInterest += side * static_cast<float>(MoveRatio);
 				break;
 			case GLFW_KEY_S:
-				camera.pos += lookDir * static_cast<float>(MoveRatio);
-				camera.at += lookDir * static_cast<float>(MoveRatio);
+				camera.pos += lookDir * static_cast<float>(-MoveRatio);
+				camera.centerOfInterest += lookDir * static_cast<float>(-MoveRatio);
 				break;
 			case GLFW_KEY_D:
-				camera.pos += side * static_cast<float>(MoveRatio);
-				camera.at += side * static_cast<float>(MoveRatio);
+				camera.pos += side * static_cast<float>(-MoveRatio);
+				camera.centerOfInterest += side * static_cast<float>(-MoveRatio);
 				break;
 
 			default:
@@ -67,17 +67,17 @@ void FPSInput::MouseMovedFunc(double x, double y)
 	if(FPSMode)
 	{
 		// X Rotation
-		IEVector3 lookDir = camera.pos - camera.at;
+		IEVector3 lookDir = camera.centerOfInterest - camera.pos;
 		IEQuaternion rotateX(static_cast<float>(-diffX * Sensitivity), IEVector3::Yaxis);
 		IEVector3 rotated = rotateX.ApplyRotation(lookDir);
-		camera.at = camera.pos - rotated;
+		camera.centerOfInterest = camera.pos + rotated;
 
 		// Y Rotation
-		lookDir = camera.pos - camera.at;
+		lookDir = camera.centerOfInterest - camera.pos;
 		IEVector3 side = camera.up.CrossProduct(lookDir).NormalizeSelf();
 		IEQuaternion rotateY(static_cast<float>(diffY * Sensitivity), side);
 		rotated = rotateY.ApplyRotation((lookDir));
-		camera.at = camera.pos - rotated;
+		camera.centerOfInterest = camera.pos + rotated;
 
 		// Redefine up
 		// Enforce an up vector which is ortogonal to the xz plane
@@ -86,7 +86,6 @@ void FPSInput::MouseMovedFunc(double x, double y)
 		camera.up.setX(0.0f);
 		camera.up.NormalizeSelf();
 	}
-	
 	mouseX = x;
 	mouseY = y;
 }

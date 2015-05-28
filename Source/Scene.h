@@ -46,6 +46,7 @@ class Scene : public SceneI
 
 		DrawBuffer&				getDrawBuffer() override;
 		GPUBuffer&				getGPUBuffer() override;
+		SceneLights&			getSceneLights() override;
 
 		size_t					ObjectCount() const override;
 		size_t					PolyCount() const override;

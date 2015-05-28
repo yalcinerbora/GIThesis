@@ -45,6 +45,11 @@ GPUBuffer& Scene::getGPUBuffer()
 	return sceneVertex;
 }
 
+SceneLights& Scene::getSceneLights()
+{
+	return sceneLights;
+}
+
 size_t Scene::ObjectCount() const
 {
 	return objectCount;

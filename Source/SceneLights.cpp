@@ -95,8 +95,7 @@ SceneLights::~SceneLights()
 void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffer,
 									 FrameTransformBuffer& fTransform,
 									 unsigned int drawCount,
-									 IEVector3 wFrustumMin,
-	 								 IEVector3 wFrustumMax)
+									 const RectPrism& viewFrustum)
 {
 	fragShadowMap.Bind();
 	vertShadowMap.Bind();
@@ -153,11 +152,12 @@ void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffe
 													IEVector3::Yaxis);
 
 				// Span area on viewSpace coordiantes
-				IEVector3 vFrustumMin = viewTransform * wFrustumMin;
-				IEVector3 vFrustumMax = viewTransform * wFrustumMax;
-				projection = IEMatrix4x4::Ortogonal(vFrustumMin.getX(), vFrustumMax.getX(),
-													vFrustumMax.getY(), vFrustumMin.getY(),
-													-500, 500);
+				RectPrism transRect = viewFrustum.Transform(viewTransform);
+				IEVector3 aabbFrustumMin, aabbFrustumMax;
+				transRect.toAABB(aabbFrustumMin, aabbFrustumMax);
+				projection = IEMatrix4x4::Ortogonal(aabbFrustumMin.getX(), aabbFrustumMax.getX(),
+													aabbFrustumMax.getY(), aabbFrustumMin.getY(),
+													-500.0f, 500.0f);
 				break;
 			}
 			case LightType::AREA:

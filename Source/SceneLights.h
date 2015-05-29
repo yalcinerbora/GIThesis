@@ -10,6 +10,7 @@
 #include "StructuredBuffer.h"
 #include "ArrayStruct.h"
 #include "Shader.h"
+#include "RectPrism.h"
 #include <cstdint>
 
 class DrawBuffer;
@@ -70,8 +71,7 @@ class SceneLights
 		void					GenerateShadowMaps(DrawBuffer&, GPUBuffer&,
 												   FrameTransformBuffer& fTransform,
 												   unsigned int drawCount,
-												   IEVector3 frustumMin,
-												   IEVector3 frustumMax);
+												   const RectPrism& viewFrustum);
 
 		void					ChangeLightPos(uint32_t index, IEVector3 position);
 		void					ChangeLightType(uint32_t index, LightType);

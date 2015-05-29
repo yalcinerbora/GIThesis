@@ -208,6 +208,9 @@
     <ClInclude Include="..\..\..\Source\GBuffer.h">
       <Filter>Render</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\RectPrism.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

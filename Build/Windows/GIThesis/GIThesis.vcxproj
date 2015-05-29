@@ -123,6 +123,7 @@
     <ClCompile Include="..\..\..\Source\SceneLights.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
     <ClInclude Include="..\..\..\Source\GBuffer.h" />
+    <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />

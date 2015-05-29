@@ -29,9 +29,9 @@ IEMatrix3x3::IEMatrix3x3(float newV[])
 
 IEMatrix3x3::IEMatrix3x3(const IEMatrix4x4& matrix)
 {
-	std::copy(matrix.getColumn(0), matrix.getColumn(0) + 3, v + 0);
-	std::copy(matrix.getColumn(1), matrix.getColumn(1) + 3, v + 3);
-	std::copy(matrix.getColumn(2), matrix.getColumn(2) + 3, v + 6);
+	std::copy(matrix.getColumn(1), matrix.getColumn(1) + 3, v + 0);
+	std::copy(matrix.getColumn(2), matrix.getColumn(2) + 3, v + 3);
+	std::copy(matrix.getColumn(3), matrix.getColumn(3) + 3, v + 6);
 }
 
 IEVector3 IEMatrix3x3::operator*(const IEVector3& vector) const

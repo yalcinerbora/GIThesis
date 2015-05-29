@@ -81,7 +81,7 @@ static_assert(std::is_polymorphic<IEVector4>::value == false, "IEVector4 should 
 static_assert(sizeof(IEVector4) == sizeof(float) * 4, "IEVector4 size is not 16 bytes");
 
 // Left Scalar operators
-IEVector4	operator*(float, const IEVector4&);
+IEVector4 operator*(float, const IEVector4&);
 
 // Inlines
 inline float IEVector4::getX() const {return x;}

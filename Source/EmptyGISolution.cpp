@@ -5,6 +5,7 @@
 #include "Globals.h"
 #include "SceneLights.h"
 #include "IEUtility/IEMath.h"
+#include "RectPrism.h"
 
 EmptyGISolution::EmptyGISolution()
 	: currentScene(nullptr)
@@ -31,46 +32,37 @@ void EmptyGISolution::Init(SceneI& s)
 void EmptyGISolution::Frame(const Camera& mainRenderCamera)
 {
 	// Shadow Map Generation
-	IEVector3 worldFrustumMax;
-	IEVector3 worldFrustumMin;
-
 	// Calculate Frustum Parameters from Render Camera
 	float tanHalfFovX = IEMath::TanF(IEMath::ToRadians(mainRenderCamera.fovX * 0.5f));
+	float aspectRatio = mainRenderCamera.width / mainRenderCamera.height;
 	IEVector3 camDir = (mainRenderCamera.centerOfInterest - mainRenderCamera.pos).NormalizeSelf();
 	IEVector3 right = camDir.CrossProduct(mainRenderCamera.up);
 
-	float nearWidth = 2 * mainRenderCamera.near * tanHalfFovX;
-	float nearHeight = nearWidth / (mainRenderCamera.width / mainRenderCamera.height);
-	float farWidth = 2 * mainRenderCamera.far * tanHalfFovX;
-	float farHeight = farWidth / (mainRenderCamera.width / mainRenderCamera.height);
+	float farHalfWidth =  mainRenderCamera.far * tanHalfFovX;
+	float farHalfHeight = farHalfWidth / aspectRatio;
 
 	// Plane Center Points
-	IEVector3 planeCenterNear = mainRenderCamera.pos + camDir * mainRenderCamera.near;
 	IEVector3 planeCenterFar = mainRenderCamera.pos + camDir * mainRenderCamera.far;
-
-	// Frustum Points
-	//IEVector3 nearTopLeft = planeCenterNear + (mainRenderCamera.up * nearHeight * 0.5f) - (right * nearWidth * 0.5f);
-	//IEVector3 nearTopRight = planeCenterNear + (mainRenderCamera.up * nearHeight * 0.5f) + (right * nearWidth * 0.5f);
-	//IEVector3 nearBottomLeft = planeCenterNear - (mainRenderCamera.up * nearHeight * 0.5f) - (right * nearWidth * 0.5f);
-	//IEVector3 nearBottomRight = planeCenterNear - (mainRenderCamera.up * nearHeight * 0.5f) + (right * nearWidth * 0.5f);
-
 	//IEVector3 farTopLeft = planeCenterFar + (mainRenderCamera.up * farHeight * 0.5f) - (right * farWidth * 0.5f);
-	IEVector3 farTopRight = planeCenterFar + (mainRenderCamera.up * farHeight * 0.5f) + (right * farWidth * 0.5f);
-	IEVector3 farBottomLeft = planeCenterFar - (mainRenderCamera.up * farHeight * 0.5f) - (right * farWidth * 0.5f);
-	//IEVector3 farBottomRight = planeCenterFar - (mainRenderCamera.up * farHeight * 0.5f) + (right * farWidth * 0.5f);
-	
-	// Make view frustum rectangular
-	IEVector3 nearBottomLeftRect = farBottomLeft - (mainRenderCamera.far - mainRenderCamera.near) * camDir;
-	worldFrustumMax = farTopRight;
-	worldFrustumMin = nearBottomLeftRect;
+	IEVector3 farTopRight = planeCenterFar + (mainRenderCamera.up * farHalfHeight) + (right * farHalfWidth);
+	IEVector3 farBottomLeft = planeCenterFar - (mainRenderCamera.up * farHalfHeight) - (right * farHalfWidth);
+	IEVector3 farBottomRight = planeCenterFar - (mainRenderCamera.up * farHalfHeight) + (right * farHalfWidth);
+
+	// MRectangular Prism View Frustum Coords in World Space
+	const IEVector3 span[3] = 
+	{
+		farTopRight - farBottomRight,
+		-mainRenderCamera.far * camDir,
+		farBottomLeft - farBottomRight
+	};
+	RectPrism viewFrustum(span, farBottomRight);
 
 	// Actual Render Call for Shadow Maps
 	currentScene->getSceneLights().GenerateShadowMaps(currentScene->getDrawBuffer(),
 													  currentScene->getGPUBuffer(),
 													  cameraTransform,
 													  static_cast<unsigned int>(currentScene->DrawCount()),
-													  worldFrustumMin,
-													  worldFrustumMax);
+													  viewFrustum);
 
 	// Actual Render
 	// Start With a VP Set

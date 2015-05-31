@@ -136,7 +136,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 	lightIntensity = vec3(dot(worldLight, worldNormal));
 
 	// Specular
-	float specPower = texture2D(gBuffColor, gBuffUV).a * 128.0f;
+	float specPower = texture(gBuffColor, gBuffUV).a * 128.0f;
 	lightIntensity += ((specPower + 2.0f) * GI_ONE_OVER_2_PI) * 
 						vec3(pow(dot(worldEye, worldReflect), specPower));
 

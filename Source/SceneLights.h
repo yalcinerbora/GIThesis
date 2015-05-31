@@ -9,8 +9,6 @@
 #include "IEUtility/IEMatrix4x4.h"
 #include "StructuredBuffer.h"
 #include "ArrayStruct.h"
-#include "Shader.h"
-#include "RectPrism.h"
 #include <cstdint>
 
 class DrawBuffer;
@@ -31,9 +29,13 @@ enum class LightType
 	AREA = 2
 };
 
+struct ShadowMapShaders;
+
 class SceneLights
 {
 	private:
+		friend class DeferredRenderer;
+
 		static const GLsizei	shadowMapW;
 		static const GLsizei	shadowMapH;
 
@@ -41,7 +43,7 @@ class SceneLights
 		static const IEVector3	pLightUp[6];
 
 		static const IEVector3	aLightDir[6];
-		static const IEVector3	aLightUp[6];
+		static const IEVector3	aLightUp[6];		
 
 		// Sparse texture cubemap array
 		// One Shadowmap for each light
@@ -53,13 +55,6 @@ class SceneLights
 		std::vector<GLuint>				shadowMapViews;
 		std::vector<GLuint>				shadowMapFBOs;
 
-		// Shader for lightmap
-		Shader					fragShadowMap;
-		Shader					vertShadowMap;
-		Shader					geomAreaShadowMap;
-		Shader					geomPointShadowMap;
-		Shader					geomDirShadowMap;
-
 	protected:
 	public:
 		// Constructors & Destructor
@@ -68,18 +63,11 @@ class SceneLights
 		SceneLights&			operator=(const SceneLights&) = delete;
 								~SceneLights();
 
-		void					GenerateShadowMaps(DrawBuffer&, GPUBuffer&,
-												   FrameTransformBuffer& fTransform,
-												   unsigned int drawCount,
-												   const RectPrism& viewFrustum);
-
 		void					ChangeLightPos(uint32_t index, IEVector3 position);
 		void					ChangeLightType(uint32_t index, LightType);
 		void					ChangeLightDir(uint32_t index, IEVector3 direction);
 		void					ChangeLightColor(uint32_t index, IEVector3 color);
 		void					ChangeLightRadius(uint32_t index, float radius);
-
-		// Access 
 };
 
 #endif //__SCENE_H__

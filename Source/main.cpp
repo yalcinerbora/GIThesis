@@ -7,6 +7,8 @@
 #include "FPSInput.h"
 #include "MayaInput.h"
 
+#include "DeferredRenderer.h"
+
 #include "EmptyGISolution.h"
 #include "ThesisSolution.h"
 
@@ -25,7 +27,7 @@ int main()
 	{
 		90.0f,
 		0.1f,
-		600.0f,
+		500.0f,
 		1280,
 		720,
 		{ -180.0f, 145.0f, 0.3f },
@@ -56,12 +58,16 @@ int main()
 	Window mainWindow(nullInput,
 					  winProps);
 
+
+	// DeferredRenderer
+	DeferredRenderer deferredRenderer;
+
 	// Scenes
 	Light sponzaLights[] = 
 	{
 		// Directional Light
 		// White Color
-		// 1-2 PM Sunlight direction (if you consider lionhead is at north)
+		// 1-2 PM Sunlight direction (if you consider lionhead(window) is at north)
 		{
 			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL)},
 			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(17.0f)), -IEMath::SinF(IEMath::ToRadians(17.0f)), 0.0f },
@@ -88,7 +94,7 @@ int main()
 	scenes.push_back(&cornellBox);
 
 	// Solutions
-	EmptyGISolution emptySolution;
+	EmptyGISolution emptySolution(deferredRenderer);
 	ThesisSolution thesisSolution;
 	solutions.push_back(&emptySolution);
 	solutions.push_back(&thesisSolution);

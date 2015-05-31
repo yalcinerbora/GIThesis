@@ -31,7 +31,7 @@ in IN_NORMAL vec3 vNormal;
 in IN_UV vec2 vUV;
 
 // Output
-out gl_PerVertex {vec4 gl_Position;};	// Mandatory
+out gl_PerVertex {invariant vec4 gl_Position;};	// Mandatory
 out OUT_UV vec2 fUV;
 out OUT_NORMAL vec3 fNormal;
 

@@ -1,18 +1,20 @@
 #version 430
 /*	
-	**Shadow Map Create Shader**
+	**Depth Pre-Pass Shader**
 	
-	File Name	: ShadowMap.vert
+	File Name	: DPass.vert
 	Author		: Bora Yalciner
 	Description	:
 
-		Shadowmap Creation Shader
+		Dpeth Prepass
 */
 
 // Includes
 
 // Definitions
 #define IN_POS layout(location = 0)
+
+#define U_FTRANSFORM layout(std140, binding = 0)
 #define U_MTRANSFORM layout(std140, binding = 1)
 
 // Input
@@ -28,7 +30,14 @@ U_MTRANSFORM uniform ModelTransform
 	mat3 modelRotation;
 };
 
+U_FTRANSFORM uniform FrameTransform
+{
+	mat4 view;
+	mat4 projection;
+	mat4 viewRotation;
+};
+
 void main(void)
 {
-	gl_Position = model * vec4(vPos.xyz, 1.0f);
+	gl_Position = projection * view * model * vec4(vPos.xyz, 1.0f);
 }

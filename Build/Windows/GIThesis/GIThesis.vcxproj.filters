@@ -74,6 +74,9 @@
     <ClCompile Include="..\..\..\Source\GBuffer.cpp">
       <Filter>Render</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\DeferredRenderer.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -210,6 +213,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\RectPrism.h">
       <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\DeferredRenderer.h">
+      <Filter>Render</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

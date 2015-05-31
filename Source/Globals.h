@@ -55,6 +55,9 @@ static const VertexElement element[] =
 // Textures (Bind Uniforms)
 #define T_COLOR 0
 #define T_NORMAL 1
+#define T_DEPTH 2
+#define T_SHADOW 3
+#define T_INTENSITY 3
 
 #define I_VOX_READ 2
 #define I_VOX_WRITE 2
@@ -75,5 +78,6 @@ static const VertexElement element[] =
 #define LU_OBJECT_GRID_INFO 2
 #define LU_AABB 3
 #define LU_INDEX_CHECK 4
+#define LU_LIGHT 1
 
 #endif //__GLOBALS_H__

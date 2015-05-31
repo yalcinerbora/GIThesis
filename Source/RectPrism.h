@@ -61,9 +61,7 @@ inline RectPrism::RectPrism(const IEVector3& aabbMin,
 
 inline void RectPrism::Transform(const IEMatrix4x4& transformMatrix)
 {
-	// Apply Only Translate to cornerPoint
-	IEVector3 translate = transformMatrix.getColumn(4);
-	cornerPoint += translate;
+	cornerPoint = transformMatrix * cornerPoint;
 
 	// Apply the rest to basis (if trasnform contains shear result is undefined)
 	IEMatrix3x3 rotationScale = transformMatrix;
@@ -83,13 +81,13 @@ inline void RectPrism::toAABB(IEVector3& min, IEVector3& max) const
 {
 	IEVector3 corners[8] = 
 	{
-		// Near Plane
+		// Near Corners
 		cornerPoint,
 		cornerPoint + basis[0],
 		cornerPoint + basis[1],
 		cornerPoint + basis[2],
 
-		// Far Plane
+		// Far Corners
 		cornerPoint + basis[0] + basis[1],
 		cornerPoint + basis[0] + basis[2],
 		cornerPoint + basis[1] + basis[2],

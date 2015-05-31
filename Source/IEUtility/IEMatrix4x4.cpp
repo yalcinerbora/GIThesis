@@ -632,11 +632,13 @@ IEMatrix4x4 IEMatrix4x4::Perspective(float fovXDegrees, float aspectRatio,
 	float f = 1.0f / IEMath::TanF(fovXRadians * 0.5f);
 	float m33 = (farPlane + nearPlane) / (nearPlane - farPlane);
 	float m34 = (2 * farPlane * nearPlane) /  (nearPlane - farPlane);
+	//float m33 = farPlane / (nearPlane - farPlane);
+	//float m34 = (nearPlane * farPlane) / (nearPlane - farPlane);
 
 	return IEMatrix4x4(	f,			0.0f,				0.0f,		0.0f,
 						0.0f,		f * aspectRatio,	0.0f,		0.0f,
 						0.0f,		0.0f,				m33,		-1.0f,
-						0.0f,		0.0f,				m34,		1.0f
+						0.0f,		0.0f,				m34,		0.0f
 						);
 }
 
@@ -666,7 +668,7 @@ IEMatrix4x4 IEMatrix4x4::LookAt(const IEVector3& eyePos,
 	// Calculate Ortogonal Vectors for this rotation
 	IEVector3 zAxis = (eyePos - center).NormalizeSelf();
 	IEVector3 xAxis = up.CrossProduct(zAxis).NormalizeSelf();
-	IEVector3 yAxis = zAxis.CrossProduct(xAxis);
+	IEVector3 yAxis = zAxis.CrossProduct(xAxis).NormalizeSelf();
 
 	// Also Add Translation part
 	return IEMatrix4x4(	xAxis.getX(),				yAxis.getX(),				zAxis.getX(),				0.0f,

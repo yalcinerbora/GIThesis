@@ -20,6 +20,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxelRelated", "VoxelRelate
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42F0F4B2-2641-411B-8938-15FBF14395FA}"
 	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\DPass.vert = ..\..\WorkingDir\Shaders\DPass.vert
 		..\..\WorkingDir\Shaders\GWriteGeneric.frag = ..\..\WorkingDir\Shaders\GWriteGeneric.frag
 		..\..\WorkingDir\Shaders\GWriteGeneric.vert = ..\..\WorkingDir\Shaders\GWriteGeneric.vert
 		..\..\WorkingDir\Shaders\LightPass.frag = ..\..\WorkingDir\Shaders\LightPass.frag

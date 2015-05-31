@@ -20,6 +20,10 @@
 
 #define LU_LIGHT layout(std430, binding = 1)
 
+#define GI_LIGHT_POINT 0.0f
+#define GI_LIGHT_DIRECTIONAL 1.0f
+#define GI_LIGHT_AREA 2.0f
+
 // Input
 in IN_POS vec3 vPos;
 in IN_INDEX int vIndex;
@@ -45,7 +49,6 @@ LU_LIGHT buffer LightParams
 	//		direction.w is obselete
 	//		color.a is obselete
 	// If Position.w == 2, Its area light
-	//
 	struct
 	{
 		vec4 position;			// position.w is the light type
@@ -59,9 +62,54 @@ void main(void)
 	// Translate and Scale
 	// Also Rotation Needed for Area Light
 	mat4 model;
-	// ...
+	if(lightParams[fIndex].position.w != GI_LIGHT_AREA)
+	{
+		// Area Light
+		// Area light has half sphere directed towards -y direction
+		vec3 translate = lightParams[fIndex].position.xyz;
+		float scaleFactor = lightParams[fIndex].color.a;
+		model = mat4 (scaleFactor,	0.0f,			0.0f,		 0.0f,
+					  0.0f,			scaleFactor,	0.0f,		 0.0f,
+					  0.0f,			0.0f,			scaleFactor, 0.0f,
+					  0.0f,			0.0f,			0.0f,		 1.0f);
 
+		// Add direction rotation to the matrix
+		vec3 axis = cross(vec3(0.0f, -1.0f, 0.0f), lightParams[fIndex].direction.xyz);
+		float cosAngle = dot(vec3(0.0f, -1.0f, 0.0f), lightParams[fIndex].direction.xyz);
+		float t = 1.0f - cosAngle;
+		float sinAngle = sin(acos(cosAngle));
 
+		vec3 tt = t * vec3(axis.y * axis.z, axis.x * axis.z, axis.x * axis.y);
+		vec3 st = sinAngle * axis;
+		vec3 dt = vec3(cosAngle) + (axis * axis) * t;
+
+		vec3 sum = tt + st;
+		vec3 diff = tt - st;
+		model *= mat4 (dt.x,		diff.z,			sum.y,			0.0f,
+					   sum.z,		dt.y,			diff.x,			0.0f,
+					   diff.y,		sum.x,			dt.z,			0.0f,
+					   translate.x,	translate.y,	translate.z,	1.0f);
+	}
+	else if(lightParams[fIndex].position.w != GI_LIGHT_POINT)
+	{
+		// Point Light
+		// Its unit sphere so only translate the sphere to the light position
+		// and scale according to the radius
+		float scaleFactor = lightParams[fIndex].color.a;
+		vec3 translate = lightParams[fIndex].position.xyz;
+		model = mat4 (scaleFactor,	0.0f,			0.0f,		 0.0f,
+					  0.0f,			scaleFactor,	0.0f,		 0.0f,
+					  0.0f,			0.0f,			scaleFactor, 0.0f,
+					  translate.x,	translate.y,	translate.z, 1.0f);
+	}
+	else
+	{
+		// Directional Light
+		// Its post process triangle
+		gl_Position = vec4(vPos.xyz, 1.0f);
+		fIndex = vIndex;
+		return;
+	}
 	gl_Position = projection * view * model * vec4(vPos.xyz, 1.0f);
 	fIndex = vIndex;
 }

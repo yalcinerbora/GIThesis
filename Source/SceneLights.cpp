@@ -54,16 +54,11 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	: lightsGPU(lights.length)
 	, lightShadowMaps(0)
 	, viewMatrices(6)
-	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
-	, vertShadowMap(ShaderType::VERTEX, "Shaders/ShadowMap.vert")
-	, geomAreaShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapA.geom")
-	, geomDirShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapD.geom")
-	, geomPointShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapP.geom")
 {
 	viewMatrices.RecieveData(6);
 	glGenTextures(1, &lightShadowMaps);
 	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, lightShadowMaps);
-	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT24, shadowMapW, shadowMapH, 6 * lights.length);
+	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT32, shadowMapW, shadowMapH, 6 * lights.length);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 	
@@ -90,122 +85,6 @@ SceneLights::~SceneLights()
 	glDeleteTextures(1, &lightShadowMaps);
 	glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()), shadowMapFBOs.data());
 	glDeleteTextures(static_cast<GLsizei>(shadowMapViews.size()), shadowMapViews.data());
-}
-
-void SceneLights::GenerateShadowMaps(DrawBuffer& drawBuffer, GPUBuffer& gpuBuffer,
-									 FrameTransformBuffer& fTransform,
-									 unsigned int drawCount,
-									 const RectPrism& viewFrustum)
-{
-	fragShadowMap.Bind();
-	vertShadowMap.Bind();
-
-	// State
-	glColorMask(false, false, false, false);
-	glDepthMask(true);
-	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_MULTISAMPLE);
-	glDisable(GL_CULL_FACE);
-	glViewport(0, 0, shadowMapW, shadowMapH);
-
-	gpuBuffer.Bind();
-	fTransform.Bind();
-	drawBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
-	viewMatrices.BindAsUniformBuffer(U_SHADOW_VIEW);
-
-	// Render From Dir of the light	with proper view params
-	IEMatrix4x4 viewTransform = IEMatrix4x4::IdentityMatrix;
-	IEMatrix4x4 projection;
-	for(int i = 0; i < lightsGPU.CPUData().size(); i++)
-	{
-		const Light& currentLight = lightsGPU.CPUData()[i];
-		// Determine light type
-		LightType t = static_cast<LightType>(static_cast<uint32_t>(currentLight.position.getW()));
-		switch(t)
-		{
-			case LightType::POINT:
-			{
-				// Render to Cubemap
-				geomPointShadowMap.Bind();
-
-				// Each Side will have 90 degree FOV
-				// Geom shader will render for each layer
-				for(unsigned int i = 0; i < 6; i++)
-				{
-					viewMatrices.CPUData()[i] = IEMatrix4x4::LookAt(currentLight.position,
-																	currentLight.position + pLightDir[i],
-																	pLightUp[i]);
-				}
-				viewMatrices.SendData();
-				projection = IEMatrix4x4::Perspective(90.0f, 1.0f,
-													  0.1f, currentLight.color.getW() + 1000.0f);
-				break;
-			}				
-			case LightType::DIRECTIONAL:
-			{
-				// Render to one sheet
-				geomDirShadowMap.Bind();
-
-				// Camera Direction should be
-				viewTransform = IEMatrix4x4::LookAt(currentLight.position, 
-													currentLight.position + currentLight.direction,
-													IEVector3::Yaxis);
-
-				// Span area on viewSpace coordiantes
-				RectPrism transRect = viewFrustum.Transform(viewTransform);
-				IEVector3 aabbFrustumMin, aabbFrustumMax;
-				transRect.toAABB(aabbFrustumMin, aabbFrustumMax);
-				projection = IEMatrix4x4::Ortogonal(aabbFrustumMin.getX(), aabbFrustumMax.getX(),
-													aabbFrustumMax.getY(), aabbFrustumMin.getY(),
-													-500.0f, 500.0f);
-				break;
-			}
-			case LightType::AREA:
-			{
-				// Render to cube but only 5 sides (6th side is not illuminated)
-				geomAreaShadowMap.Bind();
-				// we'll use 5 sides but each will comply different ares that a point light
-				for(unsigned int i = 0; i < 6; i++)
-				{
-					viewMatrices.CPUData()[i] = IEMatrix4x4::LookAt(currentLight.position,
-																	currentLight.position + aLightDir[i],
-																	aLightUp[i]);
-				}
-				viewMatrices.SendData();
-
-				// Put a 45 degree frustum projection matrix to the viewTransform part of the
-				// FrameTransformUniform Buffer it'll be required on area light omni directional frustum
-				viewTransform = IEMatrix4x4::Perspective(45.0f, 1.0f,
-														 0.1f, currentLight.color.getW() + 10000.0f);
-				projection = IEMatrix4x4::Perspective(90.0f, 1.0f, 
-													  0.1f, currentLight.color.getW() + 10000.0f);
-				break;
-			}
-		}
-
-		// Determine projection params
-		// Do not waste objects that are out of the current view frustum
-		fTransform.Update
-		(
-			FrameTransformBufferData
-			{
-				viewTransform,
-				projection,
-				IEMatrix4x4::IdentityMatrix
-			}
-		);
-		
-		// FBO Bind and render calls
-		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBOs[i]);
-		glClear(GL_DEPTH_BUFFER_BIT);
-		for(unsigned int i = 0; i < drawCount; i++)
-		{
-			drawBuffer.getModelTransformBuffer().BindAsUniformBuffer(U_MTRANSFORM, i, 1);
-			glDrawElementsIndirect(GL_TRIANGLES,
-								   GL_UNSIGNED_INT,
-								   (void *) (i * sizeof(DrawPointIndexed)));
-		}
-	}
 }
 
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)

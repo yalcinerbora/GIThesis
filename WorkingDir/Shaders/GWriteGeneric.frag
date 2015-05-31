@@ -22,6 +22,7 @@
 // Input
 in IN_UV vec2 fUV;
 in IN_NORMAL vec3 fNormal;
+layout(early_fragment_tests) in;
 
 // Output
 out OUT_RT0 vec4 albedoRGB_specPowA;
@@ -96,7 +97,7 @@ uniform T_COLOR sampler2D colorTex;
 // Entry
 void GBufferPopulate(out vec3 gNormal, out vec3 gColor, out float gSpec)
 {
-	gColor = texture2D(colorTex, fUV).rgb;
+	gColor = texture(colorTex, fUV).rgb;
 	gNormal = fNormal;
 	gSpec = 1.0f;
 }

@@ -9,30 +9,18 @@ Just Renders the scene
 #define __EMPTYGISOLUTION_H__
 
 #include "SolutionI.h"
-#include "Shader.h"
-#include "FrameTransformBuffer.h"
-#include "GBuffer.h"
+
+class DeferredRenderer;
 
 class EmptyGISolution : public SolutionI
 {
 	private:
 		SceneI*					currentScene;
-
-		Shader					vertexGBufferWrite;
-		Shader					fragmentGBufferWrite;
-
-		Shader					vertLightPass;
-		Shader					fragLightPass;
-
-		Shader					vertPPGeneric;
-		Shader					fragLightApply;
-
-		GBuffer					gBuffer;
-		FrameTransformBuffer	cameraTransform;
+		DeferredRenderer&		dRenderer;
 
 	protected:
 	public:
-								EmptyGISolution();
+								EmptyGISolution(DeferredRenderer&);
 								~EmptyGISolution() = default;
 		
 		bool					IsCurrentScene(SceneI&) override;

@@ -14,7 +14,7 @@
 #define OUT_COLOR layout(location = 0)
 
 #define T_COLOR layout(binding = 0)
-#define T_INTENSITY layout(binding = 1)
+#define T_INTENSITY layout(binding = 3)
 
 // Input
 in IN_UV vec2 fUV;

@@ -39,10 +39,8 @@
 # Binaries
 Bin/
 
-# WorkingDir
+# Working Dir Except Shaders
 WorkingDir/
-
-# Except Shaders
 !WorkingDir/Shaders/
 
 # Keep Provided Libraries
@@ -51,13 +49,7 @@ WorkingDir/
 !Lib/**/*.a
 !Lib/**/*.lib
 !Lib/**/*.pdb
-
 !Lib/**/*.so
 !Lib/**/*.dvlib
 !Lib/**/*.dll
-
 !Lib/**/*.pch
-
-*.tga
-*.png
-*.swatch

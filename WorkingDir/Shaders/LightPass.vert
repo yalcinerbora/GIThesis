@@ -12,7 +12,7 @@
 
 // Definitions
 #define IN_POS layout(location = 0)
-#define IN_INDEX layout(location = 0)
+#define IN_INDEX layout(location = 1)
 
 #define OUT_INDEX layout(location = 0)
 
@@ -26,11 +26,11 @@
 
 // Input
 in IN_POS vec3 vPos;
-in IN_INDEX int vIndex;
+in IN_INDEX uint vIndex;
 
 // Output
 out gl_PerVertex {vec4 gl_Position;};	// Mandatory
-flat out OUT_INDEX int fIndex;
+flat out OUT_INDEX uint fIndex;
 
 // Uniforms
 U_FTRANSFORM uniform FrameTransform
@@ -62,7 +62,7 @@ void main(void)
 	// Translate and Scale
 	// Also Rotation Needed for Area Light
 	mat4 model;
-	if(lightParams[fIndex].position.w != GI_LIGHT_AREA)
+	if(lightParams[fIndex].position.w == GI_LIGHT_AREA)
 	{
 		// Area Light
 		// Area light has half sphere directed towards -y direction
@@ -77,7 +77,7 @@ void main(void)
 		vec3 axis = cross(vec3(0.0f, -1.0f, 0.0f), lightParams[fIndex].direction.xyz);
 		float cosAngle = dot(vec3(0.0f, -1.0f, 0.0f), lightParams[fIndex].direction.xyz);
 		float t = 1.0f - cosAngle;
-		float sinAngle = sin(acos(cosAngle));
+		float sinAngle = length(axis);
 
 		vec3 tt = t * vec3(axis.y * axis.z, axis.x * axis.z, axis.x * axis.y);
 		vec3 st = sinAngle * axis;
@@ -90,7 +90,7 @@ void main(void)
 					   diff.y,		sum.x,			dt.z,			0.0f,
 					   translate.x,	translate.y,	translate.z,	1.0f);
 	}
-	else if(lightParams[fIndex].position.w != GI_LIGHT_POINT)
+	else if(lightParams[fIndex].position.w == GI_LIGHT_POINT)
 	{
 		// Point Light
 		// Its unit sphere so only translate the sphere to the light position

@@ -9,6 +9,7 @@
 #include "IEUtility/IEMatrix4x4.h"
 #include "StructuredBuffer.h"
 #include "ArrayStruct.h"
+#include "DrawPoint.h"
 #include <cstdint>
 
 class DrawBuffer;
@@ -49,11 +50,21 @@ class SceneLights
 		// One Shadowmap for each light
 		// Directional Lights have one side used (others not allocated)
 		// Area Lights only use 5 sides of the cube map
-		StructuredBuffer<Light>			lightsGPU;
-		StructuredBuffer<IEMatrix4x4>	viewMatrices;
-		GLuint							lightShadowMaps;
-		std::vector<GLuint>				shadowMapViews;
-		std::vector<GLuint>				shadowMapFBOs;
+		StructuredBuffer<Light>				lightsGPU;
+		StructuredBuffer<IEMatrix4x4>		viewMatrices;
+		GLuint								lightShadowMaps;
+		std::vector<GLuint>					shadowMapViews;
+		std::vector<GLuint>					shadowMapFBOs;
+
+		// Light Shape Related
+		static const char*					lightAOIFileName;
+		static GLuint						lightShapeBuffer;
+		static GLuint						lightShapeIndexBuffer;
+		static DrawPointIndexed				drawParamsGeneric[3];	// Only Instance Count is not used
+
+		StructuredBuffer<DrawPointIndexed>	lightDrawParams;
+		GLuint								lightVAO;
+		StructuredBuffer<uint32_t>			lightIndexBuffer;
 
 	protected:
 	public:

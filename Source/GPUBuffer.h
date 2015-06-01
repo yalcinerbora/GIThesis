@@ -2,9 +2,6 @@
 
 GPU Buffer That Holds Mesh (and Index)
 
-Draw Points (Aka Draw Call Parameters) in that buffer
-Draw Points Struct Applicable to the Indirect Command Buffer in OGL
-
 */
 
 #ifndef __GPUBUFFER_H__
@@ -15,23 +12,9 @@ Draw Points Struct Applicable to the Indirect Command Buffer in OGL
 #include "GLHeader.h"
 #include "ArrayStruct.h"
 #include "GFG/GFGMeshHeader.h"
+#include "DrawPoint.h"
 
-//struct DrawPoint
-//{
-//	uint32_t	count;
-//	uint32_t	instanceCount;
-//	uint32_t	baseVertex;
-//	uint32_t	baseInstance;
-//};
 
-struct DrawPointIndexed
-{
-	uint32_t	count;
-	uint32_t	instanceCount;
-	uint32_t	firstIndex;
-	uint32_t	baseVertex;
-	uint32_t	baseInstance;
-};
 
 enum class GPUDataType : GLenum
 {

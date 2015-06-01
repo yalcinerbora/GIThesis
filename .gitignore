@@ -4,6 +4,9 @@
 *.o
 *.obj
 
+# DebugDatabase (Windows)
+*.pdb
+
 # Precompiled Headers
 *.gch
 *.pch
@@ -36,17 +39,25 @@
 # Binaries
 Bin/
 
+# WorkingDir
+WorkingDir/
+
+# Except Shaders
+!WorkingDir/Shaders/
+
 # Keep Provided Libraries
 !Lib/**/*.lai
 !Lib/**/*.la
 !Lib/**/*.a
 !Lib/**/*.lib
+!Lib/**/*.pdb
 
 !Lib/**/*.so
 !Lib/**/*.dvlib
 !Lib/**/*.dll
 
 !Lib/**/*.pch
+
 *.tga
 *.png
 *.swatch

@@ -6,9 +6,15 @@
 #include "FrameTransformBuffer.h"
 #include "IEUtility/IEQuaternion.h"
 #include "IEUtility/IEMath.h"
+#include "GFG/GFGFileLoader.h"
 
 const GLsizei SceneLights::shadowMapW = 512;
 const GLsizei SceneLights::shadowMapH = 512;
+
+const char* SceneLights::lightAOIFileName = "lightAOI.gfg";
+GLuint SceneLights::lightShapeBuffer = 0;
+GLuint SceneLights::lightShapeIndexBuffer = 0;
+DrawPointIndexed SceneLights::drawParamsGeneric[3] = { { 0 }, { 0 }, { 0 } };
 
 const IEVector3 SceneLights::pLightDir[6] =
 {
@@ -54,6 +60,8 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	: lightsGPU(lights.length)
 	, lightShadowMaps(0)
 	, viewMatrices(6)
+	, lightDrawParams(3)
+	, lightIndexBuffer(lights.length)
 {
 	viewMatrices.RecieveData(6);
 	glGenTextures(1, &lightShadowMaps);
@@ -78,6 +86,113 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	}		
 	lightsGPU.SendData();
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	if(lightShapeBuffer == 0)
+	{
+		std::ifstream stream(lightAOIFileName, std::ios_base::in | std::ios_base::binary);
+		GFGFileReaderSTL stlFileReader(stream);
+		GFGFileLoader gfgFile(&stlFileReader);
+		std::vector<DrawPointIndexed> drawCalls;
+		gfgFile.ValidateAndOpen();
+
+		assert(gfgFile.Header().meshes.size() == 3);
+		std::vector<uint8_t> vData(gfgFile.AllMeshVertexDataSize());
+		std::vector<uint8_t> viData(gfgFile.AllMeshIndexDataSize());
+		gfgFile.AllMeshVertexData(vData.data());
+		gfgFile.AllMeshIndexData(viData.data());
+
+		glGenBuffers(1, &lightShapeBuffer);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, lightShapeBuffer);
+		glBufferData(GL_COPY_WRITE_BUFFER, vData.size(), vData.data(), GL_STATIC_DRAW);
+
+		glGenBuffers(1, &lightShapeIndexBuffer);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, lightShapeIndexBuffer);
+		glBufferData(GL_COPY_WRITE_BUFFER, viData.size(), viData.data(), GL_STATIC_DRAW);
+
+		uint32_t vOffset = 0, viOffset = 0;
+		uint32_t i = 0;
+		for(const GFGMeshHeader& mesh : gfgFile.Header().meshes)
+		{
+			assert(mesh.headerCore.indexSize == sizeof(uint32_t));
+
+			drawParamsGeneric[i].baseInstance = 0;
+			drawParamsGeneric[i].baseVertex = vOffset;
+			drawParamsGeneric[i].firstIndex = viOffset;
+			drawParamsGeneric[i].count = static_cast<uint32_t>(mesh.headerCore.indexCount);
+			drawParamsGeneric[i].instanceCount = 0;
+
+			vOffset += static_cast<uint32_t>(mesh.headerCore.vertexCount);
+			viOffset += static_cast<uint32_t>(mesh.headerCore.indexCount);
+			i++;
+		}
+	}
+
+	// Light Draw Param Generation
+	uint32_t dCount = 0, aCount = 0, pCount = 0, i = 0;
+	uint32_t dIndex = 0, aIndex = 0, pIndex = 0;
+	std::vector<uint32_t>& lIndexBuff = lightIndexBuffer.CPUData();
+	lIndexBuff.resize(lights.length);
+	for(const Light& l : lightsGPU.CPUData())
+	{
+		if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::AREA)))
+			aCount++;
+		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::DIRECTIONAL)))
+			dCount++;
+		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::POINT)))
+			pCount++;
+	}
+	for(const Light& l : lightsGPU.CPUData())
+	{
+		if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::AREA)))
+		{
+			lIndexBuff[pCount + dCount + aIndex];
+			aIndex++;
+		}
+		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::DIRECTIONAL)))
+		{
+			lIndexBuff[pCount + dIndex] = i;
+			dIndex++;
+		}
+		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::POINT)))
+		{
+			lIndexBuff[0 + pIndex] = i;
+			pIndex++;
+		}
+		i++;
+	}
+	lightIndexBuffer.SendData();
+
+	// Draw Buffers
+	lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::POINT)]);
+	lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::DIRECTIONAL)]);
+	lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::AREA)]);
+
+	lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].instanceCount = pCount;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].instanceCount = dCount;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::AREA)].instanceCount = aCount;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].baseInstance = 0;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].baseInstance = pCount;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::AREA)].baseInstance = pCount + dCount;
+	lightDrawParams.SendData();
+
+	// Create VAO
+	// PostProcess VAO
+	glGenVertexArrays(1, &lightVAO);
+	glBindVertexArray(lightVAO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightShapeIndexBuffer);
+
+	// Pos
+	glBindVertexBuffer(0, lightShapeBuffer, 0, sizeof(float) * 3);
+	glEnableVertexAttribArray(IN_POS);
+	glVertexAttribFormat(IN_POS, 3, GL_FLOAT, false, 0);
+	glVertexAttribBinding(IN_POS, 0);
+
+	// Index
+	glBindVertexBuffer(1, lightIndexBuffer.getGLBuffer(), 0, sizeof(uint32_t));
+	glEnableVertexAttribArray(IN_INDEX);
+	glVertexAttribIFormat(IN_INDEX, 1, GL_UNSIGNED_INT, 0);
+	glVertexAttribDivisor(IN_INDEX, 1);
+	glVertexAttribBinding(IN_INDEX, 1);
 }
 
 SceneLights::~SceneLights()
@@ -85,6 +200,7 @@ SceneLights::~SceneLights()
 	glDeleteTextures(1, &lightShadowMaps);
 	glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()), shadowMapFBOs.data());
 	glDeleteTextures(static_cast<GLsizei>(shadowMapViews.size()), shadowMapViews.data());
+	glDeleteVertexArrays(1, &lightVAO);
 }
 
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)

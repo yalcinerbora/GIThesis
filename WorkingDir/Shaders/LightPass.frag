@@ -31,7 +31,7 @@
 #define GI_ONE_OVER_2_PI 0.159154
 
 // Input
-flat in IN_INDEX int fIndex;
+flat in IN_INDEX uint fIndex;
 
 // Output
 out OUT_COLOR vec4 fboColor;
@@ -60,7 +60,6 @@ LU_LIGHT buffer LightParams
 	//		makes direction obselete
 	// If Position.w == 1, Its directional light
 	//		makes position.xyz obselete
-	//		direction.w is obselete
 	//		color.a is obselete
 	// If Position.w == 2, Its area light
 	//
@@ -152,8 +151,13 @@ vec3 PhongBDRF(in vec3 worldPos)
 void main(void)
 {
 	// Do Light Calculation
-	vec3 lightIntensity = PhongBDRF(DepthToWorld());
-	
+	// Test Light
+	vec3 lightIntensity;	
+	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+		lightIntensity = vec3(0.8f, 0.8f, 0.8f);//PhongBDRF(DepthToWorld());
+	else
+		lightIntensity = vec3(0.1f,0.1f, 0.1f);//PhongBDRF(DepthToWorld());
+
 	// Additive Blending will take care of the rest
 	fboColor = vec4(lightIntensity, 1.0f);
 }

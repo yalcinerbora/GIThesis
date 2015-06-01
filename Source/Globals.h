@@ -51,6 +51,7 @@ static const VertexElement element[] =
 #define IN_POS 0
 #define IN_NORMAL 1
 #define IN_UV 2
+#define IN_INDEX 1
 
 // Textures (Bind Uniforms)
 #define T_COLOR 0
@@ -71,6 +72,7 @@ static const VertexElement element[] =
 #define U_FTRANSFORM 0
 #define U_MTRANSFORM 1
 #define U_SHADOW_VIEW 2
+#define U_INVFTRANSFORM 1
 
 // Large Uniform
 #define LU_VOXEL 0

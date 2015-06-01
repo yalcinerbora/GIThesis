@@ -10,8 +10,8 @@ const GLsizei DeferredRenderer::gBuffHeight = 1080;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
-	-1.0f, 3.0f,
 	3.0f, -1.0f,
+	-1.0f, 3.0f,
 	-1.0f, -1.0f
 };
 
@@ -31,7 +31,11 @@ DeferredRenderer::DeferredRenderer()
 	, geomPointShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapP.geom")
 	, lightIntensityTex(0)
 	, lightIntensityFBO(0)
+	, invFrameTransform(1)
 {
+	invFrameTransform.AddData({IEMatrix4x4::IdentityMatrix,
+							  IEMatrix4x4::IdentityMatrix, 
+							  IEMatrix4x4::IdentityMatrix});
 
 	// Light Intensity Tex
 	glGenTextures(1, &lightIntensityTex);
@@ -258,14 +262,27 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	glBindSampler(T_SHADOW, shadowMapSampler);
 
 	// Buffer Binds
+	FrameTransformBufferData ft = camera.generateTransform();
+	cameraTransform.Update(ft);
 	cameraTransform.Bind();
 	scene.getSceneLights().lightsGPU.BindAsShaderStorageBuffer(LU_LIGHT);
-	//invFrameTransform.Bind();
+
+	// Inverse Frame Transforms
+	invFrameTransform.BindAsUniformBuffer(U_INVFTRANSFORM);
+	invFrameTransform.CPUData()[0] = InvFrameTransform
+	{
+		ft.view.Inverse(),
+		ft.projection.Inverse(),
+		ft.viewRotation.Inverse(),
+		IEVector4(camera.pos),
+		{0, 0, gBuffWidth, gBuffHeight}
+	};
+	invFrameTransform.SendData();
 
 	// Bind LightIntensity Buffer as framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glViewport(0, 0, gBuffWidth, gBuffHeight);
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	// Get VAO from Scene Lights
@@ -273,8 +290,17 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	vertLightPass.Bind();
 	fragLightPass.Bind();
 
+	// Open Additive Blending
+	// Intensity of different lights will be added
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
+
 	// Render this VAO as multi draw indirect command
-	// TODO:
+	scene.getSceneLights().lightDrawParams.BindAsDrawIndirectBuffer();
+	glBindVertexArray(scene.getSceneLights().lightVAO);
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 3, sizeof(DrawPointIndexed));
+
+	glDisable(GL_BLEND);
 }
 
 void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)

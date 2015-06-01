@@ -217,6 +217,9 @@
     <ClInclude Include="..\..\..\Source\DeferredRenderer.h">
       <Filter>Render</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\DrawPoint.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

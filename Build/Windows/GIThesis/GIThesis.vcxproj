@@ -124,6 +124,7 @@
     <ClCompile Include="..\..\..\Source\SceneLights.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
     <ClInclude Include="..\..\..\Source\DeferredRenderer.h" />
+    <ClInclude Include="..\..\..\Source\DrawPoint.h" />
     <ClInclude Include="..\..\..\Source\GBuffer.h" />
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />

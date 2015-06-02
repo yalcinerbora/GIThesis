@@ -16,10 +16,6 @@ struct FrameTransformBufferData
 {
 	IEMatrix4x4 view;
 	IEMatrix4x4 projection;
-
-	// std140 rule treats mat3 as 3x4 matrix (aligment)
-	// i use 4x4 matix here (wasting a 4 float space but w/e)
-	IEMatrix4x4 viewRotation;
 };
 #pragma pack(pop)
 

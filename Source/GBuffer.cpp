@@ -67,6 +67,11 @@ void GBuffer::AlignViewport()
 	glViewport(0, 0, width, height);
 }
 
+GLuint GBuffer::getDepthGL()
+{
+	return rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)];
+}
+
 void GBuffer::BindDefaultFBO()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

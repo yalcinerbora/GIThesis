@@ -32,6 +32,7 @@
 
 // Input
 flat in IN_INDEX uint fIndex;
+layout(early_fragment_tests) in;
 
 // Output
 out OUT_COLOR vec4 fboColor;
@@ -41,10 +42,6 @@ U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
 	mat4 projection;
-	mat4 viewRotation;
-
-	vec4 camPos;		// To Calculate Eye
-	ivec4 viewport;		// Viewport Params
 };
 
 U_INVFTRANSFORM uniform InverseFrameTransform
@@ -52,6 +49,9 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 	mat4 invView;
 	mat4 invProjection;
 	mat4 invViewRotation;
+
+	vec4 camPos;		// To Calculate Eye
+	ivec4 viewport;		// Viewport Params
 };
 
 LU_LIGHT buffer LightParams

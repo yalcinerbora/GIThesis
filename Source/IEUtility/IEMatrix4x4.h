@@ -13,6 +13,7 @@ Column Major Vector Matrix
 class IEVector3;
 class IEVector4;
 class IEQuaternion;
+class IEMatrix3x3;
 
 class IEMatrix4x4
 {
@@ -36,6 +37,7 @@ class IEMatrix4x4
 												float m13, float m23, float m33, float m43,
 												float m14, float m24, float m34, float m44);
 									IEMatrix4x4(float v[]);
+									IEMatrix4x4(const IEMatrix3x3&);
 									IEMatrix4x4(const IEMatrix4x4&) = default;
 									~IEMatrix4x4() = default;
 

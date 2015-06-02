@@ -3,6 +3,7 @@
 #include "IEVector3.h"
 #include "IEVector4.h"
 #include "IEQuaternion.h"
+#include "IEMatrix3x3.h"
 
 // Constants
 const IEMatrix4x4 IEMatrix4x4::IdentityMatrix = IEMatrix4x4();
@@ -11,25 +12,34 @@ const IEMatrix4x4 IEMatrix4x4::ZeroMatrix = IEMatrix4x4(0.0f, 0.0f, 0.0f, 0.0f,
 														0.0f, 0.0f, 0.0f, 0.0f,
 														0.0f, 0.0f, 0.0f, 0.0f);
 
-IEMatrix4x4::IEMatrix4x4() : m11(1.0f), m21(0.0f), m31(0.0f), m41(0.0f), 
-								m12(0.0f), m22(1.0f), m32(0.0f), m42(0.0f), 
-								m13(0.0f), m23(0.0f), m33(1.0f), m43(0.0f), 
-								m14(0.0f), m24(0.0f), m34(0.0f), m44(1.0f)
+IEMatrix4x4::IEMatrix4x4()
+	: m11(1.0f), m21(0.0f), m31(0.0f), m41(0.0f)
+	, m12(0.0f), m22(1.0f), m32(0.0f), m42(0.0f)
+	, m13(0.0f), m23(0.0f), m33(1.0f), m43(0.0f)
+	, m14(0.0f), m24(0.0f), m34(0.0f), m44(1.0f)
 {}
 
 IEMatrix4x4::IEMatrix4x4(float m11, float m21, float m31, float m41,
 							float m12, float m22, float m32, float m42,
 							float m13, float m23, float m33, float m43,
-							float m14, float m24, float m34, float m44)	: m11(m11), m21(m21), m31(m31), m41(m41), 
-																			m12(m12), m22(m22), m32(m32), m42(m42), 
-																			m13(m13), m23(m23), m33(m33), m43(m43), 
-																			m14(m14), m24(m24), m34(m34), m44(m44)
+							float m14, float m24, float m34, float m44)	
+	: m11(m11), m21(m21), m31(m31), m41(m41)
+	, m12(m12), m22(m22), m32(m32), m42(m42)
+	, m13(m13), m23(m23), m33(m33), m43(m43)
+	, m14(m14), m24(m24), m34(m34), m44(m44)
 {}
 
 IEMatrix4x4::IEMatrix4x4(float v[]) : m11(v[0]), m21(v[1]), m31(v[2]), m41(v[3]), 
 										m12(v[4]), m22(v[5]), m32(v[6]), m42(v[7]), 
 										m13(v[8]), m23(v[9]), m33(v[10]), m43(v[11]), 
 										m14(v[12]), m24(v[13]), m34(v[14]), m44(v[15])
+{}
+
+IEMatrix4x4::IEMatrix4x4(const IEMatrix3x3& mat3)
+	: m11(mat3(1, 1)), m21(mat3(2, 1)), m31(mat3(3, 1)), m41(0.0f)
+	, m12(mat3(1, 2)), m22(mat3(2, 2)), m32(mat3(3, 2)), m42(0.0f)
+	, m13(mat3(1, 3)), m23(mat3(2, 3)), m33(mat3(3, 3)), m43(0.0f)
+	, m14(0.0f),	   m24(0.0f),		m34(0.0f),		 m44(1.0f)
 {}
 
 IEVector4 IEMatrix4x4::operator*(const IEVector3& vector) const

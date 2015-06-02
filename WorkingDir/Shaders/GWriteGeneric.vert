@@ -42,7 +42,6 @@ U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
 	mat4 projection;
-	mat4 viewRotation;
 };
 
 U_MTRANSFORM uniform ModelTransform
@@ -54,7 +53,7 @@ U_MTRANSFORM uniform ModelTransform
 void main(void)
 {
 	fUV = vUV;
-	fNormal =  mat3(viewRotation) * modelRotation * vNormal;
+	fNormal =  mat3(view) * modelRotation * vNormal;
 
 	// Rasterizer
 	gl_Position = projection * view * model * vec4(vPos.xyz, 1.0f);

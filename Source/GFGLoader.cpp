@@ -122,12 +122,15 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 					transform = IEMatrix4x4::Rotate(t.rotate[0], IEVector3::Xaxis) * transform;
 					transform = IEMatrix4x4::Rotate(t.rotate[1], IEVector3::Yaxis) * transform;
 					transform = IEMatrix4x4::Rotate(t.rotate[2], IEVector3::Zaxis) * transform;
+
+					transformRotation = transform;
+
 					transform = IEMatrix4x4::Scale(t.scale[0], t.scale[1], t.scale[2]) * transform;
 					transform = IEMatrix4x4::Translate({t.translate[0], t.translate[1], t.translate[2]}) * transform;
 
-					transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[0], IEVector3::Xaxis);
-					transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[1], IEVector3::Yaxis);
-					transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[2], IEVector3::Zaxis);
+					//transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[0], IEVector3::Xaxis);
+					//transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[1], IEVector3::Yaxis);
+					//transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[2], IEVector3::Zaxis);
 
 					parent = &gfgFile.Header().sceneHierarchy.nodes[parent->parentIndex];
 				}											

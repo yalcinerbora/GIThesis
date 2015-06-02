@@ -40,7 +40,6 @@ U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
 	mat4 projection;
-	mat4 viewRotation;
 };
 
 LU_OBJECT_GRID_INFO buffer GridInfo

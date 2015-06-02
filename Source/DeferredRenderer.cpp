@@ -5,8 +5,8 @@
 #include "Camera.h"
 #include "RectPrism.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = 1920;
-const GLsizei DeferredRenderer::gBuffHeight = 1080;
+const GLsizei DeferredRenderer::gBuffWidth = 3840;//1920;
+const GLsizei DeferredRenderer::gBuffHeight = 2160;//1080;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
@@ -45,6 +45,7 @@ DeferredRenderer::DeferredRenderer()
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, gBuffer.getDepth(), 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 	// PostProcess VAO
@@ -190,8 +191,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 		cameraTransform.Update(FrameTransformBufferData
 							   {
 							   		viewTransform,
-							   		projection,
-							   		IEMatrix4x4::IdentityMatrix
+							   		projection
 							   });
 
 		// FBO Bind and render calls
@@ -272,7 +272,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	{
 		ft.view.Inverse(),
 		ft.projection.Inverse(),
-		ft.viewRotation.Inverse(),
+		IEMatrix3x3(ft.view).Inverse(),
 		IEVector4(camera.pos),
 		{0, 0, gBuffWidth, gBuffHeight}
 	};
@@ -291,15 +291,20 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 
 	// Open Additive Blending
 	// Intensity of different lights will be added
+	// Only render backfaces to eliminate multi fragment from light enclosure objects
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
-	glDisable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
+	glFrontFace(GL_CW);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_GREATER);
 	glDepthMask(false);
 
 	scene.getSceneLights().lightDrawParams.BindAsDrawIndirectBuffer();
 	glBindVertexArray(scene.getSceneLights().lightVAO);
 	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 3, sizeof(DrawPointIndexed));
 
+	glFrontFace(GL_CCW);
 	glDisable(GL_BLEND);
 }
 

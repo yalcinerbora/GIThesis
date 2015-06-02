@@ -75,7 +75,7 @@ int main()
 		// Point Lights
 		// All white color effecting radius 40 units
 		{
-			{ 212.6f, 30.8f, -85.3f, static_cast<float>(LightType::AREA) },
+			{ 212.6f, 30.8f, -85.3f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, -1.0f, 0.0f, 0.0f },
 			{ 1.0f, 1.0f, 1.0f, 40.0f }
 		},
@@ -99,7 +99,7 @@ int main()
 		{
 			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::AREA)},
 			{ 0.0f, -1.0f, 0.0f, 0.0f },
-			{ 1.0f, 1.0f, 1.0f, 150.0f }
+			{ 1.0f, 1.0f, 1.0f, 230.0f }
 		}
 	};
 	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 4});

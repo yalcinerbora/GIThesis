@@ -48,6 +48,8 @@ class GBuffer
 		void		BindAsFBO();
 		void		AlignViewport();
 
+		GLuint		getDepthGL();
+
 		static void	BindDefaultFBO();
 };
 #endif //__GBUFFER_H__

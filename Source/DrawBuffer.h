@@ -33,6 +33,7 @@ struct ModelTransform
 	// TODO: This is a bullshit solution it only works on my cards but w/e
 	// OffsetAlignment is 256 on my GTX660Ti and Quadro 4000
 	uint8_t offset[256 - sizeof(IEMatrix4x4) - (sizeof(IEVector4) * 3)];
+	// TODO: change this to SSBO also (its offset alignment is small)
 };
 
 struct AABBData
@@ -43,6 +44,7 @@ struct AABBData
 	// TODO: This is a bullshit solution it only works on my cards but w/e
 	// OffsetAlignment is 256 on my GTX660Ti and Quadro 4000
 	//uint8_t offset[256 - sizeof(IEVector4) * 2];
+	// nwm changed to ssbo
 };
 #pragma pack(pop)
 

@@ -36,7 +36,6 @@ DeferredRenderer::DeferredRenderer()
 	invFrameTransform.AddData({IEMatrix4x4::IdentityMatrix,
 							  IEMatrix4x4::IdentityMatrix, 
 							  IEMatrix4x4::IdentityMatrix});
-
 	// Light Intensity Tex
 	glGenTextures(1, &lightIntensityTex);
 	glGenFramebuffers(1, &lightIntensityFBO);
@@ -294,8 +293,9 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	// Intensity of different lights will be added
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
+	glDisable(GL_CULL_FACE);
+	glDepthMask(false);
 
-	// Render this VAO as multi draw indirect command
 	scene.getSceneLights().lightDrawParams.BindAsDrawIndirectBuffer();
 	glBindVertexArray(scene.getSceneLights().lightVAO);
 	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 3, sizeof(DrawPointIndexed));

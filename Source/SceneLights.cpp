@@ -145,7 +145,7 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	{
 		if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::AREA)))
 		{
-			lIndexBuff[pCount + dCount + aIndex];
+			lIndexBuff[pCount + dCount + aIndex] = i;
 			aIndex++;
 		}
 		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::DIRECTIONAL)))

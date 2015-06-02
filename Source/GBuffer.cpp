@@ -1,5 +1,6 @@
 #include "GBuffer.h"
 #include "GLHeader.h"
+#include <cassert>
 
 GBuffer::GBuffer(GLuint w, GLuint h)
  : fbo(0)
@@ -11,14 +12,14 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 	glGenTextures(3, rtTextures);
 
 	// Color Tex
-	glBindTexture(GL_TEXTURE_2D, rtTextures[0]);
+	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::COLOR)]);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
 
 	// Normal Tex
-	glBindTexture(GL_TEXTURE_2D, rtTextures[1]);
+	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::NORMAL)]);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RG16UI, width, height);
 	
-	glBindTexture(GL_TEXTURE_2D, rtTextures[2]);
+	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)]);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, width, height);
 
 	// Sampler
@@ -30,14 +31,15 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-						   GL_TEXTURE_2D, rtTextures[0],
+						   GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::COLOR)],
 						   0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
-						   GL_TEXTURE_2D, rtTextures[1],
+						   GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::NORMAL)],
 						   0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-						   GL_TEXTURE_2D, rtTextures[2],
+						   GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)],
 						   0);
+	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
 
 GBuffer::~GBuffer()

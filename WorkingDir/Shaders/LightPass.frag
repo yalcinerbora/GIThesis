@@ -121,10 +121,13 @@ vec3 PhongBDRF(in vec3 worldPos)
 	vec3 worldEye = camPos.xyz - worldPos;
 	
 	vec3 worldLight;
-	if(lightParams[fIndex].position.w != GI_LIGHT_POINT)
+	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
 		worldLight = -lightParams[fIndex].direction.xyz;
 	else
+	{
 		worldLight = lightParams[fIndex].position.xyz - worldPos;
+	}
+		
 	worldLight = normalize(worldLight);
 	worldNormal = normalize(worldNormal);
 	worldEye = normalize(worldEye);
@@ -154,9 +157,9 @@ void main(void)
 	// Test Light
 	vec3 lightIntensity;	
 	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-		lightIntensity = vec3(0.8f, 0.8f, 0.8f);//PhongBDRF(DepthToWorld());
+		lightIntensity = vec3(0.08f, 0.08f, 0.08f);//PhongBDRF(DepthToWorld());
 	else
-		lightIntensity = vec3(0.1f,0.1f, 0.1f);//PhongBDRF(DepthToWorld());
+		lightIntensity = vec3(0.2f,0.2f, 0.2f);//PhongBDRF(DepthToWorld());
 
 	// Additive Blending will take care of the rest
 	fboColor = vec4(lightIntensity, 1.0f);

@@ -58,7 +58,6 @@ int main()
 	Window mainWindow(nullInput,
 					  winProps);
 
-
 	// DeferredRenderer
 	DeferredRenderer deferredRenderer;
 
@@ -69,12 +68,27 @@ int main()
 		// White Color
 		// 1-2 PM Sunlight direction (if you consider lionhead(window) is at north)
 		{
-			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL)},
+			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL) },
 			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(17.0f)), -IEMath::SinF(IEMath::ToRadians(17.0f)), 0.0f },
 			{ 1.0f, 1.0f, 1.0f, std::numeric_limits<float>::infinity() }
+		},
+		// Point Lights
+		// All white color effecting radius 40 units
+		{
+			{ 212.6f, 30.8f, -85.3f, static_cast<float>(LightType::AREA) },
+			{ 0.0f, -1.0f, 0.0f, 0.0f },
+			{ 1.0f, 1.0f, 1.0f, 40.0f }
+		},
+		{
+			{ -116.8f, 27.5f, 27.0f, static_cast<float>(LightType::POINT) },
+			{ 0.0f, 0.0f, 0.0f, 0.0f },
+			{ 1.0f, 1.0f, 1.0f, 40.0f }
+		},
+		{
+			{ 92.2f, 25.9f, 26.2f, static_cast<float>(LightType::POINT) },
+			{ 0.0f, 0.0f, 0.0f, 0.0f },
+			{ 1.0f, 1.0f, 1.0f, 40.0f }
 		}
-		// TODO:
-		// Add Some point lights
 	};
 	Light cornellLights[] =
 	{
@@ -84,11 +98,11 @@ int main()
 		// Covers Entire Room
 		{
 			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::AREA)},
-			{ 0.0f, 1.0f, 0.0f, 0.0f },
-			{ 1.0f, 1.0f, 1.0f, 220.0f }
+			{ 0.0f, -1.0f, 0.0f, 0.0f },
+			{ 1.0f, 1.0f, 1.0f, 150.0f }
 		}
 	};
-	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 1});
+	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 4});
 	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1});
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);

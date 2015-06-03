@@ -5,8 +5,8 @@
 #include "Camera.h"
 #include "RectPrism.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = 3840;//1920;
-const GLsizei DeferredRenderer::gBuffHeight = 2160;//1080;
+const GLsizei DeferredRenderer::gBuffWidth = 1920;
+const GLsizei DeferredRenderer::gBuffHeight = 1080;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
@@ -34,8 +34,10 @@ DeferredRenderer::DeferredRenderer()
 	, invFrameTransform(1)
 {
 	invFrameTransform.AddData({IEMatrix4x4::IdentityMatrix,
-							  IEMatrix4x4::IdentityMatrix, 
-							  IEMatrix4x4::IdentityMatrix});
+							   IEMatrix4x4::IdentityMatrix,
+							   IEVector4::ZeroVector,
+							   {0, 0, 0, 0},
+							   IEVector4::ZeroVector});
 	// Light Intensity Tex
 	glGenTextures(1, &lightIntensityTex);
 	glGenFramebuffers(1, &lightIntensityFBO);
@@ -45,7 +47,7 @@ DeferredRenderer::DeferredRenderer()
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, gBuffer.getDepth(), 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, gBuffer.getDepthGL(), 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 	// PostProcess VAO
@@ -64,7 +66,6 @@ DeferredRenderer::DeferredRenderer()
 	glGenSamplers(1, &flatSampler);
 	glGenSamplers(1, &linearSampler);
 	glGenSamplers(1, &shadowMapSampler);
-
 
 	glSamplerParameteri(flatSampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glSamplerParameteri(flatSampler, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -267,14 +268,15 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	scene.getSceneLights().lightsGPU.BindAsShaderStorageBuffer(LU_LIGHT);
 
 	// Inverse Frame Transforms
+	float xHalf = IEMath::TanF(IEMath::ToRadians(camera.fovX * 0.5f));
 	invFrameTransform.BindAsUniformBuffer(U_INVFTRANSFORM);
 	invFrameTransform.CPUData()[0] = InvFrameTransform
 	{
 		ft.view.Inverse(),
 		ft.projection.Inverse(),
-		IEMatrix3x3(ft.view).Inverse(),
 		IEVector4(camera.pos),
-		{0, 0, gBuffWidth, gBuffHeight}
+		{0, 0, gBuffWidth, gBuffHeight},
+		{0.0f, 1.0f, xHalf, xHalf * (camera.height / camera.width)}
 	};
 	invFrameTransform.SendData();
 

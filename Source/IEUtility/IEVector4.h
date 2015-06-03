@@ -31,6 +31,12 @@ class IEVector4
 								IEVector4(const IEVector4&) = default;
 								~IEVector4() = default;
 
+		// Statics
+		static const IEVector4	ZeroVector;
+		static const IEVector4	XAxis;
+		static const IEVector4	YAxis;
+		static const IEVector4	ZAxis;
+
 		// Accessors
 		float					getX() const;
 		float					getY() const;

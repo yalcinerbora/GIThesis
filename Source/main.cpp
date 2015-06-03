@@ -27,7 +27,7 @@ int main()
 	{
 		90.0f,
 		0.1f,
-		500.0f,
+		600.0f,
 		1280,
 		720,
 		{ -180.0f, 145.0f, 0.3f },
@@ -75,8 +75,8 @@ int main()
 		// Point Lights
 		// All white color effecting radius 40 units
 		{
-			{ 212.6f, 30.8f, -85.3f, static_cast<float>(LightType::POINT) },
-			{ 0.0f, -1.0f, 0.0f, 0.0f },
+			{ 212.6f, 30.8f, -85.3f, static_cast<float>(LightType::AREA) },
+			{ 0.0f, 1.0f, 0.0f, 1.0f },
 			{ 1.0f, 1.0f, 1.0f, 40.0f }
 		},
 		{
@@ -95,10 +95,11 @@ int main()
 		// Area Light
 		// White Color
 		// Top of the room (center of white rectangle)
+		// Square light
 		// Covers Entire Room
 		{
 			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::AREA)},
-			{ 0.0f, -1.0f, 0.0f, 0.0f },
+			{ 0.0f, -1.0f, 0.0f, 1.0f },
 			{ 1.0f, 1.0f, 1.0f, 230.0f }
 		}
 	};

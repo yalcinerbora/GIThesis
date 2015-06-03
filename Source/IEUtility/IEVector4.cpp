@@ -5,6 +5,11 @@
 #include "IEVector4.h"
 #include "IEVector3.h"
 
+const IEVector4 IEVector4::ZeroVector = IEVector4(0.0f, 0.0f, 0.0f, 0.0f);
+const IEVector4 IEVector4::XAxis = IEVector4(1.0f, 0.0f, 0.0f, 0.0f);
+const IEVector4 IEVector4::YAxis = IEVector4(0.0f, 1.0f, 0.0f, 0.0f);
+const IEVector4 IEVector4::ZAxis = IEVector4(0.0f, 0.0f, 1.0f, 0.0f);
+
 IEVector4::IEVector4() : x(0.0f),
 							y(0.0f),
 							z(0.0f),

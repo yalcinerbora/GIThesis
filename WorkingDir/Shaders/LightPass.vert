@@ -9,14 +9,15 @@
 		LightPass Shader
 */
 
-
 // Definitions
 #define IN_POS layout(location = 0)
 #define IN_INDEX layout(location = 1)
 
 #define OUT_INDEX layout(location = 0)
+#define OUT_EYE	layout(location = 1)
 
 #define U_FTRANSFORM layout(std140, binding = 0)
+#define U_INVFTRANSFORM layout(std140, binding = 1)
 
 #define LU_LIGHT layout(std430, binding = 1)
 
@@ -31,12 +32,25 @@ in IN_INDEX uint vIndex;
 // Output
 out gl_PerVertex {vec4 gl_Position;};	// Mandatory
 flat out OUT_INDEX uint fIndex;
+out OUT_EYE vec3 eyeDir;
 
 // Uniforms
+
 U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
 	mat4 projection;
+};
+
+U_INVFTRANSFORM uniform InverseFrameTransform
+{
+	mat4 invView;
+	mat4 invProjection;
+	mat4 invViewRotation;
+
+	vec4 camPos;		// To Calculate Eye
+	ivec4 viewport;		// Viewport Params
+	vec4 depthHalfNear;	// Depth range params and half size of near plane
 };
 
 LU_LIGHT buffer LightParams
@@ -67,28 +81,28 @@ void main(void)
 		// Area light has half sphere directed towards -y direction
 		float scaleFactor = lightParams[vIndex].color.w;
 		vec3 translate = lightParams[vIndex].position.xyz;
-		model = mat4 (scaleFactor,	0.0f,			0.0f,		 0.0f,
+		float  scaleFactorX = scaleFactor* lightParams[vIndex].direction.w;
+		model = mat4 (scaleFactorX,	0.0f,			0.0f,		 0.0f,
 					  0.0f,			scaleFactor,	0.0f,		 0.0f,
 					  0.0f,			0.0f,			scaleFactor, 0.0f,
-					  //0.0f,			0.0f,			0.0f,		 1.0f);
-					  translate.x,	translate.y,	translate.z,	1.0f);
+					  0.0f,			0.0f,			0.0f,		 1.0f);
 
 		// Add direction rotation to the matrix
-		//vec3 axis = cross(vec3(0.0f, -1.0f, 0.0f), lightParams[vIndex].direction.xyz);
-		//float cosAngle = dot(vec3(0.0f, -1.0f, 0.0f), lightParams[vIndex].direction.xyz);
-		//float t = 1.0f - cosAngle;
-		//float sinAngle = length(axis);
+		vec3 axis = cross(lightParams[vIndex].direction.xyz, vec3(0.0f, -1.0f, 0.0f));
+		float cosAngle = dot(lightParams[vIndex].direction.xyz, vec3(0.0f, -1.0f, 0.0f));
+		float t = 1.0f - cosAngle;
+		float sinAngle = length(axis);
 
-		//vec3 tt = t * vec3(axis.y * axis.z, axis.x * axis.z, axis.x * axis.y);
-		//vec3 st = sinAngle * axis;
-		//vec3 dt = vec3(cosAngle) + (axis * axis) * t;
+		vec3 tt = t * vec3(axis.y * axis.z, axis.x * axis.z, axis.x * axis.y);
+		vec3 st = sinAngle * axis;
+		vec3 dt = vec3(cosAngle) + (axis * axis) * t;
 
-		//vec3 sum = tt + st;
-		//vec3 diff = tt - st;
-		//model *= mat4 (dt.x,		diff.z,			sum.y,			0.0f,
-		//			   sum.z,		dt.y,			diff.x,			0.0f,
-		//			   diff.y,		sum.x,			dt.z,			0.0f,
-		//			   translate.x,	translate.y,	translate.z,	1.0f);
+		vec3 sum = tt + st;
+		vec3 diff = tt - st;
+		model = mat4 (dt.x,			diff.z,			sum.y,		0.0f,
+					  sum.z,		dt.y,			diff.x,		0.0f,
+					  diff.y,		sum.x,			dt.z,		0.0f,
+					  translate.x,	translate.y,	translate.z,	1.0f) * model;
 	}
 	else if(lightParams[vIndex].position.w == GI_LIGHT_POINT)
 	{
@@ -107,9 +121,14 @@ void main(void)
 		// Directional Light
 		// Its post process triangle
 		gl_Position = vec4(vPos.xyz, 1.0f);
+		vec2 texCoord = (vPos.xy + 1.0f) * 0.5f;
 		fIndex = vIndex;
+		eyeDir = vec3((2.0 * depthHalfNear.zw * texCoord) - depthHalfNear.zw , -1.0);
 		return;
 	}
-	gl_Position = projection * view * model * vec4(vPos.xyz, 1.0f);
+	vec4 fPos = projection * view * model * vec4(vPos.xyz, 1.0f);
+	vec2 texCoord = ((fPos.xy / fPos.w) + 1.0f) * 0.5f;
+	eyeDir = vec3((2.0 * depthHalfNear.zw * texCoord) - depthHalfNear.zw , -1.0);
 	fIndex = vIndex;
+	gl_Position = fPos;
 }

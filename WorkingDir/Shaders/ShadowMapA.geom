@@ -51,26 +51,26 @@ void main(void)
 	for(unsigned int i = 0; i < 6; i++)
 	{
 		// Layer 2 is skipped (Area Light Does not Illuminate +Y direction
-		if(i != 2)
-		{
-			// For Each Vertex
-			gl_Layer = int(i);
-			for(unsigned int j = 0; j < gl_in.length(); j++)
-			{	
-				if(i == 3)
-				{
-					// Proj Matrix FOV here should be 90 degrees
-					gl_Position = projection * viewMatrices[i] * gl_in[j].gl_Position;
-				}
-				else
-				{
-					// Proj Matrix FOV here should be 45 degrees
-					// Here view variable holds 45 degree projection matrix
-					gl_Position = view * viewMatrices[i] * gl_in[j].gl_Position;
-				}
-				EmitVertex();
+		if(i == 2)
+			continue;
+
+		// For Each Vertex
+		gl_Layer = int(i);
+		for(unsigned int j = 0; j < gl_in.length(); j++)
+		{	
+			if(i == 3)
+			{
+				// Proj Matrix FOV here should be 90 degrees
+				gl_Position = projection * viewMatrices[i] * gl_in[j].gl_Position;
 			}
-			EndPrimitive();
+			else
+			{
+				// Proj Matrix FOV here should be 45 degrees
+				// Here view variable holds 45 degree projection matrix
+				gl_Position = view * viewMatrices[i] * gl_in[j].gl_Position;
+			}
+			EmitVertex();
 		}
+		EndPrimitive();
 	}
 }

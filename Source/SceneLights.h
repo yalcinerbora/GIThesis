@@ -19,7 +19,7 @@ class FrameTransformBuffer;
 struct Light
 {
 	IEVector4 position;			// position.w is the light type
-	IEVector4 direction;		// direction.w is empty
+	IEVector4 direction;		// direction.w is areaLight w/h ratio
 	IEVector4 color;			// color.a is effecting radius
 };
 

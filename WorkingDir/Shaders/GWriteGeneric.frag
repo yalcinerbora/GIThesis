@@ -26,7 +26,7 @@ layout(early_fragment_tests) in;
 
 // Output
 out OUT_RT0 vec4 albedoRGB_specPowA;
-out OUT_RT1 uvec2 normalXY;
+out OUT_RT1 vec4 normalXY;
 
 // Textures
 
@@ -43,9 +43,10 @@ uvec2 PackNormal(vec3 normal)
 	// Rest is Y
 	// both x and y is SNORM types
 	uvec2 result;
-	result.x = uint(normal.x + 1.0f * 0.5f * 65536.0f);
-	result.y = uint(normal.y + 1.0f * 0.5f * 32768.0f);
-	result.y |= 0x8000 & (floatBitsToUint(normal.z) >> 16	);
+	result.x = uint((normal.x * 0.5f + 0.5f) * 0x7FFF);
+	result.y = uint((normal.y * 0.5f + 0.5f) * 0x7FFF);
+	//result.y |= (floatBitsToUint(normal.z) >> 16) & 0x8000;
+	result.y |=  (normal.z < 0.0f) ? 0x8000 : 0x0000;
 	return result;
 }
 
@@ -62,10 +63,11 @@ void main(void)
 	// GBuffer Write
 	albedoRGB_specPowA.rgb = gColor;
 	albedoRGB_specPowA.a = gSpec;
-	normalXY = PackNormal(gNormal);
-
+	//normalXY = PackNormal(normalize(gNormal));
+	normalXY.xyz = normalize(gNormal) * 0.5f + 0.5f;
 	// Depth Write is auto, so all done!!!
 }
+
 // We will append users shader 
 // Users Shader needs to implement this
 //void GBufferPopulate(out vec3 fNormal, out vec3 fColor, out vec2 metalSpecular);

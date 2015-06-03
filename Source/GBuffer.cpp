@@ -17,7 +17,7 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 
 	// Normal Tex
 	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::NORMAL)]);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RG16UI, width, height);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
 	
 	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)]);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, width, height);
@@ -39,6 +39,9 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
 						   GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)],
 						   0);
+
+	const GLenum db[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+	glDrawBuffers(2, db);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
 

@@ -157,7 +157,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 	lightIntensity = vec3(max(dot(worldNormal, worldLight), 0.0f));
 
 	// Specular
-	float specPower = texture(gBuffColor, gBuffUV) * 256.0f;
+	float specPower = texture(gBuffColor, gBuffUV).a * 256.0f;
 	lightIntensity += vec3(max(pow(dot(worldReflect, worldEye), specPower), 0.0f));
 
 	// Light Falloff Calculation

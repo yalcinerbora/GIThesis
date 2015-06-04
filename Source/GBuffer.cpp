@@ -17,7 +17,7 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 
 	// Normal Tex
 	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::NORMAL)]);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RG16UI, width, height);
 	
 	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)]);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, width, height);

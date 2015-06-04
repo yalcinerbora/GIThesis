@@ -75,7 +75,7 @@ LU_LIGHT buffer LightParams
 
 // Textures
 uniform T_COLOR sampler2D gBuffColor;
-uniform T_NORMAL sampler2D gBuffNormal;
+uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
 uniform T_SHADOW sampler2DArrayShadow shadowMaps;
 
@@ -97,10 +97,10 @@ vec3 DepthToWorld()
 vec3 UnpackNormal(uvec2 norm)
 {
 	vec3 result;
-	result.x = ((float(norm.x & 0x7FFF) / 0x7FFF) * 2.0f) - 1.0f;
-	result.y = ((float(norm.y & 0x7FFF) / 0x7FFF) * 2.0f) - 1.0f;
+	result.x = ((float(norm.x & 0x00000FFF) / 4095.0f) - 0.5f) * 2.0f;
+	result.y = ((float(norm.y & 0x00000FFF) / 4095.0f) - 0.5f) * 2.0f;
 	result.z = sqrt(1.0f - dot(result.xy, result.xy));
-	result.z *= ((norm.y & 0x8000) == 0x8000) ? -1.0f : 1.0f;
+	result.z *= sign(int(norm.y << 16));
 	return result;
 }
 
@@ -127,8 +127,8 @@ vec3 PhongBDRF(in vec3 worldPos)
 	// Outputs intensity multiplier for each channel (rgb)
 	// Diffuse is Lambert
 	// We store normals in world space in GBuffer
-	//vec3 worldNormal = UnpackNormal(texture(gBuffNormal, gBuffUV).xy);
-	vec3 worldNormal = texture(gBuffNormal, gBuffUV).xyz * 2.0f - 1.0f;
+	vec3 worldNormal = UnpackNormal(texture(gBuffNormal, gBuffUV).xy);
+	//vec3 worldNormal = texture(gBuffNormal, gBuffUV).xyz * 2.0f - 1.0f;
 	vec3 worldEye = camPos.xyz - worldPos;
 	
 	vec3 worldLight;

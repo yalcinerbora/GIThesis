@@ -26,7 +26,7 @@ layout(early_fragment_tests) in;
 
 // Output
 out OUT_RT0 vec4 albedoRGB_specPowA;
-out OUT_RT1 vec4 normalXY;
+out OUT_RT1 uvec2 normalXY;
 
 // Textures
 
@@ -42,11 +42,11 @@ uvec2 PackNormal(vec3 normal)
 	// MSB is the sign of Z
 	// Rest is Y
 	// both x and y is SNORM types
-	uvec2 result;
-	result.x = uint((normal.x * 0.5f + 0.5f) * 0x7FFF);
-	result.y = uint((normal.y * 0.5f + 0.5f) * 0x7FFF);
-	//result.y |= (floatBitsToUint(normal.z) >> 16) & 0x8000;
-	result.y |=  (normal.z < 0.0f) ? 0x8000 : 0x0000;
+	uvec2 result = uvec2(0.0f);
+	result.x = uint((normal.x * 0.5f + 0.5f) * 4095.0f) & 0x00000FFF;
+	result.y = uint((normal.y * 0.5f + 0.5f) * 4095.0f) & 0x00000FFF;
+	result.y |= (floatBitsToUint(normal.z) >> 16) & 0x00008000;
+	//result.y |=  (normal.z < 0.0f) ? 0x8000 : 0x0000;
 	return result;
 }
 
@@ -63,8 +63,8 @@ void main(void)
 	// GBuffer Write
 	albedoRGB_specPowA.rgb = gColor;
 	albedoRGB_specPowA.a = gSpec;
-	//normalXY = PackNormal(normalize(gNormal));
-	normalXY.xyz = normalize(gNormal) * 0.5f + 0.5f;
+	normalXY = PackNormal(normalize(gNormal));
+	//normalXY.xyz = normalize(gNormal) * 0.5f + 0.5f;
 	// Depth Write is auto, so all done!!!
 }
 

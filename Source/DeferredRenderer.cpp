@@ -34,7 +34,6 @@ DeferredRenderer::DeferredRenderer()
 	, invFrameTransform(1)
 {
 	invFrameTransform.AddData({IEMatrix4x4::IdentityMatrix,
-							   IEMatrix4x4::IdentityMatrix,
 							   IEVector4::ZeroVector,
 							   {0, 0, 0, 0},
 							   IEVector4::ZeroVector});
@@ -43,7 +42,7 @@ DeferredRenderer::DeferredRenderer()
 	glGenFramebuffers(1, &lightIntensityFBO);
 
 	glBindTexture(GL_TEXTURE_2D, lightIntensityTex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB8, gBuffWidth, gBuffHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB16F, gBuffWidth, gBuffHeight);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
@@ -268,15 +267,15 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	scene.getSceneLights().lightsGPU.BindAsShaderStorageBuffer(LU_LIGHT);
 
 	// Inverse Frame Transforms
-	float xHalf = IEMath::TanF(IEMath::ToRadians(camera.fovX * 0.5f));
 	invFrameTransform.BindAsUniformBuffer(U_INVFTRANSFORM);
+	float depthRange[2];
+	glGetFloatv(GL_DEPTH_RANGE, depthRange);
 	invFrameTransform.CPUData()[0] = InvFrameTransform
-	{
-		ft.view.Inverse(),
-		ft.projection.Inverse(),
+	{		
+		ft.view.Inverse() * ft.projection.Inverse(),
 		IEVector4(camera.pos),
 		{0, 0, gBuffWidth, gBuffHeight},
-		{0.0f, 1.0f, xHalf, xHalf * (camera.height / camera.width)}
+		{depthRange[0], depthRange[1], 0.0f, 0.0f}
 	};
 	invFrameTransform.SendData();
 

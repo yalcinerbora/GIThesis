@@ -20,8 +20,7 @@ class RectPrism;
 
 struct InvFrameTransform
 {
-	IEMatrix4x4 invView;
-	IEMatrix4x4 invProjection;
+	IEMatrix4x4 invViewProjection;
 	IEVector4 camPos;		// Used to generate eye vector
 	uint32_t viewport[4];	// Used to generate uv coords from gl_fragCoord
 	IEVector4 depthHalfNear;

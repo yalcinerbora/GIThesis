@@ -11,7 +11,6 @@
 
 // Definitions
 #define IN_INDEX layout(location = 0)
-#define IN_EYE	layout(location = 1)
 
 #define OUT_COLOR layout(location = 0)
 
@@ -33,7 +32,6 @@
 
 // Input
 flat in IN_INDEX uint fIndex;
-in IN_EYE vec3 eyeDir;
 layout(early_fragment_tests) in;
 
 // Output
@@ -48,12 +46,11 @@ U_FTRANSFORM uniform FrameTransform
 
 U_INVFTRANSFORM uniform InverseFrameTransform
 {
-	mat4 invView;
-	mat4 invProjection;
+	mat4 invViewProjection;
 
 	vec4 camPos;		// To Calculate Eye
 	ivec4 viewport;		// Viewport Params
-	vec4 depthHalfNear;	// depth range params and half size of near plane
+	vec4 depthNearFar;	// depth range params (last two unused)
 };
 
 LU_LIGHT buffer LightParams
@@ -85,21 +82,25 @@ vec3 DepthToWorld()
 
 	// Converts Depthbuffer Value to World Coords
 	// First Depthbuffer to Screen Space
-	// This assumes depth range 0, 1 (a.k.a. default)
-	float ndcZ = texture(gBuffDepth, gBuffUV).z * 2.0f - 1.0f;
-	//float eyeZ = projection[3][2] / ((projection[2][3] * ndcZ) - projection[2][2]);
-	float eyeZ = ((projection[2][3] * ndcZ) -  projection[3][2]) / projection[2][2];
+	vec3 ndc = vec3(gBuffUV, texture(gBuffDepth, gBuffUV).x);
+	ndc.xy = 2.0f * ndc.xy - 1.0f;
+	ndc.z = ((2.0f * (ndc.z - depthNearFar.x) / (depthNearFar.y - depthNearFar.x)) - 1.0f);
+
+	// Clip Space
+	vec4 clip;
+	clip.w = projection[3][2] / (ndc.z - (projection[2][2] / projection[2][3]));
+	clip.xyz = ndc * clip.w;
 
 	// From Clip Space to World Space
-	return (invView * vec4(eyeDir * eyeZ, 1.0f)).xyz;
+	return (invViewProjection * clip).xyz;
 }
 
 vec3 UnpackNormal(uvec2 norm)
 {
 	vec3 result;
-	result.x = ((float(norm.x & 0x00000FFF) / 4095.0f) - 0.5f) * 2.0f;
-	result.y = ((float(norm.y & 0x00000FFF) / 4095.0f) - 0.5f) * 2.0f;
-	result.z = sqrt(1.0f - dot(result.xy, result.xy));
+	result.x = ((float(norm.x) / 0xFFFF) - 0.5f) * 2.0f;
+	result.y = ((float(norm.y & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
+	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
 	result.z *= sign(int(norm.y << 16));
 	return result;
 }
@@ -119,43 +120,48 @@ vec3 PhongBDRF(in vec3 worldPos)
 	vec2 shadowUV = CalculateShadowUV();
 
 	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
-//float shadowIntensity = texture(shadowMaps, vec4(shadowUV, float(fIndex) , gl_FragCoord.z));
-//if(shadowIntensity == 0.0f)
-//	return lightIntensity;
+	//float shadowIntensity = texture(shadowMaps, vec4(shadowUV, float(fIndex) , gl_FragCoord.z));
+	//if(shadowIntensity == 0.0f)
+	//	return lightIntensity;
 
 	// Phong BDRF Calculation
 	// Outputs intensity multiplier for each channel (rgb)
 	// Diffuse is Lambert
 	// We store normals in world space in GBuffer
 	vec3 worldNormal = UnpackNormal(texture(gBuffNormal, gBuffUV).xy);
-	//vec3 worldNormal = texture(gBuffNormal, gBuffUV).xyz * 2.0f - 1.0f;
 	vec3 worldEye = camPos.xyz - worldPos;
 	
+	// Light Vector and Light Falloff Calculation
 	vec3 worldLight;
-	//if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-	//	worldLight = -lightParams[fIndex].direction.xyz;
-	//else
-	//{
-	//	worldLight = lightParams[fIndex].position.xyz - worldPos;
-	//}
-	worldLight = -lightParams[fIndex].direction.xyz;
-		
+	float falloff = 1.0f;
+	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+	{
+		worldLight = -lightParams[fIndex].direction.xyz;
+	}
+	else
+	{
+		worldLight = lightParams[fIndex].position.xyz - worldPos;
+
+		// Falloff Linear
+		float lightRadius = lightParams[fIndex].color.w;
+		float distSqr = dot(worldLight.xyz, worldLight.xyz);
+		falloff = 1.0f - clamp(distSqr / (lightRadius * lightRadius), 0.0f, 1.0f);
+	}		
 	worldLight = normalize(worldLight);
 	worldNormal = normalize(worldNormal);
 	worldEye = normalize(worldEye);
-	vec3 worldReflect = reflect(worldLight, worldNormal);
+	vec3 worldReflect = normalize(-reflect(worldLight, worldNormal));
 
 	// Diffuse Factor
 	// Lambert Diffuse Model
 	lightIntensity = vec3(max(dot(worldNormal, worldLight), 0.0f));
 
 	// Specular
-	//float specPower = texture(gBuffColor, gBuffUV).a * 128.0f;
-	//lightIntensity += ((specPower + 2.0f) * GI_ONE_OVER_2_PI) * 
-	//					vec3(pow(dot(worldEye, worldReflect), specPower));
+	float specPower = texture(gBuffColor, gBuffUV) * 256.0f;
+	lightIntensity += vec3(max(pow(dot(worldReflect, worldEye), specPower), 0.0f));
 
 	// Light Falloff Calculation
-	// TODO:
+	lightIntensity *= falloff;
 
 	// Colorize
 	//lightIntensity *= lightParams[fIndex].color.rgb;

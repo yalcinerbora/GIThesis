@@ -14,10 +14,8 @@
 #define IN_INDEX layout(location = 1)
 
 #define OUT_INDEX layout(location = 0)
-#define OUT_EYE	layout(location = 1)
 
 #define U_FTRANSFORM layout(std140, binding = 0)
-#define U_INVFTRANSFORM layout(std140, binding = 1)
 
 #define LU_LIGHT layout(std430, binding = 1)
 
@@ -32,25 +30,12 @@ in IN_INDEX uint vIndex;
 // Output
 out gl_PerVertex {vec4 gl_Position;};	// Mandatory
 flat out OUT_INDEX uint fIndex;
-out OUT_EYE vec3 eyeDir;
 
 // Uniforms
-
 U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
 	mat4 projection;
-};
-
-U_INVFTRANSFORM uniform InverseFrameTransform
-{
-	mat4 invView;
-	mat4 invProjection;
-	mat4 invViewRotation;
-
-	vec4 camPos;		// To Calculate Eye
-	ivec4 viewport;		// Viewport Params
-	vec4 depthHalfNear;	// Depth range params and half size of near plane
 };
 
 LU_LIGHT buffer LightParams
@@ -121,14 +106,10 @@ void main(void)
 		// Directional Light
 		// Its post process triangle
 		gl_Position = vec4(vPos.xyz, 1.0f);
-		vec2 texCoord = (vPos.xy + 1.0f) * 0.5f;
 		fIndex = vIndex;
-		eyeDir = vec3((2.0 * depthHalfNear.zw * texCoord) - depthHalfNear.zw , -1.0);
 		return;
 	}
 	vec4 fPos = projection * view * model * vec4(vPos.xyz, 1.0f);
-	vec2 texCoord = ((fPos.xy / fPos.w) + 1.0f) * 0.5f;
-	eyeDir = vec3((2.0 * depthHalfNear.zw * texCoord) - depthHalfNear.zw , -1.0);
 	fIndex = vIndex;
 	gl_Position = fPos;
 }

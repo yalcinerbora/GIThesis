@@ -64,7 +64,7 @@ void main(void)
 	{
 		// Area Light
 		// Area light has half sphere directed towards -y direction
-		float scaleFactor = lightParams[vIndex].color.w;
+		float scaleFactor = lightParams[vIndex].color.w * 1.10f;
 		vec3 translate = lightParams[vIndex].position.xyz;
 		float  scaleFactorX = scaleFactor* lightParams[vIndex].direction.w;
 		model = mat4 (scaleFactorX,	0.0f,			0.0f,		 0.0f,
@@ -94,7 +94,7 @@ void main(void)
 		// Point Light
 		// Its unit sphere so only translate the sphere to the light position
 		// and scale according to the radius
-		float scaleFactor = lightParams[vIndex].color.w;
+		float scaleFactor = lightParams[vIndex].color.w * 1.10f; 
 		vec3 translate = lightParams[vIndex].position.xyz;
 		model = mat4 (scaleFactor,	0.0f,			0.0f,		 0.0f,
 					  0.0f,			scaleFactor,	0.0f,		 0.0f,

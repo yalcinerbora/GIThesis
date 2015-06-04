@@ -35,7 +35,7 @@ out OUT_RT1 uvec2 normalXY;
 // Here User Defined Material Will Come
 void GBufferPopulate(out vec3 gNormal, out vec3 gColor, out float gSpec);
 
-uvec2 PackNormal(vec3 normal)
+uvec2 PackNormal(in vec3 normal)
 {
 	// 1615 XY Format
 	// 32 bit format LS 16 bits are X

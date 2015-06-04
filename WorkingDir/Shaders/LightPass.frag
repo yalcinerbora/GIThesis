@@ -18,6 +18,7 @@
 #define U_INVFTRANSFORM layout(std140, binding = 1)
 
 #define LU_LIGHT layout(std430, binding = 1)
+#define LU_LIGHT_PROJECT layout(std430, binding = 0)
 
 #define T_COLOR layout(binding = 0)
 #define T_NORMAL layout(binding = 1)
@@ -53,6 +54,15 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 	vec4 depthNearFar;	// depth range params (last two unused)
 };
 
+LU_LIGHT_PROJECT buffer LightProjections
+{
+	struct
+	{
+		mat4 projMain;
+		mat4 projSecondary;
+	}lightProjections[];
+};
+
 LU_LIGHT buffer LightParams
 {
 	// If Position.w == 0, Its point light
@@ -76,6 +86,8 @@ uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
 uniform T_SHADOW sampler2DArrayShadow shadowMaps;
 
+const vec3
+
 vec3 DepthToWorld()
 {
 	vec2 gBuffUV = (gl_FragCoord.xy - viewport.xy - vec2(0.5f)) / viewport.zw;
@@ -95,7 +107,7 @@ vec3 DepthToWorld()
 	return (invViewProjection * clip).xyz;
 }
 
-vec3 UnpackNormal(uvec2 norm)
+vec3 UnpackNormal(in uvec2 norm)
 {
 	vec3 result;
 	result.x = ((float(norm.x) / 0xFFFF) - 0.5f) * 2.0f;
@@ -105,10 +117,55 @@ vec3 UnpackNormal(uvec2 norm)
 	return result;
 }
 
-vec2 CalculateShadowUV()
+vec2 CalculateShadowUV(in vec3 worldPos)
 {
-	// Calculate this lights shadow uv
-	return vec2(0.0f);
+	// Determine View Matrix
+	mat4 view;
+	vec3 lightDir;
+	vec3 lightUp;
+	uint projMatIndex;
+
+	if(lightParams[fIndex].position.w == GI_LIGHT_PIONT)
+	{
+		// Determine which side of the light is the point
+
+		// Array Lookup
+		lightDir = vec4(0.0f);
+		lightUp = vec4(0.0f);
+	}
+	else if(lightParams[fIndex].position.w == GI_LIGHT_AREA)
+	{
+		// Determine which side of the light is the point
+
+		// Array Lookup
+		lightDir = vec3(0.0f);
+		lightUp = vec3(0.0f);
+	}
+	else
+	{
+		// Directional Light its simple
+		lightDir = lightParams[fIndex].direction.xyz;
+		lightUp = vec(0.0f, 1.0f, 0.0f);
+		projMatIndex = 0;
+	}
+
+	vec3 zAxis = lightDir;// Light Direction
+	vec3 xAxis = normalize(cross(lightUp, zAxis));
+	vec3 yAxis = normalize(cross(zAxis, xAxis);
+	view = mat4(xAxis.x,				yAxis.x,				zAxis.x,				0.0f,
+				xAxis.y,				yAxis.y,				zAxis.y,				0.0f,
+				xAxis.z,				yAxis.z,				zAxis.z,				0.0f,
+				-dot(xAxis, eyePos),	-dot(yAxis, eyePos),	-dot(zAxis, eyePos),	1.0f);
+
+	// Choose Proj Matrix
+	vec4 clip = lightProjections[fIndex].projMain * view * vec4(worldPos, 1.0f);
+
+	// Convert to NDC
+	vec3 ndc = clip.xyz / clip.w;
+
+	// NDC to Tex
+	vec2 texCoords = ndc.xy * 0.5f + 0.5f;
+	return texCoords;
 }
 
 vec3 PhongBDRF(in vec3 worldPos)
@@ -117,7 +174,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// UV Coords
 	vec2 gBuffUV = (gl_FragCoord.xy - vec2(0.5f)) / viewport.zw;
-	vec2 shadowUV = CalculateShadowUV();
+	vec2 shadowUV = CalculateShadowUV(worldPos);
 
 	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
 	//float shadowIntensity = texture(shadowMaps, vec4(shadowUV, float(fIndex) , gl_FragCoord.z));
@@ -172,15 +229,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 void main(void)
 {
 	// Do Light Calculation
-	// Test Light
-	vec3 lightIntensity;	
-	//if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-	//	lightIntensity = vec3(0.14f, 0.14f, 0.14f);//PhongBDRF(DepthToWorld());
-	//else
-	//	lightIntensity = vec3(0.3f,0.3f, 0.3f);//PhongBDRF(DepthToWorld());
-
-	// Light Calculation
-	lightIntensity = PhongBDRF(DepthToWorld());
+	vec3 lightIntensity = PhongBDRF(DepthToWorld());	
 	// Additive Blending will take care of the rest
 	fboColor = vec4(lightIntensity, 1.0f);
 }

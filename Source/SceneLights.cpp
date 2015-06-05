@@ -8,13 +8,13 @@
 #include "IEUtility/IEMath.h"
 #include "GFG/GFGFileLoader.h"
 
-const GLsizei SceneLights::shadowMapW = 512;
-const GLsizei SceneLights::shadowMapH = 512;
+const GLsizei SceneLights::shadowMapW = 1024;
+const GLsizei SceneLights::shadowMapH = 1024;
 
 const char* SceneLights::lightAOIFileName = "lightAOI.gfg";
 GLuint SceneLights::lightShapeBuffer = 0;
 GLuint SceneLights::lightShapeIndexBuffer = 0;
-DrawPointIndexed SceneLights::drawParamsGeneric[3] = { { 0 }, { 0 }, { 0 } };
+DrawPointIndexed SceneLights::drawParamsGeneric[3] = {{0}, {0}, {0}};
 
 const IEVector3 SceneLights::pLightDir[6] =
 {
@@ -28,42 +28,42 @@ const IEVector3 SceneLights::pLightDir[6] =
 
 const IEVector3 SceneLights::pLightUp[6] =
 {
-	IEVector3::Yaxis,
-	IEVector3::Yaxis,
-	-IEVector3::Zaxis,
+	-IEVector3::Yaxis,
+	-IEVector3::Yaxis,
 	IEVector3::Zaxis,
-	IEVector3::Yaxis,
-	IEVector3::Yaxis
+	-IEVector3::Zaxis,
+	-IEVector3::Yaxis,
+	-IEVector3::Yaxis
 };
 
 const IEVector3 SceneLights::aLightDir[6] =
 {
-	IEQuaternion(IEMath::ToRadians(45.0f), -IEVector3::Zaxis).ApplyRotation(IEVector3::Xaxis),
-	IEQuaternion(IEMath::ToRadians(45.0f), IEVector3::Zaxis).ApplyRotation(-IEVector3::Xaxis),
+	IEQuaternion(IEMath::ToRadians(22.5f), -IEVector3::Zaxis).ApplyRotation(IEVector3::Xaxis),
+	IEQuaternion(IEMath::ToRadians(22.5f), IEVector3::Zaxis).ApplyRotation(-IEVector3::Xaxis),
 	IEVector3::ZeroVector,	// Unused
 	-IEVector3::Yaxis,
-	IEQuaternion(IEMath::ToRadians(45.0f), IEVector3::Xaxis).ApplyRotation(IEVector3::Zaxis),
-	IEQuaternion(IEMath::ToRadians(45.0f), -IEVector3::Xaxis).ApplyRotation(-IEVector3::Zaxis)
+	IEQuaternion(IEMath::ToRadians(22.5f), IEVector3::Xaxis).ApplyRotation(IEVector3::Zaxis),
+	IEQuaternion(IEMath::ToRadians(22.5f), -IEVector3::Xaxis).ApplyRotation(-IEVector3::Zaxis)
 };
 
 const IEVector3 SceneLights::aLightUp[6] =
 {
-	IEQuaternion(IEMath::ToRadians(45.0f), -IEVector3::Zaxis).ApplyRotation(IEVector3::Yaxis),
-	IEQuaternion(IEMath::ToRadians(45.0f), IEVector3::Zaxis).ApplyRotation(IEVector3::Yaxis),
+	IEQuaternion(IEMath::ToRadians(22.5f), -IEVector3::Zaxis).ApplyRotation(-IEVector3::Yaxis),
+	IEQuaternion(IEMath::ToRadians(22.5f), IEVector3::Zaxis).ApplyRotation(-IEVector3::Yaxis),
 	IEVector3::ZeroVector,	// Unused
-	IEVector3::Zaxis,
-	IEQuaternion(IEMath::ToRadians(45.0f), IEVector3::Xaxis).ApplyRotation(IEVector3::Yaxis),
-	IEQuaternion(IEMath::ToRadians(45.0f), -IEVector3::Xaxis).ApplyRotation(IEVector3::Yaxis)
+	-IEVector3::Zaxis,
+	IEQuaternion(IEMath::ToRadians(22.5f), IEVector3::Xaxis).ApplyRotation(-IEVector3::Yaxis),
+	IEQuaternion(IEMath::ToRadians(22.5f), -IEVector3::Xaxis).ApplyRotation(-IEVector3::Yaxis)
 };
 
 SceneLights::SceneLights(const Array32<Light>& lights)
 	: lightsGPU(lights.length)
 	, lightShadowMaps(0)
-	, viewMatrices(6)
+	, lightViewProjMatrices(6 * lights.length)
 	, lightDrawParams(3)
 	, lightIndexBuffer(lights.length)
 {
-	viewMatrices.RecieveData(6);
+	lightViewProjMatrices.RecieveData(6 * lights.length);
 	glGenTextures(1, &lightShadowMaps);
 	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, lightShadowMaps);
 	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT32, shadowMapW, shadowMapH, 6 * lights.length);

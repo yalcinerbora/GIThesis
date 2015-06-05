@@ -67,11 +67,11 @@ static const VertexElement element[] =
 #define U_OBJ_ID 4
 #define U_TOTAL_OBJ_COUNT 4
 #define U_MAX_CACHE_SIZE 5
+#define U_LIGHT_ID 4
 
 // Unfiorm
 #define U_FTRANSFORM 0
 #define U_MTRANSFORM 1
-#define U_SHADOW_VIEW 2
 #define U_INVFTRANSFORM 1
 
 // Large Uniform
@@ -81,6 +81,6 @@ static const VertexElement element[] =
 #define LU_AABB 3
 #define LU_INDEX_CHECK 4
 #define LU_LIGHT 1
-#define LU_LIGHT_PROJECT 0
+#define LU_LIGHT_MATRIX 0
 
 #endif //__GLOBALS_H__

@@ -112,11 +112,9 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	scene.getGPUBuffer().Bind();
 	cameraTransform.Bind();
 	scene.getDrawBuffer().getDrawParamBuffer().BindAsDrawIndirectBuffer();
-	scene.getSceneLights().viewMatrices.BindAsUniformBuffer(U_SHADOW_VIEW);
-
+	scene.getSceneLights().lightViewProjMatrices.BindAsShaderStorageBuffer(LU_LIGHT_MATRIX);
+	
 	// Render From Dir of the light	with proper view params
-	IEMatrix4x4 viewTransform = IEMatrix4x4::IdentityMatrix;
-	IEMatrix4x4 projection;
 	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
 	{
 		const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
@@ -126,73 +124,72 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 		{
 			case LightType::POINT:
 			{
-				// Render to Cubemap
-				geomPointShadowMap.Bind();
-
 				// Each Side will have 90 degree FOV
 				// Geom shader will render for each layer
-				for(unsigned int i = 0; i < 6; i++)
+				IEMatrix4x4 projection = IEMatrix4x4::Perspective(90.0f, 1.0f,
+																  0.1f, currentLight.color.getW());
+				for(unsigned int j = 0; j < 6; j++)
 				{
-					scene.getSceneLights().viewMatrices.CPUData()[i] = 
-						IEMatrix4x4::LookAt(currentLight.position,
-										    currentLight.position + SceneLights::pLightDir[i],
-											SceneLights::pLightUp[i]);
+					IEMatrix4x4 view = IEMatrix4x4::LookAt(currentLight.position,
+														   currentLight.position + SceneLights::pLightDir[j],
+														   SceneLights::pLightUp[j]);
+					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * view;
 				}
-				scene.getSceneLights().viewMatrices.SendData();
-				projection = IEMatrix4x4::Perspective(90.0f, 1.0f,
-													  0.1f, currentLight.color.getW());
 				break;
 			}
 			case LightType::DIRECTIONAL:
 			{
-				// Render to one sheet
-				geomDirShadowMap.Bind();
-
 				// Camera Direction should be
-				viewTransform = IEMatrix4x4::LookAt(currentLight.position,
-													currentLight.position + currentLight.direction,
-													IEVector3::Yaxis);
+				IEMatrix4x4 view = IEMatrix4x4::LookAt(currentLight.position,
+													   currentLight.position + currentLight.direction,
+													   IEVector3::Yaxis);
 
 				// Span area on viewSpace coordiantes
-				RectPrism transRect = viewFrustum.Transform(viewTransform);
+				RectPrism transRect = viewFrustum.Transform(view);
 				IEVector3 aabbFrustumMin, aabbFrustumMax;
 				transRect.toAABB(aabbFrustumMin, aabbFrustumMax);
-				projection = IEMatrix4x4::Ortogonal(aabbFrustumMin.getX(), aabbFrustumMax.getX(),
-													aabbFrustumMax.getY(), aabbFrustumMin.getY(),
-													-500.0f, 500.0f);
+				IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(aabbFrustumMin.getX(), aabbFrustumMax.getX(),
+																aabbFrustumMax.getY(), aabbFrustumMin.getY(),
+																-500.0f, 500.0f);
+
+				scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6] = projection * view;
 				break;
 			}
 			case LightType::AREA:
 			{
-				// Render to cube but only 5 sides (6th side is not illuminated)
-				geomAreaShadowMap.Bind();
-				// we'll use 5 sides but each will comply different ares that a point light
-				for(unsigned int i = 0; i < 6; i++)
-				{
-					scene.getSceneLights().viewMatrices.CPUData()[i] = 
-						IEMatrix4x4::LookAt(currentLight.position,
-											currentLight.position + SceneLights::aLightDir[i],
-											SceneLights::aLightUp[i]);
-				}
-				scene.getSceneLights().viewMatrices.SendData();
+				IEMatrix4x4 projections[2] = { IEMatrix4x4::Perspective(45.0f, 1.0f,
+																		0.1f, currentLight.color.getW()),
+											   IEMatrix4x4::Perspective(90.0f, 1.0f,
+																		0.1f, currentLight.color.getW())};
 
-				// Put a 45 degree frustum projection matrix to the viewTransform part of the
-				// FrameTransformUniform Buffer it'll be required on area light omni directional frustum
-				viewTransform = IEMatrix4x4::Perspective(45.0f, 1.0f,
-														 0.1f, currentLight.color.getW());
-				projection = IEMatrix4x4::Perspective(90.0f, 1.0f,
-													  0.1f, currentLight.color.getW());
+				// we'll use 5 sides but each will comply different ares that a point light
+				for(unsigned int j = 0; j < 6; j++)
+				{
+					uint32_t projIndex = (j == 3) ? 1 : 0;
+					IEMatrix4x4 view = IEMatrix4x4::LookAt(currentLight.position,
+														   currentLight.position + SceneLights::aLightDir[j],
+														   SceneLights::aLightUp[j]);
+
+					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projections[projIndex] * view;	
+				}	
 				break;
 			}
-		}
+		}	
+	}
+	scene.getSceneLights().lightViewProjMatrices.SendData();
 
-		// Determine projection params
-		// Do not waste objects that are out of the current view frustum
-		cameraTransform.Update(FrameTransformBufferData
-							   {
-							   		viewTransform,
-							   		projection
-							   });
+	// Render Loop
+	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
+	{
+		const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
+		LightType t = static_cast<LightType>(static_cast<uint32_t>(currentLight.position.getW()));
+		switch(t)
+		{
+			case LightType::POINT: geomPointShadowMap.Bind(); break;
+			case LightType::DIRECTIONAL: geomDirShadowMap.Bind(); break;
+			case LightType::AREA: geomAreaShadowMap.Bind(); break;
+		}
+		glUniform1ui(U_LIGHT_ID, static_cast<GLuint>(i));
 
 		// FBO Bind and render calls
 		glBindFramebuffer(GL_FRAMEBUFFER, scene.getSceneLights().shadowMapFBOs[i]);

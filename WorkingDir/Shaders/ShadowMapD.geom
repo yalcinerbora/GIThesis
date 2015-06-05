@@ -13,7 +13,8 @@ layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
 
 // Definitions
-#define U_FTRANSFORM layout(std140, binding = 0)
+#define LU_LIGHT_MATRIX layout(std430, binding = 0)
+#define U_LIGHT_ID layout(location = 4)
 
 // Input
 in gl_PerVertex 
@@ -32,11 +33,15 @@ out gl_PerVertex
 };
 
 // Unfiorms
-U_FTRANSFORM uniform FrameTransform
+U_LIGHT_ID uniform uint lightID;
+LU_LIGHT_MATRIX buffer LightProjections
 {
-	mat4 view;
-	mat4 projection;
+	struct
+	{
+		mat4 VPMatrices[6];
+	}lightMatrices[];
 };
+
 
 void main(void)
 {
@@ -47,7 +52,7 @@ void main(void)
 	// For Each Vertex
 	for(unsigned int j = 0; j < gl_in.length(); j++)
 	{	
-		gl_Position = projection * view * gl_in[j].gl_Position;
+		gl_Position = lightMatrices[lightID].VPMatrices[0] * gl_in[j].gl_Position;
 		EmitVertex();
 	}
 	EndPrimitive();

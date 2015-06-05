@@ -18,7 +18,7 @@
 #define U_INVFTRANSFORM layout(std140, binding = 1)
 
 #define LU_LIGHT layout(std430, binding = 1)
-#define LU_LIGHT_PROJECT layout(std430, binding = 0)
+#define LU_LIGHT_MATRIX layout(std430, binding = 0)
 
 #define T_COLOR layout(binding = 0)
 #define T_NORMAL layout(binding = 1)
@@ -54,13 +54,12 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 	vec4 depthNearFar;	// depth range params (last two unused)
 };
 
-LU_LIGHT_PROJECT buffer LightProjections
+LU_LIGHT_MATRIX buffer LightProjections
 {
 	struct
 	{
-		mat4 projMain;
-		mat4 projSecondary;
-	}lightProjections[];
+		mat4 VPMatrices[6];
+	}lightMatrices[];
 };
 
 LU_LIGHT buffer LightParams
@@ -75,7 +74,7 @@ LU_LIGHT buffer LightParams
 	struct
 	{
 		vec4 position;			// position.w is the light type
-		vec4 direction;			// direction.w holds shadow map index
+		vec4 direction;			// direction.w is areaLight w/h ratio
 		vec4 color;				// color.a is effecting radius
 	} lightParams[];
 };
@@ -84,9 +83,7 @@ LU_LIGHT buffer LightParams
 uniform T_COLOR sampler2D gBuffColor;
 uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
-uniform T_SHADOW sampler2DArrayShadow shadowMaps;
-
-const vec3
+uniform T_SHADOW samplerCubeArrayShadow shadowMaps;
 
 vec3 DepthToWorld()
 {
@@ -117,55 +114,42 @@ vec3 UnpackNormal(in uvec2 norm)
 	return result;
 }
 
-vec2 CalculateShadowUV(in vec3 worldPos)
+vec4 CalculateShadowUV(in vec3 worldPos)
 {
-	// Determine View Matrix
-	mat4 view;
-	vec3 lightDir;
-	vec3 lightUp;
-	uint projMatIndex;
-
-	if(lightParams[fIndex].position.w == GI_LIGHT_PIONT)
+	float viewIndex = 0.0f;
+	vec3 lightVec;
+	if(lightParams[fIndex].position.w == GI_LIGHT_POINT ||
+		lightParams[fIndex].position.w == GI_LIGHT_AREA)
 	{
 		// Determine which side of the light is the point
+		// minimum absolute value
+		lightVec = worldPos - lightParams[fIndex].position.xyz;
+		float maxVal = max(abs(lightVec.x), max(abs(lightVec.y), abs(lightVec.z)));
+		vec3 axis = vec3(abs(lightVec.x) == maxVal ? 1.0f : 0.0f,
+						 abs(lightVec.y) == maxVal ? 1.0f : 0.0f,
+						 abs(lightVec.z) == maxVal ? 1.0f : 0.0f);
+		vec3 lightVecSigns = sign(lightVec * axis);
+		viewIndex = dot(abs(lightVecSigns), (abs(lightVecSigns - 1.0f * 0.5f) + vec3(0.0f, 2.0f, 4.0f)));
 
-		// Array Lookup
-		lightDir = vec4(0.0f);
-		lightUp = vec4(0.0f);
-	}
-	else if(lightParams[fIndex].position.w == GI_LIGHT_AREA)
-	{
-		// Determine which side of the light is the point
-
-		// Array Lookup
-		lightDir = vec3(0.0f);
-		lightUp = vec3(0.0f);
-	}
-	else
-	{
-		// Directional Light its simple
-		lightDir = lightParams[fIndex].direction.xyz;
-		lightUp = vec(0.0f, 1.0f, 0.0f);
-		projMatIndex = 0;
+		// Area light is half sphere
+		if(lightParams[fIndex].position.w == GI_LIGHT_AREA)
+			viewIndex = (lightVec.y > 0.0f) ? viewIndex : 2.0f;
 	}
 
-	vec3 zAxis = lightDir;// Light Direction
-	vec3 xAxis = normalize(cross(lightUp, zAxis));
-	vec3 yAxis = normalize(cross(zAxis, xAxis);
-	view = mat4(xAxis.x,				yAxis.x,				zAxis.x,				0.0f,
-				xAxis.y,				yAxis.y,				zAxis.y,				0.0f,
-				xAxis.z,				yAxis.z,				zAxis.z,				0.0f,
-				-dot(xAxis, eyePos),	-dot(yAxis, eyePos),	-dot(zAxis, eyePos),	1.0f);
-
-	// Choose Proj Matrix
-	vec4 clip = lightProjections[fIndex].projMain * view * vec4(worldPos, 1.0f);
+	// Mult with proper cube side matrix
+	vec4 clip = lightMatrices[fIndex].VPMatrices[uint(viewIndex)] * vec4(worldPos, 1.0f);
 
 	// Convert to NDC
 	vec3 ndc = clip.xyz / clip.w;
 
 	// NDC to Tex
-	vec2 texCoords = ndc.xy * 0.5f + 0.5f;
-	return texCoords;
+	//float depth = (ndc.z - 1.0f) * -0.5f;
+	float depth = 0.5 * ((2.0f * depthNearFar.x + 1) + 
+						(depthNearFar.y - depthNearFar.x) * ndc.z);
+
+	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+		lightVec = vec3(1.0f, clip.xy);
+	return vec4(normalize(lightVec), depth * 0.99997f); //- 0.00005f );
 }
 
 vec3 PhongBDRF(in vec3 worldPos)
@@ -174,12 +158,17 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// UV Coords
 	vec2 gBuffUV = (gl_FragCoord.xy - vec2(0.5f)) / viewport.zw;
-	vec2 shadowUV = CalculateShadowUV(worldPos);
+	vec4 shadowUV = CalculateShadowUV(worldPos);
 
 	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
-	//float shadowIntensity = texture(shadowMaps, vec4(shadowUV, float(fIndex) , gl_FragCoord.z));
-	//if(shadowIntensity == 0.0f)
-	//	return lightIntensity;
+	float shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
+	
+	// Is this a bug? its inverted (or i didnt understand shadow sampling)
+	shadowIntensity = 1.0f - shadowIntensity;
+	
+	// Early Bail of Light Calculation
+	if(shadowIntensity == 0.0f)
+		return lightIntensity;
 
 	// Phong BDRF Calculation
 	// Outputs intensity multiplier for each channel (rgb)
@@ -221,8 +210,8 @@ vec3 PhongBDRF(in vec3 worldPos)
 	lightIntensity *= falloff;
 
 	// Colorize
-	//lightIntensity *= lightParams[fIndex].color.rgb;
-	//lightIntensity *= shadowIntensity;
+	lightIntensity *= lightParams[fIndex].color.rgb;
+	lightIntensity *= shadowIntensity;
 	return lightIntensity;
 }
 

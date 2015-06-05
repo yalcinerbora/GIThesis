@@ -13,8 +13,8 @@ layout(triangles) in;
 layout(triangle_strip, max_vertices = 18) out;
 
 // Definitions
-#define U_FTRANSFORM layout(std140, binding = 0)
-#define U_SHADOW_VIEW layout(std140, binding = 2)
+#define LU_LIGHT_MATRIX layout(std430, binding = 0)
+#define U_LIGHT_ID layout(location = 4)
 
 // Input
 in gl_PerVertex 
@@ -32,17 +32,14 @@ out gl_PerVertex
     //float gl_ClipDistance[];
 };
 
-// Unfiorms
-U_FTRANSFORM uniform FrameTransform
-{
-	mat4 view;
-	mat4 projection;
-};
-
 // Uniforms
-U_SHADOW_VIEW uniform ShadowViewMatrices
+U_LIGHT_ID uniform uint lightID;
+LU_LIGHT_MATRIX buffer LightProjections
 {
-	mat4 viewMatrices[6];
+	struct
+	{
+		mat4 VPMatrices[6];
+	}lightMatrices[];
 };
 
 void main(void)
@@ -61,13 +58,13 @@ void main(void)
 			if(i == 3)
 			{
 				// Proj Matrix FOV here should be 90 degrees
-				gl_Position = projection * viewMatrices[i] * gl_in[j].gl_Position;
+				gl_Position = lightMatrices[lightID].VPMatrices[i] * gl_in[j].gl_Position;
 			}
 			else
 			{
 				// Proj Matrix FOV here should be 45 degrees
 				// Here view variable holds 45 degree projection matrix
-				gl_Position = view * viewMatrices[i] * gl_in[j].gl_Position;
+				gl_Position = lightMatrices[lightID].VPMatrices[i] * gl_in[j].gl_Position;
 			}
 			EmitVertex();
 		}

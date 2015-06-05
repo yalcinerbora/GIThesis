@@ -51,7 +51,7 @@ class SceneLights
 		// Directional Lights have one side used (others not allocated)
 		// Area Lights only use 5 sides of the cube map
 		StructuredBuffer<Light>				lightsGPU;
-		StructuredBuffer<IEMatrix4x4>		viewMatrices;
+		StructuredBuffer<IEMatrix4x4>		lightViewProjMatrices;
 		GLuint								lightShadowMaps;
 		std::vector<GLuint>					shadowMapViews;
 		std::vector<GLuint>					shadowMapFBOs;

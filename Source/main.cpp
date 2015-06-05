@@ -73,21 +73,21 @@ int main()
 			{ 1.0f, 1.0f, 1.0f, std::numeric_limits<float>::infinity() }
 		},
 		// Point Lights
-		// All white color effecting radius 40 units
+		// Various Colors color effecting radius 60 units
 		{
-			{ 212.6f, 30.8f, -85.3f, static_cast<float>(LightType::POINT) },
-			{ 0.0f, 1.0f, 0.0f, 1.0f },
-			{ 1.0f, 1.0f, 1.0f, 60.0f }
+			{ 212.6f, 50.8f, -85.3f, static_cast<float>(LightType::POINT) },
+			{ 0.0f, 1.0f, 0.0f, 0.0f },
+			{ 0.85f, 0.3f, 0.12f, 120.0f }
 		},
 		{
-			{ -116.8f, 27.5f, 27.0f, static_cast<float>(LightType::POINT) },
+			{ -116.8f, 27.5f, 17.0f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, 0.0f, 0.0f, 0.0f },
-			{ 1.0f, 1.0f, 1.0f, 60.0f }
+			{ 1.17f, 0.41f, 0.92f, 120.0f }
 		},
 		{
-			{ 92.2f, 25.9f, 26.2f, static_cast<float>(LightType::POINT) },
+			{ 92.2f, 25.9f, 16.2f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, 0.0f, 0.0f, 0.0f },
-			{ 1.0f, 1.0f, 1.0f, 60.0f }
+			{ 0.93f, 1.0f, 0.1f, 120.0f }
 		}
 	};
 	Light cornellLights[] =

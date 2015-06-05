@@ -50,7 +50,7 @@ LU_LIGHT buffer LightParams
 	struct
 	{
 		vec4 position;			// position.w is the light type
-		vec4 direction;			// direction.w holds shadow map index
+		vec4 direction;			// direction.w is areaLight w/h ratio
 		vec4 color;				// color.a is effecting radius
 	} lightParams[];
 };

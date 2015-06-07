@@ -71,7 +71,7 @@ class DeferredRenderer
 		GLuint					shadowMapSampler;
 
 	protected:
-		void					GenerateShadowMaps(SceneI&, const Camera&, const RectPrism& viewFrustum);
+		void					GenerateShadowMaps(SceneI&, const Camera&);
 		void					DPass(SceneI&, const Camera&);
 		void					GPass(SceneI&, const Camera&);
 		void					LightPass(SceneI&, const Camera&);

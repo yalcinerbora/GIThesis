@@ -133,7 +133,7 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 
 		// Area light is half sphere
 		if(lightParams[fIndex].position.w == GI_LIGHT_AREA)
-			viewIndex = (lightVec.y > 0.0f) ? viewIndex : 2.0f;
+			viewIndex = (lightVec.y < 0.0f) ? viewIndex : 2.0f;
 	}
 
 	// Mult with proper cube side matrix
@@ -148,7 +148,7 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 						(depthNearFar.y - depthNearFar.x) * ndc.z);
 
 	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-		lightVec = vec3(1.0f, clip.xy);
+		lightVec = vec3(1.0f, ndc.x, -ndc.y);
 	return vec4(normalize(lightVec), depth * 0.99997f); //- 0.00005f );
 }
 

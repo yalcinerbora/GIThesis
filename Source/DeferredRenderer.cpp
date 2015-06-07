@@ -94,9 +94,39 @@ GBuffer& DeferredRenderer::GetGBuffer()
 }
 
 void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
-										  const Camera&,
-										  const RectPrism& viewFrustum)
+										  const Camera& camera)
 {
+
+	float cameraFar = camera.far - 350.0f;
+
+	// Shadow Map Generation
+	// Calculate Frustum Parameters from Render Camera
+	float tanHalfFovX = IEMath::TanF(IEMath::ToRadians(camera.fovX * 0.5f));
+	float aspectRatio = camera.width / camera.height;
+	IEVector3 camDir = (camera.centerOfInterest - camera.pos).NormalizeSelf();
+	IEVector3 right = camDir.CrossProduct(camera.up).NormalizeSelf();
+
+	float farHalfWidth = cameraFar * tanHalfFovX;
+	float farHalfHeight = farHalfWidth / aspectRatio;
+
+	// Plane Center Points
+	IEVector3 planeCenterFar = camera.pos + camDir * cameraFar;
+
+	//IEVector3 farTopLeft = planeCenterFar + (mainRenderCamera.up * farHeight * 0.5f) - (right * farWidth * 0.5f);
+	IEVector3 farTopRight = planeCenterFar + (camera.up * farHalfHeight) + (right * farHalfWidth);
+	IEVector3 farBottomLeft = planeCenterFar - (camera.up * farHalfHeight) - (right * farHalfWidth);
+	IEVector3 farBottomRight = planeCenterFar - (camera.up * farHalfHeight) + (right * farHalfWidth);
+
+	// MRectangular Prism View Frustum Coords in World Space
+	const IEVector3 span[3] =
+	{
+		farTopRight - farBottomRight,
+		-cameraFar * camDir,
+		farBottomLeft - farBottomRight
+	};
+	RectPrism viewFrustum(span, farBottomRight);
+
+
 	fragShadowMap.Bind();
 	vertShadowMap.Bind();
 
@@ -145,7 +175,8 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 													   IEVector3::Yaxis);
 
 				// Span area on viewSpace coordiantes
-				RectPrism transRect = viewFrustum.Transform(view);
+				RectPrism transRect = viewFrustum;
+				transRect.Transform(view);
 				IEVector3 aabbFrustumMin, aabbFrustumMax;
 				transRect.toAABB(aabbFrustumMin, aabbFrustumMax);
 				IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(aabbFrustumMin.getX(), aabbFrustumMax.getX(),
@@ -385,34 +416,7 @@ void DeferredRenderer::LightMerge(const Camera& camera)
 void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
 {
 	// Shadow Map Generation
-	// Calculate Frustum Parameters from Render Camera
-	float tanHalfFovX = IEMath::TanF(IEMath::ToRadians(camera.fovX * 0.5f));
-	float aspectRatio = camera.width / camera.height;
-	IEVector3 camDir = (camera.centerOfInterest - camera.pos).NormalizeSelf();
-	IEVector3 right = camDir.CrossProduct(camera.up).NormalizeSelf();
-
-	float farHalfWidth = camera.far * tanHalfFovX;
-	float farHalfHeight = farHalfWidth / aspectRatio;
-
-	// Plane Center Points
-	IEVector3 planeCenterFar = camera.pos + camDir * camera.far;
-
-	//IEVector3 farTopLeft = planeCenterFar + (mainRenderCamera.up * farHeight * 0.5f) - (right * farWidth * 0.5f);
-	IEVector3 farTopRight = planeCenterFar + (camera.up * farHalfHeight) + (right * farHalfWidth);
-	IEVector3 farBottomLeft = planeCenterFar - (camera.up * farHalfHeight) - (right * farHalfWidth);
-	IEVector3 farBottomRight = planeCenterFar - (camera.up * farHalfHeight) + (right * farHalfWidth);
-
-	// MRectangular Prism View Frustum Coords in World Space
-	const IEVector3 span[3] =
-	{
-		farTopRight - farBottomRight,
-		-camera.far * camDir,
-		farBottomLeft - farBottomRight
-	};
-	RectPrism viewFrustum(span, farBottomRight);
-
-	// Shadow Map Generation
-	GenerateShadowMaps(scene, camera, viewFrustum);
+	GenerateShadowMaps(scene, camera);
 
 	// Depth Pre-Pass
 	DPass(scene, camera);

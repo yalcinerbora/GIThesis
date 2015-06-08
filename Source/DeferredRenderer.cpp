@@ -81,7 +81,7 @@ DeferredRenderer::DeferredRenderer()
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER );
 
-	GLfloat col[] = { 1.0f, 0.0f, 0.0f, 0.0f };
+	GLfloat col[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	glSamplerParameterfv(shadowMapSampler, GL_TEXTURE_BORDER_COLOR, col);
 }
 
@@ -155,7 +155,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glDisable(GL_MULTISAMPLE);
 	glDisable(GL_CULL_FACE);
 	glEnable(GL_POLYGON_OFFSET_FILL);
-	glPolygonOffset(1.0f, 4096.0f);
+	glPolygonOffset(1.1f, 256.0f);
 	glViewport(0, 0, SceneLights::shadowMapW, SceneLights::shadowMapH);
 
 	scene.getGPUBuffer().Bind();

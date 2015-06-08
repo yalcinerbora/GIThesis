@@ -44,7 +44,9 @@ class SceneLights
 		static const IEVector3	pLightUp[6];
 
 		static const IEVector3	aLightDir[6];
-		static const IEVector3	aLightUp[6];		
+		static const IEVector3	aLightUp[6];	
+
+		static const uint32_t	numShadowCascades;
 
 		// Sparse texture cubemap array
 		// One Shadowmap for each light
@@ -53,6 +55,7 @@ class SceneLights
 		StructuredBuffer<Light>				lightsGPU;
 		StructuredBuffer<IEMatrix4x4>		lightViewProjMatrices;
 		GLuint								lightShadowMaps;
+		GLuint								shadowMapArrayView;
 		std::vector<GLuint>					shadowMapViews;
 		std::vector<GLuint>					shadowMapFBOs;
 

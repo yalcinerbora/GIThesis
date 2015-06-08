@@ -22,6 +22,7 @@ struct InvFrameTransform
 {
 	IEMatrix4x4 invViewProjection;
 	IEVector4 camPos;		// Used to generate eye vector
+	IEVector4 camDir;		// Used to calculate cascades
 	uint32_t viewport[4];	// Used to generate uv coords from gl_fragCoord
 	IEVector4 depthHalfNear;
 };
@@ -69,6 +70,11 @@ class DeferredRenderer
 		GLuint					flatSampler;
 		GLuint					linearSampler;
 		GLuint					shadowMapSampler;
+
+		static RectPrism		CalculateShadowCascasde(float cascadeNear,
+														float cascadeFar,
+														const Camera& camera);
+		static float			CalculateCascade(float frustumFar);
 
 	protected:
 		void					GenerateShadowMaps(SceneI&, const Camera&);

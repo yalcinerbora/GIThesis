@@ -8,8 +8,10 @@
 #include "IEUtility/IEMath.h"
 #include "GFG/GFGFileLoader.h"
 
-const GLsizei SceneLights::shadowMapW = 1024;
-const GLsizei SceneLights::shadowMapH = 1024;
+const GLsizei SceneLights::shadowMapW = 512;
+const GLsizei SceneLights::shadowMapH = 512;
+
+const uint32_t SceneLights::numShadowCascades = 4;
 
 const char* SceneLights::lightAOIFileName = "lightAOI.gfg";
 GLuint SceneLights::lightShapeBuffer = 0;
@@ -75,11 +77,17 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	glGenFramebuffers(lights.length, shadowMapFBOs.data());
 	glGenTextures(lights.length, shadowMapViews.data());
 
+	// Interpret CubemapTexture Array as 2D Texture
+	// Used for Directional Lights (each cube side is a cascade)
+	glGenTextures(1, &shadowMapArrayView);
+	glTextureView(shadowMapArrayView, GL_TEXTURE_2D_ARRAY, lightShadowMaps, GL_DEPTH_COMPONENT32,
+				  0, 1, 0, 6 * lights.length);
+
 	for(unsigned int i = 0; i < lights.length; i++)
 	{
 		lightsGPU.AddData(lights.arr[i]);
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBOs[i]);
-		glTextureView(shadowMapViews[i], GL_TEXTURE_CUBE_MAP, lightShadowMaps, GL_DEPTH_COMPONENT24,
+		glTextureView(shadowMapViews[i], GL_TEXTURE_CUBE_MAP, lightShadowMaps, GL_DEPTH_COMPONENT32,
 					  0, 1, 6 * i, 6);
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMapViews[i], 0);
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
@@ -201,6 +209,7 @@ SceneLights::~SceneLights()
 	glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()), shadowMapFBOs.data());
 	glDeleteTextures(static_cast<GLsizei>(shadowMapViews.size()), shadowMapViews.data());
 	glDeleteVertexArrays(1, &lightVAO);
+	glDeleteTextures(1, &shadowMapArrayView);
 }
 
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)

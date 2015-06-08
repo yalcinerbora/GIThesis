@@ -59,6 +59,7 @@ static const VertexElement element[] =
 #define T_DEPTH 2
 #define T_SHADOW 3
 #define T_INTENSITY 3
+#define T_SHADOW_DIR 4
 
 #define I_VOX_READ 2
 #define I_VOX_WRITE 2

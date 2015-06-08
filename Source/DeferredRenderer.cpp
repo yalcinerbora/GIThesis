@@ -35,6 +35,7 @@ DeferredRenderer::DeferredRenderer()
 {
 	invFrameTransform.AddData({IEMatrix4x4::IdentityMatrix,
 							   IEVector4::ZeroVector,
+							   IEVector4::ZeroVector,
 							   {0, 0, 0, 0},
 							   IEVector4::ZeroVector});
 	// Light Intensity Tex
@@ -75,7 +76,13 @@ DeferredRenderer::DeferredRenderer()
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
+	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
+	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );
+	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
+	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER );
+
+	GLfloat col[] = { 1.0f, 0.0f, 0.0f, 0.0f };
+	glSamplerParameterfv(shadowMapSampler, GL_TEXTURE_BORDER_COLOR, col);
 }
 
 DeferredRenderer::~DeferredRenderer()
@@ -93,11 +100,17 @@ GBuffer& DeferredRenderer::GetGBuffer()
 	return gBuffer;
 }
 
-void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
-										  const Camera& camera)
+float DeferredRenderer::CalculateCascade(float frustumFar)
 {
+	// This is static fix to eliminate empty space on(shadow map in sponza scene
+	return (frustumFar - 350.0f) / SceneLights::numShadowCascades;
+}
 
-	float cameraFar = camera.far - 350.0f;
+RectPrism DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
+													float cascadeFar,
+													const Camera& camera)
+{
+	float cascadeDiff = cascadeFar - cascadeNear;
 
 	// Shadow Map Generation
 	// Calculate Frustum Parameters from Render Camera
@@ -105,38 +118,44 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	float aspectRatio = camera.width / camera.height;
 	IEVector3 camDir = (camera.centerOfInterest - camera.pos).NormalizeSelf();
 	IEVector3 right = camDir.CrossProduct(camera.up).NormalizeSelf();
+	IEVector3 camUp = camDir.CrossProduct(right).NormalizeSelf();
 
-	float farHalfWidth = cameraFar * tanHalfFovX;
+	float farHalfWidth = cascadeFar * tanHalfFovX;
 	float farHalfHeight = farHalfWidth / aspectRatio;
 
 	// Plane Center Points
-	IEVector3 planeCenterFar = camera.pos + camDir * cameraFar;
+	IEVector3 planeCenterFar = camera.pos + camDir * cascadeFar;
 
-	//IEVector3 farTopLeft = planeCenterFar + (mainRenderCamera.up * farHeight * 0.5f) - (right * farWidth * 0.5f);
-	IEVector3 farTopRight = planeCenterFar + (camera.up * farHalfHeight) + (right * farHalfWidth);
-	IEVector3 farBottomLeft = planeCenterFar - (camera.up * farHalfHeight) - (right * farHalfWidth);
-	IEVector3 farBottomRight = planeCenterFar - (camera.up * farHalfHeight) + (right * farHalfWidth);
+	IEVector3 farTopRight = planeCenterFar + (camUp * farHalfHeight) + (right * farHalfWidth);
+	IEVector3 farBottomLeft = planeCenterFar - (camUp * farHalfHeight) - (right * farHalfWidth);
+	IEVector3 farBottomRight = planeCenterFar - (camUp * farHalfHeight) + (right * farHalfWidth);
 
 	// MRectangular Prism View Frustum Coords in World Space
 	const IEVector3 span[3] =
 	{
 		farTopRight - farBottomRight,
-		-cameraFar * camDir,
+		-cascadeDiff * camDir,
 		farBottomLeft - farBottomRight
 	};
-	RectPrism viewFrustum(span, farBottomRight);
+	return RectPrism (span, farBottomRight);
+}
 
-
+void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
+										  const Camera& camera)
+{
 	fragShadowMap.Bind();
 	vertShadowMap.Bind();
 
 	// State
+	// Rendering with polygon offset to eliminate shadow acne
 	glColorMask(false, false, false, false);
 	glDepthMask(true);
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_MULTISAMPLE);
 	glDisable(GL_CULL_FACE);
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(1.0f, 4096.0f);
 	glViewport(0, 0, SceneLights::shadowMapW, SceneLights::shadowMapH);
 
 	scene.getGPUBuffer().Bind();
@@ -174,16 +193,24 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 													   currentLight.position + currentLight.direction,
 													   IEVector3::Yaxis);
 
-				// Span area on viewSpace coordiantes
-				RectPrism transRect = viewFrustum;
-				transRect.Transform(view);
-				IEVector3 aabbFrustumMin, aabbFrustumMax;
-				transRect.toAABB(aabbFrustumMin, aabbFrustumMax);
-				IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(aabbFrustumMin.getX(), aabbFrustumMax.getX(),
-																aabbFrustumMax.getY(), aabbFrustumMin.getY(),
-																-500.0f, 500.0f);
+				float cascade = CalculateCascade(camera.far);
+				for(unsigned int j = 0; j < SceneLights::numShadowCascades; j++)
+				{
+					RectPrism viewFrustum = CalculateShadowCascasde(cascade * j, cascade * (j + 1), camera);
 
-				scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6] = projection * view;
+					// Span area on viewSpace coordiantes
+					RectPrism transRect = viewFrustum;
+					transRect.Transform(view);
+					IEVector3 aabbFrustumMin, aabbFrustumMax;
+					transRect.toAABB(aabbFrustumMin, aabbFrustumMax);
+					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(//360.0f, -360.0f,
+																	//-230.0f, 230.0f,
+																	aabbFrustumMin.getX(), aabbFrustumMax.getX(),
+																	aabbFrustumMax.getY(), aabbFrustumMin.getY(),
+																	-500.0f, 500.0f);
+
+					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * view;
+				}
 				break;
 			}
 			case LightType::AREA:
@@ -233,6 +260,9 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 								   (void *) (i * sizeof(DrawPointIndexed)));
 		}
 	}
+
+	glDisable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(0.0, 0);
 }
 
 void DeferredRenderer::GPass(SceneI& scene,
@@ -280,6 +310,8 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	// Texture Binds
 	glActiveTexture(GL_TEXTURE0 + T_SHADOW);
 	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, scene.getSceneLights().lightShadowMaps);
+	glActiveTexture(GL_TEXTURE0 + T_SHADOW_DIR);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, scene.getSceneLights().shadowMapArrayView);
 	gBuffer.BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
 	gBuffer.BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
 	gBuffer.BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
@@ -287,6 +319,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	glBindSampler(T_NORMAL, flatSampler);
 	glBindSampler(T_DEPTH, flatSampler);
 	glBindSampler(T_SHADOW, shadowMapSampler);
+	glBindSampler(T_SHADOW_DIR, shadowMapSampler);
 
 	// Buffer Binds
 	FrameTransformBufferData ft = camera.generateTransform();
@@ -301,7 +334,8 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	invFrameTransform.CPUData()[0] = InvFrameTransform
 	{		
 		ft.view.Inverse() * ft.projection.Inverse(),
-		IEVector4(camera.pos),
+		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascade(camera.far)),
+		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
 		{0, 0, gBuffWidth, gBuffHeight},
 		{depthRange[0], depthRange[1], 0.0f, 0.0f}
 	};

@@ -24,6 +24,7 @@
 #define T_NORMAL layout(binding = 1)
 #define T_DEPTH layout(binding = 2)
 #define T_SHADOW layout(binding = 3)
+#define T_SHADOW_DIR layout(binding = 4)
 
 #define GI_LIGHT_POINT 0.0f
 #define GI_LIGHT_DIRECTIONAL 1.0f
@@ -50,6 +51,7 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 	mat4 invViewProjection;
 
 	vec4 camPos;		// To Calculate Eye
+	vec4 camDir;		// To Calculate Eye
 	ivec4 viewport;		// Viewport Params
 	vec4 depthNearFar;	// depth range params (last two unused)
 };
@@ -84,6 +86,7 @@ uniform T_COLOR sampler2D gBuffColor;
 uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
 uniform T_SHADOW samplerCubeArrayShadow shadowMaps;
+uniform T_SHADOW_DIR sampler2DArrayShadow shadowMapsDir;
 
 vec3 DepthToWorld()
 {
@@ -135,6 +138,12 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 		if(lightParams[fIndex].position.w == GI_LIGHT_AREA)
 			viewIndex = (lightVec.y < 0.0f) ? viewIndex : 2.0f;
 	}
+	else
+	{
+		// Determine Cascade
+		float worldDist = max(0.0f, dot(worldPos - camPos.xyz, camDir.xyz));
+		viewIndex = floor(worldDist / camPos.w);
+	}
 
 	// Mult with proper cube side matrix
 	vec4 clip = lightMatrices[fIndex].VPMatrices[uint(viewIndex)] * vec4(worldPos, 1.0f);
@@ -143,13 +152,13 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 	vec3 ndc = clip.xyz / clip.w;
 
 	// NDC to Tex
-	//float depth = (ndc.z - 1.0f) * -0.5f;
-	float depth = 0.5 * ((2.0f * depthNearFar.x + 1) + 
+	float depth = 0.5 * ((2.0f * depthNearFar.x + 1.0f) + 
 						(depthNearFar.y - depthNearFar.x) * ndc.z);
 
 	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-		lightVec = vec3(1.0f, ndc.x, -ndc.y);
-	return vec4(normalize(lightVec), depth * 0.99997f); //- 0.00005f );
+		lightVec = vec3(0.5f * ndc.xy + 0.5f, viewIndex);
+
+	return vec4(lightVec, depth);
 }
 
 vec3 PhongBDRF(in vec3 worldPos)
@@ -161,11 +170,12 @@ vec3 PhongBDRF(in vec3 worldPos)
 	vec4 shadowUV = CalculateShadowUV(worldPos);
 
 	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
-	float shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
-	
-	// Is this a bug? its inverted (or i didnt understand shadow sampling)
-	shadowIntensity = 1.0f - shadowIntensity;
-	
+	float shadowIntensity = 0.0f;
+	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+		shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
+	else
+		shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
+		
 	// Early Bail of Light Calculation
 	if(shadowIntensity == 0.0f)
 		return lightIntensity;
@@ -206,12 +216,16 @@ vec3 PhongBDRF(in vec3 worldPos)
 	float specPower = texture(gBuffColor, gBuffUV).a * 256.0f;
 	lightIntensity += vec3(max(pow(dot(worldReflect, worldEye), specPower), 0.0f));
 
-	// Light Falloff Calculation
+	// Falloff
 	lightIntensity *= falloff;
 
 	// Colorize
 	lightIntensity *= lightParams[fIndex].color.rgb;
+
+	//Shadow
 	lightIntensity *= shadowIntensity;
+
+	// Out
 	return lightIntensity;
 }
 

@@ -60,6 +60,8 @@ class ThesisSolution : public SolutionI
 		StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 		VoxelDebugVAO							voxelVAO;
 
+		uint32_t								totalSceneVoxCount;
+
 		// Uncomment this for debugging voxelization 
 		// Normally this texture allocated and deallocated 
 		// at init time and

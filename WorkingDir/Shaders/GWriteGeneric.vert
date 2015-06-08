@@ -18,17 +18,19 @@
 #define IN_POS layout(location = 0)
 #define IN_NORMAL layout(location = 1)
 #define IN_UV layout(location = 2)
+#define IN_TRANS_INDEX layout(location = 3)
 
 #define OUT_UV layout(location = 0)
 #define OUT_NORMAL layout(location = 1)
 
 #define U_FTRANSFORM layout(std140, binding = 0)
-#define U_MTRANSFORM layout(std140, binding = 1)
+#define LU_MTRANSFORM layout(std430, binding = 4)
 
 // Input
 in IN_POS vec3 vPos;
 in IN_NORMAL vec3 vNormal;
 in IN_UV vec2 vUV;
+in IN_TRANS_INDEX uint vTransIndex;
 
 // Output
 out gl_PerVertex {invariant vec4 gl_Position;};	// Mandatory
@@ -44,17 +46,20 @@ U_FTRANSFORM uniform FrameTransform
 	mat4 projection;
 };
 
-U_MTRANSFORM uniform ModelTransform
+LU_MTRANSFORM buffer ModelTransform
 {
-	mat4 model;
-	mat3 modelRotation;
+	struct
+	{
+		mat4 model;
+		mat4 modelRotation;
+	} modelTransforms[];
 };
 
 void main(void)
 {
 	fUV = vUV;
-	fNormal = modelRotation * vNormal;
+	fNormal = mat3(modelTransforms[vTransIndex].modelRotation) * vNormal;
 
 	// Rasterizer
-	gl_Position = projection * view * model * vec4(vPos.xyz, 1.0f);
+	gl_Position = projection * view * modelTransforms[vTransIndex].model * vec4(vPos.xyz, 1.0f);
 }

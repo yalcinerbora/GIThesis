@@ -107,6 +107,7 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 		DrawPointIndexed dpi = drawCalls[pair.meshIndex];
 		dpi.firstIndex += static_cast<uint32_t>(pair.indexOffset);
 		dpi.count = static_cast<uint32_t>(pair.indexCount);
+		dpi.baseInstance = static_cast<uint32_t>(params.drawCallCount);
 
 		IEMatrix4x4 transform = IEMatrix4x4::IdentityMatrix;
 		IEMatrix3x3 transformRotation = IEMatrix3x3::IdentityMatrix;
@@ -128,10 +129,6 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 					transform = IEMatrix4x4::Scale(t.scale[0], t.scale[1], t.scale[2]) * transform;
 					transform = IEMatrix4x4::Translate({t.translate[0], t.translate[1], t.translate[2]}) * transform;
 
-					//transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[0], IEVector3::Xaxis);
-					//transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[1], IEVector3::Yaxis);
-					//transformRotation = transformRotation * IEMatrix3x3::Rotate(t.rotate[2], IEVector3::Zaxis);
-
 					parent = &gfgFile.Header().sceneHierarchy.nodes[parent->parentIndex];
 				}											
 			}
@@ -143,9 +140,7 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 			pair.materialIndex,
 			{ 
 				transform,
-				IEVector4(transformRotation(1, 1), transformRotation(2, 1), transformRotation(3, 1), 0.0f),
-				IEVector4(transformRotation(1, 2), transformRotation(2, 2), transformRotation(3, 2), 0.0f),
-				IEVector4(transformRotation(1, 3), transformRotation(2, 3), transformRotation(3, 3), 0.0f) 
+				transformRotation
 			},
 			{ 
 				IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.min)),
@@ -154,5 +149,6 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 		);
 		params.drawCallCount++;
 	}
+	buffer.AttachMTransformIndexBuffer(drawBuffer.getModelTransformIndexBuffer().getGLBuffer());
 	return GFGLoadError::OK;
 }

@@ -74,7 +74,7 @@ class DeferredRenderer
 		static RectPrism		CalculateShadowCascasde(float cascadeNear,
 														float cascadeFar,
 														const Camera& camera);
-		static float			CalculateCascade(float frustumFar);
+		static float			CalculateCascadeLength(float frustumFar);
 
 	protected:
 		void					GenerateShadowMaps(SceneI&, const Camera&);

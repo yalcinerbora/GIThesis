@@ -24,27 +24,13 @@ struct DrawPointIndexed;
 struct ModelTransform
 {
 	IEMatrix4x4 model;
-	// Because of the std140 rule (each column of 3x3 matrix should be 
-	// interleaved vec4 boundaries
-	IEVector4 modelRotationC1;
-	IEVector4 modelRotationC2;
-	IEVector4 modelRotationC3;
-
-	// TODO: This is a bullshit solution it only works on my cards but w/e
-	// OffsetAlignment is 256 on my GTX660Ti and Quadro 4000
-	uint8_t offset[256 - sizeof(IEMatrix4x4) - (sizeof(IEVector4) * 3)];
-	// TODO: change this to SSBO also (its offset alignment is small)
+	IEMatrix4x4 modelRotation;
 };
 
 struct AABBData
 {
 	IEVector4 min;
 	IEVector4 max;
-
-	// TODO: This is a bullshit solution it only works on my cards but w/e
-	// OffsetAlignment is 256 on my GTX660Ti and Quadro 4000
-	//uint8_t offset[256 - sizeof(IEVector4) * 2];
-	// nwm changed to ssbo
 };
 #pragma pack(pop)
 
@@ -56,6 +42,7 @@ class DrawBuffer
 		StructuredBuffer<DrawPointIndexed>	drawPoints;
 		StructuredBuffer<ModelTransform>	drawTransforms;
 		StructuredBuffer<AABBData>			drawAABBs;
+		StructuredBuffer<uint32_t>			modelTransformIndices;
 
 		std::vector<uint32_t>				materialIndex;
 		std::vector<Material>				materials;
@@ -80,6 +67,7 @@ class DrawBuffer
 		StructuredBuffer<ModelTransform>&	getModelTransformBuffer();
 		StructuredBuffer<AABBData>&			getAABBBuffer();
 		StructuredBuffer<DrawPointIndexed>&	getDrawParamBuffer();
+		StructuredBuffer<uint32_t>&			getModelTransformIndexBuffer();
 
 		void								BindMaterialForDraw(uint32_t meshIndex);
 		

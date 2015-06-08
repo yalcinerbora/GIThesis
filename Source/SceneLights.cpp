@@ -8,8 +8,8 @@
 #include "IEUtility/IEMath.h"
 #include "GFG/GFGFileLoader.h"
 
-const GLsizei SceneLights::shadowMapW = 512;
-const GLsizei SceneLights::shadowMapH = 512;
+const GLsizei SceneLights::shadowMapW = 1024;
+const GLsizei SceneLights::shadowMapH = 1024;
 
 const uint32_t SceneLights::numShadowCascades = 4;
 
@@ -197,10 +197,10 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 
 	// Index
 	glBindVertexBuffer(1, lightIndexBuffer.getGLBuffer(), 0, sizeof(uint32_t));
-	glEnableVertexAttribArray(IN_INDEX);
-	glVertexAttribIFormat(IN_INDEX, 1, GL_UNSIGNED_INT, 0);
-	glVertexAttribDivisor(IN_INDEX, 1);
-	glVertexAttribBinding(IN_INDEX, 1);
+	glEnableVertexAttribArray(IN_LIGHT_INDEX);
+	glVertexAttribIFormat(IN_LIGHT_INDEX, 1, GL_UNSIGNED_INT, 0);
+	glVertexAttribDivisor(IN_LIGHT_INDEX, 1);
+	glVertexAttribBinding(IN_LIGHT_INDEX, 1);
 }
 
 SceneLights::~SceneLights()

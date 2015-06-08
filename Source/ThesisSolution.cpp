@@ -23,6 +23,7 @@ ThesisSolution::ThesisSolution()
 	, voxelRenderData(MaxVoxelCacheSize)
 	, voxelCacheUsageSize(1)
 	, voxelVAO(voxelData,voxelRenderData)
+	, totalSceneVoxCount(0)
 {
 	voxelCacheUsageSize.AddData(0);
 }
@@ -146,7 +147,6 @@ void ThesisSolution::Init(SceneI& s)
 
 	objectGridInfo.RecieveData(currentScene->DrawCount());
 	voxelCacheUsageSize.RecieveData(1);
-	uint32_t totalSceneVoxCount = 0;
 	for(int i = 0; i < currentScene->DrawCount(); i++)
 		totalSceneVoxCount += objectGridInfo.CPUData()[i].voxCount;
 
@@ -191,17 +191,11 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 	cameraTransform.Bind();
+
+	// Bind Model Transform
+	DrawBuffer& dBuffer = currentScene->getDrawBuffer();
+	dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
 	
 	voxelVAO.Bind();
-	uint32_t offset = 0;
-	for(unsigned int i = 0; i < currentScene->DrawCount(); i++)
-	{
-		// Bind Model Transform
-		DrawBuffer& dBuffer = currentScene->getDrawBuffer();
-		dBuffer.getModelTransformBuffer().BindAsUniformBuffer(U_MTRANSFORM, i, 1);
-
-		// Draw Call
-		voxelVAO.Draw(objectGridInfo.CPUData()[i].voxCount, offset);
-		offset += objectGridInfo.CPUData()[i].voxCount;
-	}
+	voxelVAO.Draw(totalSceneVoxCount, 0);
 }

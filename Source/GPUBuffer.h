@@ -44,13 +44,14 @@ class GPUBuffer
 	private:
 		static uint32_t				totalVertexCount;
 		static uint32_t				totalIndexCount;
-
+		
 		GLuint						vertexBuffer;
 		GLuint						indexBuffer;
 
 		GLuint						vao;
 		uint32_t					usedVertexAmount;
 		uint32_t					usedIndexAmount;
+		uint32_t					meshCount;
 
 		std::vector<VertexElement>	vElements;
 
@@ -75,6 +76,7 @@ class GPUBuffer
 													  uint64_t indexCount);
 
 		void						Bind();
+		void						AttachMTransformIndexBuffer(GLuint transformIndexBuffer);
 
 };
 #endif //__GPUBUFFER_H__

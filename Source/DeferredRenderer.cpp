@@ -100,7 +100,7 @@ GBuffer& DeferredRenderer::GetGBuffer()
 	return gBuffer;
 }
 
-float DeferredRenderer::CalculateCascade(float frustumFar)
+float DeferredRenderer::CalculateCascadeLength(float frustumFar)
 {
 	// This is static fix to eliminate empty space on(shadow map in sponza scene
 	return (frustumFar - 350.0f) / SceneLights::numShadowCascades;
@@ -193,7 +193,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 													   currentLight.position + currentLight.direction,
 													   IEVector3::Yaxis);
 
-				float cascade = CalculateCascade(camera.far);
+				float cascade = CalculateCascadeLength(camera.far);
 				for(unsigned int j = 0; j < SceneLights::numShadowCascades; j++)
 				{
 					RectPrism viewFrustum = CalculateShadowCascasde(cascade * j, cascade * (j + 1), camera);
@@ -249,16 +249,24 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 		}
 		glUniform1ui(U_LIGHT_ID, static_cast<GLuint>(i));
 
+		scene.getDrawBuffer().getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+
 		// FBO Bind and render calls
 		glBindFramebuffer(GL_FRAMEBUFFER, scene.getSceneLights().shadowMapFBOs[i]);
 		glClear(GL_DEPTH_BUFFER_BIT);
-		for(unsigned int i = 0; i < scene.DrawCount(); i++)
+
+		glMultiDrawElementsIndirect(GL_TRIANGLES,
+									GL_UNSIGNED_INT,
+									nullptr,
+									static_cast<GLsizei>(scene.DrawCount()),
+									sizeof(DrawPointIndexed));
+
+		/*for(unsigned int i = 0; i < scene.DrawCount(); i++)
 		{
-			scene.getDrawBuffer().getModelTransformBuffer().BindAsUniformBuffer(U_MTRANSFORM, i, 1);
 			glDrawElementsIndirect(GL_TRIANGLES,
 								   GL_UNSIGNED_INT,
 								   (void *) (i * sizeof(DrawPointIndexed)));
-		}
+		}*/
 	}
 
 	glDisable(GL_POLYGON_OFFSET_FILL);
@@ -293,11 +301,11 @@ void DeferredRenderer::GPass(SceneI& scene,
 	DrawBuffer& dBuffer = scene.getDrawBuffer();
 	scene.getGPUBuffer().Bind();
 	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
+	dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
 
 	for(unsigned int i = 0; i < scene.DrawCount(); i++)
 	{
 		dBuffer.BindMaterialForDraw(i);
-		dBuffer.getModelTransformBuffer().BindAsUniformBuffer(U_MTRANSFORM, i, 1);
 		glDrawElementsIndirect(GL_TRIANGLES,
 							   GL_UNSIGNED_INT,
 							   (void *) (i * sizeof(DrawPointIndexed)));
@@ -334,7 +342,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	invFrameTransform.CPUData()[0] = InvFrameTransform
 	{		
 		ft.view.Inverse() * ft.projection.Inverse(),
-		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascade(camera.far)),
+		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascadeLength(camera.far)),
 		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
 		{0, 0, gBuffWidth, gBuffHeight},
 		{depthRange[0], depthRange[1], 0.0f, 0.0f}
@@ -400,14 +408,13 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 	DrawBuffer& dBuffer = scene.getDrawBuffer();
 	scene.getGPUBuffer().Bind();
 	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
+	dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
 
-	for(unsigned int i = 0; i < scene.DrawCount(); i++)
-	{
-		dBuffer.getModelTransformBuffer().BindAsUniformBuffer(U_MTRANSFORM, i, 1);
-		glDrawElementsIndirect(GL_TRIANGLES,
-							   GL_UNSIGNED_INT,
-							   (void *) (i * sizeof(DrawPointIndexed)));
-	}
+	glMultiDrawElementsIndirect(GL_TRIANGLES,
+								GL_UNSIGNED_INT,
+								nullptr,
+								static_cast<GLsizei>(scene.DrawCount()),
+								sizeof(DrawPointIndexed));
 }
 
 void DeferredRenderer::LightMerge(const Camera& camera)

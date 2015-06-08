@@ -1,5 +1,6 @@
 #include "GPUBuffer.h"
 #include "Macros.h"
+#include "Globals.h"
 
 // 2 Megs of Buffer
 uint32_t GPUBuffer::totalVertexCount = 2 * 1024 * 1024;
@@ -11,6 +12,7 @@ GPUBuffer::GPUBuffer(const Array32<const VertexElement> elements)
 	, vao(0)
 	, vertexBuffer(0)
 	, indexBuffer(0)
+	, meshCount(0)
 {
 	// Gen VAO
 	glGenVertexArrays(1, &vao);
@@ -62,11 +64,13 @@ bool GPUBuffer::AddMesh(DrawPointIndexed& result,
 						size_t vertexCount,
 						size_t indexCount)
 {
-	result.baseInstance = 0;
+	result.baseInstance = meshCount;
 	result.baseVertex = usedVertexAmount;
 	result.count = static_cast<uint32_t>(indexCount);
 	result.firstIndex = usedIndexAmount;
 	result.instanceCount = 1;
+
+	meshCount++;
 
 	if(HasEnoughSpaceFor(vertexCount, indexCount))
 	{
@@ -133,4 +137,17 @@ bool GPUBuffer::HasEnoughSpaceFor(uint64_t vertexCount,
 void GPUBuffer::Bind()
 {
 	glBindVertexArray(vao);
+}
+
+void GPUBuffer::AttachMTransformIndexBuffer(GLuint transformIndexBuffer)
+{
+	glBindVertexArray(vao);
+	glBindVertexBuffer(static_cast<GLuint>(vElements.size()),
+					   transformIndexBuffer,
+					   0,
+					   sizeof(uint32_t));
+	glEnableVertexAttribArray(IN_TRANS_INDEX);
+	glVertexAttribIFormat(IN_TRANS_INDEX, 1, GL_UNSIGNED_INT, 0);
+	glVertexAttribDivisor(IN_TRANS_INDEX, 1);
+	glVertexAttribBinding(IN_TRANS_INDEX, static_cast<GLuint>(vElements.size()));
 }

@@ -77,9 +77,9 @@ DeferredRenderer::DeferredRenderer()
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER );
+	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
 
 	GLfloat col[] = { 1.0f, 0.0f, 0.0f, 0.0f };
 	glSamplerParameterfv(shadowMapSampler, GL_TEXTURE_BORDER_COLOR, col);
@@ -155,7 +155,6 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glDisable(GL_MULTISAMPLE);
 	glDisable(GL_CULL_FACE);
 	glEnable(GL_POLYGON_OFFSET_FILL);
-	glPolygonOffset(1.1f, 256.0f);
 	glViewport(0, 0, SceneLights::shadowMapW, SceneLights::shadowMapH);
 
 	scene.getGPUBuffer().Bind();
@@ -252,12 +251,17 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	// Render Loop
 	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
 	{
+		// Base poly offset gives ok results on point-area lights
+		glPolygonOffset(1.1f, 256.0f);
+
 		const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
 		LightType t = static_cast<LightType>(static_cast<uint32_t>(currentLight.position.getW()));
 		switch(t)
 		{
 			case LightType::POINT: geomPointShadowMap.Bind(); break;
-			case LightType::DIRECTIONAL: geomDirShadowMap.Bind(); break;
+			case LightType::DIRECTIONAL: geomDirShadowMap.Bind(); 	
+				glPolygonOffset(1.1f, 1096.0f); // Higher offset req since camera span is large
+				break;
 			case LightType::AREA: geomAreaShadowMap.Bind(); break;
 		}
 		glUniform1ui(U_LIGHT_ID, static_cast<GLuint>(i));

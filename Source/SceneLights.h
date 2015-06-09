@@ -46,7 +46,8 @@ class SceneLights
 		static const IEVector3	aLightDir[6];
 		static const IEVector3	aLightUp[6];	
 
-		static const uint32_t	numShadowCascades;
+		static const uint32_t	numShadowCascades = 4;
+		static const float		cascadeFrustums[numShadowCascades];
 
 		// Sparse texture cubemap array
 		// One Shadowmap for each light

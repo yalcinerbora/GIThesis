@@ -68,7 +68,7 @@ int main()
 		// 1-2 PM Sunlight direction (if you consider lionhead(window) is at north)
 		{
 			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL) },
-			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(17.0f)), -IEMath::SinF(IEMath::ToRadians(17.0f)), 0.0f },
+			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), 0.0f },
 			{ 1.4f, 1.4f, 1.4f, std::numeric_limits<float>::infinity() }
 		},
 		// Point Lights

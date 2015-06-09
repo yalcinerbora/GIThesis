@@ -81,7 +81,7 @@ DeferredRenderer::DeferredRenderer()
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER );
 
-	GLfloat col[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	GLfloat col[] = { 1.0f, 0.0f, 0.0f, 0.0f };
 	glSamplerParameterfv(shadowMapSampler, GL_TEXTURE_BORDER_COLOR, col);
 }
 
@@ -153,7 +153,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_MULTISAMPLE);
-	glDisable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(1.1f, 256.0f);
 	glViewport(0, 0, SceneLights::shadowMapW, SceneLights::shadowMapH);
@@ -368,6 +368,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CW);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	glDepthFunc(GL_GREATER);
 	glDepthMask(false);
 
@@ -377,6 +378,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 
 	glFrontFace(GL_CCW);
 	glDisable(GL_BLEND);
+	glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 }
 
 void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)

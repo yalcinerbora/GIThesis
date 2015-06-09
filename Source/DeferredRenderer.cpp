@@ -153,7 +153,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_MULTISAMPLE);
-	glEnable(GL_CULL_FACE);
+	glDisable(GL_CULL_FACE);
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(1.1f, 256.0f);
 	glViewport(0, 0, SceneLights::shadowMapW, SceneLights::shadowMapH);
@@ -203,11 +203,24 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 					transRect.Transform(view);
 					IEVector3 aabbFrustumMin, aabbFrustumMax;
 					transRect.toAABB(aabbFrustumMin, aabbFrustumMax);
+
+					// To eliminate shadow shimmering only change pixel sized frusutm changes
+					//float quantizationStepX = 1.0f / SceneLights::shadowMapW;
+					//float quantizationStepY = 1.0f / SceneLights::shadowMapH;
+					//float qx = fmodf(aabbFrustumMin.getX(), quantizationStepX);
+					//float qy = fmodf(aabbFrustumMin.getY(), quantizationStepY);
+
+					//aabbFrustumMin.setX(aabbFrustumMin.getX() - qx);
+					//aabbFrustumMin.setY(aabbFrustumMin.getY() - qy);
+
+					//aabbFrustumMax.setX(aabbFrustumMax.getX() + qx);
+					//aabbFrustumMax.setY(aabbFrustumMax.getY() + qy);
+
 					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(//360.0f, -360.0f,
 																	//-230.0f, 230.0f,
 																	aabbFrustumMin.getX(), aabbFrustumMax.getX(),
 																	aabbFrustumMax.getY(), aabbFrustumMin.getY(),
-																	-500.0f, 500.0f);
+																	-60.0f, 320.0f);
 
 					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * view;
 				}
@@ -261,12 +274,13 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 									static_cast<GLsizei>(scene.DrawCount()),
 									sizeof(DrawPointIndexed));
 
-		/*for(unsigned int i = 0; i < scene.DrawCount(); i++)
-		{
-			glDrawElementsIndirect(GL_TRIANGLES,
-								   GL_UNSIGNED_INT,
-								   (void *) (i * sizeof(DrawPointIndexed)));
-		}*/
+		// Stays Here for Debugging purposes (nsight states)
+		//for(unsigned int i = 0; i < scene.DrawCount(); i++)
+		//{
+		//	glDrawElementsIndirect(GL_TRIANGLES,
+		//						   GL_UNSIGNED_INT,
+		//						   (void *) (i * sizeof(DrawPointIndexed)));
+		//}
 	}
 
 	glDisable(GL_POLYGON_OFFSET_FILL);
@@ -417,6 +431,14 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 								nullptr,
 								static_cast<GLsizei>(scene.DrawCount()),
 								sizeof(DrawPointIndexed));
+
+	// Stays Here for Debugging purposes (nsight states)
+	//for(unsigned int i = 0; i < scene.DrawCount(); i++)
+	//{
+	//	glDrawElementsIndirect(GL_TRIANGLES,
+	//						   GL_UNSIGNED_INT,
+	//						   (void *) (i * sizeof(DrawPointIndexed)));
+	//}
 }
 
 void DeferredRenderer::LightMerge(const Camera& camera)

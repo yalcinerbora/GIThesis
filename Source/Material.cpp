@@ -10,38 +10,38 @@ Material::Material(ColorMaterial c)
 {
 	// Load Texture
 	// Texture is Targa
-	TGAFILE tga;
+	TGAFILE tgaColor;
 
 	// Change Abs Path to WorkingDir Path
 	std::string s(c.colorFileName);
 	s = s.substr(s.find_last_of('/') + 1);
 	s = "Textures/" + s;
 	
-	bool result = LoadTGAFile(&tga, s.c_str());
+	bool result = LoadTGAFile(&tgaColor, s.c_str());
 	assert(result == true);
 
 	// Has to be RGB uncompressed
-	assert(tga.imageTypeCode == 2);
+	assert(tgaColor.imageTypeCode == 2);
 
 	// To the GL
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexStorage2D(GL_TEXTURE_2D,
 				   4,
-				   (tga.bitCount == 24) ? GL_RGB8 : GL_RGBA8,
-				   tga.imageWidth,
-				   tga.imageHeight);
+				   (tgaColor.bitCount == 24) ? GL_RGB8 : GL_RGBA8,
+				   tgaColor.imageWidth,
+				   tgaColor.imageHeight);
 
 	// Do the Actual Loading
 	glTexSubImage2D(GL_TEXTURE_2D,
 					0,
 					0,
 					0,
-					tga.imageWidth,
-					tga.imageHeight,
-					(tga.bitCount == 24) ? GL_RGB : GL_RGBA,
+					tgaColor.imageWidth,
+					tgaColor.imageHeight,
+					(tgaColor.bitCount == 24) ? GL_RGB : GL_RGBA,
 					GL_UNSIGNED_BYTE, 
-					tga.imageData);
+					tgaColor.imageData);
 
 	glGenerateMipmap(GL_TEXTURE_2D);
 
@@ -61,7 +61,10 @@ Material::Material(ColorMaterial c)
 	glSamplerParameteri(sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
 
-	free(tga.imageData);
+	free(tgaColor.imageData);
+
+	// Load Normal Map
+
 }
 
 Material::Material(Material&& other)

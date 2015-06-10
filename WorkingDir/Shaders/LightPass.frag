@@ -169,8 +169,6 @@ vec3 PhongBDRF(in vec3 worldPos)
 	vec2 gBuffUV = (gl_FragCoord.xy - vec2(0.5f)) / viewport.zw;
 	vec4 shadowUV = CalculateShadowUV(worldPos);
 
-
-
 	// Phong BDRF Calculation
 	// Outputs intensity multiplier for each channel (rgb)
 	// Diffuse is Lambert

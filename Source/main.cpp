@@ -18,6 +18,7 @@
 #include "Scene.h"
 
 #include "IEUtility/IEMath.h"
+#include "IEUtility/IEQuaternion.h"
 #include "GLFW/glfw3.h"
 
 int main()
@@ -119,6 +120,8 @@ int main()
 
 	// All Init
 	// Render Loop
+	//float angle = 0.0f;
+	//float posXInc = 0.0f;
 	while(!mainWindow.WindowClosed())
 	{
 		// Constantly Check Input Scheme Change
@@ -138,7 +141,20 @@ int main()
 		{
 			solution->Init(*scenes[currentScene % scenes.size()]);
 		}
-			
+
+		//// Rotation
+		//IEVector3 dir = sponzaLights[0].direction;
+		//angle += 0.00005f;
+		//IEQuaternion rot(angle, IEVector3::Xaxis);
+		//dir = rot.ApplyRotation(dir);
+		//scenes[currentScene]->getSceneLights().ChangeLightDir(0, dir.Normalize());
+		//
+		//IEVector3 pos = sponzaLights[2].position;
+		//posXInc += 0.05f;
+		//pos.setX(pos.getX() + posXInc);
+		//scenes[currentScene]->getSceneLights().ChangeLightPos(2, pos);
+
+		// Render frame
 		solution->Frame(mainRenderCamera);
 		
 		// End of the Loop

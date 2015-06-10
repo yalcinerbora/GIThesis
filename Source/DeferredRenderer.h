@@ -13,10 +13,17 @@ Just Renders the scene
 #include "GBuffer.h"
 #include "DrawPoint.h"
 #include "StructuredBuffer.h"
+#include "IEUtility/IEVector3.h"
 
 struct Camera;
 class SceneI;
 class RectPrism;
+
+struct BoundingSphere
+{
+	IEVector3 center;
+	float radius;
+};
 
 struct InvFrameTransform
 {
@@ -71,9 +78,10 @@ class DeferredRenderer
 		GLuint					linearSampler;
 		GLuint					shadowMapSampler;
 
-		static RectPrism		CalculateShadowCascasde(float cascadeNear,
+		static BoundingSphere	CalculateShadowCascasde(float cascadeNear,
 														float cascadeFar,
-														const Camera& camera);
+														const Camera& camera,
+														const IEVector3& lightDir);
 		static float			CalculateCascadeLength(float frustumFar);
 
 	protected:

@@ -13,28 +13,28 @@ Rectengular Prism
 #include "IEUtility/IEMatrix4x4.h"
 #include "IEUtility/IEMatrix3x3.h"
 
-class IEMatrix4x4;
-
 class RectPrism
 {
 	private:
-		IEVector3	basis[3];		// basis vecs of the rect
-									// Their length gives edge lengths
-		IEVector3	cornerPoint;
+		IEVector3			basis[3];		// basis vecs of the rect
+											// Their length gives edge lengths
+		IEVector3			cornerPoint;
 
 	protected:
 	public:
-					RectPrism(const IEVector3 basis[], 
-							  const IEVector3& cornerPoint);
-					RectPrism(const IEVector3& aabbMin,
-							  const IEVector3& aabbMax);
-					~RectPrism() = default;
+							RectPrism(const IEVector3 basis[], 
+									  const IEVector3& cornerPoint);
+							RectPrism(const IEVector3& aabbMin,
+									  const IEVector3& aabbMax);
+							~RectPrism() = default;
 
-					
-		void		Transform(const IEMatrix4x4&);
-		RectPrism	Transform(const IEMatrix4x4&) const;
-		void		toAABB(IEVector3& min, IEVector3& max) const;
+							
+		void				Transform(const IEMatrix4x4&);
+		RectPrism			Transform(const IEMatrix4x4&) const;
+		void				toAABB(IEVector3& min, IEVector3& max) const;
 		
+		const IEVector3*	getBasis() const;
+		const IEVector3&	getCorner() const;
 
 	
 
@@ -148,4 +148,15 @@ inline void RectPrism::toAABB(IEVector3& min, IEVector3& max) const
 					  corners[6].getZ(),
 					  corners[7].getZ()}));
 }
+
+const IEVector3* RectPrism::getBasis() const
+{
+	return basis;
+}
+
+const IEVector3& RectPrism::getCorner() const
+{
+	return cornerPoint;
+}
+
 #endif //__RECTPRISM_H__

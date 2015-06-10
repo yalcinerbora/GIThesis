@@ -106,9 +106,10 @@ float DeferredRenderer::CalculateCascadeLength(float frustumFar)
 	return (frustumFar - 360.0f) / SceneLights::numShadowCascades;
 }
 
-RectPrism DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
-													float cascadeFar,
-													const Camera& camera)
+BoundingSphere DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
+														 float cascadeFar,
+														 const Camera& camera,
+														 const IEVector3& lightDir)
 {
 	float cascadeDiff = cascadeFar - cascadeNear;
 
@@ -130,14 +131,20 @@ RectPrism DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
 	IEVector3 farBottomLeft = planeCenterFar - (camUp * farHalfHeight) - (right * farHalfWidth);
 	IEVector3 farBottomRight = planeCenterFar - (camUp * farHalfHeight) + (right * farHalfWidth);
 
-	// MRectangular Prism View Frustum Coords in World Space
+	// Frustum Span (sized)
 	const IEVector3 span[3] =
 	{
 		farTopRight - farBottomRight,
 		-cascadeDiff * camDir,
 		farBottomLeft - farBottomRight
 	};
-	return RectPrism (span, farBottomRight);
+
+	// Converting to bounding sphere
+	float diam = (span[0] + span[1] + span[2]).Length();
+	float radius = diam * 0.5f;
+	IEVector3 centerPoint = camera.pos + camDir * (cascadeNear + (cascadeDiff * 0.5f));
+	
+	return BoundingSphere{centerPoint, radius};
 }
 
 void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
@@ -187,40 +194,38 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 			}
 			case LightType::DIRECTIONAL:
 			{
-				// Camera Direction should be
-				IEMatrix4x4 view = IEMatrix4x4::LookAt(currentLight.position,
-													   currentLight.position + currentLight.direction,
-													   IEVector3::Yaxis);
-
 				float cascade = CalculateCascadeLength(camera.far);
 				for(unsigned int j = 0; j < SceneLights::numShadowCascades; j++)
 				{
-					RectPrism viewFrustum = CalculateShadowCascasde(cascade * j, cascade * (j + 1), camera);
+					BoundingSphere viewSphere = CalculateShadowCascasde(cascade * j,
+																		cascade * (j + 1),
+																		camera,
+																		currentLight.direction);
 
-					// Span area on viewSpace coordiantes
-					RectPrism transRect = viewFrustum;
-					transRect.Transform(view);
-					IEVector3 aabbFrustumMin, aabbFrustumMax;
-					transRect.toAABB(aabbFrustumMin, aabbFrustumMax);
-
+					// Squre Orto Projection
+					float radius = viewSphere.radius;
 					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(//360.0f, -360.0f,
 																	//-230.0f, 230.0f,
-																	aabbFrustumMin.getX(), aabbFrustumMax.getX(),
-																	aabbFrustumMax.getY(), aabbFrustumMin.getY(),
+																	-radius, radius,
+																	radius, -radius,
 																	-60.0f, 320.0f);
 
+					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center * IEVector3(1.0f, 0.0f, 1.0f),
+														   viewSphere.center * IEVector3(1.0f, 0.0f, 1.0f) + currentLight.direction,
+														   IEVector3::Yaxis);
 
 					// To eliminate shadow shimmering only change pixel sized frusutm changes
-					IEVector3 shadowOrigin = projection * view * IEVector3::ZeroVector;
-					IEVector3 shadowMapSize = IEVector3(SceneLights::shadowMapW / 2.0f, SceneLights::shadowMapH / 2.0f, 0.0f);
-					shadowOrigin *= IEVector3(SceneLights::shadowMapW / 2.0f, SceneLights::shadowMapH / 2.0f, 1.0f);
-					IEVector3 roundedOrigin = IEVector3(roundf(shadowOrigin.getX()), roundf(shadowOrigin.getY()), 0.0f);
-					IEVector3 rounding = roundedOrigin - shadowOrigin;
-					rounding /= (shadowMapSize / 2.0f);
-					rounding.setZ(0.0f);
-					IEMatrix4x4 roundMatrix = IEMatrix4x4::Translate(rounding);
+					IEVector3 unitPerTexel = (2.0f * IEVector3(radius, radius, radius)) / IEVector3(static_cast<float>(SceneLights::shadowMapW), static_cast<float>(SceneLights::shadowMapH), 1.0f);
+					IEVector3 translatedOrigin = view * IEVector3::ZeroVector;
+					IEVector3 texelTranslate;
+					texelTranslate.setX(fmod(translatedOrigin.getX(), unitPerTexel.getX()));
+					texelTranslate.setY(fmod(translatedOrigin.getY(), unitPerTexel.getY()));
+					texelTranslate = unitPerTexel - texelTranslate;
+					texelTranslate.setZ(0.0f);
 
-					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * view;// *roundMatrix;
+					IEMatrix4x4 texelTranslateMatrix = IEMatrix4x4::Translate(texelTranslate);
+
+					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * texelTranslateMatrix * view;
 				}
 				break;
 			}

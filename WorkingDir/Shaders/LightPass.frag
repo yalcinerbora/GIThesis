@@ -211,12 +211,9 @@ vec3 PhongBDRF(in vec3 worldPos)
 		shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
 	else
 		shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
-		
-	// Early Bail of Light Calculation
-	if(shadowIntensity == 0.0f)
-		return vec3(0.0f);
-
-	// Cascade Check
+	
+	////DEBUG	
+	//// Cascade Check
 	//if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
 	//{
 	//	if(shadowUV.z == 0.0f)
@@ -227,8 +224,13 @@ vec3 PhongBDRF(in vec3 worldPos)
 	//		lightIntensity = vec3(0.0f, 0.0f, 1.0f);
 	//	else if(shadowUV.z == 3.0f)
 	//		lightIntensity = vec3(1.0f, 1.0f, 0.0f);
-
+	//	else if(shadowUV.z == 4.0f)
+	//		lightIntensity = vec3(1.0f, 0.0f, 1.0f);
 	//}
+
+	// Early Bail out of Light Calculation if shadow fully occludes pixel
+	if(shadowIntensity == 0.0f)
+		return vec3(0.0f);
 
 	// Specular
 	float specPower = texture(gBuffColor, gBuffUV).a * 256.0f;

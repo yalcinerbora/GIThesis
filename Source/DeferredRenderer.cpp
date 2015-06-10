@@ -103,7 +103,7 @@ GBuffer& DeferredRenderer::GetGBuffer()
 float DeferredRenderer::CalculateCascadeLength(float frustumFar)
 {
 	// This is static fix to eliminate empty space on(shadow map in sponza scene
-	return (frustumFar - 350.0f) / SceneLights::numShadowCascades;
+	return (frustumFar - 360.0f) / SceneLights::numShadowCascades;
 }
 
 RectPrism DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
@@ -203,25 +203,24 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 					IEVector3 aabbFrustumMin, aabbFrustumMax;
 					transRect.toAABB(aabbFrustumMin, aabbFrustumMax);
 
-					// To eliminate shadow shimmering only change pixel sized frusutm changes
-					//float quantizationStepX = 1.0f / SceneLights::shadowMapW;
-					//float quantizationStepY = 1.0f / SceneLights::shadowMapH;
-					//float qx = fmodf(aabbFrustumMin.getX(), quantizationStepX);
-					//float qy = fmodf(aabbFrustumMin.getY(), quantizationStepY);
-
-					//aabbFrustumMin.setX(aabbFrustumMin.getX() - qx);
-					//aabbFrustumMin.setY(aabbFrustumMin.getY() - qy);
-
-					//aabbFrustumMax.setX(aabbFrustumMax.getX() + qx);
-					//aabbFrustumMax.setY(aabbFrustumMax.getY() + qy);
-
 					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(//360.0f, -360.0f,
 																	//-230.0f, 230.0f,
 																	aabbFrustumMin.getX(), aabbFrustumMax.getX(),
 																	aabbFrustumMax.getY(), aabbFrustumMin.getY(),
 																	-60.0f, 320.0f);
 
-					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * view;
+
+					// To eliminate shadow shimmering only change pixel sized frusutm changes
+					IEVector3 shadowOrigin = projection * view * IEVector3::ZeroVector;
+					IEVector3 shadowMapSize = IEVector3(SceneLights::shadowMapW / 2.0f, SceneLights::shadowMapH / 2.0f, 0.0f);
+					shadowOrigin *= IEVector3(SceneLights::shadowMapW / 2.0f, SceneLights::shadowMapH / 2.0f, 1.0f);
+					IEVector3 roundedOrigin = IEVector3(roundf(shadowOrigin.getX()), roundf(shadowOrigin.getY()), 0.0f);
+					IEVector3 rounding = roundedOrigin - shadowOrigin;
+					rounding /= (shadowMapSize / 2.0f);
+					rounding.setZ(0.0f);
+					IEMatrix4x4 roundMatrix = IEMatrix4x4::Translate(rounding);
+
+					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * view;// *roundMatrix;
 				}
 				break;
 			}
@@ -260,7 +259,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 		{
 			case LightType::POINT: geomPointShadowMap.Bind(); break;
 			case LightType::DIRECTIONAL: geomDirShadowMap.Bind(); 	
-				glPolygonOffset(1.1f, 1096.0f); // Higher offset req since camera span is large
+				glPolygonOffset(4.12f, 1024.0f); // Higher offset req since camera span is large
 				break;
 			case LightType::AREA: geomAreaShadowMap.Bind(); break;
 		}
@@ -286,7 +285,6 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 		//						   (void *) (i * sizeof(DrawPointIndexed)));
 		//}
 	}
-
 	glDisable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(0.0, 0);
 }

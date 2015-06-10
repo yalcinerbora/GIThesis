@@ -169,18 +169,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 	vec2 gBuffUV = (gl_FragCoord.xy - vec2(0.5f)) / viewport.zw;
 	vec4 shadowUV = CalculateShadowUV(worldPos);
 
-	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
-	float shadowIntensity = 0.0f;
-	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-		shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
-	else
-		shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
-		
-		
 
-	// Early Bail of Light Calculation
-	//if(shadowIntensity == 0.0f)
-	//	return lightIntensity;
 
 	// Phong BDRF Calculation
 	// Outputs intensity multiplier for each channel (rgb)
@@ -212,34 +201,47 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// Diffuse Factor
 	// Lambert Diffuse Model
-//	lightIntensity = vec3(max(dot(worldNormal, worldLight), 0.0f));
+	lightIntensity = vec3(max(dot(worldNormal, worldLight), 0.0f));
+	if(lightIntensity == vec3(0.0f))
+		return vec3(0.0f);
+
+	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
+	float shadowIntensity = 0.0f;
+	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+		shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
+	else
+		shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
+		
+	// Early Bail of Light Calculation
+	if(shadowIntensity == 0.0f)
+		return vec3(0.0f);
 
 	// Cascade Check
-	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-	{
-		if(shadowUV.z == 0.0f)
-			lightIntensity = vec3(1.0f, 0.0f, 0.0f);
-		else if(shadowUV.z == 1.0f)
-			lightIntensity = vec3(0.0f, 1.0f, 0.0f);
-		else if(shadowUV.z == 2.0f)
-			lightIntensity = vec3(0.0f, 0.0f, 1.0f);
-		else if(shadowUV.z == 3.0f)
-			lightIntensity = vec3(1.0f, 1.0f, 0.0f);
+	//if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+	//{
+	//	if(shadowUV.z == 0.0f)
+	//		lightIntensity = vec3(1.0f, 0.0f, 0.0f);
+	//	else if(shadowUV.z == 1.0f)
+	//		lightIntensity = vec3(0.0f, 1.0f, 0.0f);
+	//	else if(shadowUV.z == 2.0f)
+	//		lightIntensity = vec3(0.0f, 0.0f, 1.0f);
+	//	else if(shadowUV.z == 3.0f)
+	//		lightIntensity = vec3(1.0f, 1.0f, 0.0f);
 
-	}
+	//}
 
 	// Specular
-//	float specPower = texture(gBuffColor, gBuffUV).a * 256.0f;
-//	lightIntensity += vec3(max(pow(dot(worldReflect, worldEye), specPower), 0.0f));
+	float specPower = texture(gBuffColor, gBuffUV).a * 256.0f;
+	lightIntensity += vec3(max(pow(dot(worldReflect, worldEye), specPower), 0.0f));
 
 	// Falloff
-//	lightIntensity *= falloff;
+	lightIntensity *= falloff;
 
 	// Colorize
-//	lightIntensity *= lightParams[fIndex].color.rgb;
+	lightIntensity *= lightParams[fIndex].color.rgb;
 
 	//Shadow
-//	lightIntensity *= shadowIntensity;
+	lightIntensity *= shadowIntensity;
 
 	// Out
 	return lightIntensity;

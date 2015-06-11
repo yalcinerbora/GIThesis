@@ -37,8 +37,7 @@ class SceneLights
 	private:
 		friend class DeferredRenderer;
 
-		static const GLsizei	shadowMapW;
-		static const GLsizei	shadowMapH;
+		static const GLsizei	shadowMapWH;
 
 		static const IEVector3	pLightDir[6];
 		static const IEVector3	pLightUp[6];

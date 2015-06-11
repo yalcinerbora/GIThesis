@@ -196,10 +196,24 @@ vec3 PhongBDRF(in vec3 worldPos)
 	worldNormal = normalize(worldNormal);
 	worldEye = normalize(worldEye);
 	vec3 worldReflect = normalize(-reflect(worldLight, worldNormal));
+	vec3 worldHalf = normalize(worldLight + worldEye);
 
 	// Diffuse Factor
 	// Lambert Diffuse Model
-	lightIntensity = vec3(max(dot(worldNormal, worldLight), 0.0f));
+	lightIntensity = vec3(max(dot(worldNormal, worldLight), -1000.0f));
+
+	// Burley Diffuse Model
+	// TODO: This is buggy tho fix
+	//float rougness = 0.6f;
+	//float NdL = max(dot(worldNormal, worldLight), -1.0f);
+	//float NdV = max(dot(worldNormal, worldEye), -1.0f);
+	//float LdH = max(dot(worldLight, worldHalf), -1.0f);
+	//float fD90 = 0.5 + 2.0f * pow(LdH, 2.0f) * rougness;
+	//lightIntensity = vec3((1.0f + (fD90 - 1.0f) * pow(1.0f - NdL, 5.0f)) *
+	//					  (1.0f + (fD90 - 1.0f) * pow(1.0f - NdV, 5.0f)) / 3.1416f);
+	//lightIntensity = clamp(lightIntensity, 0.0f, 1.0f);
+
+	// Early Bail From Light Occulusion
 	if(lightIntensity == vec3(0.0f))
 		return vec3(0.0f);
 
@@ -232,7 +246,11 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// Specular
 	float specPower = texture(gBuffColor, gBuffUV).a * 256.0f;
-	lightIntensity += vec3(max(pow(dot(worldReflect, worldEye), specPower), 0.0f));
+
+	// Phong
+	//lightIntensity += vec3(pow(max(dot(worldReflect, worldEye), 0.0f), specPower));
+	// Blinn-Phong
+	lightIntensity += vec3(pow(max(dot(worldHalf, worldNormal), 0.0f), specPower));
 
 	// Falloff
 	lightIntensity *= falloff;

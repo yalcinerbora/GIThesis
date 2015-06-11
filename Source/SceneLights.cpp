@@ -8,8 +8,7 @@
 #include "IEUtility/IEMath.h"
 #include "GFG/GFGFileLoader.h"
 
-const GLsizei SceneLights::shadowMapW = 1024;
-const GLsizei SceneLights::shadowMapH = 1024;
+const GLsizei SceneLights::shadowMapWH = 1024;
 
 const uint32_t SceneLights::numShadowCascades = 3;
 const char* SceneLights::lightAOIFileName = "lightAOI.gfg";
@@ -67,7 +66,7 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	lightViewProjMatrices.RecieveData(6 * lights.length);
 	glGenTextures(1, &lightShadowMaps);
 	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, lightShadowMaps);
-	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT32, shadowMapW, shadowMapH, 6 * lights.length);
+	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT32, shadowMapWH, shadowMapWH, 6 * lights.length);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 	

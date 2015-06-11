@@ -103,7 +103,7 @@ GBuffer& DeferredRenderer::GetGBuffer()
 float DeferredRenderer::CalculateCascadeLength(float frustumFar)
 {
 	// This is static fix to eliminate empty space on(shadow map in sponza scene
-	return (frustumFar - 360.0f) / SceneLights::numShadowCascades;
+	return frustumFar / SceneLights::numShadowCascades;
 }
 
 BoundingSphere DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
@@ -162,7 +162,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glDisable(GL_MULTISAMPLE);
 	glDisable(GL_CULL_FACE);
 	glEnable(GL_POLYGON_OFFSET_FILL);
-	glViewport(0, 0, SceneLights::shadowMapW, SceneLights::shadowMapH);
+	glViewport(0, 0, SceneLights::shadowMapWH, SceneLights::shadowMapWH);
 
 	scene.getGPUBuffer().Bind();
 	cameraTransform.Bind();
@@ -215,13 +215,14 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 														   IEVector3::Yaxis);
 
 					// To eliminate shadow shimmering only change pixel sized frusutm changes
-					IEVector3 unitPerTexel = (2.0f * IEVector3(radius, radius, radius)) / IEVector3(static_cast<float>(SceneLights::shadowMapW), static_cast<float>(SceneLights::shadowMapH), 1.0f);
+					IEVector3 unitPerTexel = (2.0f * IEVector3(radius, radius, radius)) / IEVector3(static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH));
 					IEVector3 translatedOrigin = view * IEVector3::ZeroVector;
 					IEVector3 texelTranslate;
 					texelTranslate.setX(fmod(translatedOrigin.getX(), unitPerTexel.getX()));
 					texelTranslate.setY(fmod(translatedOrigin.getY(), unitPerTexel.getY()));
+					texelTranslate.setZ(fmod(translatedOrigin.getZ(), unitPerTexel.getZ()));
 					texelTranslate = unitPerTexel - texelTranslate;
-					texelTranslate.setZ(0.0f);
+					//texelTranslate.setZ(0.0f);
 
 					IEMatrix4x4 texelTranslateMatrix = IEMatrix4x4::Translate(texelTranslate);
 
@@ -387,6 +388,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_CLAMP);
 	glFrontFace(GL_CW);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
@@ -400,6 +402,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	glFrontFace(GL_CCW);
 	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+	glDisable(GL_DEPTH_CLAMP);
 }
 
 void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)

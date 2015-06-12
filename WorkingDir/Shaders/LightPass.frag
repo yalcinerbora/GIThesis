@@ -204,25 +204,28 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// Burley Diffuse Model
 	// TODO: This is buggy tho fix
-	//float rougness = 0.6f;
-	//float NdL = max(dot(worldNormal, worldLight), 0.0f);
-	//float NdV = max(dot(worldNormal, worldEye), 0.0f);
-	//float LdH = max(dot(worldLight, worldHalf), 0.0f);
-	//float fD90 = 0.5 + 2.0f * pow(LdH, 2.0f) * rougness;
-	//lightIntensity = vec3((1.0f + (fD90 - 1.0f) * pow(1.0f - NdL, 5.0f)) *
-	//					    (1.0f + (fD90 - 1.0f) * pow(1.0f - NdV, 5.0f)) / 
-	//						3.1416f);
+	float rougness = 0.6f;
+	float NdL = dot(worldNormal, worldLight);
+	float NdV = dot(worldNormal, worldEye);
+	float LdH = max(dot(worldLight, worldHalf), 0.0f);
+	float fD90 = 0.5 + 2.0f * pow(LdH, 2.0f) * rougness;
+	lightIntensity = vec3(//(1.0f + (fD90 - 1.0f) * pow(1.0f - NdL, 5.0f)) *
+						    //(1.0f + (fD90 - 1.0f) * pow(1.0f - NdV, 5.0f)) / 
+							mix(1.0f, fD90, pow(clamp(1.0f - NdL, 0.0f, 1.0f), 5.0f)) *
+							mix(1.0f, fD90, pow(clamp(1.0f - NdV, 0.0f, 1.0f), 5.0f)) / 
+							3.1416f);
+	//lightIntensity = 1.0f - lightIntensity;
 
 	// Early Bail From Light Occulusion
 	if(lightIntensity == vec3(0.0f))
 		return vec3(0.0f);
 
 	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
-	float shadowIntensity = 0.0f;
-	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-		shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
-	else
-		shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
+	float shadowIntensity = 1.0f;
+	//if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+	//	shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
+	//else
+	//	shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
 	
 	////DEBUG	
 	//// Cascade Check

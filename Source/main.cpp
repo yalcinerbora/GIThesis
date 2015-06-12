@@ -67,30 +67,30 @@ int main()
 		// Directional Light
 		// White Color
 		// 1-2 PM Sunlight direction (if you consider lionhead(window) is at north)
-		//{
-		//	{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL) },
-		//	{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), 0.0f },
-		//	{ 1.4f, 1.4f, 1.4f, std::numeric_limits<float>::infinity() }
-		//},
-		 //Point Lights
-		 //Various Colors color effecting radius 60 units
-		//{
-		//	{ 212.6f, 50.8f, -85.3f, static_cast<float>(LightType::POINT) },
-		//	{ 0.0f, 1.0f, 0.0f, 0.0f },
-		//	//{ 0.85f, 0.3f, 0.12f, 120.0f }
-		//	{ 1.0f, 1.0f, 1.0f, 120.0f }
-		//},
-		//{
-		//	{ -116.8f, 27.5f, 17.0f, static_cast<float>(LightType::POINT) },
-		//	{ 0.0f, 0.0f, 0.0f, 0.0f },
-		//	//{ 1.17f, 0.41f, 0.92f, 120.0f }
-		//	{ 1.0f, 1.0f, 1.0f, 120.0f }
-		//},
+		{
+			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL) },
+			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), 0.0f },
+			{ 4.2f, 4.2f, 4.2f, std::numeric_limits<float>::infinity() }
+		},
+		//Point Lights
+		//Various Colors color effecting radius 60 units
+		{
+			{ 212.6f, 50.8f, -85.3f, static_cast<float>(LightType::POINT) },
+			{ 0.0f, 1.0f, 0.0f, 0.0f },
+			//{ 0.85f, 0.3f, 0.12f, 120.0f }
+			{ 3.0f, 3.0f, 3.0f, 120.0f }
+		},
+		{
+			{ -116.8f, 27.5f, 17.0f, static_cast<float>(LightType::POINT) },
+			{ 0.0f, 0.0f, 0.0f, 0.0f },
+			//{ 1.17f, 0.41f, 0.92f, 120.0f }
+			{ 3.0f, 3.0f, 3.0f, 120.0f }
+		},
 		{
 			{ 92.2f, 25.9f, 16.2f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, 0.0f, 0.0f, 0.0f },
 			//{ 0.93f, 1.0f, 0.1f, 120.0f }
-			{ 1.0f, 1.0f, 1.0f, 120.0f }
+			{ 3.0f, 3.0f, 3.0f, 120.0f }
 		}
 	};
 	Light cornellLights[] =
@@ -103,11 +103,11 @@ int main()
 		{
 			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::AREA)},
 			{ 0.0f, -1.0f, 0.0f, 1.0f },
-			{ 1.0f, 1.0f, 1.0f, 230.0f }
+			{ 3.0f, 3.0f, 3.0f, 230.0f }
 		}
 	};
 
-	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 1});
+	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 4});
 	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1});
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);

@@ -30,7 +30,7 @@
 #define GI_LIGHT_DIRECTIONAL 1.0f
 #define GI_LIGHT_AREA 2.0f
 
-#define GI_ONE_OVER_2_PI 0.159154
+#define GI_ONE_OVER_PI 0.318309f
 
 // Input
 flat in IN_INDEX uint fIndex;
@@ -200,21 +200,21 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// Diffuse Factor
 	// Lambert Diffuse Model
-	lightIntensity = vec3(max(dot(worldNormal, worldLight), -1000.0f));
+	lightIntensity = GI_ONE_OVER_PI * vec3(max(dot(worldNormal, worldLight), 0.0f));
 
-	// Burley Diffuse Model
-	// TODO: This is buggy tho fix
-	float rougness = 0.6f;
-	float NdL = dot(worldNormal, worldLight);
-	float NdV = dot(worldNormal, worldEye);
-	float LdH = max(dot(worldLight, worldHalf), 0.0f);
-	float fD90 = 0.5 + 2.0f * pow(LdH, 2.0f) * rougness;
-	lightIntensity = vec3(//(1.0f + (fD90 - 1.0f) * pow(1.0f - NdL, 5.0f)) *
-						    //(1.0f + (fD90 - 1.0f) * pow(1.0f - NdV, 5.0f)) / 
-							mix(1.0f, fD90, pow(clamp(1.0f - NdL, 0.0f, 1.0f), 5.0f)) *
-							mix(1.0f, fD90, pow(clamp(1.0f - NdV, 0.0f, 1.0f), 5.0f)) / 
-							3.1416f);
-	//lightIntensity = 1.0f - lightIntensity;
+	// Burley Diffuse Model (Disney)
+	//float rougness = 0.5f;
+	//float NdL = dot(worldNormal, worldLight);
+	//float NdV = dot(worldNormal, worldEye);
+	//float LdH = max(dot(worldLight, worldHalf), 0.0f);
+	//float fD90 = 0.5 + 2.0f * pow(LdH, 2.0f) * rougness;
+	//lightIntensity = vec3(//(1.0f + (fD90 - 1.0f) * pow(1.0f - NdL, 5.0f)) *
+	//					  //(1.0f + (fD90 - 1.0f) * pow(1.0f - NdV, 5.0f)) 
+	//					  mix(1.0f, fD90, pow(clamp(1.0f - NdL, 0.0f, 1.0f), 5.0f)) *
+	//					  mix(1.0f, fD90, pow(clamp(1.0f - NdV, 0.0f, 1.0f), 5.0f)) *
+	//					  GI_ONE_OVER_PI);
+	//lightIntensity = max(lightIntensity, vec3(0.0f));
+	//lightIntensity *= NdL;
 
 	// Early Bail From Light Occulusion
 	if(lightIntensity == vec3(0.0f))
@@ -222,10 +222,10 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
 	float shadowIntensity = 1.0f;
-	//if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-	//	shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
-	//else
-	//	shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
+	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+		shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
+	else
+		shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
 	
 	////DEBUG	
 	//// Cascade Check
@@ -248,7 +248,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 		return vec3(0.0f);
 
 	// Specular
-	float specPower = texture(gBuffColor, gBuffUV).a * 256.0f;
+	float specPower = texture(gBuffColor, gBuffUV).a * 4096.0f;
 
 	// Phong
 	//lightIntensity += vec3(pow(max(dot(worldReflect, worldEye), 0.0f), specPower));

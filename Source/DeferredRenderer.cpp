@@ -100,10 +100,12 @@ GBuffer& DeferredRenderer::GetGBuffer()
 	return gBuffer;
 }
 
-float DeferredRenderer::CalculateCascadeLength(float frustumFar)
+float DeferredRenderer::CalculateCascadeLength(float frustumFar,
+											   unsigned int cascadeNo)
 {
-	// This is static fix to eliminate empty space on(shadow map in sponza scene
-	return frustumFar / SceneLights::numShadowCascades;
+	// Geometric sum
+	float chunkSize = std::powf(2.0f, (SceneLights::numShadowCascades)) - 1.0f;
+	return std::powf(2.0f, cascadeNo) * (frustumFar / chunkSize);
 }
 
 BoundingSphere DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
@@ -194,9 +196,9 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 			}
 			case LightType::DIRECTIONAL:
 			{
-				float cascade = CalculateCascadeLength(camera.far);
 				for(unsigned int j = 0; j < SceneLights::numShadowCascades; j++)
 				{
+					float cascade = CalculateCascadeLength(camera.far, j);
 					BoundingSphere viewSphere = CalculateShadowCascasde(cascade * j,
 																		cascade * (j + 1),
 																		camera,
@@ -364,7 +366,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	invFrameTransform.CPUData()[0] = InvFrameTransform
 	{		
 		ft.view.Inverse() * ft.projection.Inverse(),
-		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascadeLength(camera.far)),
+		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascadeLength(camera.far, 0)),
 		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
 		{0, 0, gBuffWidth, gBuffHeight},
 		{depthRange[0], depthRange[1], 0.0f, 0.0f}

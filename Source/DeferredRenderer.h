@@ -82,7 +82,8 @@ class DeferredRenderer
 														float cascadeFar,
 														const Camera& camera,
 														const IEVector3& lightDir);
-		static float			CalculateCascadeLength(float frustumFar);
+		static float			CalculateCascadeLength(float frustumFar, 
+													   unsigned int cascadeNo);
 
 	protected:
 		void					GenerateShadowMaps(SceneI&, const Camera&);

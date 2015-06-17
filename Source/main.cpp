@@ -25,7 +25,7 @@ int main()
 {
 	Camera mainRenderCamera =
 	{
-		90.0f,
+		75.0f,
 		0.1f,
 		600.0f,
 		1280,

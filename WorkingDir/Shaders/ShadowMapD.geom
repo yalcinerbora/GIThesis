@@ -9,8 +9,8 @@
 		Shadowmap Creation Shader
 */
 
-#define NUM_SHADOW_CASCADES 3
-#define NUM_SHADOW_CASCADE_TRI 9
+#define NUM_SHADOW_CASCADES 4
+#define NUM_SHADOW_CASCADE_TRI 12
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices = NUM_SHADOW_CASCADE_TRI) out;

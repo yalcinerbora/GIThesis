@@ -142,7 +142,10 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 	{
 		// Determine Cascade
 		float worldDist = max(0.0f, dot(worldPos - camPos.xyz, camDir.xyz));
-		viewIndex = floor(worldDist / camPos.w);
+	
+		// Inv geom sum
+		viewIndex = worldDist / camPos.w;
+		viewIndex = floor(log2(viewIndex + 1.0f));
 	}
 
 	// Mult with proper cube side matrix
@@ -227,8 +230,8 @@ vec3 PhongBDRF(in vec3 worldPos)
 	else
 		shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
 	
-	////DEBUG	
-	//// Cascade Check
+	//DEBUG	
+	// Cascade Check
 	//if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
 	//{
 	//	if(shadowUV.z == 0.0f)

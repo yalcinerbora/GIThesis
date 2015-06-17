@@ -10,7 +10,7 @@
 
 const GLsizei SceneLights::shadowMapWH = 1024;
 
-const uint32_t SceneLights::numShadowCascades = 3;
+const uint32_t SceneLights::numShadowCascades = 4;
 const char* SceneLights::lightAOIFileName = "lightAOI.gfg";
 GLuint SceneLights::lightShapeBuffer = 0;
 GLuint SceneLights::lightShapeIndexBuffer = 0;

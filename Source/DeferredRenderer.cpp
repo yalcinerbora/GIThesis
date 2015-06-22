@@ -43,7 +43,7 @@ DeferredRenderer::DeferredRenderer()
 	glGenFramebuffers(1, &lightIntensityFBO);
 
 	glBindTexture(GL_TEXTURE_2D, lightIntensityTex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB16F, gBuffWidth, gBuffHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB32F, gBuffWidth, gBuffHeight);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
@@ -104,8 +104,8 @@ float DeferredRenderer::CalculateCascadeLength(float frustumFar,
 											   unsigned int cascadeNo)
 {
 	// Geometric sum
-	float chunkSize = std::powf(2.0f, (SceneLights::numShadowCascades)) - 1.0f;
-	return std::powf(2.0f, cascadeNo) * (frustumFar / chunkSize);
+	float chunkSize = std::powf(2.0f, static_cast<float>(SceneLights::numShadowCascades)) - 1.0f;
+	return std::powf(2.0f, static_cast<float>(cascadeNo)) * (frustumFar / chunkSize);
 }
 
 BoundingSphere DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
@@ -475,6 +475,7 @@ void DeferredRenderer::LightMerge(const Camera& camera)
 			   static_cast<GLsizei>(camera.height));
 
 	// States
+	glEnable(GL_FRAMEBUFFER_SRGB);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDepthMask(false);
@@ -488,6 +489,7 @@ void DeferredRenderer::LightMerge(const Camera& camera)
 
 	// DrawCall
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDisable(GL_FRAMEBUFFER_SRGB);
 }
 
 void DeferredRenderer::Render(SceneI& scene, const Camera& camera)

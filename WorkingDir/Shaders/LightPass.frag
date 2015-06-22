@@ -193,7 +193,11 @@ vec3 PhongBDRF(in vec3 worldPos)
 		// Falloff Linear
 		float lightRadius = lightParams[fIndex].color.w;
 		float distSqr = dot(worldLight.xyz, worldLight.xyz);
-		falloff = 1.0f - clamp(distSqr / (lightRadius * lightRadius), 0.0f, 1.0f);
+
+		//falloff = 1.0f - clamp(1.0f / distSqr lightRadius * lightRadius), 0.0f, 1.0f);
+		falloff = distSqr / (lightRadius * lightRadius);
+		falloff = clamp(1.0f - falloff * falloff, 0.0f, 1.0f);
+		falloff = (falloff * falloff) / (distSqr + 1.0f);
 	}		
 	worldLight = normalize(worldLight);
 	worldNormal = normalize(worldNormal);

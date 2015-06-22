@@ -70,27 +70,24 @@ int main()
 		{
 			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL) },
 			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), 0.0f },
-			{ 4.2f, 4.2f, 4.2f, std::numeric_limits<float>::infinity() }
+			{ 0.9921f, 0.9764f, 0.7491f, std::numeric_limits<float>::infinity() }
 		},
 		//Point Lights
 		//Various Colors color effecting radius 60 units
 		{
 			{ 212.6f, 50.8f, -85.3f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, 1.0f, 0.0f, 0.0f },
-			//{ 0.85f, 0.3f, 0.12f, 120.0f }
-			{ 3.0f, 3.0f, 3.0f, 120.0f }
+			IEVector4(1.0f, 1.0f, 1.0f, 120.0f) * 600.0f
 		},
 		{
 			{ -116.8f, 27.5f, 17.0f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, 0.0f, 0.0f, 0.0f },
-			//{ 1.17f, 0.41f, 0.92f, 120.0f }
-			{ 3.0f, 3.0f, 3.0f, 120.0f }
+			IEVector4(1.0f, 1.0f, 1.0f, 120.0f) * 600.0f
 		},
 		{
 			{ 92.2f, 25.9f, 16.2f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, 0.0f, 0.0f, 0.0f },
-			//{ 0.93f, 1.0f, 0.1f, 120.0f }
-			{ 3.0f, 3.0f, 3.0f, 120.0f }
+			IEVector4(1.0f, 1.0f, 1.0f, 120.0f) * 600.0f
 		}
 	};
 	Light cornellLights[] =

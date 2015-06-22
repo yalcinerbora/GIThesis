@@ -99,5 +99,5 @@ void GBufferPopulate(out vec3 gNormal, out vec3 gColor, out float gSpec)
 {
 	gColor = texture(colorTex, fUV).rgb;
 	gNormal = fNormal;
-	gSpec = 0.02f;
+	gSpec = 0.42f;
 }

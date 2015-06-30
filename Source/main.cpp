@@ -1,5 +1,6 @@
 #include <iostream>
 #include <GFG/GFGHeader.h>
+#include <AntTweakBar.h>
 
 #include "Window.h"
 
@@ -16,10 +17,12 @@
 #include "GFGLoader.h"
 #include "Camera.h"
 #include "Scene.h"
+#include "Macros.h"
 
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
-#include "GLFW/glfw3.h"
+#include "IEUtility/IETimer.h"
+#include <GLFW/glfw3.h>
 
 int main()
 {
@@ -115,6 +118,21 @@ int main()
 	solutions.push_back(&emptySolution);
 	solutions.push_back(&thesisSolution);
 
+	// Main Help
+	TwDefine(" GLOBAL iconpos=tl ");
+	TwDefine(" GLOBAL help='GI Implementation using voxels.\n"
+			 "\tUse NumPad 7,8 to change between solutions.\n"
+			 "\tUse NumPad 4,6 to change between scenes.\n"
+			 "\tUse NumPad 1,3 to change between camera input schemes.\n"
+			 "\t\t Input Scheme#1 : No Input.\n"
+			 "\t\t Input Scheme#2 : Maya Input. (MouseBTN1 to rotate around COI. Mouse BTN3 to translate COI)\n"
+			 "\t\t Input Scheme#3 : FPS Input. (WASD to move MouseBTN1 to look around)\n"
+			 "' ");
+
+	// FPS Timer
+	IETimer t;
+	t.Start();
+
 	// All Init
 	// Render Loop
 	//float angle = 0.0f;
@@ -129,6 +147,7 @@ int main()
 		if(oldSolution != currentSolution)
 		{
 			forceInit = true;
+			solutions[oldSolution % solutions.size()]->Release();
 			oldSolution = currentSolution;
 		}
 			
@@ -157,6 +176,9 @@ int main()
 		// End of the Loop
 		mainWindow.Present();
 		glfwPollEvents();
+
+		t.Lap();
+		solution->SetFPS(t.ElapsedMilliS());
 	}
 	return 0;
 }

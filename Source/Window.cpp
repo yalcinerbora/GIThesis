@@ -5,6 +5,7 @@
 #include "Globals.h"
 
 #include <GLFW/glfw3.h>
+#include <AntTweakBar.h>
 
 std::map<GLFWwindow*, Window*> Window::windowMappings;
 
@@ -30,6 +31,9 @@ void Window::WindowFBGLFW(GLFWwindow* w, int width, int height)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
+		TwSetCurrentWindow(i->second->twWindowId);
+		TwWindowSize(width, height);
+
 		assert(i->second->input != nullptr);
 		i->second->input->WindowFBChangedFunc(width, height);
 	}
@@ -96,8 +100,11 @@ void Window::KeyboardUsedGLFW(GLFWwindow* w, int key, int scancode, int action, 
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->KeyboardUsedFunc(key, scancode, action, mods);
+		if(!TwEventKeyGLFW(key, action))
+		{
+			assert(i->second->input != nullptr);
+			i->second->input->KeyboardUsedFunc(key, scancode, action, mods);
+		}
 	}
 }
 
@@ -107,8 +114,11 @@ void Window::MouseMovedGLFW(GLFWwindow* w, double x, double y)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->MouseMovedFunc(x, y);
+		if(!TwEventMousePosGLFW(static_cast<int>(x), static_cast<int>(y)))
+		{
+			assert(i->second->input != nullptr);
+			i->second->input->MouseMovedFunc(x, y);
+		}
 	}
 }
 
@@ -118,8 +128,11 @@ void Window::MousePressedGLFW(GLFWwindow* w, int button, int action, int mods)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->MousePressedFunc(button, action, mods);
+		if(!TwEventMouseButtonGLFW(button, action))
+		{
+			assert(i->second->input != nullptr);
+			i->second->input->MousePressedFunc(button, action, mods);
+		}
 	}
 }
 
@@ -129,8 +142,11 @@ void Window::MouseScrolledGLFW(GLFWwindow* w, double xoffset, double yoffset)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->MouseScrolledFunc(xoffset, yoffset);
+		if(!TwEventMouseWheelGLFW(static_cast<int>(xoffset)))
+		{
+			assert(i->second->input != nullptr);
+			i->second->input->MouseScrolledFunc(xoffset, yoffset);
+		}
 	}
 }
 
@@ -218,7 +234,7 @@ Window::Window(InputManI& input,
 	glfwWindowHint(GLFW_DEPTH_BITS, 24);
 	glfwWindowHint(GLFW_STENCIL_BITS, 8);
 
-	glfwWindowHint(GLFW_SAMPLES, 16);
+	glfwWindowHint(GLFW_SAMPLES, 1);
 
 	glfwWindowHint(GLFW_REFRESH_RATE, GLFW_DONT_CARE);
 	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
@@ -328,6 +344,11 @@ Window::Window(InputManI& input,
 
 	glfwSwapInterval(0);
 
+	// TW Init
+	if(windowMappings.empty()) TwInit(TW_OPENGL_CORE, NULL);
+	twWindowId = static_cast<int>(windowMappings.size());
+	TwSetCurrentWindow(twWindowId);
+	
 	windowMappings.insert(std::make_pair(window, this));
 	glfwShowWindow(window);
 }
@@ -342,6 +363,7 @@ Window::~Window()
 	if(windowMappings.empty())
 	{
 		glfwTerminate();
+		TwTerminate();
 	}
 }
 
@@ -359,5 +381,7 @@ bool Window::WindowClosed() const
 
 void Window::Present()
 {
+	TwSetCurrentWindow(twWindowId);
+	TwDraw();
 	glfwSwapBuffers(window);
 }

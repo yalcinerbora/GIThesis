@@ -39,6 +39,7 @@ class Window
 		// Class Properties	
 		InputManI*				input;
 		GLFWwindow*				window;
+		int						twWindowId;
 
 		// GLFWCallbacks
 		static void				ErrorCallbackGLFW(int, const char*);

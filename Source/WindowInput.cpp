@@ -11,7 +11,8 @@ WindowInput::WindowInput(Camera& cam,
 	, currentSolution(currentSolution)
 	, currentScene(currentScene)
 	, currentInput(currentInput)
-{}
+{
+}
 
 void WindowInput::WindowPosChangedFunc(int x, int y)
 {
@@ -30,12 +31,10 @@ void WindowInput::WindowSizeChangedFunc(int width, int height)
 
 void WindowInput::WindowClosedFunc()
 {
-
 }
 
 void WindowInput::WindowRefreshedFunc()
 {
-
 }
 
 void WindowInput::WindowFocusedFunc(bool focused)
@@ -45,11 +44,10 @@ void WindowInput::WindowFocusedFunc(bool focused)
 
 void WindowInput::WindowMinimizedFunc(bool minimized)
 {
-
 }
 
 void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
-{
+{	
 	if(action == GLFW_RELEASE)
 	switch(key)
 	{
@@ -90,12 +88,10 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 
 void WindowInput::MouseMovedFunc(double x, double y)
 {
-	
 }
 
 void WindowInput::MousePressedFunc(int button, int action, int modifier)
 {
-	
 }
 
 void WindowInput::MouseScrolledFunc(double xOffset, double yOffset)

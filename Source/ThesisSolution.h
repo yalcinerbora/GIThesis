@@ -9,6 +9,7 @@ Solution implementtion
 
 #include <vector>
 #include <list>
+#include <AntTweakBar.h>
 #include "SolutionI.h"
 #include "Shader.h"
 #include "FrameTransformBuffer.h"
@@ -60,7 +61,10 @@ class ThesisSolution : public SolutionI
 		StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 		VoxelDebugVAO							voxelVAO;
 
-		uint32_t								totalSceneVoxCount;
+		TwBar*									bar;
+		double									frameTime;
+		uint32_t								sceneVoxCacheCount;
+		double									sceneVoxCacheSize;
 
 		// Uncomment this for debugging voxelization 
 		// Normally this texture allocated and deallocated 
@@ -88,6 +92,8 @@ class ThesisSolution : public SolutionI
 		// Interface
 		bool					IsCurrentScene(SceneI&) override;
 		void					Init(SceneI&) override;
+		void					Release() override;
 		void					Frame(const Camera&) override;
+		void					SetFPS(double fpsMS) override;
 };
 #endif //__THESISSOLUTION_H__

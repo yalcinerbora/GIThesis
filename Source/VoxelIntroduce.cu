@@ -1,5 +1,6 @@
 #include <cuda_runtime.h>
 #include <cuda.h>
+#include <math_functions.h>
 
 #include "GIKernels.cuh"
 #include "CVoxel.cuh"
@@ -94,12 +95,27 @@ __global__ void VoxelIntroduce(CVoxelData* gVoxelData,
 	}
 }
 
+// 1.0f means use max, -1.0f means use min
+__device__ static const float3 aabbLookupTable[] =
+{
+	{ 1.0f, 1.0f, 1.0f },		// V1
+	{ 0.0f, 1.0f, 1.0f },		// V2
+	{ 1.0f, 0.0f, 1.0f },		// V3
+	{ 1.0f, 1.0f, 0.0f },		// V4
+
+	{ 0.0f, 0.0f, 1.0f },		// V5
+	{ 0.0f, 1.0f, 0.0f },		// V6
+	{ 1.0f, 0.0f, 0.0f },		// V7
+	{ 0.0f, 0.0f, 0.0f }		// V8
+};
+
 __global__ void VoxelObjectCull(unsigned int* gObjectIndices,
 								unsigned int& gIndicesIndex,
 								const CObjectAABB* gObjectAABB,
 								const CObjectTransform* gObjTransforms,
 								const CVoxelGrid& globalGridInfo)
 {
+
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int writeIndex;
 	bool intersects = false;
@@ -109,13 +125,39 @@ __global__ void VoxelObjectCull(unsigned int* gObjectIndices,
 	{
 		{globalGridInfo.position.x, globalGridInfo.position.y, globalGridInfo.position.z},
 		{
-			globalGridInfo.position.x + globalGridInfo.span *globalGridInfo.dimension.x,
-			globalGridInfo.position.y + globalGridInfo.span *globalGridInfo.dimension.y,
-			globalGridInfo.position.z + globalGridInfo.span *globalGridInfo.dimension.z
+			globalGridInfo.position.x + globalGridInfo.span * globalGridInfo.dimension.x,
+			globalGridInfo.position.y + globalGridInfo.span * globalGridInfo.dimension.y,
+			globalGridInfo.position.z + globalGridInfo.span * globalGridInfo.dimension.z
 		},
 	};
-	intersects = Intersects(gridAABB, gObjectAABB[globalId]);
 
+	// Construct Transformed AABB
+	CAABB transformedAABB =
+	{
+		{ FLT_MAX, FLT_MAX, FLT_MAX },
+		{ -FLT_MAX, -FLT_MAX, -FLT_MAX }
+	};
+
+	CAABB objectAABB = gObjectAABB[globalId];
+	for(unsigned int i = 0; i < 8; i++)
+	{
+		float4 data;
+		data.x = aabbLookupTable[i].x * objectAABB.max.x + (1.0f - aabbLookupTable[i].x) * objectAABB.min.x;
+		data.x = aabbLookupTable[i].x * objectAABB.max.x + (1.0f - aabbLookupTable[i].x) * objectAABB.min.x;
+		data.x = aabbLookupTable[i].x * objectAABB.max.x + (1.0f - aabbLookupTable[i].x) * objectAABB.min.x;
+		data.x = 1.0f;
+
+		MultMatrixSelf(data, gObjTransforms[globalId].transform);
+		transformedAABB.max.x = fmax(transformedAABB.max.x, data.x);
+		transformedAABB.max.y = fmax(transformedAABB.max.y, data.x);
+		transformedAABB.max.z = fmax(transformedAABB.max.z, data.x);
+
+		transformedAABB.min.x = fmin(transformedAABB.min.x, data.x);
+		transformedAABB.min.y = fmin(transformedAABB.min.y, data.x);
+		transformedAABB.min.z = fmin(transformedAABB.min.z, data.x);
+	}
+
+	intersects = Intersects(gridAABB, transformedAABB);
 	if(intersects)
 	{
 		writeIndex = atomicAdd(&gIndicesIndex, 0);

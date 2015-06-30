@@ -14,7 +14,7 @@ Does not interfere with keyboard mouse input
 
 #include "InputManI.h"
 #include "ArrayStruct.h"
-#include  <vector>
+#include <vector>
 
 struct Camera;
 class SolutionI;

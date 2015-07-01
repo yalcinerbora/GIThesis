@@ -28,6 +28,7 @@ class IEVector4
 								IEVector4(float x, float y, float z, float w);
 								IEVector4(const float v[4]);
 								IEVector4(const IEVector3&);
+								IEVector4(const IEVector3&, float w);
 								IEVector4(const IEVector4&) = default;
 								~IEVector4() = default;
 

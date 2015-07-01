@@ -38,6 +38,16 @@ struct VoxelRenderData
 };
 #pragma pack(pop)
 
+struct VoxelInfo
+{
+	uint32_t	sceneVoxCacheCount;
+	double		sceneVoxCacheSize;
+
+	uint32_t	sceneVoxOctreeCount;
+	double		sceneVoxOctreeSize;
+
+};
+
 class ThesisSolution : public SolutionI
 {
 	private:
@@ -63,8 +73,8 @@ class ThesisSolution : public SolutionI
 
 		TwBar*									bar;
 		double									frameTime;
-		uint32_t								sceneVoxCacheCount;
-		double									sceneVoxCacheSize;
+		VoxelInfo								voxInfo;
+		
 
 		// Uncomment this for debugging voxelization 
 		// Normally this texture allocated and deallocated 

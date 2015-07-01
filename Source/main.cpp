@@ -73,24 +73,24 @@ int main()
 		{
 			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL) },
 			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), 0.0f },
-			{ 0.9921f, 0.9764f, 0.7491f, std::numeric_limits<float>::infinity() }
+			IEVector4(IEVector3(1.0f, 1.0f, 1.0f) * 4.2f, std::numeric_limits<float>::infinity())
 		},
 		//Point Lights
 		//Various Colors color effecting radius 60 units
 		{
 			{ 212.6f, 50.8f, -85.3f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, 1.0f, 0.0f, 0.0f },
-			IEVector4(1.0f, 1.0f, 1.0f, 120.0f) * 600.0f
+			IEVector4(IEVector3(1.0f, 1.0f, 1.0f) * 3000.0f, 120.0f)
 		},
 		{
 			{ -116.8f, 27.5f, 17.0f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, 0.0f, 0.0f, 0.0f },
-			IEVector4(1.0f, 1.0f, 1.0f, 120.0f) * 600.0f
+			IEVector4(IEVector3(1.0f, 1.0f, 1.0f) * 3000.0f, 120.0f)
 		},
 		{
 			{ 92.2f, 25.9f, 16.2f, static_cast<float>(LightType::POINT) },
 			{ 0.0f, 0.0f, 0.0f, 0.0f },
-			IEVector4(1.0f, 1.0f, 1.0f, 120.0f) * 600.0f
+			IEVector4(IEVector3(1.0f, 1.0f, 1.0f) * 3000.0f, 120.0f)
 		}
 	};
 	Light cornellLights[] =
@@ -101,9 +101,9 @@ int main()
 		// Square light
 		// Covers Entire Room
 		{
-			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::AREA)},
+			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::POINT)},
 			{ 0.0f, -1.0f, 0.0f, 1.0f },
-			{ 3.0f, 3.0f, 3.0f, 230.0f }
+			IEVector4(1.0f, 1.0f, 1.0f, 230.0f) * 9000.0f
 		}
 	};
 
@@ -155,6 +155,7 @@ int main()
 		if(!solution->IsCurrentScene(*scenes[currentScene % scenes.size()]) ||
 		   forceInit)
 		{
+			solutions[oldSolution % solutions.size()]->Release();
 			solution->Init(*scenes[currentScene % scenes.size()]);
 		}
 

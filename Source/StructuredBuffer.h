@@ -55,6 +55,7 @@ class StructuredBuffer
 		void					SendData();
 
 		std::vector<T>&			CPUData();
+		const std::vector<T>&	CPUData() const;
 };
 #include "StructuredBuffer.hpp"
 #endif //__STRUCTUREDBUFFER_H__

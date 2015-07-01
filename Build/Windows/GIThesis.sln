@@ -26,6 +26,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42
 		..\..\WorkingDir\Shaders\LightPass.frag = ..\..\WorkingDir\Shaders\LightPass.frag
 		..\..\WorkingDir\Shaders\LightPass.vert = ..\..\WorkingDir\Shaders\LightPass.vert
 		..\..\WorkingDir\Shaders\PPLightPresent.frag = ..\..\WorkingDir\Shaders\PPLightPresent.frag
+		..\..\WorkingDir\Shaders\PProcessGeneric.frag = ..\..\WorkingDir\Shaders\PProcessGeneric.frag
 		..\..\WorkingDir\Shaders\PProcessGeneric.vert = ..\..\WorkingDir\Shaders\PProcessGeneric.vert
 	EndProjectSection
 EndProject

@@ -23,8 +23,7 @@ ThesisSolution::ThesisSolution()
 	, voxelRenderData(MaxVoxelCacheSize)
 	, voxelCacheUsageSize(1)
 	, voxelVAO(voxelData,voxelRenderData)
-	, sceneVoxCacheCount(0)
-	, sceneVoxCacheSize(0)
+	, voxInfo({0})
 	, bar(nullptr)
 {
 	voxelCacheUsageSize.AddData(0);
@@ -42,7 +41,6 @@ void ThesisSolution::Init(SceneI& s)
 	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 	currentScene = &s;
 	objectGridInfo.Resize(currentScene->DrawCount());
-
 
 	GLuint queryID;
 	glGenQueries(1, &queryID);
@@ -153,15 +151,16 @@ void ThesisSolution::Init(SceneI& s)
 
 	objectGridInfo.RecieveData(currentScene->DrawCount());
 	voxelCacheUsageSize.RecieveData(1);
+	voxInfo.sceneVoxCacheCount = 0;
 	for(int i = 0; i < currentScene->DrawCount(); i++)
-		sceneVoxCacheCount += objectGridInfo.CPUData()[i].voxCount;
-	sceneVoxCacheSize = static_cast<double>(sceneVoxCacheCount * 24) / (1024.0 * 1024.0);
+		voxInfo.sceneVoxCacheCount += objectGridInfo.CPUData()[i].voxCount;
+	voxInfo.sceneVoxCacheSize = static_cast<double>(voxInfo.sceneVoxCacheCount * 24) / (1024.0 * 1024.0);
 
 	GI_LOG("------------------------------------");
 	GI_LOG("GI Thesis Solution Init Complete");
 	GI_LOG("Scene Voxelization Time: %f ms", timeElapsed / 1000000.0);
-	GI_LOG("Total Vox : %d", sceneVoxCacheCount);
-	GI_LOG("Total Vox Memory: %f MB", sceneVoxCacheSize);
+	GI_LOG("Total Vox : %d", voxInfo.sceneVoxCacheCount);
+	GI_LOG("Total Vox Memory: %f MB", voxInfo.sceneVoxCacheSize);
 	GI_LOG("------------------------------------");
 
 	glDeleteQueries(1, &queryID);
@@ -173,11 +172,16 @@ void ThesisSolution::Init(SceneI& s)
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
 			   " label='Frame(ms)' precision=2 help='Frame Time in milliseconds.' ");
-	TwAddSeparator(bar, NULL, " group='Voxel Data' ");
-	TwAddVarRO(bar, "voxCache", TW_TYPE_UINT32, &sceneVoxCacheCount,
-			   " label='Voxel Count' help='Cache voxel count.' ");
-	TwAddVarRO(bar, "voxSize", TW_TYPE_DOUBLE, &sceneVoxCacheSize,
-			   " label='Voxel Size(MB)' step=0.01 help='Cache voxel total size in megabytes.' ");
+	TwAddSeparator(bar, NULL, NULL);
+	TwAddVarRO(bar, "voxCache", TW_TYPE_UINT32, &voxInfo.sceneVoxCacheCount,
+			   " label='Voxel Count' group='Voxel Cache' help='Cache voxel count.' ");
+	TwAddVarRO(bar, "voxCacheSize", TW_TYPE_DOUBLE, &voxInfo.sceneVoxCacheSize,
+			   " label='Voxel Size(MB)' group='Voxel Cache' precision=2 help='Cache voxel total size in megabytes.' ");
+	TwAddSeparator(bar, NULL, NULL);
+	TwAddVarRO(bar, "voxUsed", TW_TYPE_UINT32, &voxInfo.sceneVoxOctreeCount,
+			   " label='Voxel Used' group='Voxel Octree' help='Voxel count in octree.' ");
+	TwAddVarRO(bar, "voxUsedSize", TW_TYPE_DOUBLE, &voxInfo.sceneVoxOctreeSize,
+			   " label='Voxel Used Size(MB)' group='Voxel Octree' precision=2 help='Octree Voxel total size in megabytes.' ");
 }
 
 void ThesisSolution::Release()
@@ -222,7 +226,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
 	
 	voxelVAO.Bind();
-	voxelVAO.Draw(sceneVoxCacheCount, 0);
+	voxelVAO.Draw(voxInfo.sceneVoxCacheCount, 0);
 }
 
 void ThesisSolution::SetFPS(double fpsMS)

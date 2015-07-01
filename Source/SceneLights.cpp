@@ -84,6 +84,7 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	for(unsigned int i = 0; i < lights.length; i++)
 	{
 		lightsGPU.AddData(lights.arr[i]);
+		lightShadowCast.push_back(true);
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBOs[i]);
 		glTextureView(shadowMapViews[i], GL_TEXTURE_CUBE_MAP, lightShadowMaps, GL_DEPTH_COMPONENT32,
 					  0, 1, 6 * i, 6);
@@ -199,6 +200,8 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	glVertexAttribIFormat(IN_LIGHT_INDEX, 1, GL_UNSIGNED_INT, 0);
 	glVertexAttribDivisor(IN_LIGHT_INDEX, 1);
 	glVertexAttribBinding(IN_LIGHT_INDEX, 1);
+
+	assert(lightsGPU.CPUData().size() == lightShadowCast.size());
 }
 
 SceneLights::~SceneLights()
@@ -210,6 +213,11 @@ SceneLights::~SceneLights()
 	glDeleteTextures(1, &shadowMapArrayView);
 }
 
+uint32_t SceneLights::Count() const
+{
+	return static_cast<uint32_t>(lightShadowCast.size());
+}
+
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)
 {
 	Light l = lightsGPU.GetData(index);
@@ -219,12 +227,12 @@ void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)
 	lightsGPU.ChangeData(index, l);
 }
 
-void SceneLights::ChangeLightType(uint32_t index, LightType type)
-{
-	Light l = lightsGPU.GetData(index);
-	l.position.setW(static_cast<float>(type));
-	lightsGPU.ChangeData(index, l);
-}
+//void SceneLights::ChangeLightType(uint32_t index, LightType type)
+//{
+//	Light l = lightsGPU.GetData(index);
+//	l.position.setW(static_cast<float>(type));
+//	lightsGPU.ChangeData(index, l);
+//}
 
 void SceneLights::ChangeLightDir(uint32_t index, IEVector3 direction)
 {
@@ -250,3 +258,41 @@ void SceneLights::ChangeLightRadius(uint32_t index, float radius)
 	l.color.setW(radius);
 	lightsGPU.ChangeData(index, l);
 }
+
+void SceneLights::ChangeLightShadow(uint32_t index, bool shadowStatus)
+{
+	lightShadowCast[index] = shadowStatus;
+}
+
+IEVector3 SceneLights::GetLightPos(uint32_t index) const
+{
+	return lightsGPU.CPUData()[index].position;
+}
+
+LightType SceneLights::GetLightType(uint32_t index) const
+{
+	return static_cast<LightType>(static_cast<int>(
+			lightsGPU.CPUData()[index].position.getW()));
+}
+
+IEVector3 SceneLights::GetLightDir(uint32_t index) const
+{
+	return lightsGPU.CPUData()[index].direction;
+}
+
+IEVector3 SceneLights::GetLightColor(uint32_t index) const
+{
+	return lightsGPU.CPUData()[index].color;
+}
+
+float SceneLights::GetLightRadius(uint32_t index) const
+{
+	return lightsGPU.CPUData()[index].color.getW();
+}
+
+bool SceneLights::GetLightShadow(uint32_t index) const
+{
+	return lightShadowCast[index];
+}
+
+

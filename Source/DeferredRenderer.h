@@ -53,6 +53,7 @@ class DeferredRenderer
 
 		Shader					vertPPGeneric;
 		Shader					fragLightApply;
+		Shader					fragPPGeneric;
 
 		// Shader for shadowmap
 		Shader					fragShadowMap;
@@ -70,6 +71,8 @@ class DeferredRenderer
 		// Light Object VAO's
 		GLuint					lightIntensityTex;
 		GLuint					lightIntensityFBO;
+		GLuint					sRGBEndTex;
+		GLuint					sRGBEndFBO;
 
 		GLuint					postProcessTriVao;
 		GLuint					postProcessTriBuffer;

@@ -168,6 +168,12 @@ std::vector<T>& StructuredBuffer<T>::CPUData()
 }
 
 template <class T>
+const std::vector<T>& StructuredBuffer<T>::CPUData() const
+{
+	return dataGPUImage;
+}
+
+template <class T>
 T StructuredBuffer<T>::GetData(uint32_t index)
 {
 	assert(index < dataGPUImage.size());

@@ -34,6 +34,12 @@ IEVector4::IEVector4(const IEVector3& cp) : x(cp.getX()),
 											w(1.0f)
 {}
 
+IEVector4::IEVector4(const IEVector3& cp, float w) : x(cp.getX()), 
+													 y(cp.getY()), 
+													 z(cp.getZ()),
+													 w(w)
+{}
+
 void IEVector4::operator+=(const IEVector4& vector)
 {
 	x += vector.x;

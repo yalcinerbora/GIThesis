@@ -224,7 +224,7 @@ Window::Window(InputManI& input,
 
 	glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 	glfwWindowHint(GLFW_VISIBLE, GL_FALSE);
-	glfwWindowHint(GLFW_SRGB_CAPABLE, GL_TRUE);
+	glfwWindowHint(GLFW_SRGB_CAPABLE, GL_FALSE);	// Buggy
 
 	glfwWindowHint(GLFW_RED_BITS, 8);
 	glfwWindowHint(GLFW_GREEN_BITS, 8);

@@ -24,6 +24,7 @@ DeferredRenderer::DeferredRenderer()
 	, fragLightPass(ShaderType::FRAGMENT, "Shaders/LightPass.frag")
 	, vertPPGeneric(ShaderType::VERTEX, "Shaders/PProcessGeneric.vert")
 	, fragLightApply(ShaderType::FRAGMENT, "Shaders/PPLightPresent.frag")
+	, fragPPGeneric(ShaderType::FRAGMENT, "Shaders/PProcessGeneric.frag")
 	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
 	, vertShadowMap(ShaderType::VERTEX, "Shaders/ShadowMap.vert")
 	, geomAreaShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapA.geom")
@@ -50,6 +51,22 @@ DeferredRenderer::DeferredRenderer()
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, gBuffer.getDepthGL(), 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
+	// SRGB Tex
+	glGenTextures(1, &sRGBEndTex);
+	glGenFramebuffers(1, &sRGBEndFBO);
+	glBindTexture(GL_TEXTURE_2D, sRGBEndTex);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_SRGB8_ALPHA8, gBuffWidth, gBuffHeight);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, sRGBEndFBO);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, sRGBEndTex, 0);
+	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+	GLint encoding;
+	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, 
+										  GL_COLOR_ATTACHMENT0,
+										  GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, 
+										  &encoding);
+	assert(encoding == GL_SRGB);
+	
 	// PostProcess VAO
 	glGenBuffers(1, &postProcessTriBuffer);
 	glGenVertexArrays(1, &postProcessTriVao);
@@ -258,8 +275,15 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	// Render Loop
 	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
 	{
+		// FBO Bind and render calls
+		glBindFramebuffer(GL_FRAMEBUFFER, scene.getSceneLights().shadowMapFBOs[i]);
+		glClear(GL_DEPTH_BUFFER_BIT);
+	
+		if(!scene.getSceneLights().lightShadowCast[i])
+			continue;
+
 		// Base poly offset gives ok results on point-area lights
-		glPolygonOffset(1.1f, 256.0f);
+		glPolygonOffset(2.1f, 256.0f);
 
 		const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
 		LightType t = static_cast<LightType>(static_cast<uint32_t>(currentLight.position.getW()));
@@ -274,10 +298,6 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 		glUniform1ui(U_LIGHT_ID, static_cast<GLuint>(i));
 
 		scene.getDrawBuffer().getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
-
-		// FBO Bind and render calls
-		glBindFramebuffer(GL_FRAMEBUFFER, scene.getSceneLights().shadowMapFBOs[i]);
-		glClear(GL_DEPTH_BUFFER_BIT);
 
 		glMultiDrawElementsIndirect(GL_TRIANGLES,
 									GL_UNSIGNED_INT,
@@ -465,14 +485,14 @@ void DeferredRenderer::LightMerge(const Camera& camera)
 	gBuffer.BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
 	glActiveTexture(GL_TEXTURE0 + T_INTENSITY);
 	glBindTexture(GL_TEXTURE_2D, lightIntensityTex);
-	glBindSampler(T_COLOR, linearSampler);
-	glBindSampler(T_INTENSITY, linearSampler);
+	glBindSampler(T_COLOR, flatSampler);
+	glBindSampler(T_INTENSITY, flatSampler);
 
 	// FBO
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, sRGBEndFBO);
 	glViewport(0, 0, 
-			   static_cast<GLsizei>(camera.width), 
-			   static_cast<GLsizei>(camera.height));
+			   static_cast<GLsizei>(gBuffWidth),
+			   static_cast<GLsizei>(gBuffHeight));
 
 	// States
 	glEnable(GL_FRAMEBUFFER_SRGB);
@@ -489,7 +509,35 @@ void DeferredRenderer::LightMerge(const Camera& camera)
 
 	// DrawCall
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+	
+	//
+	// Passthrough to Default FBO
+	//
+	// SRGB Texture
+	glActiveTexture(GL_TEXTURE0 + T_COLOR);
+	glBindTexture(GL_TEXTURE_2D, sRGBEndTex);
+	glBindSampler(T_COLOR, linearSampler);
+
+	// Shaders
+	Shader::Unbind(ShaderType::GEOMETRY);
+	vertPPGeneric.Bind();
+	fragPPGeneric.Bind();
+
+	// Default FBO
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0,
+			   static_cast<GLsizei>(camera.width),
+			   static_cast<GLsizei>(camera.height));
+	
+	// States
 	glDisable(GL_FRAMEBUFFER_SRGB);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	// VAO
+	glBindVertexArray(postProcessTriVao);
+
+	// Draw
+	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void DeferredRenderer::Render(SceneI& scene, const Camera& camera)

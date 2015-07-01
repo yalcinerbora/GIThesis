@@ -41,7 +41,7 @@ Bin/
 
 # Working Dir Except Shaders
 WorkingDir/
-!WorkingDir/Shaders/
+!WorkingDir/Shaders/*.*
 
 # Keep Provided Libraries
 !Lib/**/*.lai

@@ -72,25 +72,25 @@ int main()
 		// 1-2 PM Sunlight direction (if you consider lionhead(window) is at north)
 		{
 			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL) },
-			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), 0.0f },
-			IEVector4(IEVector3(1.0f, 1.0f, 1.0f) * 4.2f, std::numeric_limits<float>::infinity())
+			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), std::numeric_limits<float>::infinity()},
+			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
 		},
 		//Point Lights
 		//Various Colors color effecting radius 60 units
 		{
 			{ 212.6f, 50.8f, -85.3f, static_cast<float>(LightType::POINT) },
-			{ 0.0f, 1.0f, 0.0f, 0.0f },
-			IEVector4(IEVector3(1.0f, 1.0f, 1.0f) * 3000.0f, 120.0f)
+			{ 0.0f, 0.0f, 0.0f, 120.0f },
+			IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
 		},
 		{
 			{ -116.8f, 27.5f, 17.0f, static_cast<float>(LightType::POINT) },
-			{ 0.0f, 0.0f, 0.0f, 0.0f },
-			IEVector4(IEVector3(1.0f, 1.0f, 1.0f) * 3000.0f, 120.0f)
+			{ 0.0f, 0.0f, 0.0f, 120.0f },
+			IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
 		},
 		{
 			{ 92.2f, 25.9f, 16.2f, static_cast<float>(LightType::POINT) },
-			{ 0.0f, 0.0f, 0.0f, 0.0f },
-			IEVector4(IEVector3(1.0f, 1.0f, 1.0f) * 3000.0f, 120.0f)
+			{ 0.0f, 0.0f, 0.0f, 120.0f },
+			IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
 		}
 	};
 	Light cornellLights[] =
@@ -102,8 +102,8 @@ int main()
 		// Covers Entire Room
 		{
 			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::POINT)},
-			{ 0.0f, -1.0f, 0.0f, 1.0f },
-			IEVector4(1.0f, 1.0f, 1.0f, 230.0f) * 9000.0f
+			{ 0.0f, -1.0f, 0.0f, 230.0f},
+			IEVector4(1.0f, 1.0f, 1.0f, 9000.0f)
 		}
 	};
 

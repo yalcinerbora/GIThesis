@@ -255,7 +255,14 @@ void SceneLights::ChangeLightColor(uint32_t index, IEVector3 color)
 void SceneLights::ChangeLightRadius(uint32_t index, float radius)
 {
 	Light l = lightsGPU.GetData(index);
-	l.color.setW(radius);
+	l.direction.setW(radius);
+	lightsGPU.ChangeData(index, l);
+}
+
+void SceneLights::ChangeLightIntensity(uint32_t index, float intensity)
+{
+	Light l = lightsGPU.GetData(index);
+	l.color.setW(intensity);
 	lightsGPU.ChangeData(index, l);
 }
 
@@ -286,6 +293,11 @@ IEVector3 SceneLights::GetLightColor(uint32_t index) const
 }
 
 float SceneLights::GetLightRadius(uint32_t index) const
+{
+	return lightsGPU.CPUData()[index].direction.getW();
+}
+
+float SceneLights::GetLightIntensity(uint32_t index) const
 {
 	return lightsGPU.CPUData()[index].color.getW();
 }

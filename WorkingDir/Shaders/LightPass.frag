@@ -144,8 +144,9 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 		float worldDist = max(0.0f, dot(worldPos - camPos.xyz, camDir.xyz));
 	
 		// Inv geom sum
+		const float exponent = 1.2f;
 		viewIndex = worldDist / camPos.w;
-		viewIndex = floor(log2(viewIndex + 1.0f));
+		viewIndex = floor(log2(viewIndex * (exponent - 1.0f) + 1.0f) / log2(exponent));
 	}
 
 	// Mult with proper cube side matrix
@@ -191,7 +192,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 		worldLight = lightParams[fIndex].position.xyz - worldPos;
 
 		// Falloff Linear
-		float lightRadius = lightParams[fIndex].color.w;
+		float lightRadius = lightParams[fIndex].direction.w;
 		float distSqr = dot(worldLight.xyz, worldLight.xyz);
 
 		// Linear Falloff
@@ -200,7 +201,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 		// Quadratic Falloff
 		falloff = distSqr / (lightRadius * lightRadius);
 		falloff = clamp(1.0f - falloff * falloff, 0.0f, 1.0f);
-		falloff = (falloff * falloff) / (distSqr + 1.0f);
+		falloff = (falloff * falloff) / (distSqr + 10.0f);
 	}		
 	worldLight = normalize(worldLight);
 	worldNormal = normalize(worldNormal);
@@ -227,8 +228,8 @@ vec3 PhongBDRF(in vec3 worldPos)
 	//lightIntensity *= NdL;
 
 	// Early Bail From Light Occulusion
-	if(lightIntensity == vec3(0.0f))
-		return vec3(0.0f);
+	//if(lightIntensity == vec3(0.0f))
+	//	return vec3(0.0f);
 
 	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
 	float shadowIntensity = 1.0f;
@@ -237,8 +238,8 @@ vec3 PhongBDRF(in vec3 worldPos)
 	else
 		shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
 	
-	//DEBUG	
-	// Cascade Check
+	////DEBUG	
+	//// Cascade Check
 	//if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
 	//{
 	//	if(shadowUV.z == 0.0f)
@@ -251,11 +252,12 @@ vec3 PhongBDRF(in vec3 worldPos)
 	//		lightIntensity = vec3(1.0f, 1.0f, 0.0f);
 	//	else if(shadowUV.z == 4.0f)
 	//		lightIntensity = vec3(1.0f, 0.0f, 1.0f);
+	//	lightIntensity *= 0.1f;
 	//}
 
 	// Early Bail out of Light Calculation if shadow fully occludes pixel
-	if(shadowIntensity == 0.0f)
-		return vec3(0.0f);
+	//if(shadowIntensity == 0.0f)
+	//	return vec3(0.0f);
 
 	// Specular
 	float specPower = texture(gBuffColor, gBuffUV).a * 4096.0f;
@@ -270,6 +272,9 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// Colorize
 	lightIntensity *= lightParams[fIndex].color.rgb;
+
+	// Intensity
+	lightIntensity *= lightParams[fIndex].color.a;
 
 	//Shadow
 	lightIntensity *= shadowIntensity;

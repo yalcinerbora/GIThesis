@@ -19,8 +19,8 @@ class FrameTransformBuffer;
 struct Light
 {
 	IEVector4 position;			// position.w is the light type
-	IEVector4 direction;		// direction.w is areaLight w/h ratio
-	IEVector4 color;			// color.a is effecting radius
+	IEVector4 direction;		// direction.w is effecting radius
+	IEVector4 color;			// color.a is intensity
 };
 
 enum class LightType
@@ -90,6 +90,7 @@ class SceneLights
 		void					ChangeLightDir(uint32_t index, IEVector3 direction);
 		void					ChangeLightColor(uint32_t index, IEVector3 color);
 		void					ChangeLightRadius(uint32_t index, float radius);
+		void					ChangeLightIntensity(uint32_t index, float intensity);
 		void					ChangeLightShadow(uint32_t index, bool shadowStatus);
 
 		IEVector3				GetLightPos(uint32_t index) const;
@@ -97,6 +98,7 @@ class SceneLights
 		IEVector3				GetLightDir(uint32_t index) const;
 		IEVector3				GetLightColor(uint32_t index) const;
 		float					GetLightRadius(uint32_t index) const;
+		float					GetLightIntensity(uint32_t index) const;
 		bool					GetLightShadow(uint32_t index) const;
 };
 

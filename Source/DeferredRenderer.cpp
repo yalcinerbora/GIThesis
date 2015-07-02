@@ -121,8 +121,9 @@ float DeferredRenderer::CalculateCascadeLength(float frustumFar,
 											   unsigned int cascadeNo)
 {
 	// Geometric sum
-	float chunkSize = std::powf(2.0f, static_cast<float>(SceneLights::numShadowCascades)) - 1.0f;
-	return std::powf(2.0f, static_cast<float>(cascadeNo)) * (frustumFar / chunkSize);
+	static const float exponent = 1.2f;
+	float chunkSize = (std::powf(exponent, static_cast<float>(SceneLights::numShadowCascades)) - 1.0f) / (exponent - 1.0f);
+	return std::powf(exponent, static_cast<float>(cascadeNo)) * (frustumFar / chunkSize);
 }
 
 BoundingSphere DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
@@ -161,8 +162,7 @@ BoundingSphere DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
 	// Converting to bounding sphere
 	float diam = (span[0] + span[1] + span[2]).Length();
 	float radius = diam * 0.5f;
-	IEVector3 centerPoint = camera.pos + camDir * (cascadeNear + (cascadeDiff * 0.5f));
-	
+	IEVector3 centerPoint = farBottomRight + radius * (span[0] + span[1] + span[2]).NormalizeSelf();
 	return BoundingSphere{centerPoint, radius};
 }
 
@@ -227,11 +227,11 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 																	//-230.0f, 230.0f,
 																	-radius, radius,
 																	radius, -radius,
-																	-60.0f, 320.0f);
+																	-1000.0f, 1000.0f);
 
-					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center * IEVector3(1.0f, 0.0f, 1.0f),
-														   viewSphere.center * IEVector3(1.0f, 0.0f, 1.0f) + currentLight.direction,
-														   IEVector3::Yaxis);
+					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f),
+														   viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f) + currentLight.direction,
+														   camera.up);
 
 					// To eliminate shadow shimmering only change pixel sized frusutm changes
 					IEVector3 unitPerTexel = (2.0f * IEVector3(radius, radius, radius)) / IEVector3(static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH));

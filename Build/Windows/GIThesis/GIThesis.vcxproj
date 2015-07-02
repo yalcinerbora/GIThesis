@@ -110,6 +110,7 @@
     <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
     <ClCompile Include="..\..\..\Source\GICudaAllocator.cpp" />
+    <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\GPUBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />

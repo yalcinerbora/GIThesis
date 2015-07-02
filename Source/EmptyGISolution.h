@@ -51,6 +51,9 @@ class EmptyGISolution : public SolutionI
 		static void TW_CALL		GetLightDirection(void *value, void *clientData);
 		static void TW_CALL		SetLightDirection(const void *value, void *clientData);
 
+		static void TW_CALL		GetLightRadius(void *value, void *clientData);
+		static void TW_CALL		SetLightRadius(const void *value, void *clientData);
+
 	protected:
 	public:
 								EmptyGISolution(DeferredRenderer&);

@@ -9,6 +9,7 @@ Globals For Rendering
 #define __GLOBALS_H__
 
 #include "GPUBuffer.h"
+#include <AntTweakBar.h>
 
 // Vertex Element
 #pragma pack(push, 1)
@@ -45,6 +46,13 @@ static const VertexElement element[] =
 	}
 };
 
+extern TwType twIEVector3Type;
+static const TwStructMember lightMembers[] =
+{
+	{ "X", TW_TYPE_FLOAT, 0, " help='X' step=0.1 " },
+	{ "Y", TW_TYPE_FLOAT, 4, " help='Y' step=0.1 " },
+	{ "Z", TW_TYPE_FLOAT, 8, " help='Z' step=0.1 " }
+};
 
 // Generic Binding Points
 // VertexData

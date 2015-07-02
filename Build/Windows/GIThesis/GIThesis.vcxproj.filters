@@ -77,6 +77,9 @@
     <ClCompile Include="..\..\..\Source\DeferredRenderer.cpp">
       <Filter>Render</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\Globals.cpp">
+      <Filter>Utility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />

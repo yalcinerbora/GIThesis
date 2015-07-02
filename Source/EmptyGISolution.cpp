@@ -4,6 +4,7 @@
 #include "DeferredRenderer.h"
 #include "Macros.h"
 #include "SceneLights.h"
+#include "Globals.h"
 
 std::vector<TwLightCallbackLookup> EmptyGISolution::twCallbackLookup;
 
@@ -37,46 +38,70 @@ void TW_CALL EmptyGISolution::GetLightColor(void *value, void *clientData)
 {
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
 	IEVector3 color = lookup->solution->currentScene->getSceneLights().GetLightColor(lookup->lightID);
-	*static_cast<IEVector3*>(value) = color.NormalizeSelf();
+	*static_cast<IEVector3*>(value) = color;
 }
 
 void TW_CALL EmptyGISolution::SetLightColor(const void *value, void *clientData)
 {
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
-	IEVector3 color = lookup->solution->currentScene->getSceneLights().GetLightColor(lookup->lightID);
-	float intensity = color.Length();
 	lookup->solution->currentScene->getSceneLights().ChangeLightColor(lookup->lightID,
-																	  intensity * (*static_cast<const IEVector3*>(value)));
+																	  (*static_cast<const IEVector3*>(value)));
 }
 	    
 void TW_CALL EmptyGISolution::GetLightIntensity(void *value, void *clientData)
 {
-
+	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
+	float intensity = lookup->solution->currentScene->getSceneLights().GetLightIntensity(lookup->lightID);
+	*static_cast<float*>(value) = intensity;
 }
 
 void TW_CALL EmptyGISolution::SetLightIntensity(const void *value, void *clientData)
 {
-
+	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
+	lookup->solution->currentScene->getSceneLights().ChangeLightIntensity(lookup->lightID,
+																		  (*static_cast<const float*>(value)));
 }
 	    
 void TW_CALL EmptyGISolution::GetLightPos(void *value, void *clientData)
 {
-
+	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
+	IEVector3 pos = lookup->solution->currentScene->getSceneLights().GetLightPos(lookup->lightID);
+	*static_cast<IEVector3*>(value) = pos;
 }
 
 void TW_CALL EmptyGISolution::SetLightPos(const void *value, void *clientData)
 {
-
+	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
+	lookup->solution->currentScene->getSceneLights().ChangeLightPos(lookup->lightID,
+																	  (*static_cast<const IEVector3*>(value)));
 }
 
 void TW_CALL EmptyGISolution::GetLightDirection(void *value, void *clientData)
 {
-
+	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
+	IEVector3 intensity = lookup->solution->currentScene->getSceneLights().GetLightDir(lookup->lightID);
+	*static_cast<IEVector3*>(value) = intensity;
 }
 
 void TW_CALL EmptyGISolution::SetLightDirection(const void *value, void *clientData)
 {
+	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
+	lookup->solution->currentScene->getSceneLights().ChangeLightDir(lookup->lightID,
+																	(*static_cast<const IEVector3*>(value)));
+}
 
+void TW_CALL EmptyGISolution::GetLightRadius(void *value, void *clientData)
+{
+	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
+	float radius = lookup->solution->currentScene->getSceneLights().GetLightRadius(lookup->lightID);
+	*static_cast<float*>(value) = radius;
+}
+
+void TW_CALL EmptyGISolution::SetLightRadius(const void *value, void *clientData)
+{
+	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
+	lookup->solution->currentScene->getSceneLights().ChangeLightRadius(lookup->lightID,
+																	(*static_cast<const float*>(value)));
 }
 
 EmptyGISolution::EmptyGISolution(DeferredRenderer& defferedRenderer)
@@ -110,6 +135,7 @@ void EmptyGISolution::Init(SceneI& s)
 	for(unsigned int i = 0; i < s.getSceneLights().Count(); i++)
 	{
 		twCallbackLookup.push_back({ i, this });
+		LightType lightType = s.getSceneLights().GetLightType(i);
 
 		name = "lType" + std::to_string(i);
 		params = " label='Type' group='Light#"+ std::to_string(i);
@@ -138,20 +164,64 @@ void EmptyGISolution::Init(SceneI& s)
 				   &(twCallbackLookup.back()),
 				   params.c_str());
 
-		//name = "lIntensity" + std::to_string(i);
-		//params = " label='Color' group='Light#" + std::to_string(i);
-		//params += "' help='Light Color' ";
-		//TwAddVarCB(bar, name.c_str(), TW_TYPE_COLOR3F,
-		//		   NULL,//SetLightColor,
-		//		   GetLightColor,
-		//		   &(twCallbackLookup.back()),
-		//		   params.c_str());
+		name = "lIntensity" + std::to_string(i);
+		params = " label='Intensity' group='Light#" + std::to_string(i);
+		params += "' help='Light Intensity' ";
+		if(lightType == LightType::DIRECTIONAL)
+		{
+			params += " min=0.0 max=10.0 step=0.01 ";
+		}
+		else
+		{
+			params += "min=0.0 max=11000.0 step=10 ";
+		}
+		TwAddVarCB(bar, name.c_str(), TW_TYPE_FLOAT,
+				   SetLightIntensity,
+				   GetLightIntensity,
+				   &(twCallbackLookup.back()),
+				   params.c_str());
 
+		if(lightType == LightType::DIRECTIONAL ||
+		   lightType == LightType::AREA)
+		{
+			name = "lDirection" + std::to_string(i);
+			params = " label='Direction' group='Light#" + std::to_string(i);
+			params += "' help='Light Direction' ";
+			TwAddVarCB(bar, name.c_str(), TW_TYPE_DIR3F,
+					   SetLightDirection,
+					   GetLightDirection,
+					   &(twCallbackLookup.back()),
+					   params.c_str());
+		}
+
+		if(lightType == LightType::POINT ||
+		   lightType == LightType::AREA)
+		{
+			name = "lPosition" + std::to_string(i);
+			params = " label='Position' group='Light#" + std::to_string(i);
+			params += "' help='Light Position' ";
+			TwAddVarCB(bar, name.c_str(), twIEVector3Type,
+					   SetLightPos,
+					   GetLightPos,
+					   &(twCallbackLookup.back()),
+					   params.c_str());
+
+			name = "lRadius" + std::to_string(i);
+			params = " label='Radius' group='Light#" + std::to_string(i);
+			params += "' help='Effecting Radius' ";
+			TwAddVarCB(bar, name.c_str(), TW_TYPE_FLOAT,
+					   SetLightRadius,
+					   GetLightRadius,
+					   &(twCallbackLookup.back()),
+					   params.c_str());
+		}
 
 		params = " EmptyGI/Light#" + std::to_string(i);
 		params+= " group = 'Lights' ";
 		TwDefine(params.c_str()); 
-		// The group 'Background' of bar 'Main' is put in the group 'Display'
+		params = " EmptyGI/Light#" + std::to_string(i);
+		params += " opened=false ";
+		TwDefine(params.c_str());
 	}
 
 }

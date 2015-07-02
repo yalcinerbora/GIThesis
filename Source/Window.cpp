@@ -3,6 +3,7 @@
 #include "GLHeader.h"
 #include "InputManI.h"
 #include "Globals.h"
+#include "IEUtility/IEVector3.h"
 
 #include <GLFW/glfw3.h>
 #include <AntTweakBar.h>
@@ -345,7 +346,13 @@ Window::Window(InputManI& input,
 	glfwSwapInterval(0);
 
 	// TW Init
-	if(windowMappings.empty()) TwInit(TW_OPENGL_CORE, NULL);
+	if(windowMappings.empty())
+	{
+		TwInit(TW_OPENGL_CORE, NULL);
+		twIEVector3Type = TwDefineStruct("Vector3", 
+										 lightMembers, 3, 
+										 sizeof(IEVector3), NULL, NULL);  // create a new TwType associated to the struct defined by the lightMembers array
+	}
 	twWindowId = static_cast<int>(windowMappings.size());
 	TwSetCurrentWindow(twWindowId);
 	

@@ -53,9 +53,6 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IETimer.cpp">
       <Filter>IEUtility</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\GICudaAllocator.cpp">
-      <Filter>GI\Thesis</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\EmptyGISolution.cpp">
       <Filter>GI\NoGI</Filter>
     </ClCompile>
@@ -271,6 +268,12 @@
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\CMatrix.cu">
       <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu">
+      <Filter>GI\Thesis</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu">
+      <Filter>GI\Thesis</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

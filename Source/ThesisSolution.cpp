@@ -4,12 +4,14 @@
 #include "DrawBuffer.h"
 #include "Macros.h"
 #include "Camera.h"
+#include "DeferredRenderer.h"
 
 size_t ThesisSolution::InitialObjectGridSize = 512;
 size_t ThesisSolution::MaxVoxelCacheSize = 1024 * 1024 * 8;
 
-ThesisSolution::ThesisSolution()
+ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer)
 	: currentScene(nullptr)
+	, dRenderer(dRenderer)
 	, vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 	, vertexVoxelizeObject(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert")
@@ -25,6 +27,7 @@ ThesisSolution::ThesisSolution()
 	, voxelVAO(voxelData,voxelRenderData)
 	, voxInfo({0})
 	, bar(nullptr)
+	, relativeTransformBuffer(1)
 {
 	voxelCacheUsageSize.AddData(0);
 }
@@ -37,7 +40,16 @@ bool ThesisSolution::IsCurrentScene(SceneI& scene)
 
 void ThesisSolution::Init(SceneI& s)
 {
-
+	// Initialiizng Relative Transform Buffer
+	relativeTransformBuffer.Resize(s.ObjectCount());
+	for(ModelTransform& mt : relativeTransformBuffer.CPUData())
+	{
+		mt.model = IEMatrix4x4::IdentityMatrix;
+		mt.modelRotation = IEMatrix4x4::IdentityMatrix;
+	}
+	relativeTransformBuffer.SendData();
+	
+	// Voxelization
 	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 	currentScene = &s;
 	objectGridInfo.Resize(currentScene->DrawCount());

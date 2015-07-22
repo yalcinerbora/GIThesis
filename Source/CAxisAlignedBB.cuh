@@ -10,10 +10,11 @@ Voxel Sturcutres
 #include <vector_types.h>
 
 // Global Voxel Data
+// using float3 because of alignment with ogl
 struct CAABB
 {
-	float3	min;	// World Position of the voxel grid
-	float3	max;	// Voxel Grid Dimentions last component voxel span
+	float4	min;	// World Position of the voxel grid
+	float4	max;	// Voxel Grid Dimentions last component voxel span
 };
 
 __device__ inline  bool Intersects(const CAABB& boxA, const CAABB& boxB)

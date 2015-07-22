@@ -19,8 +19,17 @@ class GICudaVoxelScene
 	protected:
 
 	public:
+		// Constructors & Destructor
+							GICudaVoxelScene();
+							~GICudaVoxelScene() = default;
+
 
 		// Determines and Allocates the initial Page Size for the first frame
+		void				LinkOGL(GLuint aabbBuffer,
+									GLuint transformBufferID,
+									GLuint relativeTransformBufferID,
+									GLuint voxelCache,
+									GLuint voxelCacheRender);
 		void				AllocateInitialPages();
 
 		// Voxelize this current frame
@@ -32,7 +41,9 @@ class GICudaVoxelScene
 
 
 		// Debug Related Functions
+		// Access for voxel data for rendering voxels
 		void				VoxelDataForRendering(GLuint* mappedVoxelPages);
+
 
 };
 

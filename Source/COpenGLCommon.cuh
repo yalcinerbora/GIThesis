@@ -17,13 +17,14 @@ Data Transfer Structs between ogl and cuda
 struct CObjectTransform
 {
 	CMatrix4x4 transform;
-	CMatrix3x3 rotation;
+	CMatrix4x4 rotation;
 };
 
 typedef CAABB CObjectAABB;
 
 struct CObjectVoxelInfo
 {
+	float span;
 	unsigned int voxelCount;
 };
 

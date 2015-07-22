@@ -26,6 +26,10 @@ struct CVoxelRender
 {
 	float3 normal;		// World Normal
 	uchar4 color;		// Color
+
+	// Add transofrm related data (if skeletal mesh, or morph target mesh)
+
+
 };
 
 //

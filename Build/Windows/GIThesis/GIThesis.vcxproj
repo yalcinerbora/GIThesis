@@ -70,6 +70,7 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -99,6 +100,7 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -109,7 +111,8 @@
     <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
-    <ClCompile Include="..\..\..\Source\GICudaAllocator.cpp" />
+    <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu" />
+    <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\GPUBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />

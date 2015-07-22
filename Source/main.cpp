@@ -114,7 +114,7 @@ int main()
 
 	// Solutions
 	EmptyGISolution emptySolution(deferredRenderer);
-	ThesisSolution thesisSolution;
+	ThesisSolution thesisSolution(deferredRenderer);
 	solutions.push_back(&emptySolution);
 	solutions.push_back(&thesisSolution);
 

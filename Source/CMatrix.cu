@@ -1,4 +1,5 @@
 #include "CMatrix.cuh"
+#include "math_functions.h"
 
 __device__ float4 MultMatrix(const float4& v, const CMatrix4x4& m)
 {
@@ -51,6 +52,16 @@ __device__ float3 MultMatrix(const float3& v, const CMatrix3x3& m)
 	};
 }
 
+__device__ float3 MultMatrix(float3& v, const CMatrix4x4& m)
+{
+	return
+	{
+		m.column[0].x * v.x + m.column[1].x * v.y + m.column[2].x * v.z,		// X
+		m.column[0].y * v.x + m.column[1].y * v.y + m.column[2].y * v.z,		// Y
+		m.column[0].z * v.x + m.column[1].z * v.y + m.column[2].z * v.z,		// Z
+	};
+}
+
 __device__ CMatrix3x3 MultMatrix(const CMatrix3x3& m1, const CMatrix3x3& m2)
 {
 	return
@@ -88,6 +99,12 @@ __device__ void MultMatrixSelf(CMatrix4x4& m1, const CMatrix4x4& m2)
 }
 
 __device__ void MultMatrixSelf(float3& v, const CMatrix3x3& m)
+{
+	float3 result = MultMatrix(v, m);
+	v = result;
+}
+
+__device__ void MultMatrixSelf(float3& v, const CMatrix4x4& m)
 {
 	float3 result = MultMatrix(v, m);
 	v = result;

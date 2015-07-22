@@ -42,7 +42,7 @@ __global__ void VoxelTransform(CVoxelData* gVoxelData,
 	{
 		// Non static object. Transform voxel & normal
 		CMatrix4x4 transform = gObjTransformsRelative[objectId - 1].transform;
-		CMatrix3x3 rotation = gObjTransformsRelative[objectId - 1].rotation;
+		CMatrix4x4 rotation = gObjTransformsRelative[objectId - 1].rotation;
 		MultMatrixSelf(worldPos, transform);
 		MultMatrixSelf(normal, rotation);
 	}

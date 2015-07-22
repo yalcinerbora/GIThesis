@@ -18,6 +18,9 @@ Solution implementtion
 #include "IEUtility/IEVector3.h"
 #include "VoxelRenderTexture.h"
 #include "VoxelDebugVAO.h"
+#include "DrawBuffer.h"
+
+class DeferredRenderer;
 
 #pragma pack(push, 1)
 struct ObjGridInfo
@@ -53,6 +56,8 @@ class ThesisSolution : public SolutionI
 	private:
 		SceneI*					currentScene;
 
+		DeferredRenderer&		dRenderer;
+
 		Shader					vertexDebugVoxel;
 		Shader					fragmentDebugVoxel;
 
@@ -65,17 +70,21 @@ class ThesisSolution : public SolutionI
 
 		FrameTransformBuffer	cameraTransform;
 
+		// Voxel Cache
 		StructuredBuffer<ObjGridInfo>			objectGridInfo;
 		StructuredBuffer<VoxelData>				voxelData;
 		StructuredBuffer<VoxelRenderData>		voxelRenderData;
 		StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 		VoxelDebugVAO							voxelVAO;
 
+		// Relative Transform buffer for rigid movements (for scene's draw buffer)
+		StructuredBuffer<ModelTransform>		relativeTransformBuffer;
+
+		// GUI
 		TwBar*									bar;
 		double									frameTime;
 		VoxelInfo								voxInfo;
 		
-
 		// Uncomment this for debugging voxelization 
 		// Normally this texture allocated and deallocated 
 		// at init time and
@@ -94,9 +103,9 @@ class ThesisSolution : public SolutionI
 		void					DrawVoxel(size_t index);
 
 	public:
-								ThesisSolution();
+								ThesisSolution(DeferredRenderer&);
 								ThesisSolution(const ThesisSolution&) = delete;
-		const ThesisSolution&	operator= (const ThesisSolution&) = delete;
+		const ThesisSolution&	operator=(const ThesisSolution&) = delete;
 								~ThesisSolution() = default;
 
 		// Interface

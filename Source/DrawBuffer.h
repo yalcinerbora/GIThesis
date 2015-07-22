@@ -17,8 +17,7 @@ Holds draw point buffer
 #include "IEUtility/IEMatrix3x3.h"
 #include "IEUtility/IEVector4.h"
 #include "StructuredBuffer.h"
-
-struct DrawPointIndexed;
+#include "DrawPoint.h"
 
 #pragma pack(push, 1)
 struct ModelTransform

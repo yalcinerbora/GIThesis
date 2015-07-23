@@ -130,6 +130,7 @@
     <ClInclude Include="..\..\..\Source\DeferredRenderer.h" />
     <ClInclude Include="..\..\..\Source\DrawPoint.h" />
     <ClInclude Include="..\..\..\Source\GBuffer.h" />
+    <ClInclude Include="..\..\..\Source\GICudaStructMatching.h" />
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />

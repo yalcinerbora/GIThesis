@@ -5,7 +5,7 @@
 #include "CVoxel.cuh"
 #include "GICudaAllocator.h"
 
-__global__ void VoxelTransform(CVoxelData* gVoxelData,
+__global__ void VoxelTransform(CVoxelPage* gVoxelData,
 							   CVoxelGrid& gGridInfo,
 							   const float3 newGridPos,
 							   const CObjectTransform* gObjTransformsRelative)

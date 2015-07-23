@@ -16,12 +16,17 @@ class GICudaVoxelScene
 	private:
 		GICudaAllocator		allocator;
 
+		CVoxelGrid*			dVoxGrid;
+		CVoxelGrid			hVoxGrid;
+
 	protected:
 
 	public:
 		// Constructors & Destructor
 							GICudaVoxelScene();
-							~GICudaVoxelScene() = default;
+							GICudaVoxelScene(const GICudaVoxelScene&) = delete;
+		GICudaVoxelScene&	operator=(const GICudaVoxelScene&) = delete;
+							~GICudaVoxelScene();
 
 
 		// Determines and Allocates the initial Page Size for the first frame
@@ -42,7 +47,7 @@ class GICudaVoxelScene
 
 		// Debug Related Functions
 		// Access for voxel data for rendering voxels
-		void				VoxelDataForRendering(GLuint* mappedVoxelPages);
+		GLuint				VoxelDataForRendering();
 
 
 };

@@ -10,6 +10,7 @@ Only Supports mult
 
 #include <vector_types.h>
 
+#pragma pack(push, 1)
 struct CMatrix4x4
 {
 	float4 column[4];
@@ -19,6 +20,7 @@ struct CMatrix3x3
 {
 	float4 column[3];
 };
+#pragma pack(pop)
 
 __device__ float4 MultMatrix(const float4&, const CMatrix4x4&);
 __device__ CMatrix4x4 MultMatrix(const CMatrix4x4&, const CMatrix4x4&);

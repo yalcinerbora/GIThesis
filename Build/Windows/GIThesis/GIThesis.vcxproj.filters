@@ -220,6 +220,9 @@
     <ClInclude Include="..\..\..\Source\DrawPoint.h">
       <Filter>Utility</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\GICudaStructMatching.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

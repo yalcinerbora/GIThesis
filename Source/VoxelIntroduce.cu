@@ -7,7 +7,7 @@
 #include "CAxisAlignedBB.cuh"
 #include "COpenGLCommon.cuh"
 
-__global__ void VoxelIntroduce(CVoxelData* gVoxelData,
+__global__ void VoxelIntroduce(CVoxelPage* gVoxelData,
 							   const unsigned int gPageAmount,
 							   const CVoxelPacked* gObjectVoxelCache,
 							   const CVoxelRender* gObjectVoxelRenderCache,
@@ -77,7 +77,7 @@ __global__ void VoxelIntroduce(CVoxelData* gVoxelData,
 			// Determine A Position
 			// TODO: Optimize this (template loop unrolling)
 			// page size should be adjusted to compensate that (multiples of two)
-			// shoudl be like 256 pages at most
+			// should be like 256 pages at most
 			for(unsigned int i = 0; i < gPageAmount; i++)
 			{
 				// Check this pages empty spaces
@@ -160,7 +160,7 @@ __global__ void VoxelObjectCull(unsigned int* gObjectIndices,
 	intersects = Intersects(gridAABB, transformedAABB);
 	if(intersects)
 	{
-		writeIndex = atomicAdd(&gIndicesIndex, 0);
+		writeIndex = atomicAdd(&gIndicesIndex, 1);
 		gObjectIndices[writeIndex] = globalId;
 	}
 }

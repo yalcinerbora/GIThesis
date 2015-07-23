@@ -20,17 +20,26 @@ Memory Allocation
 #define GI_STATIC_GEOMETRY	0
 
 #define GI_PAGE_SIZE 65536
-#define GI_THREAD_PER_BLOCK 512
+#define GI_THREAD_PER_BLOCK 256
 #define GI_BLOCK_PER_PAGE GI_PAGE_SIZE / GI_THREAD_PER_BLOCK
 
 static_assert(GI_PAGE_SIZE % GI_THREAD_PER_BLOCK == 0, "Page size must be divisible by thread per block");
 
-struct CVoxelData
+struct CVoxelPage
 {
 	CVoxelPacked*		dGridVoxels;
 	CVoxelRender*		dVoxelsRenderData;
-	unsigned int*		dEmptyPos;
-	unsigned int		dEmptyElementIndex;
+	unsigned int*		dVoxelState;
+	unsigned int*		dEmptySegmentPos;
+	unsigned int		dEmptySegmentIndex;
+};
+
+struct CVoxelPageData
+{
+	thrust::device_vector<CVoxelPacked>				dVoxelPage;
+	thrust::device_vector<CVoxelRender>				dVoxelPageRender;
+	thrust::device_vector<unsigned int>				dVoxelState;
+	thrust::device_vector<unsigned int>				dEmptySegmentPos;
 };
 
 class GICudaAllocator
@@ -38,8 +47,10 @@ class GICudaAllocator
 	
 	private:
 		// Grid Data
-		std::vector<CVoxelData>							hVoxelPages;
-		thrust::device_vector<CVoxelData>				dVoxelPages;
+		thrust::host_vector<CVoxelPage>					hVoxelPages;
+		thrust::device_vector<CVoxelPage>				dVoxelPages;
+		std::vector<CVoxelPageData>						hPageData;
+
 		CVoxelGrid										dVoxelGridInfo;
 
 		// Object Related Data (Comes from OGL)
@@ -62,7 +73,7 @@ class GICudaAllocator
 		std::vector<cudaGraphicsResource*>				cacheRenderLinks;
 
 		// Size Data
-		std::vector<size_t>								objectCount;
+		std::vector<size_t>								objectCounts;
 		size_t											totalObjectCount;
 		size_t											pageCount;
 		
@@ -72,7 +83,7 @@ class GICudaAllocator
 
 		//
 		void					AddVoxelPage(size_t count);
-		void					ShrinkVoxelPages(size_t pageCount);
+		//void					ShrinkVoxelPages(size_t pageCount);
 
 	protected:
 	public:
@@ -81,15 +92,25 @@ class GICudaAllocator
 								~GICudaAllocator() = default;
 
 		// Linking and Unlinking Voxel Cache Data (from OGL)
-		uint32_t				LinkOGLVoxelCache(GLuint batchAABBBuffer,
+		void					LinkOGLVoxelCache(GLuint batchAABBBuffer,
 												  GLuint batchTransformBuffer,
 												  GLuint relativeTransformBuffer,
 												  GLuint infoBuffer,
 												  GLuint voxelBuffer,
-												  GLuint voxelRenderBuffer);
+												  GLuint voxelRenderBuffer,
+												  size_t objCount);
 
-		void					UnlinkOGLVoxelCache(uint32_t index);
+		// Mapped OGL Pointers
+		const CObjectTransform**		GetRelativeTransformsDevice();
+		const CObjectTransform**		GetTransformsDevice();
+		const CObjectAABB**				GetObjectAABBDevice();
+		const CObjectVoxelInfo**		GetObjectInfoDevice();
+
+		const CVoxelPacked**			GetObjCacheDevice();
+		const CVoxelRender**			GetObjRenderCacheDevice();
 		
+		// Pages
+		CVoxelPage*						GetVoxelPagesDevice();
 		
 };
 #endif //__GICUDAALLOCATOR_H_

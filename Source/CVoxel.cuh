@@ -22,6 +22,7 @@ struct CVoxelGrid
 typedef uint2 CVoxelPacked;
 
 // Voxel Rendering Data
+#pragma pack(push, 1)
 struct CVoxelRender
 {
 	float3 normal;		// World Normal
@@ -31,6 +32,7 @@ struct CVoxelRender
 
 
 };
+#pragma pack(pop)
 
 //
 __device__ inline void ExpandVoxelData(uint3& voxPos, 

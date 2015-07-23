@@ -36,10 +36,10 @@ struct CVoxelPage
 
 struct CVoxelPageData
 {
-	thrust::device_vector<CVoxelPacked>				dVoxelPage;
-	thrust::device_vector<CVoxelRender>				dVoxelPageRender;
-	thrust::device_vector<unsigned int>				dVoxelState;
-	thrust::device_vector<unsigned int>				dEmptySegmentPos;
+	thrust::device_vector<CVoxelPacked> dVoxelPage;
+	thrust::device_vector<CVoxelRender> dVoxelPageRender;
+	thrust::device_vector<unsigned int> dVoxelState;
+	thrust::device_vector<unsigned int> dEmptySegmentPos;
 };
 
 class GICudaAllocator

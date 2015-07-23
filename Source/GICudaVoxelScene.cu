@@ -33,34 +33,34 @@ void GICudaVoxelScene::Voxelize(const IEVector3& playerPos)
 	// Manages Voxel Pages
 
 
-	// Introduce Cull KC
-	VoxelObjectCull(unsigned int* gObjectIndices,
-					unsigned int& gIndicesIndex,
-					const CObjectAABB* gObjectAABB,
-					const CObjectTransform* gObjTransforms,
-					const CVoxelGrid& gGridInfo);
+	//// Introduce Cull KC
+	//VoxelObjectCull(unsigned int* gObjectIndices,
+	//				unsigned int& gIndicesIndex,
+	//				const CObjectAABB* gObjectAABB,
+	//				const CObjectTransform* gObjTransforms,
+	//				const CVoxelGrid& gGridInfo);
 
-	// Introduce KC
-	VoxelIntroduce(CVoxelData* gVoxelData,
-				   const unsigned int gPageAmount,
-				   const CVoxelPacked* gObjectVoxelCache,
-				   const CVoxelRender* gObjectVoxelRenderCache,
-				   const CObjectTransform& gObjTransform,
-				   const CObjectAABB& objAABB,
-				   const CVoxelGrid& gGridInfo);
+	//// Introduce KC
+	//VoxelIntroduce(CVoxelData* gVoxelData,
+	//			   const unsigned int gPageAmount,
+	//			   const CVoxelPacked* gObjectVoxelCache,
+	//			   const CVoxelRender* gObjectVoxelRenderCache,
+	//			   const CObjectTransform& gObjTransform,
+	//			   const CObjectAABB& objAABB,
+	//			   const CVoxelGrid& gGridInfo);
 
-	// Voxel Transform KC
-	void VoxelTransform(CVoxelData* gVoxelData,
-						CVoxelGrid& gGridInfo,
-						const float3 newGridPos,
-						const CObjectTransform* gObjTransformsRelative);
+	//// Voxel Transform KC
+	//void VoxelTransform(CVoxelData* gVoxelData,
+	//					CVoxelGrid& gGridInfo,
+	//					const float3 newGridPos,
+	//					const CObjectTransform* gObjTransformsRelative);
 
-	//
+	////
 
 
 }
 
 GLuint GICudaVoxelScene::VoxelDataForRendering()
 {
-
+	return 0;
 }

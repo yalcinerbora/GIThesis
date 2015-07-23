@@ -37,13 +37,13 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 void GICudaAllocator::SetupPointersDevicePointers()
 {
-	cudaGraphicsMapResources(rTransformLinks.size(), rTransformLinks.data());
-	cudaGraphicsMapResources(transformLinks.size(), transformLinks.data());
-	cudaGraphicsMapResources(aabbLinks.size(), aabbLinks.data());
-	cudaGraphicsMapResources(objectInfoLinks.size(), objectInfoLinks.data());
+	cudaGraphicsMapResources(static_cast<int>(rTransformLinks.size()), rTransformLinks.data());
+	cudaGraphicsMapResources(static_cast<int>(transformLinks.size()), transformLinks.data());
+	cudaGraphicsMapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data());
+	cudaGraphicsMapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data());
 
-	cudaGraphicsMapResources(cacheLinks.size(), cacheLinks.data());
-	cudaGraphicsMapResources(cacheRenderLinks.size(), cacheRenderLinks.data());
+	cudaGraphicsMapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data());
+	cudaGraphicsMapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data());
 
 	thrust::host_vector<CObjectTransform*> hRelativeTransforms;
 	thrust::host_vector<CObjectTransform*> hTransforms;
@@ -73,7 +73,7 @@ void GICudaAllocator::SetupPointersDevicePointers()
 		cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjRenderCache.back()), &size, cacheRenderLinks[i]);
 	}
 
-	// Dat Sent to GPU
+	// Data Sent to GPU
 	dRelativeTransforms = hRelativeTransforms;
 	dTransforms = hTransforms;
 	dObjectAABB = hObjectAABB;
@@ -93,13 +93,13 @@ void GICudaAllocator::ClearDevicePointers()
 	dObjCache.clear();
 	dObjRenderCache.clear();
 
-	cudaGraphicsUnmapResources(rTransformLinks.size(), rTransformLinks.data());
-	cudaGraphicsUnmapResources(transformLinks.size(), transformLinks.data());
-	cudaGraphicsUnmapResources(aabbLinks.size(), aabbLinks.data());
-	cudaGraphicsUnmapResources(objectInfoLinks.size(), objectInfoLinks.data());
+	cudaGraphicsUnmapResources(static_cast<int>(rTransformLinks.size()), rTransformLinks.data());
+	cudaGraphicsUnmapResources(static_cast<int>(transformLinks.size()), transformLinks.data());
+	cudaGraphicsUnmapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data());
+	cudaGraphicsUnmapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data());
 
-	cudaGraphicsUnmapResources(cacheLinks.size(), cacheLinks.data());
-	cudaGraphicsUnmapResources(cacheRenderLinks.size(), cacheRenderLinks.data());
+	cudaGraphicsUnmapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data());
+	cudaGraphicsUnmapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data());
 }
 
 
@@ -109,10 +109,13 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 	for(unsigned int i = 0; i < count; i++)
 	{
 		// Allocating Page
-		hPageData.emplace_back(thrust::device_vector<CVoxelPacked>({0}, GI_PAGE_SIZE),
-							   thrust::device_vector<CVoxelRender>({0}, GI_PAGE_SIZE),
-							   thrust::device_vector<unsigned int>({0}, GI_PAGE_SIZE),
-							   thrust::device_vector<unsigned int>(0, GI_BLOCK_PER_PAGE));
+		hPageData.emplace_back(CVoxelPageData
+		{
+			thrust::device_vector<CVoxelPacked>(GI_PAGE_SIZE),
+			thrust::device_vector<CVoxelRender>(GI_PAGE_SIZE),
+			thrust::device_vector<unsigned int>(GI_PAGE_SIZE),
+			thrust::device_vector<unsigned int>(GI_BLOCK_PER_PAGE)
+		});
 
 		CVoxelPage voxData =
 		{
@@ -127,37 +130,37 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 	}
 }
 
-const CObjectTransform** GICudaAllocator::GetRelativeTransformsDevice() 
-{
-	return thrust::raw_pointer_cast(dRelativeTransforms.data());
-}
-
-const CObjectTransform** GICudaAllocator::GetTransformsDevice()
-{
-	return thrust::raw_pointer_cast(dTransforms.data());
-}
-
-const CObjectAABB** GICudaAllocator::GetObjectAABBDevice()
-{
-	return thrust::raw_pointer_cast(dObjectAABB.data());
-}
-
-const CObjectVoxelInfo** GICudaAllocator::GetObjectInfoDevice()
-{
-	return thrust::raw_pointer_cast(dObjectInfo.data());
-}
-
-const CVoxelPacked** GICudaAllocator::GetObjCacheDevice()
-{
-	return thrust::raw_pointer_cast(dObjCache.data());
-}
-
-const CVoxelRender** GICudaAllocator::GetObjRenderCacheDevice()
-{
-	return thrust::raw_pointer_cast(dObjRenderCache.data());
-}
-
-CVoxelPage* GICudaAllocator::GetVoxelPagesDevice()
-{
-	return thrust::raw_pointer_cast(dVoxelPages.data());
-}
+//const CObjectTransform** GICudaAllocator::GetRelativeTransformsDevice() 
+//{
+//	return thrust::raw_pointer_cast(dRelativeTransforms.data());
+//}
+//
+//const CObjectTransform** GICudaAllocator::GetTransformsDevice()
+//{
+//	return thrust::raw_pointer_cast(dTransforms.data());
+//}
+//
+//const CObjectAABB** GICudaAllocator::GetObjectAABBDevice()
+//{
+//	return thrust::raw_pointer_cast(dObjectAABB.data());
+//}
+//
+//const CObjectVoxelInfo** GICudaAllocator::GetObjectInfoDevice()
+//{
+//	return thrust::raw_pointer_cast(dObjectInfo.data());
+//}
+//
+//const CVoxelPacked** GICudaAllocator::GetObjCacheDevice()
+//{
+//	return thrust::raw_pointer_cast(dObjCache.data());
+//}
+//
+//const CVoxelRender** GICudaAllocator::GetObjRenderCacheDevice()
+//{
+//	return thrust::raw_pointer_cast(dObjRenderCache.data());
+//}
+//
+//CVoxelPage* GICudaAllocator::GetVoxelPagesDevice()
+//{
+//	return thrust::raw_pointer_cast(dVoxelPages.data());
+//}

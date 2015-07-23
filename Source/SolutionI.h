@@ -13,7 +13,7 @@ struct Camera;
 class SolutionI
 {
 	public:
-		virtual			~SolutionI() = default;
+		//virtual			~SolutionI() = default;
 
 		// Interface
 		virtual bool	IsCurrentScene(SceneI&) = 0;

@@ -12,14 +12,25 @@ GICudaVoxelScene::~GICudaVoxelScene()
 	cudaFree(dVoxGrid);
 }
 
-// Determines and Allocates the initial Page Size for the first frame
 void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 							   GLuint transformBufferID,
 							   GLuint relativeTransformBufferID,
+							   GLuint infoBufferID,
 							   GLuint voxelCache,
-							   GLuint voxelCacheRender)
+							   GLuint voxelCacheRender,
+							   size_t objCount)
 {
+	allocator.LinkOGLVoxelCache(aabbBuffer, transformBufferID, relativeTransformBufferID,
+								infoBufferID, voxelCache, voxelCacheRender, objCount);
+}
 
+void GICudaVoxelScene::LinkSceneBuffers(const std::vector<GLuint>& shadowMaps,
+										GLuint depthBuffer,
+										GLuint normalGBuff,
+										GLuint lightIntensityTex)
+{
+	allocator.LinkSceneShadowMapArray(shadowMaps);
+	allocator.LinkSceneGBuffers(depthBuffer, normalGBuff, lightIntensityTex);
 }
 
 void GICudaVoxelScene::AllocateInitialPages()

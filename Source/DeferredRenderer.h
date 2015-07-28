@@ -102,6 +102,7 @@ class DeferredRenderer
 								~DeferredRenderer();
 
 		GBuffer&				GetGBuffer();
+		GLuint					GetLightIntensityBufferGL();
 		void					Render(SceneI&, const Camera&);
 };
 #endif //__DEFERREDRENDERER_H__

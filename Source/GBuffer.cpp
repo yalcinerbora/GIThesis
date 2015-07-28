@@ -75,6 +75,11 @@ GLuint GBuffer::getDepthGL()
 	return rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)];
 }
 
+GLuint GBuffer::getDepthGL()
+{
+	return rtTextures[static_cast<int>(RenderTargetLocation::NORMAL)];
+}
+
 void GBuffer::BindDefaultFBO()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

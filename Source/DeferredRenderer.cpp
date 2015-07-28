@@ -117,6 +117,11 @@ GBuffer& DeferredRenderer::GetGBuffer()
 	return gBuffer;
 }
 
+GLuint DeferredRenderer::GetLightIntensityBufferGL()
+{
+	return lightIntensityTex;
+}
+
 float DeferredRenderer::CalculateCascadeLength(float frustumFar,
 											   unsigned int cascadeNo)
 {

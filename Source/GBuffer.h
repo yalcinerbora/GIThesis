@@ -49,6 +49,7 @@ class GBuffer
 		void		AlignViewport();
 
 		GLuint		getDepthGL();
+		GLuint		getNormalGL();
 
 		static void	BindDefaultFBO();
 };

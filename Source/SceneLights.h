@@ -78,28 +78,29 @@ class SceneLights
 	protected:
 	public:
 		// Constructors & Destructor
-								SceneLights(const Array32<Light>& lights);
-								SceneLights(const SceneLights&) = delete;
-		SceneLights&			operator=(const SceneLights&) = delete;
-								~SceneLights();
+									SceneLights(const Array32<Light>& lights);
+									SceneLights(const SceneLights&) = delete;
+		SceneLights&				operator=(const SceneLights&) = delete;
+									~SceneLights();
 
-		uint32_t				Count() const;
+		uint32_t					Count() const;
+		const std::vector<GLuint>&	GetShadowMapCubeArray();
 
-		void					ChangeLightPos(uint32_t index, IEVector3 position);
-		//void					ChangeLightType(uint32_t index, LightType);
-		void					ChangeLightDir(uint32_t index, IEVector3 direction);
-		void					ChangeLightColor(uint32_t index, IEVector3 color);
-		void					ChangeLightRadius(uint32_t index, float radius);
-		void					ChangeLightIntensity(uint32_t index, float intensity);
-		void					ChangeLightShadow(uint32_t index, bool shadowStatus);
+		void						ChangeLightPos(uint32_t index, IEVector3 position);
+		//void						ChangeLightType(uint32_t index, LightType);
+		void						ChangeLightDir(uint32_t index, IEVector3 direction);
+		void						ChangeLightColor(uint32_t index, IEVector3 color);
+		void						ChangeLightRadius(uint32_t index, float radius);
+		void						ChangeLightIntensity(uint32_t index, float intensity);
+		void						ChangeLightShadow(uint32_t index, bool shadowStatus);
 
-		IEVector3				GetLightPos(uint32_t index) const;
-		LightType				GetLightType(uint32_t index) const;
-		IEVector3				GetLightDir(uint32_t index) const;
-		IEVector3				GetLightColor(uint32_t index) const;
-		float					GetLightRadius(uint32_t index) const;
-		float					GetLightIntensity(uint32_t index) const;
-		bool					GetLightShadow(uint32_t index) const;
+		IEVector3					GetLightPos(uint32_t index) const;
+		LightType					GetLightType(uint32_t index) const;
+		IEVector3					GetLightDir(uint32_t index) const;
+		IEVector3					GetLightColor(uint32_t index) const;
+		float						GetLightRadius(uint32_t index) const;
+		float						GetLightIntensity(uint32_t index) const;
+		bool						GetLightShadow(uint32_t index) const;
 };
 
 #endif //__SCENE_H__

@@ -82,7 +82,7 @@ __global__ void VoxelIntroduce(CVoxelPage* gVoxelData,
 			{
 				// Check this pages empty spaces
 				unsigned int location;
-				location = atomicDec(&gVoxelData[i].dEmptyElementIndex, 0xFFFFFFFF);
+ 				location = atomicDec(&gVoxelData[i].dEmptyElementIndex, 0xFFFFFFFF);
 				if(location != 0xFFFFFFFF)
 				{
 					// Found a Space
@@ -109,58 +109,149 @@ __device__ static const float3 aabbLookupTable[] =
 	{ 0.0f, 0.0f, 0.0f }		// V8
 };
 
-__global__ void VoxelObjectCull(unsigned int* gObjectIndices,
-								unsigned int& gIndicesIndex,
-								const CObjectAABB* gObjectAABB,
-								const CObjectTransform* gObjTransforms,
-								const CVoxelGrid& globalGridInfo)
-{
+__global__ void VoxelObjectInclude(// Voxel System
+								   CVoxelPage* gVoxelData,
+								   const unsigned int gPageAmount,
+								   const CVoxelGrid& globalGridInfo,
 
+								   // Per Object Segment Related
+								   ushort2* gObjectAllocLocations,
+								   size_t totalSegments,
+
+								   // Per Object Related
+								   char* gWriteToPages,
+								   const unsigned int* gObjectAllocIndexLookup,
+								   const unsigned int* gObjectVoxStrides,
+								   const CObjectAABB* gObjectAABB,
+								   const CObjectTransform* gObjTransforms,
+								   size_t objectCount,
+
+								   // Per Voxel Related
+								   const CVoxelPacked* gObjectVoxelCache,
+								   const CVoxelRender* gObjectVoxelRenderCache,
+								   size_t voxCount)
+{
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int writeIndex;
 	bool intersects = false;
 
-	// Comparing two AABB (Grid Itself is an AABB)
-	CAABB gridAABB =
+	// Mem Fetch
+	unsigned int objectId;
+	uint3 voxPos;
+	ExpandVoxelData(voxPos, objectId, gObjectVoxelCache[globalId]);
+
+	// Checking Object AABB with Grid AABB
+	if(globalId < objectCount)
 	{
-		{globalGridInfo.position.x, globalGridInfo.position.y, globalGridInfo.position.z},
+		// Comparing two AABB (Grid Itself is an AABB)
+		const CAABB gridAABB =
 		{
-			globalGridInfo.position.x + globalGridInfo.span * globalGridInfo.dimension.x,
-			globalGridInfo.position.y + globalGridInfo.span * globalGridInfo.dimension.y,
-			globalGridInfo.position.z + globalGridInfo.span * globalGridInfo.dimension.z
-		},
-	};
+			{ globalGridInfo.position.x, globalGridInfo.position.y, globalGridInfo.position.z },
+			{
+				globalGridInfo.position.x + globalGridInfo.span * globalGridInfo.dimension.x,
+				globalGridInfo.position.y + globalGridInfo.span * globalGridInfo.dimension.y,
+				globalGridInfo.position.z + globalGridInfo.span * globalGridInfo.dimension.z
+			},
+		};
 
-	// Construct Transformed AABB
-	CAABB transformedAABB =
-	{
-		{ FLT_MAX, FLT_MAX, FLT_MAX },
-		{ -FLT_MAX, -FLT_MAX, -FLT_MAX }
-	};
+		// Construct Transformed AABB
+		CAABB transformedAABB =
+		{
+			{ FLT_MAX, FLT_MAX, FLT_MAX },
+			{ -FLT_MAX, -FLT_MAX, -FLT_MAX }
+		};
 
-	CAABB objectAABB = gObjectAABB[globalId];
-	for(unsigned int i = 0; i < 8; i++)
-	{
-		float4 data;
-		data.x = aabbLookupTable[i].x * objectAABB.max.x + (1.0f - aabbLookupTable[i].x) * objectAABB.min.x;
-		data.x = aabbLookupTable[i].x * objectAABB.max.x + (1.0f - aabbLookupTable[i].x) * objectAABB.min.x;
-		data.x = aabbLookupTable[i].x * objectAABB.max.x + (1.0f - aabbLookupTable[i].x) * objectAABB.min.x;
-		data.x = 1.0f;
+		CAABB objectAABB = gObjectAABB[globalId];
+		for(unsigned int i = 0; i < 8; i++)
+		{
+			float4 data;
+			data.x = aabbLookupTable[i].x * objectAABB.max.x + (1.0f - aabbLookupTable[i].x) * objectAABB.min.x;
+			data.y = aabbLookupTable[i].y * objectAABB.max.y + (1.0f - aabbLookupTable[i].y) * objectAABB.min.y;
+			data.z = aabbLookupTable[i].z * objectAABB.max.z + (1.0f - aabbLookupTable[i].z) * objectAABB.min.z;
+			data.w = 1.0f;
 
-		MultMatrixSelf(data, gObjTransforms[globalId].transform);
-		transformedAABB.max.x = fmax(transformedAABB.max.x, data.x);
-		transformedAABB.max.y = fmax(transformedAABB.max.y, data.x);
-		transformedAABB.max.z = fmax(transformedAABB.max.z, data.x);
+			MultMatrixSelf(data, gObjTransforms[globalId].transform);
+			transformedAABB.max.x = fmax(transformedAABB.max.x, data.x);
+			transformedAABB.max.y = fmax(transformedAABB.max.y, data.y);
+			transformedAABB.max.z = fmax(transformedAABB.max.z, data.z);
 
-		transformedAABB.min.x = fmin(transformedAABB.min.x, data.x);
-		transformedAABB.min.y = fmin(transformedAABB.min.y, data.x);
-		transformedAABB.min.z = fmin(transformedAABB.min.z, data.x);
+			transformedAABB.min.x = fmin(transformedAABB.min.x, data.x);
+			transformedAABB.min.y = fmin(transformedAABB.min.y, data.y);
+			transformedAABB.min.z = fmin(transformedAABB.min.z, data.z);
+		}
+
+		intersects = Intersects(gridAABB, transformedAABB);
+		ushort2 objAlloc = gObjectAllocLocations[gObjectAllocIndexLookup[globalId]];
+		if(intersects && objAlloc.x == 0xFFFF)
+		{
+			// Object was out, now it is in 
+			// Signal Allocate
+			gWriteToPages[globalId] = 1;
+		}
 	}
 
-	intersects = Intersects(gridAABB, transformedAABB);
-	if(intersects)
+	// Now Thread Scheme changes per objectSegment
+	if(globalId < totalSegments)
 	{
-		writeIndex = atomicAdd(&gIndicesIndex, 1);
-		gObjectIndices[writeIndex] = globalId;
+		// Check Signal
+		if(gWriteToPages[objectId] == 1)
+		{
+			// This object will be added to the page system
+			unsigned int nextStride = (objectId == objectCount - 1) ? gObjectVoxStrides[objectId + 1] : voxCount;
+			unsigned int voxCount = nextStride - gObjectVoxStrides[objectId];
+			unsigned int segmentCount = (voxCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+			
+			unsigned int allocatedSegments = 0;
+			while(allocatedSegments == segmentCount)
+			{
+				// Check page by page
+				for(unsigned int i = 0; i < gPageAmount; i++)
+				{
+
+					
+
+				}
+			}
+		}
 	}
+	
+	// Now Thread Sceheme changes per voxel
+	if(globalId < voxCount)
+	{
+		// Determine wich voxel is this thread on that specific object
+		unsigned int voxId = globalId - gObjectVoxStrides[objectId];
+		unsigned int segment = voxId / GI_SEGMENT_SIZE;
+		unsigned int segmentLocalID = voxId % GI_SEGMENT_SIZE;
+		ushort2 segmentLoc = gObjectAllocLocations[gObjectAllocIndexLookup[objectId + segment]];
+
+		//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		// We need to check if this obj is not already in the page system or not
+		if(gWriteToPages[objectId] == 1)
+		{
+			// Finally Actual Voxel Write
+			gVoxelData[segmentLoc.x].dGridVoxels[segmentLoc.y] = gObjectVoxelCache[globalId];
+			gVoxelData[segmentLoc.x].dVoxelsRenderDataPtr[segmentLoc.y] = const_cast<CVoxelRender*>(&gObjectVoxelRenderCache[globalId]);
+		}
+
+		// All done stop write signal
+		// Determine a leader per object
+		if(voxId == 0)
+		{
+			gWriteToPages[objectId] == 0;
+		}
+	}
+}
+
+__global__ void VoxelObjectExclude(// Voxel System
+								   CVoxelPage* gVoxelData,
+								   const unsigned int gPageAmount,
+
+								   unsigned int* gObjectVoxCounts,
+								   unsigned int* gObjectIntersectionState,
+								   size_t objectCount,
+
+								   const CObjectAABB* gObjectAABB,
+								   const CObjectTransform* gObjTransforms,
+								   const CVoxelGrid& globalGridInfo)
+{
+
 }

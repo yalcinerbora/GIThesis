@@ -5,6 +5,7 @@
 #include "Macros.h"
 #include "Camera.h"
 #include "DeferredRenderer.h"
+#include "SceneLights.h"
 
 size_t ThesisSolution::InitialObjectGridSize = 512;
 size_t ThesisSolution::MaxVoxelCacheSize = 1024 * 1024 * 8;
@@ -40,6 +41,9 @@ bool ThesisSolution::IsCurrentScene(SceneI& scene)
 
 void ThesisSolution::Init(SceneI& s)
 {
+	// Reset GICudaScene
+	voxelScene.Reset();
+
 	// Initialiizng Relative Transform Buffer
 	relativeTransformBuffer.Resize(s.ObjectCount());
 	for(ModelTransform& mt : relativeTransformBuffer.CPUData())
@@ -181,6 +185,19 @@ void ThesisSolution::Init(SceneI& s)
 	bar = TwNewBar("ThesisGI");
 	TwDefine(" ThesisGI refresh=0.01 ");
 
+
+	// Send it to CUDA
+	voxelScene.LinkOGL(currentScene->getDrawBuffer().getAABBBuffer().getGLBuffer(),
+					   currentScene->getDrawBuffer().getModelTransformBuffer().getGLBuffer(),
+					   relativeTransformBuffer.getGLBuffer(),
+					   voxelData.getGLBuffer(),
+					   voxelRenderData.getGLBuffer());
+	// Link ShadowMaps and GBuffer textures to cuda
+	voxelScene.LinkSceneBuffers(currentScene->getSceneLights().GetShadowMapCubeArray(),
+								dRenderer.GetGBuffer().getDepthGL(),
+								dRenderer.GetGBuffer().getNormalGL(),
+								dRenderer.GetLightIntensityBufferGL());
+	
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
 			   " label='Frame(ms)' precision=2 help='Frame Time in milliseconds.' ");
@@ -203,42 +220,54 @@ void ThesisSolution::Release()
 
 void ThesisSolution::Frame(const Camera& mainRenderCamera)
 {
-	// Frame Viewport
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0,
-			   static_cast<GLsizei>(mainRenderCamera.width),
-			   static_cast<GLsizei>(mainRenderCamera.height));
+	//DEBUG VOXEL RENDER
+	//// Frame Viewport
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//glViewport(0, 0,
+	//		   static_cast<GLsizei>(mainRenderCamera.width),
+	//		   static_cast<GLsizei>(mainRenderCamera.height));
 
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+	//glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
-	glDisable(GL_MULTISAMPLE);
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glDepthFunc(GL_LEQUAL);
-	glDepthMask(true);
-	glColorMask(true, true, true, true);
+	//glDisable(GL_MULTISAMPLE);
+	//glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_CULL_FACE);
+	//glDepthFunc(GL_LEQUAL);
+	//glDepthMask(true);
+	//glColorMask(true, true, true, true);
 
-	glClear(GL_COLOR_BUFFER_BIT |
-			GL_DEPTH_BUFFER_BIT);
+	//glClear(GL_COLOR_BUFFER_BIT |
+	//		GL_DEPTH_BUFFER_BIT);
 
-	// Debug Voxelize Scene
-	Shader::Unbind(ShaderType::GEOMETRY);
-	vertexDebugVoxel.Bind();
-	fragmentDebugVoxel.Bind();
+	//// Debug Voxelize Scene
+	//Shader::Unbind(ShaderType::GEOMETRY);
+	//vertexDebugVoxel.Bind();
+	//fragmentDebugVoxel.Bind();
 
-	cameraTransform.Bind();
-	cameraTransform.Update(mainRenderCamera.generateTransform());
+	//cameraTransform.Bind();
+	//cameraTransform.Update(mainRenderCamera.generateTransform());
 
-	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
-	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
-	cameraTransform.Bind();
+	//objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
+	//currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
+	//cameraTransform.Bind();
 
-	// Bind Model Transform
-	DrawBuffer& dBuffer = currentScene->getDrawBuffer();
-	dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+	//// Bind Model Transform
+	//DrawBuffer& dBuffer = currentScene->getDrawBuffer();
+	//dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+	//
+	//voxelVAO.Bind();
+	//voxelVAO.Draw(voxInfo.sceneVoxCacheCount, 0);
+
+	// VoxelSceneUpdate
+	voxelScene.Voxelize(mainRenderCamera.pos);
+
 	
-	voxelVAO.Bind();
-	voxelVAO.Draw(voxInfo.sceneVoxCacheCount, 0);
+	// Here check TW Bar if user wants to render voxels
+	
+	// Or wants to render only voxel light contrubition to the scene
+
+	// Or renders the scene as whole
+	dRenderer.Render(*currentScene, mainRenderCamera);
 }
 
 void ThesisSolution::SetFPS(double fpsMS)

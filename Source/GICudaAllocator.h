@@ -22,14 +22,14 @@ Memory Allocation
 #define GI_PAGE_SIZE 65536
 #define GI_THREAD_PER_BLOCK 256
 #define GI_BLOCK_PER_PAGE GI_PAGE_SIZE / GI_THREAD_PER_BLOCK
+#define GI_SEGMENT_SIZE GI_BLOCK_PER_PAGE
 
 static_assert(GI_PAGE_SIZE % GI_THREAD_PER_BLOCK == 0, "Page size must be divisible by thread per block");
 
 struct CVoxelPage
 {
 	CVoxelPacked*		dGridVoxels;
-	CVoxelRender*		dVoxelsRenderData;
-	unsigned int*		dVoxelState;
+	CVoxelRender**		dVoxelsRenderDataPtr;
 	unsigned int*		dEmptySegmentPos;
 	unsigned int		dEmptySegmentIndex;
 };
@@ -63,6 +63,11 @@ class GICudaAllocator
 		thrust::device_vector<CVoxelPacked*>			dObjCache;
 		thrust::device_vector<CVoxelRender*>			dObjRenderCache;
 		
+		cudaTextureObject_t								depthBuffer;
+		cudaTextureObject_t								normalBuffer;
+		cudaSurfaceObject_t								lightIntensityBuffer;
+		std::vector<cudaTextureObject_t>				shadowMaps;
+
 		// Interop Data
 		std::vector<cudaGraphicsResource*>				rTransformLinks;
 		std::vector<cudaGraphicsResource*>				transformLinks;
@@ -71,6 +76,12 @@ class GICudaAllocator
 
 		std::vector<cudaGraphicsResource*>				cacheLinks;
 		std::vector<cudaGraphicsResource*>				cacheRenderLinks;
+
+		// Per Scene Interop Data
+		std::vector<cudaGraphicsResource*>				sceneShadowMapLinks;
+		cudaGraphicsResource*							depthBuffLink;
+		cudaGraphicsResource*							normalBuffLink;
+		cudaGraphicsResource*							lightIntensityLink;
 
 		// Size Data
 		std::vector<size_t>								objectCounts;
@@ -92,13 +103,20 @@ class GICudaAllocator
 								~GICudaAllocator() = default;
 
 		// Linking and Unlinking Voxel Cache Data (from OGL)
-		void					LinkOGLVoxelCache(GLuint batchAABBBuffer,
-												  GLuint batchTransformBuffer,
-												  GLuint relativeTransformBuffer,
-												  GLuint infoBuffer,
-												  GLuint voxelBuffer,
-												  GLuint voxelRenderBuffer,
+		void					LinkOGLVoxelCache(GLuint aabbBuffer,
+												  GLuint transformBufferID,
+												  GLuint relativeTransformBufferID,
+												  GLuint infoBufferID,
+												  GLuint voxelCache,
+												  GLuint voxelCacheRender,
 												  size_t objCount);
+		void					LinkSceneShadowMapArray(const std::vector<GLuint>& shadowMaps);
+		void					LinkSceneGBuffers(GLuint depthTex,
+												  GLuint normalTex,
+												  GLuint lightIntensityTex);
+
+		// Resetting Scene related data (called when scene changes)
+		void					ResetSceneData();
 
 		// Mapped OGL Pointers
 		const CObjectTransform**		GetRelativeTransformsDevice();

@@ -25,12 +25,15 @@ typedef uint2 CVoxelPacked;
 #pragma pack(push, 1)
 struct CVoxelRender
 {
-	float3 normal;		// World Normal
-	uchar4 color;		// Color
+	//unsigned int	voxelTransformType;
+	float3			normal;		// World Normal
+	uchar4			color;		// Color
 
-	// Add transofrm related data (if skeletal mesh, or morph target mesh)
-
-
+	// Transform Related Data
+	// For Skeletal mesh these shows index of the transforms and weights
+	// For Morph target this shows the neigbouring vertices and their morph related index
+	//uchar4			weightIndex;
+	//uchar4			weight;
 };
 #pragma pack(pop)
 

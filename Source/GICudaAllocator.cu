@@ -35,6 +35,37 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	totalObjectCount += objCount;
 }
 
+void GICudaAllocator::LinkSceneShadowMapArray(const std::vector<GLuint>& shadowMaps)
+{
+	cudaGraphicsResource* resource = nullptr;
+	for(unsigned int i = 0; i < shadowMaps.size(); i++)
+	{
+		cudaGraphicsGLRegisterImage(&resource, 
+									shadowMaps[i], 
+									GL_TEXTURE_CUBE_MAP, 
+									cudaGraphicsRegisterFlagsReadOnly);
+		sceneShadowMapLinks.push_back(resource);
+	}
+}
+
+void GICudaAllocator::LinkSceneGBuffers(GLuint depthTex,
+										GLuint normalTex,
+										GLuint lightIntensityTex)
+{
+	cudaGraphicsGLRegisterImage(&depthBuffLink,
+								depthTex,
+								GL_TEXTURE_2D,
+								cudaGraphicsRegisterFlagsReadOnly);
+	cudaGraphicsGLRegisterImage(&normalBuffLink,
+								normalTex,
+								GL_TEXTURE_2D,
+								cudaGraphicsRegisterFlagsReadOnly);
+	cudaGraphicsGLRegisterImage(&lightIntensityLink,
+								lightIntensityTex,
+								GL_TEXTURE_2D,
+								cudaGraphicsRegisterFlagsSurfaceLoadStore);
+}
+
 void GICudaAllocator::SetupPointersDevicePointers()
 {
 	cudaGraphicsMapResources(static_cast<int>(rTransformLinks.size()), rTransformLinks.data());
@@ -81,6 +112,45 @@ void GICudaAllocator::SetupPointersDevicePointers()
 
 	dObjCache = hObjCache;
 	dObjRenderCache = hObjRenderCache;
+
+
+	// Textures
+	cudaArray* texArray = nullptr;
+	cudaResourceDesc resDesc = {};
+	cudaTextureDesc texDesc = {};
+
+	resDesc.res.array.array = texArray;
+	resDesc.resType = cudaResourceTypeArray;
+
+	texDesc.addressMode[0] = cudaAddressModeWrap;
+	texDesc.addressMode[1] = cudaAddressModeWrap;
+	texDesc.filterMode = cudaFilterModeLinear;
+	texDesc.readMode = cudaReadModeNormalizedFloat;
+	texDesc.normalizedCoords = 0;
+
+	cudaGraphicsMapResources(sceneShadowMapLinks.size(), sceneShadowMapLinks.data());
+	for(unsigned int i = 0; i < sceneShadowMapLinks.size(); i++)
+	{
+		cudaGraphicsSubResourceGetMappedArray(&texArray, sceneShadowMapLinks[i], 0, 0);
+
+		shadowMaps.emplace_back(nullptr);
+		cudaCreateTextureObject(&shadowMaps.back(), &resDesc, &texDesc, nullptr);
+	}
+
+	cudaGraphicsMapResources(1, &depthBuffLink);
+	cudaGraphicsSubResourceGetMappedArray(&texArray, depthBuffLink, 0, 0);
+	texDesc.readMode = cudaReadModeElementType;
+	cudaCreateTextureObject(&depthBuffer, &resDesc, &texDesc, nullptr);
+
+	cudaGraphicsMapResources(1, &normalBuffLink);
+	cudaGraphicsSubResourceGetMappedArray(&texArray, normalBuffLink, 0, 0);
+	texDesc.readMode = cudaReadModeElementType;
+	cudaCreateTextureObject(&normalBuffer, &resDesc, &texDesc, nullptr);
+
+	cudaGraphicsMapResources(1, &lightIntensityLink);
+	cudaGraphicsSubResourceGetMappedArray(&texArray, lightIntensityLink, 0, 0);
+	cudaCreateSurfaceObject(&lightIntensityBuffer, &resDesc);
+
 }
 
 void GICudaAllocator::ClearDevicePointers()
@@ -93,6 +163,21 @@ void GICudaAllocator::ClearDevicePointers()
 	dObjCache.clear();
 	dObjRenderCache.clear();
 
+	cudaDestroySurfaceObject(lightIntensityBuffer);
+	cudaDestroyTextureObject(normalBuffer);
+	cudaDestroyTextureObject(depthBuffer);
+	
+	for(unsigned int i = 0; i < shadowMaps.size(); i++)
+	{
+		cudaDestroyTextureObject(shadowMaps[i]);
+	}
+	shadowMaps.clear();
+
+	cudaGraphicsUnmapResources(1, &depthBuffLink);
+	cudaGraphicsUnmapResources(1, &normalBuffLink);
+	cudaGraphicsUnmapResources(1, &lightIntensityLink);
+	cudaGraphicsUnmapResources(static_cast<int>(sceneShadowMapLinks.size()), sceneShadowMapLinks.data());
+	
 	cudaGraphicsUnmapResources(static_cast<int>(rTransformLinks.size()), rTransformLinks.data());
 	cudaGraphicsUnmapResources(static_cast<int>(transformLinks.size()), transformLinks.data());
 	cudaGraphicsUnmapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data());
@@ -101,7 +186,6 @@ void GICudaAllocator::ClearDevicePointers()
 	cudaGraphicsUnmapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data());
 	cudaGraphicsUnmapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data());
 }
-
 
 void GICudaAllocator::AddVoxelPage(size_t count)
 {
@@ -128,6 +212,38 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		hVoxelPages.push_back(voxData);
 		dVoxelPages.push_back(voxData);
 	}
+}
+
+void GICudaAllocator::ResetSceneData()
+{
+	for(unsigned int i = 0; i < rTransformLinks.size(); i++)
+	{
+		cudaGraphicsUnregisterResource(rTransformLinks[i]);
+		cudaGraphicsUnregisterResource(transformLinks[i]);
+		cudaGraphicsUnregisterResource(aabbLinks[i]);
+		cudaGraphicsUnregisterResource(objectInfoLinks[i]);
+
+		cudaGraphicsUnregisterResource(cacheLinks[i]);
+		cudaGraphicsUnregisterResource(cacheRenderLinks[i]);
+	}
+
+	for(unsigned int i = 0; i < sceneShadowMapLinks.size(); i++)
+	{
+		cudaGraphicsUnregisterResource(sceneShadowMapLinks[i]);
+	}
+	cudaGraphicsUnregisterResource(depthBuffLink);
+	cudaGraphicsUnregisterResource(normalBuffLink);
+	cudaGraphicsUnregisterResource(lightIntensityLink);
+	
+	rTransformLinks.clear();
+	transformLinks.clear();
+	aabbLinks.clear();
+	objectInfoLinks.clear();
+
+	cacheLinks.clear();
+	cacheRenderLinks.clear();
+
+	sceneShadowMapLinks.clear();
 }
 
 //const CObjectTransform** GICudaAllocator::GetRelativeTransformsDevice() 

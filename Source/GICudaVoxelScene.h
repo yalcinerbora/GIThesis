@@ -35,6 +35,10 @@ class GICudaVoxelScene
 									GLuint relativeTransformBufferID,
 									GLuint voxelCache,
 									GLuint voxelCacheRender);
+		void				LinkSceneBuffers(const std::vector<GLuint>& shadowMaps,
+											 GLuint depthBuffer,
+											 GLuint normalGBuff,
+											 GLuint lightIntensityTex);
 		void				AllocateInitialPages();
 
 		// Voxelize this current frame

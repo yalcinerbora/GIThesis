@@ -29,7 +29,7 @@ static_assert(GI_PAGE_SIZE % GI_THREAD_PER_BLOCK == 0, "Page size must be divisi
 struct CVoxelPage
 {
 	CVoxelPacked*		dGridVoxels;
-	CVoxelRender**		dVoxelsRenderDataPtr;
+	CVoxelRender*		dVoxelsRenderData;
 	unsigned int*		dEmptySegmentPos;
 	unsigned int		dEmptySegmentIndex;
 };

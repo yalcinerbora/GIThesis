@@ -263,9 +263,6 @@
     <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\VoxelIntroduce.cu">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
@@ -277,6 +274,9 @@
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu">
       <Filter>GI\Thesis</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\VoxelInclude.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

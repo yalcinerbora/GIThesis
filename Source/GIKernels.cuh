@@ -21,33 +21,63 @@ struct CSVONode;
 // Voxel Transform
 // Transforms existing voxels in order to cut voxel reconstruction each frame
 // Call Logic "per voxel in the grid"
-__global__ void VoxelTransform(CVoxelPage* gVoxelData,
+__global__ void VoxelTransform(// Voxel System
+							   CVoxelPage* gVoxelData,
+							   unsigned int gPageAmount,
 							   CVoxelGrid& gGridInfo,
-							   const float3 newGridPos,
+
 							   const CObjectTransform* gObjTransformsRelative);
 
 // Voxel Introduce
 // Introduces existing voxel to the voxel grid
-// Call Logic "per voxel in an object"
-__global__ void VoxelIntroduce(CVoxelPage* gVoxelData,
-							   const unsigned int gPageAmount,
-							   const CVoxelPacked* gObjectVoxelCache,
-							   const CVoxelRender* gObjectVoxelRenderCache,
-							   const CObjectTransform& gObjTransform,
-							   const CObjectAABB& objAABB,
-							   const CVoxelGrid& gGridInfo);
+// Call logic changes internally
+// Call Logic "per object per segement"
+// Each segment allocates itself within the pages
+// Call Logic "per voxel"
+// Each voxel writes its data to allocated segments
+__global__ void VoxelObjectInclude(// Voxel System
+								   CVoxelPage* gVoxelData,
+								   const unsigned int gPageAmount,
+								   const CVoxelGrid& gGridInfo,
 
+								   // Per Object Segment Related
+								   ushort2* gObjectAllocLocations,
+								   unsigned int* gSegmentObjectId,
+								   size_t totalSegments,
 
+								   // Per Object Related
+								   char* gWriteToPages,
+								   const unsigned int* gObjectVoxStrides,
+								   const unsigned int* gObjectAllocIndexLookup,
+								   const CObjectAABB* gObjectAABB,
+								   const CObjectTransform* gObjTransforms,
+								   const CObjectVoxelInfo* gObjInfo,
+								   size_t objectCount,
 
-// Voxel Introduce Helper Function
-// Object Cull
-// Determines that this object should enter "VoxelIntroduce" Kernel
-// Call Logic "per object"
-__global__ void VoxelObjectCull(unsigned int* gObjectIndices,
-								unsigned int& gIndicesIndex,
-								const CObjectAABB* gObjectAABB,
-								const CObjectTransform* gObjTransforms,
-								const CVoxelGrid& gGridInfo);
+								   // Per Voxel Related
+								   const CVoxelPacked* gObjectVoxelCache,
+								   const CVoxelRender* gObjectVoxelRenderCache,
+								   size_t voxCount,
+
+								   // Object Id stride
+								   size_t objectIdStride);
+
+// Object Exlude
+// Determines that this object's segments should deallocated
+// Call Logic "per object per segement"
+__global__ void VoxelObjectExclude(// Voxel System
+								   CVoxelPage* gVoxelData,
+								   const unsigned int gPageAmount,
+								   const CVoxelGrid& gGridInfo,
+
+								   // Per Object Segment Related
+								   ushort2* gObjectAllocLocations,
+								   unsigned int* gSegmentObjectId,
+								   size_t totalSegments,
+
+								   // Per Object Related
+								   const CObjectAABB* gObjectAABB,
+								   const CObjectTransform* gObjTransforms);
 
 // Reconstruct SVO
 // Creates SVO tree top down manner

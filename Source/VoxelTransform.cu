@@ -7,7 +7,6 @@
 
 __global__ void VoxelTransform(CVoxelPage* gVoxelData,
 							   CVoxelGrid& gGridInfo,
-							   const float3 newGridPos,
 							   const CObjectTransform* gObjTransformsRelative)
 {
 	unsigned int pageId = blockIdx.x % GI_BLOCK_PER_PAGE;
@@ -19,9 +18,8 @@ __global__ void VoxelTransform(CVoxelPage* gVoxelData,
 	ExpandVoxelData(voxPos, objectId, gVoxelData[pageId].dGridVoxels[pageLocalId]);
 
 	// Skip if this voxel is deleted
-	// ObjectId -1 reserved for invalid Node
-	if(objectId == GI_DELETED_VOXEL)
-		return;
+	// Check his segment and its allocation info
+	if(objectId == 0xFF) return;
 
 	// Generate World Position
 	float4 worldPos;

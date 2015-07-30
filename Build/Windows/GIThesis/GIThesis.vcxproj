@@ -188,7 +188,7 @@
   <ItemGroup>
     <CudaCompile Include="..\..\..\Source\CMatrix.cu" />
     <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu" />
-    <CudaCompile Include="..\..\..\Source\VoxelIntroduce.cu" />
+    <CudaCompile Include="..\..\..\Source\VoxelInclude.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

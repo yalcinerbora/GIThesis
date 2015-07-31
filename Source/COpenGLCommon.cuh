@@ -30,9 +30,4 @@ struct CObjectVoxelInfo
 
 typedef CAABB CObjectAABB;
 
-#define GI_CUDA_OBJ_STATE_IN 0
-#define GI_CUDA_OBJ_STATE_ADD 0
-#define GI_CUDA_OBJ_STATE_REMOVE 0
-#define GI_CUDA_OBJ_STATE_OUT 1
-
 #endif //__COPENGLCOMMON_H__

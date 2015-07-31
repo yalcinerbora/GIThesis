@@ -70,8 +70,7 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_30,sm_30;compute_52,sm_52</CodeGeneration>
-      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -101,8 +100,7 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_30,sm_30;compute_52,sm_52</CodeGeneration>
-      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -114,7 +112,6 @@
     <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu" />
-    <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\GPUBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
@@ -129,10 +126,11 @@
     <ClCompile Include="..\..\..\Source\Scene.cpp" />
     <ClCompile Include="..\..\..\Source\SceneLights.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
+    <ClInclude Include="..\..\..\Source\CVoxelPage.h" />
     <ClInclude Include="..\..\..\Source\DeferredRenderer.h" />
     <ClInclude Include="..\..\..\Source\DrawPoint.h" />
     <ClInclude Include="..\..\..\Source\GBuffer.h" />
-    <ClInclude Include="..\..\..\Source\GICudaStructMatching.h" />
+    <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h" />
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
@@ -157,7 +155,6 @@
     <ClInclude Include="..\..\..\Source\FrameTransformBuffer.h" />
     <ClInclude Include="..\..\..\Source\GFGLoader.h" />
     <ClInclude Include="..\..\..\Source\GICudaAllocator.h" />
-    <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h" />
     <ClInclude Include="..\..\..\Source\GIKernels.cuh" />
     <ClInclude Include="..\..\..\Source\GLHeader.h" />
     <ClInclude Include="..\..\..\Source\GLHeaderLite.h" />
@@ -189,6 +186,7 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="..\..\..\Source\CMatrix.cu" />
+    <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu" />
     <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelInclude.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu" />

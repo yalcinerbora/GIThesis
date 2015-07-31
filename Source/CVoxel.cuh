@@ -9,6 +9,8 @@ Voxel Sturcutres
 
 #include <vector_types.h>
 
+#include <vector_types.h>
+
 // Global Voxel Data
 struct CVoxelGrid
 {
@@ -46,9 +48,9 @@ __device__ inline void ExpandVoxelData(uint3& voxPos,
 	voxPos.x = (packedVoxData.x & 0x000003FF);
 	voxPos.y = (packedVoxData.x & 0x000FFC00) >> 10;
 	voxPos.z = (packedVoxData.x & 0x3FF00000) >> 20;
-	
-	normal.x = (float)(packedVoxData.y & 0x0000FFFF) / 0x0000FFFF;
-	normal.y = (float)((packedVoxData.y & 0x7FFF0000) >> 16) / 0x00007FFF;
+
+	normal.x = (float) (packedVoxData.y & 0x0000FFFF) / 0x0000FFFF;
+	normal.y = (float) ((packedVoxData.y & 0x7FFF0000) >> 16) / 0x00007FFF;
 	normal.z = (((packedVoxData.y >> 31) == 1) ? -1.0f : 1.0f) * 1.0f - sqrtf(normal.x * normal.x + normal.y  * normal.y);
 
 	objId.x = (packedVoxData.z & 0x0000FFFF);

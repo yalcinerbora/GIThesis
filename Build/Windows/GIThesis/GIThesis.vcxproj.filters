@@ -181,9 +181,6 @@
     <ClInclude Include="..\..\..\Source\GICudaAllocator.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h">
-      <Filter>GI\Thesis</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\ThesisSolution.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
@@ -220,7 +217,10 @@
     <ClInclude Include="..\..\..\Source\DrawPoint.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\GICudaStructMatching.h">
+    <ClInclude Include="..\..\..\Source\CVoxelPage.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
   </ItemGroup>
@@ -272,11 +272,11 @@
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu">
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu">
-      <Filter>GI\Thesis</Filter>
-    </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelInclude.cu">
       <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu">
+      <Filter>GI\Thesis</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

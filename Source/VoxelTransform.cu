@@ -31,7 +31,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	// Skip if this object is not in the grid
 	// Or this object is not related to the transform
 	if(gObjectAllocLocations[objectId.x][gObjectAllocIndexLookup[objectId.x][objectId.y]].x == 0xFF) return;
-	
+
 	// Generate World Position
 	// GridInfo.position is old position (previous frame's position
 	float4 worldPos;
@@ -47,14 +47,14 @@ __global__ void VoxelTransform(// Voxel Pages
 	CMatrix4x4 rotation = gObjTransformsRelative[objectId.x][objectId.y].rotation;
 	MultMatrixSelf(worldPos, transform);
 	MultMatrixSelf(normal, rotation);
-	
+
 	// Reconstruct Voxel Indices relative to the new pos of the grid
 	worldPos.x -= gNewGridPosition.x;
 	worldPos.y -= gNewGridPosition.y;
 	worldPos.z -= gNewGridPosition.z;
 
 	bool outOfBounds;
-	outOfBounds  = (worldPos.x) < 0 || (worldPos.x > gGridInfo.dimension.x * gGridInfo.span);
+	outOfBounds = (worldPos.x) < 0 || (worldPos.x > gGridInfo.dimension.x * gGridInfo.span);
 	outOfBounds |= (worldPos.y) < 0 || (worldPos.x > gGridInfo.dimension.y * gGridInfo.span);
 	outOfBounds |= (worldPos.z) < 0 || (worldPos.x > gGridInfo.dimension.z * gGridInfo.span);
 

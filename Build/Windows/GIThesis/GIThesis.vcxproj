@@ -70,7 +70,8 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50</CodeGeneration>
+      <CodeGeneration>compute_30,sm_30;compute_52,sm_52</CodeGeneration>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -100,7 +101,8 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50</CodeGeneration>
+      <CodeGeneration>compute_30,sm_30;compute_52,sm_52</CodeGeneration>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

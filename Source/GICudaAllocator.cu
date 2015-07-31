@@ -128,12 +128,12 @@ void GICudaAllocator::SetupPointersDevicePointers()
 	texDesc.readMode = cudaReadModeNormalizedFloat;
 	texDesc.normalizedCoords = 0;
 
-	cudaGraphicsMapResources(sceneShadowMapLinks.size(), sceneShadowMapLinks.data());
+	cudaGraphicsMapResources(static_cast<int>(sceneShadowMapLinks.size()), sceneShadowMapLinks.data());
 	for(unsigned int i = 0; i < sceneShadowMapLinks.size(); i++)
 	{
 		cudaGraphicsSubResourceGetMappedArray(&texArray, sceneShadowMapLinks[i], 0, 0);
 
-		shadowMaps.emplace_back(nullptr);
+		shadowMaps.emplace_back();
 		cudaCreateTextureObject(&shadowMaps.back(), &resDesc, &texDesc, nullptr);
 	}
 
@@ -205,7 +205,6 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		{
 			thrust::raw_pointer_cast(hPageData.back().dVoxelPage.data()),
 			thrust::raw_pointer_cast(hPageData.back().dVoxelPageRender.data()),
-			thrust::raw_pointer_cast(hPageData.back().dVoxelState.data()),
 			thrust::raw_pointer_cast(hPageData.back().dEmptySegmentPos.data()),
 			0
 		};

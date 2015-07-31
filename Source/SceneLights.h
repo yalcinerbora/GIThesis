@@ -84,7 +84,7 @@ class SceneLights
 									~SceneLights();
 
 		uint32_t					Count() const;
-		const std::vector<GLuint>&	GetShadowMapCubeArray();
+		const std::vector<GLuint>&	GetShadowMapCubeArray() const;
 
 		void						ChangeLightPos(uint32_t index, IEVector3 position);
 		//void						ChangeLightType(uint32_t index, LightType);

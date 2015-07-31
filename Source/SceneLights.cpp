@@ -218,6 +218,11 @@ uint32_t SceneLights::Count() const
 	return static_cast<uint32_t>(lightShadowCast.size());
 }
 
+const std::vector<GLuint>& SceneLights::GetShadowMapCubeArray() const
+{
+	return shadowMapViews;
+}
+
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)
 {
 	Light l = lightsGPU.GetData(index);

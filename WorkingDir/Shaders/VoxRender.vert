@@ -25,7 +25,7 @@
 // Input
 in IN_POS vec3 vPos;
 in IN_VOX_COLOR vec4 voxColor;
-in IN_VOX_POS uvec2 voxPos;
+in IN_VOX_POS uvec4 voxPos;
 in IN_VOX_NORMAL vec3 voxNormal;
 
 // Output
@@ -61,20 +61,20 @@ LU_AABB buffer AABB
 
 LU_MTRANSFORM buffer ModelTransform
 {
-		struct
+	struct
 	{
 		mat4 model;
 		mat4 modelRotation;
 	} modelTransforms[];
 };
 
-uvec4 UnpackVoxelData(in uvec2 voxPacked)
+uvec4 UnpackVoxelData(in uvec4 voxPacked)
 {
 	uvec4 vec;
-	vec.x = voxPacked.x & 0x0000FFFF;
-	vec.y = voxPacked.x >> 16;
-	vec.z = voxPacked.y & 0x0000FFFF;
-	vec.w = voxPacked.y >> 16;
+	vec.x = (voxPacked.x & 0x000003FF);
+	vec.y = (voxPacked.x & 0x000FFC00) >> 10;
+	vec.z = (voxPacked.x & 0x3FF00000) >> 20;
+	vec.w = (voxPacked.z & 0xFFFF0000) >> 16;
 	return vec;
 }
 

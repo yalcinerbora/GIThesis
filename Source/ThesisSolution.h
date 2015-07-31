@@ -31,12 +31,11 @@ struct ObjGridInfo
 
 struct VoxelData
 {
-	uint32_t vox[2];
+	uint32_t vox[4];
 };
 
 struct VoxelRenderData
 {
-	IEVector3 normal;
 	uint32_t color;
 };
 #pragma pack(pop)

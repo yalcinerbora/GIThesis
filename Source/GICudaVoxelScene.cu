@@ -38,6 +38,10 @@ void GICudaVoxelScene::AllocateInitialPages()
 	// Hint Device that we will use already linked resources
 }
 
+void GICudaVoxelScene::Reset()
+{
+}
+
 void GICudaVoxelScene::Voxelize(const IEVector3& playerPos)
 {
 	// Main Call Chain Called Every Frame

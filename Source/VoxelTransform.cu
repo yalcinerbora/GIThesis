@@ -5,50 +5,53 @@
 #include "CVoxel.cuh"
 #include "GICudaAllocator.h"
 
-__global__ void VoxelTransform(CVoxelPage* gVoxelData,
+__global__ void VoxelTransform(// Voxel Pages
+							   CVoxelPage* gVoxelData,
 							   CVoxelGrid& gGridInfo,
-							   const CObjectTransform* gObjTransformsRelative)
+							   const float3& gNewGridPosition,
+
+							   // Per Object Segment
+							   ushort2** gObjectAllocLocations,
+
+							   // Object Related
+							   const unsigned int** gObjectAllocIndexLookup,
+							   const CObjectTransform** gObjTransformsRelative,
+							   const CVoxelRender** gVoxRenderData)
 {
 	unsigned int pageId = blockIdx.x % GI_BLOCK_PER_PAGE;
 	unsigned int pageLocalId = threadIdx.x + pageId * blockDim.x;
 
 	// Mem Fetch and Expand (8 byte per warp, coalesced, 0 stride)
+	ushort2 objectId;
 	uint3 voxPos;
-	unsigned int objectId;
-	ExpandVoxelData(voxPos, objectId, gVoxelData[pageId].dGridVoxels[pageLocalId]);
+	float3 normal;
+	unsigned int renderLoc;
+	ExpandVoxelData(voxPos, normal, objectId, renderLoc, gVoxelData[pageId].dGridVoxels[pageLocalId]);
 
-	// Skip if this voxel is deleted
-	// Check his segment and its allocation info
-	if(objectId == 0xFF) return;
-
+	// Skip if this object is not in the grid
+	// Or this object is not related to the transform
+	if(gObjectAllocLocations[objectId.x][gObjectAllocIndexLookup[objectId.x][objectId.y]].x == 0xFF) return;
+	
 	// Generate World Position
+	// GridInfo.position is old position (previous frame's position
 	float4 worldPos;
 	worldPos.x = gGridInfo.position.x + voxPos.x * gGridInfo.span;
 	worldPos.y = gGridInfo.position.y + voxPos.y * gGridInfo.span;
 	worldPos.z = gGridInfo.position.z + voxPos.z * gGridInfo.span;
 	worldPos.w = 1.0f;
 
-	// Normal Fetch (12 byte per wrap, 4 byte stride)
-	float3 normal;
-	normal = gVoxelData[pageId].dVoxelsRenderData[pageLocalId].normal;
-
-	// Transformations (Fetch Irrelevant because of caching)
-	// Obj count <<< Voxel Count, Rigid Objects' voxel adjacent each other
-	// There is a hight chance that this transform is on the shared mem(cache) already
-	// ObjectId zero reserved for static geometry
-	if(objectId != GI_STATIC_GEOMETRY)
-	{
-		// Non static object. Transform voxel & normal
-		CMatrix4x4 transform = gObjTransformsRelative[objectId - 1].transform;
-		CMatrix4x4 rotation = gObjTransformsRelative[objectId - 1].rotation;
-		MultMatrixSelf(worldPos, transform);
-		MultMatrixSelf(normal, rotation);
-	}
-
+	// Transformations
+	// Non static object. Transform voxel & normal
+	// TODO normally here we will fetch render data and look at the object type
+	CMatrix4x4 transform = gObjTransformsRelative[objectId.x][objectId.y].transform;
+	CMatrix4x4 rotation = gObjTransformsRelative[objectId.x][objectId.y].rotation;
+	MultMatrixSelf(worldPos, transform);
+	MultMatrixSelf(normal, rotation);
+	
 	// Reconstruct Voxel Indices relative to the new pos of the grid
-	worldPos.x -= newGridPos.x;
-	worldPos.y -= newGridPos.y;
-	worldPos.z -= newGridPos.z;
+	worldPos.x -= gNewGridPosition.x;
+	worldPos.y -= gNewGridPosition.y;
+	worldPos.z -= gNewGridPosition.z;
 
 	bool outOfBounds;
 	outOfBounds  = (worldPos.x) < 0 || (worldPos.x > gGridInfo.dimension.x * gGridInfo.span);
@@ -65,15 +68,7 @@ __global__ void VoxelTransform(CVoxelPage* gVoxelData,
 		voxPos.y = static_cast<unsigned int>((worldPos.y) * invSpan);
 		voxPos.z = static_cast<unsigned int>((worldPos.z) * invSpan);
 
-		gVoxelData[pageId].dVoxelsRenderData[pageLocalId].normal = normal;
+		// Only store required stuff (less bandwidth)
+		PackVoxelData(gVoxelData[pageId].dGridVoxels[pageLocalId], voxPos, normal);
 	}
-	else
-	{
-		// Mark this node as deleted so that "voxel introduce" kernel
-		// adds a voxel to this node
-		unsigned int index = atomicAdd(&gVoxelData[pageId].dEmptyElementIndex, 1);
-		gVoxelData[pageId].dEmptyPos[index] = pageLocalId;
-		objectId = GI_DELETED_VOXEL;
-	}
-	PackVoxelData(gVoxelData[pageId].dGridVoxels[pageLocalId], voxPos, objectId);
 }

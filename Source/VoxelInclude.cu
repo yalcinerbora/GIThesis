@@ -1,6 +1,5 @@
 #include <cuda_runtime.h>
 #include <cuda.h>
-#include <math_functions.h>
 
 #include "GIKernels.cuh"
 #include "CVoxel.cuh"
@@ -26,12 +25,13 @@ __device__ void VoxelAdd(// Write Location
 						 CVoxelRender* gVoxelRenderData,
 
 						 // Model Space Voxel
-						 unsigned int objectId,
+						 const ushort2& objectId,
+						 const unsigned int renderLoc,
+						 const float3& normal,
 						 const uint3& voxPos,
 						 const uint3& voxelDim,
 
 						 // Object Related
-						 const CVoxelRender& gObjectVoxelRenderData,
 						 const CObjectTransform& gObjTransform,
 						 const CObjectAABB& gObjAABB,
 						 const CObjectVoxelInfo& objInfo,
@@ -66,11 +66,7 @@ __device__ void VoxelAdd(// Write Location
 		localPosSubVox.y -= gGridInfo.position.y;
 		localPosSubVox.z -= gGridInfo.position.z;
 
-
-		CVoxelRender objRender = gObjectVoxelRenderData;
-		float3 normal = objRender.normal;
-		MultMatrixSelf(normal, gObjTransform.rotation);
-		objRender.normal = normal;
+		float3 normalMult = MultMatrix(normal, gObjTransform.rotation);
 		
 		float invSpan = 1.0f / gGridInfo.span;
 		newVoxPos.x = static_cast<unsigned int>((localPos.x) * invSpan);
@@ -78,8 +74,7 @@ __device__ void VoxelAdd(// Write Location
 		newVoxPos.z = static_cast<unsigned int>((localPos.z) * invSpan);
 
 		// Write Back
-		PackVoxelData(gVoxelData[i], newVoxPos, objectId);
-		gVoxelRenderData[i] = objRender;
+		PackVoxelData(gVoxelData[i], newVoxPos, normalMult, objectId, renderLoc);
 	}
 }
 
@@ -146,11 +141,10 @@ __global__ void VoxelObjectInclude(// Voxel System
 
 								   // Per Voxel Related
 								   const CVoxelPacked* gObjectVoxelCache,
-								   const CVoxelRender* gObjectVoxelRenderCache,
 								   size_t voxCount,
 
-								   // Object Id stride
-								   size_t objectIdStride)
+								   // Batch(ObjectGroup in terms of OGL) Id
+								   size_t batchId)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	
@@ -169,19 +163,18 @@ __global__ void VoxelObjectInclude(// Voxel System
 			gWriteToPages[objectId] = 1;
 			// We need to check scaling and adjust span
 			// Objects may have different voxel sizes and voxel sizes may change after scaling
-			float3 scaling = ExtractScaleInfo(gObjTransforms[objectId].transform);
-			uint3 voxelDim;
-			voxelDim.x = static_cast<unsigned int>(gObjInfo[objectId].span * scaling.x / gGridInfo.span);
-			voxelDim.y = static_cast<unsigned int>(gObjInfo[objectId].span * scaling.y / gGridInfo.span);
-			voxelDim.z = static_cast<unsigned int>(gObjInfo[objectId].span * scaling.z / gGridInfo.span);
+			//float3 scaling = ExtractScaleInfo(gObjTransforms[objectId].transform);
+			//uint3 voxelDim;
+			//voxelDim.x = static_cast<unsigned int>(gObjInfo[objectId].span * scaling.x / gGridInfo.span);
+			//voxelDim.y = static_cast<unsigned int>(gObjInfo[objectId].span * scaling.y / gGridInfo.span);
+			//voxelDim.z = static_cast<unsigned int>(gObjInfo[objectId].span * scaling.z / gGridInfo.span);
 
-			// This object will be added to the page system
-			unsigned int nextStride = (objectId == objectCount - 1) ? gObjectVoxStrides[objectId + 1] : voxCount;
-			unsigned int voxCount = nextStride - gObjectVoxStrides[objectId] * (voxelDim.x + voxelDim.y + voxelDim.z);
-			unsigned int segmentCount = (voxCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+			//// This object will be added to the page system
+			//unsigned int nextStride = (objectId == objectCount - 1) ? gObjectVoxStrides[objectId + 1] : voxCount;
+			//unsigned int voxCount = nextStride - gObjectVoxStrides[objectId] * (voxelDim.x + voxelDim.y + voxelDim.z);
+			//unsigned int segmentCount = (voxCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 			
 			// Check page by page
-			unsigned int allocatedSegments = 0;
 			for(unsigned int i = 0; i < gPageAmount; i++)
 			{
 				unsigned int location;
@@ -200,37 +193,41 @@ __global__ void VoxelObjectInclude(// Voxel System
 	if(globalId < voxCount)
 	{
 		// Mem Fetch
-		unsigned int objectId;
+		ushort2 objectId;
 		uint3 voxPos;
-		ExpandVoxelData(voxPos, objectId, gObjectVoxelCache[globalId]);
+		float3 normal;
+		unsigned int renderLoc;
+		ExpandVoxelData(voxPos, normal, objectId, renderLoc, gObjectVoxelCache[globalId]);
 
 		// We need to check scaling and adjust span
 		// Objects may have different voxel sizes and voxel sizes may change after scaling
-		float3 scaling = ExtractScaleInfo(gObjTransforms[objectId].transform);
+		float3 scaling = ExtractScaleInfo(gObjTransforms[objectId.y].transform);
 		uint3 voxelDim;
-		voxelDim.x = static_cast<unsigned int>(gObjInfo[objectId].span * scaling.x / gGridInfo.span);
-		voxelDim.y = static_cast<unsigned int>(gObjInfo[objectId].span * scaling.y / gGridInfo.span);
-		voxelDim.z = static_cast<unsigned int>(gObjInfo[objectId].span * scaling.z / gGridInfo.span);
+		voxelDim.x = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.x / gGridInfo.span);
+		voxelDim.y = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.y / gGridInfo.span);
+		voxelDim.z = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.z / gGridInfo.span);
 
 		// Determine wich voxel is this thread on that specific object
-		unsigned int voxId = globalId - gObjectVoxStrides[objectId];
+		unsigned int voxId = globalId - gObjectVoxStrides[objectId.y];
 		unsigned int segment = (voxId * (voxelDim.x + voxelDim.y + voxelDim.z)) / GI_SEGMENT_SIZE;
-		unsigned int segmentLocalID = (voxId * (voxelDim.x + voxelDim.y + voxelDim.z)) % GI_SEGMENT_SIZE;
-		ushort2 segmentLoc = gObjectAllocLocations[gObjectAllocIndexLookup[objectId + segment]];
-
+		//unsigned int segmentLocalID = (voxId * (voxelDim.x + voxelDim.y + voxelDim.z)) % GI_SEGMENT_SIZE;
+		ushort2 segmentLoc = gObjectAllocLocations[gObjectAllocIndexLookup[objectId.y + segment]];
 		// We need to check if this obj is not already in the page system or not
-		if(gWriteToPages[objectId] == 1)
+
+		if(gWriteToPages[objectId.y] == 1)
 		{
 			// Finally Actual Voxel Write
+			objectId.x = batchId;
 			VoxelAdd(&gVoxelData[segmentLoc.x].dGridVoxels[segmentLoc.y],
 					 &gVoxelData[segmentLoc.x].dVoxelsRenderData[segmentLoc.y],
-					 objectId + objectIdStride,
+					 objectId,
+					 renderLoc,
+					 normal,
 					 voxPos,
 					 voxelDim,
-					 gObjectVoxelRenderCache[globalId],
-					 gObjTransforms[objectId],
-					 gObjectAABB[objectId],
-					 gObjInfo[objectId],
+					 gObjTransforms[objectId.y],
+					 gObjectAABB[objectId.y],
+					 gObjInfo[objectId.y],
 					 gGridInfo);
 		}
 
@@ -238,7 +235,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 		// Determine a leader per object
 		if(voxId == 0)
 		{
-			gWriteToPages[objectId] == 0;
+			gWriteToPages[objectId.y] = 0;
 		}
 	}
 }
@@ -265,7 +262,7 @@ __global__ void VoxelObjectExclude(// Voxel System
 		// Determine Obj Id
 		unsigned int objectId = gSegmentObjectId[globalId];
 
-		bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[globalId], gObjTransforms[globalId]);
+		bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId]);
 		ushort2 objAlloc = gObjectAllocLocations[globalId];
 
 		// Check If this object is in

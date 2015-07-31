@@ -190,8 +190,10 @@ void ThesisSolution::Init(SceneI& s)
 	voxelScene.LinkOGL(currentScene->getDrawBuffer().getAABBBuffer().getGLBuffer(),
 					   currentScene->getDrawBuffer().getModelTransformBuffer().getGLBuffer(),
 					   relativeTransformBuffer.getGLBuffer(),
+					   objectGridInfo.getGLBuffer(),
 					   voxelData.getGLBuffer(),
-					   voxelRenderData.getGLBuffer());
+					   voxelRenderData.getGLBuffer(),
+					   currentScene->ObjectCount());
 	// Link ShadowMaps and GBuffer textures to cuda
 	voxelScene.LinkSceneBuffers(currentScene->getSceneLights().GetShadowMapCubeArray(),
 								dRenderer.GetGBuffer().getDepthGL(),
@@ -221,45 +223,45 @@ void ThesisSolution::Release()
 void ThesisSolution::Frame(const Camera& mainRenderCamera)
 {
 	//DEBUG VOXEL RENDER
-	//// Frame Viewport
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//glViewport(0, 0,
-	//		   static_cast<GLsizei>(mainRenderCamera.width),
-	//		   static_cast<GLsizei>(mainRenderCamera.height));
+	// Frame Viewport
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0,
+			   static_cast<GLsizei>(mainRenderCamera.width),
+			   static_cast<GLsizei>(mainRenderCamera.height));
 
-	//glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
-	//glDisable(GL_MULTISAMPLE);
-	//glEnable(GL_DEPTH_TEST);
-	//glEnable(GL_CULL_FACE);
-	//glDepthFunc(GL_LEQUAL);
-	//glDepthMask(true);
-	//glColorMask(true, true, true, true);
+	glDisable(GL_MULTISAMPLE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDepthFunc(GL_LEQUAL);
+	glDepthMask(true);
+	glColorMask(true, true, true, true);
 
-	//glClear(GL_COLOR_BUFFER_BIT |
-	//		GL_DEPTH_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT |
+			GL_DEPTH_BUFFER_BIT);
 
-	//// Debug Voxelize Scene
-	//Shader::Unbind(ShaderType::GEOMETRY);
-	//vertexDebugVoxel.Bind();
-	//fragmentDebugVoxel.Bind();
+	// Debug Voxelize Scene
+	Shader::Unbind(ShaderType::GEOMETRY);
+	vertexDebugVoxel.Bind();
+	fragmentDebugVoxel.Bind();
 
-	//cameraTransform.Bind();
-	//cameraTransform.Update(mainRenderCamera.generateTransform());
+	cameraTransform.Bind();
+	cameraTransform.Update(mainRenderCamera.generateTransform());
 
-	//objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
-	//currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
-	//cameraTransform.Bind();
+	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
+	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
+	cameraTransform.Bind();
 
-	//// Bind Model Transform
-	//DrawBuffer& dBuffer = currentScene->getDrawBuffer();
-	//dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
-	//
-	//voxelVAO.Bind();
-	//voxelVAO.Draw(voxInfo.sceneVoxCacheCount, 0);
+	// Bind Model Transform
+	DrawBuffer& dBuffer = currentScene->getDrawBuffer();
+	dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+	
+	voxelVAO.Bind();
+	voxelVAO.Draw(voxInfo.sceneVoxCacheCount, 0);
 
 	// VoxelSceneUpdate
-	voxelScene.Voxelize(mainRenderCamera.pos);
+	//voxelScene.Voxelize(mainRenderCamera.pos);
 
 	
 	// Here check TW Bar if user wants to render voxels
@@ -267,7 +269,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	// Or wants to render only voxel light contrubition to the scene
 
 	// Or renders the scene as whole
-	dRenderer.Render(*currentScene, mainRenderCamera);
+	//dRenderer.Render(*currentScene, mainRenderCamera);
 }
 
 void ThesisSolution::SetFPS(double fpsMS)

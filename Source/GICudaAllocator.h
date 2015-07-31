@@ -14,32 +14,16 @@ Memory Allocation
 #include "COpenGLCommon.cuh"
 #include <thrust/device_vector.h>
 #include "GLHeader.h"
+#include "CVoxelPage.h"
 #include <cudaGL.h>
-
-#define GI_DELETED_VOXEL	0xFFFFFFFF
-#define GI_STATIC_GEOMETRY	0
-
-#define GI_PAGE_SIZE 65536
-#define GI_THREAD_PER_BLOCK 512
-#define GI_BLOCK_PER_PAGE GI_PAGE_SIZE / GI_THREAD_PER_BLOCK
-
-static_assert(GI_PAGE_SIZE % GI_THREAD_PER_BLOCK == 0, "Page size must be divisible by thread per block");
-
-struct CVoxelData
-{
-	CVoxelPacked*		dGridVoxels;
-	CVoxelRender*		dVoxelsRenderData;
-	unsigned int*		dEmptyPos;
-	unsigned int		dEmptyElementIndex;
-};
 
 class GICudaAllocator
 {
 	
 	private:
 		// Grid Data
-		std::vector<CVoxelData>							hVoxelPages;
-		thrust::device_vector<CVoxelData>				dVoxelPages;
+		std::vector<CVoxelPage>							hVoxelPages;
+		thrust::device_vector<CVoxelPage>				dVoxelPages;
 		CVoxelGrid										dVoxelGridInfo;
 
 		// Object Related Data (Comes from OGL)

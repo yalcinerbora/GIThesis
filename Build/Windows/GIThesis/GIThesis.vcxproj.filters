@@ -181,9 +181,6 @@
     <ClInclude Include="..\..\..\Source\GICudaAllocator.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h">
-      <Filter>GI\Thesis</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\ThesisSolution.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
@@ -219,6 +216,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\DrawPoint.h">
       <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CVoxelPage.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h">
+      <Filter>GI\Thesis</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -260,9 +263,6 @@
     <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\VoxelIntroduce.cu">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
@@ -271,6 +271,9 @@
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu">
       <Filter>GI\Thesis</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\VoxelInclude.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu">
       <Filter>GI\Thesis</Filter>

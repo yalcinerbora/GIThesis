@@ -52,7 +52,7 @@ __device__ float3 MultMatrix(const float3& v, const CMatrix3x3& m)
 	};
 }
 
-__device__ float3 MultMatrix(float3& v, const CMatrix4x4& m)
+__device__ float3 MultMatrix(const float3& v, const CMatrix4x4& m)
 {
 	return
 	{

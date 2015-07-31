@@ -52,7 +52,7 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 						voxDataBuffer.getGLBuffer(),
 						voxRenderDataBuffer.getGLBuffer()};
 	GLintptr offsets[] = { 0, 0, 0 };
-	GLsizei strides[] = { sizeof(float) * 3, sizeof(uint32_t) * 2, (sizeof(float) * 3) + sizeof(uint32_t) };
+	GLsizei strides[] = { sizeof(float) * 3, sizeof(uint32_t) * 4, sizeof(uint32_t) };
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
 
@@ -70,7 +70,7 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 	// VoxData
 	glEnableVertexAttribArray(2);
 	glVertexAttribIFormat(2,
-						  2,
+						  4,
 						  GL_UNSIGNED_INT,
 						  0);
 	glVertexAttribDivisor(2, 1);
@@ -82,7 +82,7 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 						 4,
 						 GL_UNSIGNED_BYTE,
 						 GL_TRUE,
-						 sizeof(IEVector3));
+						 0);
 	glVertexAttribDivisor(1, 1);
 	glVertexAttribBinding(1, 2);
 

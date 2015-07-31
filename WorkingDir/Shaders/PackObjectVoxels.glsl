@@ -24,14 +24,13 @@ LU_INDEX_CHECK buffer CountArray
 
 LU_VOXEL buffer VoxelArray
 {
-	uvec2 voxelPacked[];
+	uvec4 voxelPacked[];
 };
 
 LU_VOXEL_RENDER buffer VoxelArrayRender
 {
 	struct
 	{
-		vec3 normal;
 		uint color;
 	} voxelArrayRender[];
 };
@@ -47,14 +46,33 @@ LU_OBJECT_GRID_INFO buffer GridInfo
 
 uniform I_VOX_READ image3D voxelData;
 
-uvec2 PackVoxelData(in uvec3 voxCoord, in uint objId)
+uvec4 PackVoxelData(in uvec3 voxCoord,
+					in vec3 normal,
+					in uint objId,
+					in uint renderDataLoc)
 {
-	uvec2 vec = uvec2(0);
-	vec.x = voxCoord.x;
-	vec.x |= voxCoord.y << 16;
-	vec.y = voxCoord.z;
-	vec.y |= objId << 16;
-	return vec;
+	uvec4 result = uvec4(0);
+	
+	// Here Pack the voxels
+	unsigned int value = 0;
+	value |= voxCoord.z << 20;
+	value |= voxCoord.y << 10;
+	value |= voxCoord.x;
+	result.x = value;
+
+	value = 0;
+	value |= ~uint(sign(normal.z) + 1.0f * 0.5f) << 31;
+	value |= uint(normal.y * 0x00007FFF) << 16;
+	value |= uint(normal.x * 0x0000FFFF);
+	result.y = value;
+
+	value = 0;
+	value |= objId << 16;
+	value |= 0;
+	result.z = value;
+
+	result.w = renderDataLoc;
+	return result;
 }
 		
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
@@ -76,9 +94,8 @@ void main(void)
 			uint index = atomicAdd(writeIndex, 1);
 			if(index <= maxSize)
 			{
-				voxelArrayRender[index].normal = voxData.xyz;
 				voxelArrayRender[index].color = floatBitsToUint(voxData.w);
-				voxelPacked[index] = PackVoxelData(voxId, objId);
+				voxelPacked[index] = PackVoxelData(voxId, voxData.xyz, objId, index);
 			}
 		}
 	}

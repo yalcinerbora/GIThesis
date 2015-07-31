@@ -6,7 +6,7 @@ GICudaAllocator::GICudaAllocator()
 	cudaGLSetGLDevice(0);
 }
 
-void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
+uint32_t GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 										GLuint batchTransformBuffer,
 										GLuint relativeTransformBuffer,
 										GLuint infoBuffer,
@@ -27,6 +27,7 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 	cudaGraphicsGLRegisterBuffer(&cacheLinks.back(), voxelBuffer, cudaGraphicsMapFlagsReadOnly);
 	cudaGraphicsGLRegisterBuffer(&cacheRenderLinks.back(), voxelRenderBuffer, cudaGraphicsMapFlagsReadOnly);
+	return 0;
 }
 
 void GICudaAllocator::SetupPointersDevicePointers()

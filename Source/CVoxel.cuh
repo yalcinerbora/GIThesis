@@ -9,6 +9,8 @@ Voxel Sturcutres
 
 #include <vector_types.h>
 
+#include <vector_types.h>
+
 // Global Voxel Data
 struct CVoxelGrid
 {
@@ -19,38 +21,86 @@ struct CVoxelGrid
 };
 
 // Main Voxel Data
-typedef uint2 CVoxelPacked;
+typedef uint4 CVoxelPacked;
 
 // Voxel Rendering Data
+#pragma pack(push, 1)
 struct CVoxelRender
 {
-	float3 normal;		// World Normal
-	uchar4 color;		// Color
+	//unsigned int	voxelTransformType;
+	uchar4			color;		// Color
 
-	// Add transofrm related data (if skeletal mesh, or morph target mesh)
-
-
+	// Transform Related Data
+	// For Skeletal mesh these shows index of the transforms and weights
+	// For Morph target this shows the neigbouring vertices and their morph related index
+	//uchar4			weightIndex;
+	//uchar4			weight;
 };
+#pragma pack(pop)
 
 //
-__device__ inline void ExpandVoxelData(uint3& voxPos, 
-									   unsigned int& objId,
+__device__ inline void ExpandVoxelData(uint3& voxPos,
+									   float3& normal,
+									   ushort2& objId,
+									   unsigned int& voxRenderPtr,
 									   const CVoxelPacked& packedVoxData)
 {
-	voxPos.x	= (packedVoxData.x && 0x0000FFFF);
-	voxPos.y	= (packedVoxData.x && 0xFFFF0000) >> 16;
-	voxPos.z	= (packedVoxData.y && 0x0000FFFF);
-	objId		= (packedVoxData.y && 0xFFFF0000) >> 16;
+	voxPos.x = (packedVoxData.x & 0x000003FF);
+	voxPos.y = (packedVoxData.x & 0x000FFC00) >> 10;
+	voxPos.z = (packedVoxData.x & 0x3FF00000) >> 20;
+
+	normal.x = (float) (packedVoxData.y & 0x0000FFFF) / 0x0000FFFF;
+	normal.y = (float) ((packedVoxData.y & 0x7FFF0000) >> 16) / 0x00007FFF;
+	normal.z = (((packedVoxData.y >> 31) == 1) ? -1.0f : 1.0f) * 1.0f - sqrtf(normal.x * normal.x + normal.y  * normal.y);
+
+	objId.x = (packedVoxData.z & 0x0000FFFF);
+	objId.y = (packedVoxData.z & 0xFFFF0000) >> 16;
+
+	voxRenderPtr = packedVoxData.w;
 }
 
 __device__  inline void PackVoxelData(CVoxelPacked& packedVoxData,
 									  const uint3& voxPos,
-									  const unsigned int& objId)
+									  const float3& normal,
+									  const ushort2& objId,
+									  const unsigned int voxRenderPtr)
 {
-	packedVoxData.x  = voxPos.x;
-	packedVoxData.x |= voxPos.y << 16;
-	packedVoxData.y  = voxPos.z;
-	packedVoxData.y |= objId	<< 16;
+	unsigned int value = 0;
+	value |= voxPos.z << 20;
+	value |= voxPos.y << 10;
+	value |= voxPos.x;
+	packedVoxData.x = value;
+
+	value = 0;
+	value |= signbit(normal.z) << 31;
+	value |= static_cast<unsigned int>(normal.y * 0x00007FFF) << 16;
+	value |= static_cast<unsigned int>(normal.x * 0x0000FFFF);
+	packedVoxData.y = value;
+
+	value = 0;
+	value |= packedVoxData.y << 16;
+	value |= packedVoxData.x;
+	packedVoxData.z = value;
+
+	packedVoxData.w = voxRenderPtr;
+}
+
+// This one only stores two values since objid and ptr does not change with transform matrix
+__device__  inline void PackVoxelData(CVoxelPacked& packedVoxData,
+									  const uint3& voxPos,
+									  const float3& normal)
+{
+	unsigned int value = 0;
+	value |= voxPos.z << 20;
+	value |= voxPos.y << 10;
+	value |= voxPos.x;
+	packedVoxData.x = value;
+
+	value = 0;
+	value |= signbit(normal.z) << 31;
+	value |= static_cast<unsigned int>(normal.y * 0x00007FFF) << 16;
+	value |= static_cast<unsigned int>(normal.x * 0x0000FFFF);
+	packedVoxData.y = value;
 }
 
 #endif //__CVOXEL_H__

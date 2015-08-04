@@ -48,7 +48,7 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 										  // Per Object Segment Related
 										  ushort2* gObjectAllocLocations,
 										  unsigned int* gSegmentObjectId,
-										  size_t totalSegments,
+										  uint32_t totalSegments,
 
 										  // Per Object Related
 										  char* gWriteToPages,
@@ -57,14 +57,14 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 										  const CObjectAABB* gObjectAABB,
 										  const CObjectTransform* gObjTransforms,
 										  const CObjectVoxelInfo* gObjInfo,
-										  size_t objectCount,
+										  uint32_t objectCount,
 
 										  // Per Voxel Related
 										  const CVoxelPacked* gObjectVoxelCache,
-										  size_t voxCount,
+										  uint32_t voxCount,
 
 										  // Batch(ObjectGroup in terms of OGL) Id
-										  size_t batchId);
+										  uint32_t batchId);
 
 // Object Exlude
 // Determines that this object's segments should deallocated
@@ -77,7 +77,7 @@ extern __global__ void VoxelObjectExclude(// Voxel System
 										  // Per Object Segment Related
 										  ushort2* gObjectAllocLocations,
 										  unsigned int* gSegmentObjectId,
-										  size_t totalSegments,
+										  uint32_t totalSegments,
 
 										  // Per Object Related
 										  const CObjectAABB* gObjectAABB,

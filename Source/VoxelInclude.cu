@@ -22,7 +22,6 @@ __device__ static const float3 aabbLookupTable[] =
 
 __device__ void VoxelAdd(// Write Location
 						 CVoxelPacked* gVoxelData,
-						 CVoxelRender* gVoxelRenderData,
 
 						 // Model Space Voxel
 						 const ushort2& objectId,
@@ -128,7 +127,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 								   // Per Object Segment Related
 								   ushort2* gObjectAllocLocations,
 								   unsigned int* gSegmentObjectId,
-								   size_t totalSegments,
+								   uint32_t totalSegments,
 
 								   // Per Object Related
 								   char* gWriteToPages,
@@ -137,14 +136,14 @@ __global__ void VoxelObjectInclude(// Voxel System
 								   const CObjectAABB* gObjectAABB,
 								   const CObjectTransform* gObjTransforms,
 								   const CObjectVoxelInfo* gObjInfo,
-								   size_t objectCount,
+								   uint32_t objectCount,
 
 								   // Per Voxel Related
 								   const CVoxelPacked* gObjectVoxelCache,
-								   size_t voxCount,
+								   uint32_t voxCount,
 
 								   // Batch(ObjectGroup in terms of OGL) Id
-								   size_t batchId)
+								   uint32_t batchId)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	
@@ -219,7 +218,6 @@ __global__ void VoxelObjectInclude(// Voxel System
 			// Finally Actual Voxel Write
 			objectId.x = batchId;
 			VoxelAdd(&gVoxelData[segmentLoc.x].dGridVoxels[segmentLoc.y],
-					 &gVoxelData[segmentLoc.x].dVoxelsRenderData[segmentLoc.y],
 					 objectId,
 					 renderLoc,
 					 normal,
@@ -248,7 +246,7 @@ __global__ void VoxelObjectExclude(// Voxel System
 								   // Per Object Segment Related
 								   ushort2* gObjectAllocLocations,
 								   unsigned int* gSegmentObjectId,
-								   size_t totalSegments,
+								   uint32_t totalSegments,
 
 								   // Per Object Related
 								   const CObjectAABB* gObjectAABB,

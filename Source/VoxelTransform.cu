@@ -18,8 +18,11 @@ __global__ void VoxelTransform(// Voxel Pages
 							   const CObjectTransform** gObjTransformsRelative,
 							   const CVoxelRender** gVoxRenderData)
 {
-	unsigned int pageId = blockIdx.x % GI_BLOCK_PER_PAGE;
-	unsigned int pageLocalId = threadIdx.x + pageId * blockDim.x;
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = blockIdx.x / GI_BLOCK_PER_PAGE;
+	unsigned int pageLocalId = globalId - (blockIdx.x / GI_BLOCK_PER_PAGE);
+	unsigned int pageLocalSegmentId = globalId - (blockIdx.x / GI_BLOCK_PER_PAGE) / GI_SEGMENT_SIZE;
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == 0) return;
 
 	// Mem Fetch and Expand (8 byte per warp, coalesced, 0 stride)
 	ushort2 objectId;

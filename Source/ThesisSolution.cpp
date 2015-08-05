@@ -7,7 +7,7 @@
 #include "DeferredRenderer.h"
 #include "SceneLights.h"
 
-size_t ThesisSolution::InitialObjectGridSize = 512;
+size_t ThesisSolution::InitialObjectGridSize = 256;
 size_t ThesisSolution::MaxVoxelCacheSize = 1024 * 1024 * 8;
 
 ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer)
@@ -31,9 +31,16 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer)
 	, relativeTransformBuffer(1)
 {
 	voxelCacheUsageSize.AddData(0);
+	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGL(),
+										   dRenderer.GetGBuffer().getNormalGL(),
+										   dRenderer.GetLightIntensityBufferGL());
 }
 
-// Interface
+ThesisSolution::~ThesisSolution()
+{
+	voxelScene.UnLinkDeferredRendererBuffers();
+}
+
 bool ThesisSolution::IsCurrentScene(SceneI& scene)
 {
 	return &scene == currentScene;
@@ -73,6 +80,7 @@ void ThesisSolution::Init(SceneI& s)
 	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(currentScene->DrawCount()));
+	glUniform1f(U_MIN_SPAN, currentScene->MinSpan());
 
 	size_t blockCount = (currentScene->DrawCount() / 128);
 	size_t factor = ((currentScene->DrawCount() % 128) == 0) ? 0 : 1;
@@ -170,7 +178,7 @@ void ThesisSolution::Init(SceneI& s)
 	voxInfo.sceneVoxCacheCount = 0;
 	for(int i = 0; i < currentScene->DrawCount(); i++)
 		voxInfo.sceneVoxCacheCount += objectGridInfo.CPUData()[i].voxCount;
-	voxInfo.sceneVoxCacheSize = static_cast<double>(voxInfo.sceneVoxCacheCount * 24) / (1024.0 * 1024.0);
+	voxInfo.sceneVoxCacheSize = static_cast<double>(voxInfo.sceneVoxCacheCount * (sizeof(VoxelData) + sizeof(VoxelRenderData))) / (1024.0 * 1024.0);
 
 	GI_LOG("------------------------------------");
 	GI_LOG("GI Thesis Solution Init Complete");
@@ -195,10 +203,7 @@ void ThesisSolution::Init(SceneI& s)
 					   voxelRenderData.getGLBuffer(),
 					   currentScene->ObjectCount());
 	// Link ShadowMaps and GBuffer textures to cuda
-	voxelScene.LinkSceneBuffers(currentScene->getSceneLights().GetShadowMapCubeArray(),
-								dRenderer.GetGBuffer().getDepthGL(),
-								dRenderer.GetGBuffer().getNormalGL(),
-								dRenderer.GetLightIntensityBufferGL());
+	voxelScene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapCubeArray());
 	
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,

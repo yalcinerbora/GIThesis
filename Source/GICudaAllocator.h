@@ -21,6 +21,7 @@ struct CVoxelPageData
 {
 	thrust::device_vector<CVoxelPacked> dVoxelPage;
 	thrust::device_vector<unsigned int> dEmptySegmentList;
+	thrust::device_vector<char>			dIsSegmentOccupied;
 };
 
 class GICudaAllocator
@@ -33,19 +34,22 @@ class GICudaAllocator
 		std::vector<CVoxelPageData>						hPageData;
 
 		CVoxelGrid										hVoxelGridInfo;
-
+		thrust::device_vector<CVoxelGrid>				dVoxelGridInfo;
 
 		// Helper Data (That is populated by system)
 		// Object Segment Related
-		std::vector<thrust::device_vector<unsigned int*>>	dSegmentObjecId;
-		std::vector<thrust::device_vector<ushort2*>>		dSegmentAllocLoc;
+		std::vector<thrust::device_vector<unsigned int>>	dSegmentObjecId;
+		std::vector<thrust::device_vector<ushort2>>			dSegmentAllocLoc;
 
 		// Per Object
-		std::vector<thrust::device_vector<unsigned int*>>	dVoxelStrides;
-		std::vector<thrust::device_vector<unsigned int*>>	dObjectAllocationIndexLookup;
-		std::vector<thrust::device_vector<char*>>			dWriteSignals;
-		//------
+		std::vector<thrust::device_vector<unsigned int>>	dVoxelStrides;
+		std::vector<thrust::device_vector<unsigned int>>	dObjectAllocationIndexLookup;
+		std::vector<thrust::device_vector<char>>			dWriteSignals;
 
+		// Array of Device Pointers
+		thrust::device_vector<unsigned int*>				dObjectAllocationIndexLookup2D;
+		thrust::device_vector<ushort2*>						dSegmentAllocLoc2D;
+		//------
 
 		// Object Related Data (Comes from OGL)
 		// Kernel call ready aligned pointer(s)
@@ -57,9 +61,12 @@ class GICudaAllocator
 		thrust::device_vector<CVoxelPacked*>			dObjCache;
 		thrust::device_vector<CVoxelRender*>			dObjRenderCache;
 
+		// G Buffer Related Data
 		cudaTextureObject_t								depthBuffer;
 		cudaTextureObject_t								normalBuffer;
 		cudaSurfaceObject_t								lightIntensityBuffer;
+
+		// Scene Light Related Data
 		std::vector<cudaTextureObject_t>				shadowMaps;
 
 		// Interop Data
@@ -82,17 +89,13 @@ class GICudaAllocator
 		size_t											totalObjectCount;
 
 		//
-		void					SetupPointersDevicePointers();
-		void					ClearDevicePointers();
-
-		//
 		void					AddVoxelPage(size_t count);
 		//void					ShrinkVoxelPages(size_t pageCount);
 
 	protected:
 	public:
 		// Constructors & Destructor
-								GICudaAllocator();
+								GICudaAllocator(const CVoxelGrid& gridInfo);
 								~GICudaAllocator() = default;
 
 		// Linking and Unlinking Voxel Cache Data (from OGL)
@@ -107,21 +110,34 @@ class GICudaAllocator
 		void					LinkSceneGBuffers(GLuint depthTex,
 												  GLuint normalTex,
 												  GLuint lightIntensityTex);
+		void					UnLinkGBuffers();
 
 		// Resetting Scene related data (called when scene changes)
 		void					ResetSceneData();
+		void					Reserve(uint32_t pageAmount);
+
+		// Mapping OGL (mapped unmapped each frame)
+		void					SetupDevicePointers();
+		void					ClearDevicePointers();
+
+		uint32_t				NumObjectBatches() const;
+		uint32_t				NumObjects(uint32_t batchIndex) const;
+		uint32_t				NumObjectSegments(uint32_t batchIndex) const;
+		uint32_t				NumPages() const;
+
+		CVoxelGrid*				GetVoxelGridDevice();
 
 		// Mapped OGL Pointers
-		const CObjectTransform**		GetRelativeTransformsDevice();
-		const CObjectTransform**		GetTransformsDevice();
-		const CObjectAABB**				GetObjectAABBDevice();
-		const CObjectVoxelInfo**		GetObjectInfoDevice();
+		CObjectTransform**		GetRelativeTransformsDevice();
+		CObjectTransform**		GetTransformsDevice();
+		CObjectAABB**			GetObjectAABBDevice();
+		CObjectVoxelInfo**		GetObjectInfoDevice();
 
-		const CVoxelPacked**			GetObjCacheDevice();
-		const CVoxelRender**			GetObjRenderCacheDevice();
+		CVoxelPacked**			GetObjCacheDevice();
+		CVoxelRender**			GetObjRenderCacheDevice();
 
 		// Pages
-		CVoxelPage*						GetVoxelPagesDevice();
+		CVoxelPage*				GetVoxelPagesDevice();
 
 };
 #endif //__GICUDAALLOCATOR_H_

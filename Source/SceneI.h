@@ -25,6 +25,8 @@ class SceneI
 		virtual size_t			DrawCount() const = 0;
 		virtual size_t			MaterialCount() const = 0;
 		virtual size_t			PolyCount() const = 0;
+
+		virtual float			MinSpan() const = 0; // Minimum voxel span used in vox generation
 };
 
 #endif //__SCENEI_H__

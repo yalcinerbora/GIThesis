@@ -81,5 +81,21 @@ namespace IEMath
 		return log2f(number);
 	}
 
+	inline unsigned int UpperPowTwo(unsigned int number)
+	{
+		static_assert(sizeof(unsigned int) == 4, "UpperPowTwo only works on 32 bit integers");
+		if(number <= 1) return 2;
+
+		number--;
+		number |= number >> 1;
+		number |= number >> 2;
+		number |= number >> 4;
+		number |= number >> 8;
+		number |= number >> 16;
+		number++;
+
+		return number;
+	}
+
 }
 #endif //__IE_MATH_H__

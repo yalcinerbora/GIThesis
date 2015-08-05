@@ -8,10 +8,12 @@ const char* Scene::sponzaFileName = "crySponza.gfg";
 const char* Scene::cornellboxFileName = "cornell.gfg";
 
 Scene::Scene(const char* sceneFileName,
-			 const Array32<Light>& lights)
+			 const Array32<Light>& lights,
+			 float minSpan)
 	: sceneVertex({element, 3})
 	, drawParams()
 	, sceneLights(lights)
+	, minSpan(minSpan)
 {
 	IETimer timer;
 	timer.Start();
@@ -68,4 +70,9 @@ size_t Scene::MaterialCount() const
 size_t Scene::DrawCount() const
 {
 	return drawCallCount;
+}
+
+float Scene::MinSpan() const
+{
+	return minSpan;
 }

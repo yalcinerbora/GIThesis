@@ -182,6 +182,8 @@ __global__ void VoxelObjectInclude(// Voxel System
 				{
 					gObjectAllocLocations[globalId].x = i;
 					gObjectAllocLocations[globalId].y = gVoxelData[i].dEmptySegmentPos[location];
+
+					gVoxelData[i].dIsSegmentOccupied[location] = 1;
 					break;
 				}
 			}
@@ -273,6 +275,7 @@ __global__ void VoxelObjectExclude(// Voxel System
 			{
 				gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
 			}
+			gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = 0;
 			objAlloc.x = 0xFFFF;
 			objAlloc.y = 0xFFFF;
 		}

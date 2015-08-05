@@ -1,11 +1,67 @@
 #include "GICudaAllocator.h"
 #include "GICudaStructMatching.h"
 #include <cuda_gl_interop.h>
+#include "CudaTimer.h"
+#include "Macros.h"
 
-GICudaAllocator::GICudaAllocator()
+// Small Helper Kernel That used to determine total segment size used by the object batch
+// Logic per object in batch
+__global__ void DetermineTotalSegment(int& dTotalSegmentCount,
+
+									  // Per object Related
+									  unsigned int* gObjectVoxStrides,
+									  unsigned int* gObjectAllocIndexLookup,
+									  const CObjectVoxelInfo* gVoxelInfo,
+									  uint32_t objCount)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	if(globalId >= objCount) return;
+
+	// Determine Segment Count and add do total segment counter
+	unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+	atomicAdd(&dTotalSegmentCount, segmentCount);
+
+	// Determine Strides
+	// Here this implementation is slow and does redundant work 
+	// but its most easily written version
+	unsigned int objStirde = 0, objIndexLookup = 0;
+	for(unsigned int i = 0; i < globalId; i++)
+	{
+		objStirde += gVoxelInfo[i].voxelCount;
+		unsigned int segmentCount = (gVoxelInfo[i].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+		objIndexLookup += segmentCount;
+	}
+
+	gObjectVoxStrides[globalId] = objStirde;
+	gObjectAllocIndexLookup[globalId] = objIndexLookup;
+}
+
+// Used to populate segment object id's
+// Logic per object in batch
+__global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
+
+									  const unsigned int* gObjectAllocIndexLookup,
+									  const CObjectVoxelInfo* gVoxelInfo,
+									  uint32_t objCount)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	if(globalId >= objCount) return;
+
+	unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+	for(unsigned int i = 0; i < segmentCount; i++)
+	{
+		gSegmentObjectId[gObjectAllocIndexLookup[globalId] + i] = globalId;
+	}
+}
+
+
+GICudaAllocator::GICudaAllocator(const CVoxelGrid& gridInfo)
 	: totalObjectCount(0)
+	, dVoxelGridInfo(1)
+	, hVoxelGridInfo(gridInfo)
 {
 	cudaGLSetGLDevice(0);
+	dVoxelGridInfo[0] = hVoxelGridInfo;
 }
 
 void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
@@ -16,6 +72,9 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 										GLuint voxelRenderBuffer,
 										size_t objCount)
 {
+	CudaTimer timer(0);
+	timer.Start();
+
 	rTransformLinks.emplace_back(nullptr);
 	transformLinks.emplace_back(nullptr);
 	aabbLinks.emplace_back(nullptr);
@@ -33,6 +92,60 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 	objectCounts.emplace_back(objCount);
 	totalObjectCount += objCount;
+
+	// Allocate Helper Data
+	dVoxelStrides.emplace_back(objCount);
+	dObjectAllocationIndexLookup.emplace_back(objCount);
+	dWriteSignals.emplace_back(objCount);
+
+	// Populate Helper Data
+	// Determine object segement sizes
+	int* dTotalCount = nullptr;
+	int hTotalCount = 0;
+	cudaMalloc(reinterpret_cast<void**>(&dTotalCount), sizeof(int));
+	cudaMemset(dTotalCount, 0, sizeof(int));
+
+	// Mapping Pointer
+	CObjectVoxelInfo* dVoxelInfo = nullptr;
+	size_t size = 0;
+	cudaGraphicsMapResources(1, &objectInfoLinks.back());
+	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dVoxelInfo), &size, objectInfoLinks.back());
+	
+	uint32_t gridSize = (objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+	DetermineTotalSegment<<<gridSize, GI_THREAD_PER_BLOCK>>>(*dTotalCount,
+															 thrust::raw_pointer_cast(dVoxelStrides.back().data()),
+															 thrust::raw_pointer_cast(dObjectAllocationIndexLookup.back().data()),
+															 dVoxelInfo,
+															 objCount);
+
+	cudaMemcpy(&hTotalCount, dTotalCount, sizeof(int), cudaMemcpyDeviceToHost);
+	dSegmentObjecId.emplace_back(hTotalCount);
+	dSegmentAllocLoc.emplace_back(hTotalCount);
+
+	DetermineSegmentObjId<<<gridSize, GI_THREAD_PER_BLOCK>>>(thrust::raw_pointer_cast(dSegmentObjecId.back().data()),
+															 thrust::raw_pointer_cast(dObjectAllocationIndexLookup.back().data()),
+															 dVoxelInfo,
+															 objCount);
+
+	cudaGraphicsUnmapResources(1, &objectInfoLinks.back());
+
+	dObjectAllocationIndexLookup2D.push_back(thrust::raw_pointer_cast(dObjectAllocationIndexLookup.back().data()));
+	dSegmentAllocLoc2D.push_back(thrust::raw_pointer_cast(dSegmentAllocLoc.back().data()));
+
+	timer.Stop();
+	GI_LOG("Linked Object Batch to CUDA. Elaped time %f ms", timer.ElapsedMilliS());
+
+	assert(rTransformLinks.size() == transformLinks.size());
+	assert(transformLinks.size() == aabbLinks.size());
+	assert(aabbLinks.size() == transformLinks.size());
+	assert(rTransformLinks.size() == objectInfoLinks.size());
+	assert(objectInfoLinks.size() == cacheLinks.size());
+	assert(cacheLinks.size() == cacheRenderLinks.size());
+	assert(cacheRenderLinks.size() == dVoxelStrides.size());
+	assert(dVoxelStrides.size() == dObjectAllocationIndexLookup.size());
+	assert(dObjectAllocationIndexLookup.size() == dWriteSignals.size());
+	assert(dWriteSignals.size() == dSegmentObjecId.size());
+	assert(dSegmentObjecId.size() == dSegmentAllocLoc.size());
 }
 
 void GICudaAllocator::LinkSceneShadowMapArray(const std::vector<GLuint>& shadowMaps)
@@ -66,7 +179,14 @@ void GICudaAllocator::LinkSceneGBuffers(GLuint depthTex,
 								cudaGraphicsRegisterFlagsSurfaceLoadStore);
 }
 
-void GICudaAllocator::SetupPointersDevicePointers()
+void GICudaAllocator::UnLinkGBuffers()
+{
+	cudaGraphicsUnregisterResource(depthBuffLink);
+	cudaGraphicsUnregisterResource(normalBuffLink);
+	cudaGraphicsUnregisterResource(lightIntensityLink);
+}
+
+void GICudaAllocator::SetupDevicePointers()
 {
 	cudaGraphicsMapResources(static_cast<int>(rTransformLinks.size()), rTransformLinks.data());
 	cudaGraphicsMapResources(static_cast<int>(transformLinks.size()), transformLinks.data());
@@ -194,14 +314,16 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		// Allocating Page
 		hPageData.emplace_back(CVoxelPageData
 		{
-			thrust::device_vector<CVoxelPacked>(GI_PAGE_SIZE),
-			thrust::device_vector<unsigned int>(GI_BLOCK_PER_PAGE)
+			thrust::device_vector<CVoxelPacked>(GI_PAGE_SIZE, CVoxelPacked {0, 0, 0, 0}),
+			thrust::device_vector<unsigned int>(GI_BLOCK_PER_PAGE, 0),
+			thrust::device_vector<char>(GI_BLOCK_PER_PAGE, 0)
 		});
 
 		CVoxelPage voxData =
 		{
 			thrust::raw_pointer_cast(hPageData.back().dVoxelPage.data()),
 			thrust::raw_pointer_cast(hPageData.back().dEmptySegmentList.data()),
+			thrust::raw_pointer_cast(hPageData.back().dIsSegmentOccupied.data()),
 			0
 		};
 		hVoxelPages.push_back(voxData);
@@ -226,9 +348,6 @@ void GICudaAllocator::ResetSceneData()
 	{
 		cudaGraphicsUnregisterResource(sceneShadowMapLinks[i]);
 	}
-	cudaGraphicsUnregisterResource(depthBuffLink);
-	cudaGraphicsUnregisterResource(normalBuffLink);
-	cudaGraphicsUnregisterResource(lightIntensityLink);
 
 	rTransformLinks.clear();
 	transformLinks.clear();
@@ -239,37 +358,82 @@ void GICudaAllocator::ResetSceneData()
 	cacheRenderLinks.clear();
 
 	sceneShadowMapLinks.clear();
+
+	dSegmentObjecId.clear();
+	dSegmentAllocLoc.clear();
+
+	dVoxelStrides.clear();
+	dObjectAllocationIndexLookup.clear();
+	dWriteSignals.clear();
+	
+	dObjectAllocationIndexLookup2D.clear();
+	dSegmentAllocLoc2D.clear();
+
+	objectCounts.clear();
 }
 
-//const CObjectTransform** GICudaAllocator::GetRelativeTransformsDevice() 
-//{
-//	return thrust::raw_pointer_cast(dRelativeTransforms.data());
-//}
-//
-//const CObjectTransform** GICudaAllocator::GetTransformsDevice()
-//{
-//	return thrust::raw_pointer_cast(dTransforms.data());
-//}
-//
-//const CObjectAABB** GICudaAllocator::GetObjectAABBDevice()
-//{
-//	return thrust::raw_pointer_cast(dObjectAABB.data());
-//}
-//
-//const CObjectVoxelInfo** GICudaAllocator::GetObjectInfoDevice()
-//{
-//	return thrust::raw_pointer_cast(dObjectInfo.data());
-//}
-//
-//const CVoxelPacked** GICudaAllocator::GetObjCacheDevice()
-//{
-//	return thrust::raw_pointer_cast(dObjCache.data());
-//}
-//
-//const CVoxelRender** GICudaAllocator::GetObjRenderCacheDevice()
-//{
-//	return thrust::raw_pointer_cast(dObjRenderCache.data());
-//}
+void GICudaAllocator::Reserve(uint32_t pageAmount)
+{
+	if(dVoxelPages.size() < pageAmount)
+	{
+		AddVoxelPage(pageAmount - dVoxelPages.size());
+	}
+}
+
+uint32_t GICudaAllocator::NumObjectBatches() const
+{
+	return rTransformLinks.size();
+}
+
+uint32_t GICudaAllocator::NumObjects(uint32_t batchIndex) const
+{
+	return objectCounts[batchIndex];
+}
+
+uint32_t GICudaAllocator::NumObjectSegments(uint32_t batchIndex) const
+{
+	return dSegmentObjecId[batchIndex].size();
+}
+
+uint32_t GICudaAllocator::NumPages() const
+{
+	return hVoxelPages.size();
+}
+
+CVoxelGrid* GICudaAllocator::GetVoxelGridDevice()
+{
+	return thrust::raw_pointer_cast(dVoxelGridInfo.data());
+}
+
+CObjectTransform** GICudaAllocator::GetRelativeTransformsDevice() 
+{
+	return thrust::raw_pointer_cast(dRelativeTransforms.data());
+}
+
+CObjectTransform** GICudaAllocator::GetTransformsDevice()
+{
+	return thrust::raw_pointer_cast(dTransforms.data());
+}
+
+CObjectAABB** GICudaAllocator::GetObjectAABBDevice()
+{
+	return thrust::raw_pointer_cast(dObjectAABB.data());
+}
+
+CObjectVoxelInfo** GICudaAllocator::GetObjectInfoDevice()
+{
+	return thrust::raw_pointer_cast(dObjectInfo.data());
+}
+
+CVoxelPacked** GICudaAllocator::GetObjCacheDevice()
+{
+	return thrust::raw_pointer_cast(dObjCache.data());;
+}
+
+CVoxelRender** GICudaAllocator::GetObjRenderCacheDevice()
+{
+	return thrust::raw_pointer_cast(dObjRenderCache.data());
+}
 
 CVoxelPage* GICudaAllocator::GetVoxelPagesDevice()
 {

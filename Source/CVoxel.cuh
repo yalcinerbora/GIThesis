@@ -14,7 +14,7 @@ Voxel Sturcutres
 // Global Voxel Data
 struct CVoxelGrid
 {
-	float3 position;	// World Position of the voxel grid last component voxel span
+	float3 position;	// World Position of the voxel grid
 	float span;
 	uint3 dimension;	// Voxel Grid Dimentions, last component is depth of the SVO
 	unsigned int depth;

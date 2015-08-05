@@ -5,11 +5,13 @@
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict 
 
 #define U_TOTAL_OBJ_COUNT layout(location = 4)
+#define U_MIN_SPAN layout(location = 5)
 
 #define MAX_GRID_DIM 256.0f
-#define MIN_SPAN 2.3f
+//#define MIN_SPAN 1.5f
 
 U_TOTAL_OBJ_COUNT uniform uint objCount;
+U_MIN_SPAN uniform float minSpan;
 
 LU_OBJECT_GRID_INFO buffer GridInfo
 {
@@ -29,6 +31,8 @@ LU_AABB buffer AABB
 	} objectAABBInfo[];
 };
 		
+
+
 layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 void main(void)
 {
@@ -40,7 +44,7 @@ void main(void)
 
 	dim.xyz = dim.xyz / MAX_GRID_DIM;
 	float span = max(max(dim.x, dim.y), dim.z);
-	span = max(span, MIN_SPAN);
+	span = max(span, minSpan);
 
 	objectGridInfo[globalId].span = span;
 	objectGridInfo[globalId].voxCount = 0;

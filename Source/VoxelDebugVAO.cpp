@@ -113,6 +113,6 @@ void VoxelDebugVAO::Draw(uint32_t voxelCount, uint32_t offset)
 										voxelCubeData.indexCount,
 										GL_UNSIGNED_INT,
 										nullptr,
-										std::min(voxelCount, 5000000u),
+										voxelCount,
 										offset);
 }

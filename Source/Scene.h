@@ -33,11 +33,14 @@ class Scene : public SceneI
 		size_t					drawCallCount;
 		size_t					totalPolygons;
 
+		float					minSpan;
+
 	protected:
 	public:
 		// Constructors & Destructor
 								Scene(const char* sceneFileName,
-									  const Array32<Light>& light);
+									  const Array32<Light>& light,
+									  float minSpan);
 								~Scene() = default;
 
 		// Static Files
@@ -52,6 +55,8 @@ class Scene : public SceneI
 		size_t					PolyCount() const override;
 		size_t					MaterialCount() const override;
 		size_t					DrawCount() const override;
+
+		float					MinSpan() const override;
 };
 
 #endif //__SCENE_H__

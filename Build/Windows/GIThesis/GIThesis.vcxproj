@@ -104,6 +104,7 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
     <ClCompile Include="..\..\..\Source\DeferredRenderer.cpp" />
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\EmptyGISolution.cpp" />
@@ -126,6 +127,7 @@
     <ClCompile Include="..\..\..\Source\Scene.cpp" />
     <ClCompile Include="..\..\..\Source\SceneLights.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
+    <ClInclude Include="..\..\..\Source\CudaTimer.h" />
     <ClInclude Include="..\..\..\Source\CVoxelPage.h" />
     <ClInclude Include="..\..\..\Source\DeferredRenderer.h" />
     <ClInclude Include="..\..\..\Source\DrawPoint.h" />
@@ -140,6 +142,7 @@
     <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
+    <ClInclude Include="..\..\..\Source\VoxelCopyToVAO.cuh" />
     <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h" />
     <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h" />
   </ItemGroup>
@@ -189,6 +192,7 @@
     <CudaCompile Include="..\..\..\Source\CMatrix.cu" />
     <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu" />
     <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu" />
+    <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelInclude.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu" />
   </ItemGroup>

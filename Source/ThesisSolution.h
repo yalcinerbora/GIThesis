@@ -105,7 +105,7 @@ class ThesisSolution : public SolutionI
 								ThesisSolution(DeferredRenderer&);
 								ThesisSolution(const ThesisSolution&) = delete;
 		const ThesisSolution&	operator=(const ThesisSolution&) = delete;
-		virtual					~ThesisSolution() = default;
+								~ThesisSolution();
 
 		// Interface
 		bool					IsCurrentScene(SceneI&) override;

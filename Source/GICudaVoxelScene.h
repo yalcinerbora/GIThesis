@@ -37,11 +37,12 @@ class GICudaVoxelScene
 									GLuint voxelCache,
 									GLuint voxelCacheRender,
 									size_t objCount);
-		void				LinkSceneBuffers(const std::vector<GLuint>& shadowMaps,
-											 GLuint depthBuffer,
-											 GLuint normalGBuff,
-											 GLuint lightIntensityTex);
-		void				AllocateInitialPages();
+		void				LinkSceneTextures(const std::vector<GLuint>& shadowMaps);
+		void				LinkDeferredRendererBuffers(GLuint depthBuffer,
+														GLuint normalGBuff,
+														GLuint lightIntensityTex);
+		void				UnLinkDeferredRendererBuffers();
+		void				AllocateInitialPages(uint32_t approxVoxCount);
 		void				Reset();
 
 		// Voxelize this current frame

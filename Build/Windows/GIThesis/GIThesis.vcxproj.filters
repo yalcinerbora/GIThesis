@@ -77,6 +77,9 @@
     <ClCompile Include="..\..\..\Source\Globals.cpp">
       <Filter>Utility</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\CudaTimer.cpp">
+      <Filter>Utility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -226,6 +229,12 @@
     <ClInclude Include="..\..\..\Source\GICudaStructMatching.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelCopyToVAO.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CudaTimer.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -280,6 +289,9 @@
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu">
       <Filter>GI\Thesis</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

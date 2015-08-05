@@ -76,6 +76,7 @@ static const TwStructMember lightMembers[] =
 #define U_TOTAL_VOX_DIM 3
 #define U_OBJ_ID 4
 #define U_TOTAL_OBJ_COUNT 4
+#define U_MIN_SPAN 5
 #define U_MAX_CACHE_SIZE 5
 #define U_LIGHT_ID 4
 

@@ -10,10 +10,11 @@
 size_t ThesisSolution::InitialObjectGridSize = 256;
 size_t ThesisSolution::MaxVoxelCacheSize = 1024 * 1024 * 8;
 
-ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer)
+ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& intialCamPos)
 	: currentScene(nullptr)
 	, dRenderer(dRenderer)
 	, vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
+	, vertexDebugWorldVoxel(ShaderType::VERTEX, "Shaders/VoxRenderWorld.vert")
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 	, vertexVoxelizeObject(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert")
 	, geomVoxelizeObject(ShaderType::GEOMETRY, "Shaders/VoxelizeGeom.geom")
@@ -29,6 +30,8 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer)
 	, voxInfo({0})
 	, bar(nullptr)
 	, relativeTransformBuffer(1)
+	, voxelScene(CVoxelGrid{{intialCamPos.getX(), intialCamPos.getY(), intialCamPos.getZ()}, 
+							1.0f, {512, 512, 512}, 9})
 {
 	voxelCacheUsageSize.AddData(0);
 	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGL(),
@@ -201,9 +204,11 @@ void ThesisSolution::Init(SceneI& s)
 					   objectGridInfo.getGLBuffer(),
 					   voxelData.getGLBuffer(),
 					   voxelRenderData.getGLBuffer(),
-					   currentScene->ObjectCount());
+					   static_cast<uint32_t>(currentScene->ObjectCount()),
+					   voxInfo.sceneVoxCacheCount);
 	// Link ShadowMaps and GBuffer textures to cuda
 	voxelScene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapCubeArray());
+	voxelScene.AllocateInitialPages(voxInfo.sceneVoxCacheCount * 1.5f);
 	
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
@@ -225,14 +230,14 @@ void ThesisSolution::Release()
 	if(bar) TwDeleteBar(bar);
 }
 
-void ThesisSolution::Frame(const Camera& mainRenderCamera)
+void ThesisSolution::DebugRenderVoxelCache(const Camera& camera)
 {
 	//DEBUG VOXEL RENDER
 	// Frame Viewport
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0,
-			   static_cast<GLsizei>(mainRenderCamera.width),
-			   static_cast<GLsizei>(mainRenderCamera.height));
+			   static_cast<GLsizei>(camera.width),
+			   static_cast<GLsizei>(camera.height));
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
@@ -252,7 +257,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	fragmentDebugVoxel.Bind();
 
 	cameraTransform.Bind();
-	cameraTransform.Update(mainRenderCamera.generateTransform());
+	cameraTransform.Update(camera.generateTransform());
 
 	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
@@ -261,15 +266,31 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	// Bind Model Transform
 	DrawBuffer& dBuffer = currentScene->getDrawBuffer();
 	dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
-	
+
 	voxelVAO.Bind();
 	voxelVAO.Draw(voxInfo.sceneVoxCacheCount, 0);
+}
+
+void ThesisSolution::Frame(const Camera& mainRenderCamera)
+{
+	// DEBUG
+	DebugRenderVoxelCache(mainRenderCamera);
+
 
 	// VoxelSceneUpdate
-	//voxelScene.Voxelize(mainRenderCamera.pos);
+	voxelScene.Voxelize(mainRenderCamera.pos);
 
 	
 	// Here check TW Bar if user wants to render voxels
+
+
+	// Paged voxel rendering
+	uint32_t voxCount = 0;
+	VoxelDebugVAO& voxelVao = voxelScene.VoxelDataForRendering(voxCount);
+	voxelVao.Bind();
+	voxelVAO.Draw(voxCount, 0);
+
+
 	
 	// Or wants to render only voxel light contrubition to the scene
 

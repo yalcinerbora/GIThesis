@@ -70,7 +70,8 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 										GLuint infoBuffer,
 										GLuint voxelBuffer,
 										GLuint voxelRenderBuffer,
-										size_t objCount)
+										uint32_t objCount,
+										uint32_t voxelCount)
 {
 	CudaTimer timer(0);
 	timer.Start();
@@ -91,6 +92,7 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	cudaGraphicsGLRegisterBuffer(&cacheRenderLinks.back(), voxelRenderBuffer, cudaGraphicsMapFlagsReadOnly);
 
 	objectCounts.emplace_back(objCount);
+	voxelCounts.emplace_back(voxelCount);
 	totalObjectCount += objCount;
 
 	// Allocate Helper Data
@@ -111,7 +113,7 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	cudaGraphicsMapResources(1, &objectInfoLinks.back());
 	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dVoxelInfo), &size, objectInfoLinks.back());
 	
-	uint32_t gridSize = (objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+	uint32_t gridSize = static_cast<uint32_t>((objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK);
 	DetermineTotalSegment<<<gridSize, GI_THREAD_PER_BLOCK>>>(*dTotalCount,
 															 thrust::raw_pointer_cast(dVoxelStrides.back().data()),
 															 thrust::raw_pointer_cast(dObjectAllocationIndexLookup.back().data()),
@@ -196,14 +198,6 @@ void GICudaAllocator::SetupDevicePointers()
 	cudaGraphicsMapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data());
 	cudaGraphicsMapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data());
 
-	thrust::host_vector<CObjectTransform*> hRelativeTransforms;
-	thrust::host_vector<CObjectTransform*> hTransforms;
-	thrust::host_vector<CObjectAABB*> hObjectAABB;
-	thrust::host_vector<CObjectVoxelInfo*> hObjectInfo;
-
-	thrust::host_vector<CVoxelPacked*> hObjCache;
-	thrust::host_vector<CVoxelRender*> hObjRenderCache;
-
 	size_t size = 0;
 	for(unsigned int i = 0; i < objectCounts.size(); i++)
 	{
@@ -282,6 +276,14 @@ void GICudaAllocator::ClearDevicePointers()
 
 	dObjCache.clear();
 	dObjRenderCache.clear();
+
+	hRelativeTransforms.clear();
+	hTransforms.clear();
+	hObjectAABB.clear();
+	hObjectInfo.clear();
+
+	hObjCache.clear();
+	hObjRenderCache.clear();
 
 	cudaDestroySurfaceObject(lightIntensityBuffer);
 	cudaDestroyTextureObject(normalBuffer);
@@ -370,6 +372,9 @@ void GICudaAllocator::ResetSceneData()
 	dSegmentAllocLoc2D.clear();
 
 	objectCounts.clear();
+	voxelCounts.clear();
+
+	totalObjectCount = 0;
 }
 
 void GICudaAllocator::Reserve(uint32_t pageAmount)
@@ -382,22 +387,27 @@ void GICudaAllocator::Reserve(uint32_t pageAmount)
 
 uint32_t GICudaAllocator::NumObjectBatches() const
 {
-	return rTransformLinks.size();
+	return static_cast<uint32_t>(rTransformLinks.size());
 }
 
 uint32_t GICudaAllocator::NumObjects(uint32_t batchIndex) const
 {
-	return objectCounts[batchIndex];
+	return static_cast<uint32_t>(objectCounts[batchIndex]);
 }
 
 uint32_t GICudaAllocator::NumObjectSegments(uint32_t batchIndex) const
 {
-	return dSegmentObjecId[batchIndex].size();
+	return static_cast<uint32_t>(dSegmentObjecId[batchIndex].size());
+}
+
+uint32_t GICudaAllocator::NumVoxels(uint32_t batchIndex) const
+{
+	return static_cast<uint32_t>(voxelCounts[batchIndex]);
 }
 
 uint32_t GICudaAllocator::NumPages() const
 {
-	return hVoxelPages.size();
+	return static_cast<uint32_t>(hVoxelPages.size());
 }
 
 CVoxelGrid* GICudaAllocator::GetVoxelGridDevice()
@@ -435,7 +445,73 @@ CVoxelRender** GICudaAllocator::GetObjRenderCacheDevice()
 	return thrust::raw_pointer_cast(dObjRenderCache.data());
 }
 
+CObjectTransform* GICudaAllocator::GetRelativeTransformsDevice(uint32_t index)
+{
+	return hRelativeTransforms[index];
+}
+
+CObjectTransform* GICudaAllocator::GetTransformsDevice(uint32_t index)
+{
+	return hTransforms[index];
+}
+
+CObjectAABB* GICudaAllocator::GetObjectAABBDevice(uint32_t index)
+{
+	return hObjectAABB[index];
+}
+
+CObjectVoxelInfo* GICudaAllocator::GetObjectInfoDevice(uint32_t index)
+{
+	return hObjectInfo[index];
+}
+
+
+CVoxelPacked* GICudaAllocator::GetObjCacheDevice(uint32_t index)
+{
+	return hObjCache[index];
+}
+
+CVoxelRender* GICudaAllocator::GetObjRenderCacheDevice(uint32_t index)
+{
+	return hObjRenderCache[index];
+}
+
 CVoxelPage* GICudaAllocator::GetVoxelPagesDevice()
 {
 	return thrust::raw_pointer_cast(dVoxelPages.data());
+}
+
+unsigned int* GICudaAllocator::GetSegmentObjectID(uint32_t index)
+{
+	return thrust::raw_pointer_cast(dSegmentObjecId[index].data());
+}
+
+ushort2* GICudaAllocator::GetSegmentAllocLoc(uint32_t index)
+{
+	return thrust::raw_pointer_cast(dSegmentAllocLoc[index].data());
+}
+
+unsigned int* GICudaAllocator::GetVoxelStrides(uint32_t index)
+{
+	return thrust::raw_pointer_cast(dVoxelStrides[index].data());
+}
+
+unsigned int* GICudaAllocator::GetObjectAllocationIndexLookup(uint32_t index)
+{
+	return thrust::raw_pointer_cast(dObjectAllocationIndexLookup[index].data());
+}
+
+char* GICudaAllocator::GetWriteSignals(uint32_t index)
+{
+	return thrust::raw_pointer_cast(dWriteSignals[index].data());
+}
+
+unsigned int** GICudaAllocator::GetObjectAllocationIndexLookup2D()
+{
+	return thrust::raw_pointer_cast(dObjectAllocationIndexLookup2D.data());
+}
+
+ushort2** GICudaAllocator::GetSegmentAllocLoc2D()
+{
+	return thrust::raw_pointer_cast(dSegmentAllocLoc2D.data());
 }

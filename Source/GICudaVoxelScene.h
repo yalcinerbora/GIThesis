@@ -8,22 +8,38 @@ Voxel Representation of the Scene
 #define __GICUDAVOXELSCENE_H__
 
 #include "GICudaAllocator.h"
+#include "StructuredBuffer.h"
+#include "VoxelDebugVAO.h"
 
 class IEVector3;
+
+#pragma pack(push, 1)
+struct VoxelData
+{
+	uint32_t vox[4];
+};
+
+struct VoxelRenderData
+{
+	uint32_t color;
+};
+#pragma pack(pop)
 
 class GICudaVoxelScene
 {
 	private:
-		GICudaAllocator		allocator;
+		GICudaAllocator						allocator;
 
-		CVoxelGrid*			dVoxGrid;
-		CVoxelGrid			hVoxGrid;
+		StructuredBuffer<VoxelData>			vaoData;
+		StructuredBuffer<VoxelRenderData>	vaoRenderData;
+		VoxelDebugVAO						voxelVAO;
+
 
 	protected:
 
 	public:
 		// Constructors & Destructor
-							GICudaVoxelScene();
+							GICudaVoxelScene(const CVoxelGrid& gridSetup);
 							GICudaVoxelScene(const GICudaVoxelScene&) = delete;
 		GICudaVoxelScene&	operator=(const GICudaVoxelScene&) = delete;
 							~GICudaVoxelScene();
@@ -36,7 +52,8 @@ class GICudaVoxelScene
 									GLuint infoBufferID,
 									GLuint voxelCache,
 									GLuint voxelCacheRender,
-									size_t objCount);
+									uint32_t objCount,
+									uint32_t voxelCount);
 		void				LinkSceneTextures(const std::vector<GLuint>& shadowMaps);
 		void				LinkDeferredRendererBuffers(GLuint depthBuffer,
 														GLuint normalGBuff,
@@ -52,12 +69,10 @@ class GICudaVoxelScene
 		// Reconstructs SVO tree
 		void				Voxelize(const IEVector3& playerPos);
 
-
 		// Debug Related Functions
 		// Access for voxel data for rendering voxels
-		GLuint				VoxelDataForRendering();
+		VoxelDebugVAO&		VoxelDataForRendering(uint32_t& voxCount);
 
 
 };
-
 #endif //__GICUDAVOXELSCENE_H__

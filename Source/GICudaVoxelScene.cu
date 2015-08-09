@@ -2,17 +2,15 @@
 #include "GIKernels.cuh"
 #include "IEUtility/IEMath.h"
 
-GICudaVoxelScene::GICudaVoxelScene()
-	: dVoxGrid(nullptr)
-	, allocator(CVoxelGrid { { 0.0f, 0.0f, 0.0f }, 1.0f, {512, 512 ,512},  9})
-{
-	cudaMalloc(reinterpret_cast<void**>(dVoxGrid), sizeof(CVoxelGrid));
-}
+GICudaVoxelScene::GICudaVoxelScene(const CVoxelGrid& gridSetup)
+	: allocator(gridSetup)
+	, vaoData(512)
+	, vaoRenderData(512)
+	, voxelVAO(vaoData, vaoRenderData)
+{}
 
 GICudaVoxelScene::~GICudaVoxelScene()
-{
-	cudaFree(dVoxGrid);
-}
+{}
 
 void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 							   GLuint transformBufferID,
@@ -20,10 +18,11 @@ void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 							   GLuint infoBufferID,
 							   GLuint voxelCache,
 							   GLuint voxelCacheRender,
-							   size_t objCount)
+							   uint32_t objCount,
+							   uint32_t voxelCount)
 {
 	allocator.LinkOGLVoxelCache(aabbBuffer, transformBufferID, relativeTransformBufferID,
-								infoBufferID, voxelCache, voxelCacheRender, objCount);
+								infoBufferID, voxelCache, voxelCacheRender, objCount, voxelCount);
 }
 
 void GICudaVoxelScene::LinkSceneTextures(const std::vector<GLuint>& shadowMaps)
@@ -49,6 +48,8 @@ void GICudaVoxelScene::AllocateInitialPages(uint32_t approxVoxCount)
 	uint32_t voxCount = IEMath::UpperPowTwo(static_cast<unsigned int>(approxVoxCount));
 	uint32_t pageCount = (voxCount + (GI_PAGE_SIZE - 1)) / GI_PAGE_SIZE;
 	allocator.Reserve(pageCount);
+	vaoData.Resize(voxCount);
+	vaoRenderData.Resize(voxCount);
 }
 
 void GICudaVoxelScene::Reset()
@@ -60,46 +61,112 @@ void GICudaVoxelScene::Voxelize(const IEVector3& playerPos)
 {
 	// Main Call Chain Called Every Frame
 	// Manages Voxel Pages
-
 	allocator.SetupDevicePointers();
 
+	for(unsigned int i = 0; i < allocator.NumObjectBatches(); i++)
+	{
+		// Call Logic Per Obj
+		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK - 1) /
+								GI_THREAD_PER_BLOCK;
 
-	//VoxelObjectInclude(// Voxel System
-	//				   allocator.GetVoxelPagesDevice(),
-	//				   allocator.NumPages(),
-	//				   allocator.
-	//				   
-	//				   
-	//				   const CVoxelGrid& gGridInfo,
+		// KC OBJECT VOXEL EXLCUDE
+		VoxelObjectExclude<<<gridSize, GI_THREAD_PER_BLOCK>>>	
+			(// Voxel Pages
+			 allocator.GetVoxelPagesDevice(),
+			 allocator.NumPages(),
+			 *allocator.GetVoxelGridDevice(),
 
-	//				   // Per Object Segment Related
-	//				   ushort2* gObjectAllocLocations,
-	//				   unsigned int* gSegmentObjectId,
-	//				   uint32_t totalSegments,
+			 // Per Object Segment
+			 allocator.GetSegmentAllocLoc(i),
+			 allocator.GetSegmentObjectID(i),
+			 allocator.NumObjectSegments(i),
 
-	//				   // Per Object Related
-	//				   char* gWriteToPages,
-	//				   const unsigned int* gObjectVoxStrides,
-	//				   const unsigned int* gObjectAllocIndexLookup,
-	//				   const CObjectAABB* gObjectAABB,
-	//				   const CObjectTransform* gObjTransforms,
-	//				   const CObjectVoxelInfo* gObjInfo,
-	//				   uint32_t objectCount,
+			 // Per Object
+			 allocator.GetObjectAABBDevice(i),
+			 allocator.GetTransformsDevice(i));
+		
+		// Call Logic Per Voxel
+		gridSize = (allocator.NumVoxels(i) + GI_THREAD_PER_BLOCK - 1) /
+					GI_THREAD_PER_BLOCK;
+		
+		// KC OBJECT VOXEL INCLUDE
+		VoxelObjectInclude<<<gridSize, GI_THREAD_PER_BLOCK>>>
+			(// Voxel System
+			 allocator.GetVoxelPagesDevice(),
+			 allocator.NumPages(),
+			 *allocator.GetVoxelGridDevice(),
+			 
+			 // Per Object Segment Related
+			 allocator.GetSegmentAllocLoc(i),
+			 allocator.GetSegmentObjectID(i),
+			 allocator.NumObjectSegments(i),
+			 
+			 // Per Object Related
+			 allocator.GetWriteSignals(i),
+			 allocator.GetVoxelStrides(i),
+			 allocator.GetObjectAllocationIndexLookup(i),
+			 allocator.GetObjectAABBDevice(i),
+			 allocator.GetTransformsDevice(i),
+			 allocator.GetObjectInfoDevice(i),
+			 allocator.NumObjects(i),
+			 
+			 // Per Voxel Related
+			 allocator.GetObjCacheDevice(i),
+			 allocator.NumVoxels(i),
 
-	//				   // Per Voxel Related
-	//				   const CVoxelPacked* gObjectVoxelCache,
-	//				   uint32_t voxCount,
-
-	//				   // Batch(ObjectGroup in terms of OGL) Id
-	//				   uint32_t batchId);
-
-
+			 // Batch(ObjectGroup in terms of OGL) Id
+			 i);
+	}
 	
+	// Now Call Update
 
+
+	// Then Call GPU Stuff
+	
 	allocator.ClearDevicePointers();
 }
 
-GLuint GICudaVoxelScene::VoxelDataForRendering()
+VoxelDebugVAO& GICudaVoxelScene::VoxelDataForRendering(uint32_t& voxCount)
 {
-	return 0;
+	
+
+	//// KC OBJECT VOXEL INCLUDE
+	//VoxelObjectInclude << <gridSize, GI_THREAD_PER_BLOCK >> >
+	//	(// Voxel System
+	//	allocator.GetVoxelPagesDevice(),
+	//	allocator.NumPages(),
+	//	*allocator.GetVoxelGridDevice(),
+
+	//	// Per Object Segment Related
+	//	allocator.GetSegmentAllocLoc(i),
+	//	allocator.GetSegmentObjectID(i),
+	//	allocator.NumObjectSegments(i),
+
+	//	// Per Object Related
+	//	allocator.GetWriteSignals(i),
+	//	allocator.GetVoxelStrides(i),
+	//	allocator.GetObjectAllocationIndexLookup(i),
+	//	allocator.GetObjectAABBDevice(i),
+	//	allocator.GetTransformsDevice(i),
+	//	allocator.GetObjectInfoDevice(i),
+	//	allocator.NumObjects(i),
+
+	//	// Per Voxel Related
+	//	allocator.GetObjCacheDevice(i),
+	//	allocator.NumVoxels(i),
+
+	//	// Batch(ObjectGroup in terms of OGL) Id
+	//	i);
+
+	
+	// Determine the size of vao buffer
+	voxCount = 0;
+		// KC
+	// Resize structured buffers
+	// Copy to GL Buffer
+		// KC
+
+
+	
+	return voxelVAO;
 }

@@ -28,17 +28,8 @@ struct ObjGridInfo
 	float span;
 	uint32_t voxCount;
 };
-
-struct VoxelData
-{
-	uint32_t vox[4];
-};
-
-struct VoxelRenderData
-{
-	uint32_t color;
-};
 #pragma pack(pop)
+
 
 struct VoxelInfo
 {
@@ -58,6 +49,7 @@ class ThesisSolution : public SolutionI
 		DeferredRenderer&		dRenderer;
 
 		Shader					vertexDebugVoxel;
+		Shader					vertexDebugWorldVoxel;
 		Shader					fragmentDebugVoxel;
 
 		Shader					vertexVoxelizeObject;
@@ -84,6 +76,9 @@ class ThesisSolution : public SolutionI
 		double									frameTime;
 		VoxelInfo								voxInfo;
 		
+		//
+		void									DebugRenderVoxelCache(const Camera& camera);
+
 		// Uncomment this for debugging voxelization 
 		// Normally this texture allocated and deallocated 
 		// at init time and
@@ -102,7 +97,7 @@ class ThesisSolution : public SolutionI
 		void					DrawVoxel(size_t index);
 
 	public:
-								ThesisSolution(DeferredRenderer&);
+								ThesisSolution(DeferredRenderer&, const IEVector3& intialCamPos);
 								ThesisSolution(const ThesisSolution&) = delete;
 		const ThesisSolution&	operator=(const ThesisSolution&) = delete;
 								~ThesisSolution();

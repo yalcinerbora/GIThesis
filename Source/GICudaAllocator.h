@@ -61,6 +61,14 @@ class GICudaAllocator
 		thrust::device_vector<CVoxelPacked*>			dObjCache;
 		thrust::device_vector<CVoxelRender*>			dObjRenderCache;
 
+		thrust::host_vector<CObjectTransform*>			hRelativeTransforms;	
+		thrust::host_vector<CObjectTransform*>			hTransforms;			
+		thrust::host_vector<CObjectAABB*>				hObjectAABB;			
+		thrust::host_vector<CObjectVoxelInfo*>			hObjectInfo;		
+								
+		thrust::host_vector<CVoxelPacked*>				hObjCache;
+		thrust::host_vector<CVoxelRender*>				hObjRenderCache;
+
 		// G Buffer Related Data
 		cudaTextureObject_t								depthBuffer;
 		cudaTextureObject_t								normalBuffer;
@@ -85,6 +93,7 @@ class GICudaAllocator
 		cudaGraphicsResource*							lightIntensityLink;
 
 		// Size Data
+		std::vector<size_t>								voxelCounts;
 		std::vector<size_t>								objectCounts;
 		size_t											totalObjectCount;
 
@@ -105,7 +114,8 @@ class GICudaAllocator
 												  GLuint infoBufferID,
 												  GLuint voxelCache,
 												  GLuint voxelCacheRender,
-												  size_t objCount);
+												  uint32_t objCount,
+												  uint32_t voxelCount);
 		void					LinkSceneShadowMapArray(const std::vector<GLuint>& shadowMaps);
 		void					LinkSceneGBuffers(GLuint depthTex,
 												  GLuint normalTex,
@@ -123,6 +133,7 @@ class GICudaAllocator
 		uint32_t				NumObjectBatches() const;
 		uint32_t				NumObjects(uint32_t batchIndex) const;
 		uint32_t				NumObjectSegments(uint32_t batchIndex) const;
+		uint32_t				NumVoxels(uint32_t batchIndex) const;
 		uint32_t				NumPages() const;
 
 		CVoxelGrid*				GetVoxelGridDevice();
@@ -136,8 +147,27 @@ class GICudaAllocator
 		CVoxelPacked**			GetObjCacheDevice();
 		CVoxelRender**			GetObjRenderCacheDevice();
 
+		CObjectTransform*		GetRelativeTransformsDevice(uint32_t index);
+		CObjectTransform*		GetTransformsDevice(uint32_t index);
+		CObjectAABB*			GetObjectAABBDevice(uint32_t index);
+		CObjectVoxelInfo*		GetObjectInfoDevice(uint32_t index);
+
+		CVoxelPacked*			GetObjCacheDevice(uint32_t index);
+		CVoxelRender*			GetObjRenderCacheDevice(uint32_t index);
+
 		// Pages
 		CVoxelPage*				GetVoxelPagesDevice();
 
+		// Helper Data (That is populated by system)
+		// Object Segment Related
+		unsigned int*			GetSegmentObjectID(uint32_t index);
+		ushort2*				GetSegmentAllocLoc(uint32_t index);
+
+		unsigned int*			GetVoxelStrides(uint32_t index);
+		unsigned int*			GetObjectAllocationIndexLookup(uint32_t index);
+		char*					GetWriteSignals(uint32_t index);
+
+		unsigned int**			GetObjectAllocationIndexLookup2D();
+		ushort2**				GetSegmentAllocLoc2D();
 };
 #endif //__GICUDAALLOCATOR_H_

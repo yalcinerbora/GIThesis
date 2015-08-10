@@ -81,6 +81,10 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	glTextureView(shadowMapArrayView, GL_TEXTURE_2D_ARRAY, lightShadowMaps, GL_DEPTH_COMPONENT32,
 				  0, 1, 0, 6 * lights.length);
 
+	glGenTextures(1, &shadowMapR32FCopy);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, shadowMapR32FCopy);
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_R32F, shadowMapWH, shadowMapWH, 6 * lights.length);
+
 	for(unsigned int i = 0; i < lights.length; i++)
 	{
 		lightsGPU.AddData(lights.arr[i]);
@@ -218,9 +222,9 @@ uint32_t SceneLights::Count() const
 	return static_cast<uint32_t>(lightShadowCast.size());
 }
 
-const std::vector<GLuint>& SceneLights::GetShadowMapCubeArray() const
+GLuint SceneLights::GetShadowMapArrayR32F() const
 {
-	return shadowMapViews;
+	return shadowMapR32FCopy;
 }
 
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)
@@ -311,5 +315,3 @@ bool SceneLights::GetLightShadow(uint32_t index) const
 {
 	return lightShadowCast[index];
 }
-
-

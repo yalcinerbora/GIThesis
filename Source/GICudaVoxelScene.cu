@@ -27,9 +27,9 @@ void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 								infoBufferID, voxelCache, voxelCacheRender, objCount, voxelCount);
 }
 
-void GICudaVoxelScene::LinkSceneTextures(const std::vector<GLuint>& shadowMaps)
+void GICudaVoxelScene::LinkSceneTextures(GLuint shadowMapArray)
 {
-	allocator.LinkSceneShadowMapArray(shadowMaps);
+	allocator.LinkSceneShadowMapArray(shadowMapArray);
 }
 
 void GICudaVoxelScene::UnLinkDeferredRendererBuffers()
@@ -94,33 +94,33 @@ void GICudaVoxelScene::Voxelize(const IEVector3& playerPos)
 		gridSize = (allocator.NumVoxels(i) + GI_THREAD_PER_BLOCK - 1) /
 					GI_THREAD_PER_BLOCK;
 		
-		// KC OBJECT VOXEL INCLUDE
-		VoxelObjectInclude<<<gridSize, GI_THREAD_PER_BLOCK>>>
-			(// Voxel System
-			 allocator.GetVoxelPagesDevice(),
-			 allocator.NumPages(),
-			 *allocator.GetVoxelGridDevice(),
-			 
-			 // Per Object Segment Related
-			 allocator.GetSegmentAllocLoc(i),
-			 allocator.GetSegmentObjectID(i),
-			 allocator.NumObjectSegments(i),
-			 
-			 // Per Object Related
-			 allocator.GetWriteSignals(i),
-			 allocator.GetVoxelStrides(i),
-			 allocator.GetObjectAllocationIndexLookup(i),
-			 allocator.GetObjectAABBDevice(i),
-			 allocator.GetTransformsDevice(i),
-			 allocator.GetObjectInfoDevice(i),
-			 allocator.NumObjects(i),
-			 
-			 // Per Voxel Related
-			 allocator.GetObjCacheDevice(i),
-			 allocator.NumVoxels(i),
+		//// KC OBJECT VOXEL INCLUDE
+		//VoxelObjectInclude<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		//	(// Voxel System
+		//	 allocator.GetVoxelPagesDevice(),
+		//	 allocator.NumPages(),
+		//	 *allocator.GetVoxelGridDevice(),
+		//	 
+		//	 // Per Object Segment Related
+		//	 allocator.GetSegmentAllocLoc(i),
+		//	 allocator.GetSegmentObjectID(i),
+		//	 allocator.NumObjectSegments(i),
+		//	 
+		//	 // Per Object Related
+		//	 allocator.GetWriteSignals(i),
+		//	 allocator.GetVoxelStrides(i),
+		//	 allocator.GetObjectAllocationIndexLookup(i),
+		//	 allocator.GetObjectAABBDevice(i),
+		//	 allocator.GetTransformsDevice(i),
+		//	 allocator.GetObjectInfoDevice(i),
+		//	 allocator.NumObjects(i),
+		//	 
+		//	 // Per Voxel Related
+		//	 allocator.GetObjCacheDevice(i),
+		//	 allocator.NumVoxels(i),
 
-			 // Batch(ObjectGroup in terms of OGL) Id
-			 i);
+		//	 // Batch(ObjectGroup in terms of OGL) Id
+		//	 i);
 	}
 	timer.Stop();
 	GI_LOG("Voxel I-O Time %f ms", timer.ElapsedMilliS());
@@ -136,7 +136,8 @@ void GICudaVoxelScene::Voxelize(const IEVector3& playerPos)
 	GI_LOG("Voxel SVO Reconstruct Time %f ms", timer.ElapsedMilliS());
 	timer.Start();
 	
-	// 
+	//
+	cudaDeviceSynchronize();
 	allocator.ClearDevicePointers();
 }
 

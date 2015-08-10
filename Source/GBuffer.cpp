@@ -7,6 +7,7 @@ GBuffer::GBuffer(GLuint w, GLuint h)
  , fboTexSampler(0)
  , width(w)
  , height(h)
+ , depthR32FCopy(0)
 {
 	// Generate Textures
 	glGenTextures(3, rtTextures);
@@ -20,7 +21,12 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RG16UI, width, height);
 	
 	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)]);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, width, height);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, width, height);
+
+	//depthR32FView (Cuda compatiblity)
+	glGenTextures(1, &depthR32FCopy);
+	glBindTexture(GL_TEXTURE_2D, depthR32FCopy);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32F, width, height);
 
 	// Sampler
 	glGenSamplers(1, &fboTexSampler);
@@ -36,7 +42,7 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
 						   GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::NORMAL)],
 						   0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
 						   GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)],
 						   0);
 
@@ -50,6 +56,7 @@ GBuffer::~GBuffer()
 	glDeleteFramebuffers(1, &fbo);
 	glDeleteSamplers(1, &fboTexSampler);
 	glDeleteTextures(3, rtTextures);
+	glDeleteTextures(1, &depthR32FCopy);
 }
 
 void GBuffer::BindAsTexture(GLuint texTarget,
@@ -80,7 +87,16 @@ GLuint GBuffer::getNormalGL()
 	return rtTextures[static_cast<int>(RenderTargetLocation::NORMAL)];
 }
 
+GLuint GBuffer::getDepthGLView()
+{
+	return depthR32FCopy;
+}
+
 void GBuffer::BindDefaultFBO()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+
+//void GBuffer::CopyDepthToCudaMapped()
+//{
+//}

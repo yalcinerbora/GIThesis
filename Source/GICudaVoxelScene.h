@@ -54,7 +54,7 @@ class GICudaVoxelScene
 									GLuint voxelCacheRender,
 									uint32_t objCount,
 									uint32_t voxelCount);
-		void				LinkSceneTextures(const std::vector<GLuint>& shadowMaps);
+		void				LinkSceneTextures(GLuint shadowMapArray);
 		void				LinkDeferredRendererBuffers(GLuint depthBuffer,
 														GLuint normalGBuff,
 														GLuint lightIntensityTex);

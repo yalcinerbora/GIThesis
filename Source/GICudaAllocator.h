@@ -12,16 +12,16 @@ Memory Allocation
 #include <vector>
 #include "CVoxel.cuh"
 #include "COpenGLCommon.cuh"
-#include <thrust/device_vector.h>
+#include "CudaVector.cuh"
 #include "GLHeader.h"
 #include "CVoxelPage.h"
 #include <cudaGL.h>
 
 struct CVoxelPageData
 {
-	thrust::device_vector<CVoxelPacked> dVoxelPage;
-	thrust::device_vector<unsigned int> dEmptySegmentList;
-	thrust::device_vector<char>			dIsSegmentOccupied;
+	CudaVector<CVoxelPacked>	dVoxelPage;
+	CudaVector<unsigned int>	dEmptySegmentList;
+	CudaVector<char>			dIsSegmentOccupied;
 };
 
 class GICudaAllocator
@@ -29,73 +29,73 @@ class GICudaAllocator
 	
 	private:
 		// Grid Data
-		thrust::host_vector<CVoxelPage>					hVoxelPages;
-		thrust::device_vector<CVoxelPage>				dVoxelPages;
-		std::vector<CVoxelPageData>						hPageData;
+		std::vector<CVoxelPage>					hVoxelPages;
+		CudaVector<CVoxelPage>					dVoxelPages;
+		std::vector<CVoxelPageData>				hPageData;
 
-		CVoxelGrid										hVoxelGridInfo;
-		thrust::device_vector<CVoxelGrid>				dVoxelGridInfo;
+		CVoxelGrid								hVoxelGridInfo;
+		CudaVector<CVoxelGrid>					dVoxelGridInfo;
 
 		// Helper Data (That is populated by system)
 		// Object Segment Related
-		std::vector<thrust::device_vector<unsigned int>>	dSegmentObjecId;
-		std::vector<thrust::device_vector<ushort2>>			dSegmentAllocLoc;
+		std::vector<CudaVector<unsigned int>>	dSegmentObjecId;
+		std::vector<CudaVector<ushort2>>		dSegmentAllocLoc;
 
 		// Per Object
-		std::vector<thrust::device_vector<unsigned int>>	dVoxelStrides;
-		std::vector<thrust::device_vector<unsigned int>>	dObjectAllocationIndexLookup;
-		std::vector<thrust::device_vector<char>>			dWriteSignals;
+		std::vector<CudaVector<unsigned int>>	dVoxelStrides;
+		std::vector<CudaVector<unsigned int>>	dObjectAllocationIndexLookup;
+		std::vector<CudaVector<char>>			dWriteSignals;
 
 		// Array of Device Pointers
-		thrust::device_vector<unsigned int*>				dObjectAllocationIndexLookup2D;
-		thrust::device_vector<ushort2*>						dSegmentAllocLoc2D;
+		CudaVector<unsigned int*>				dObjectAllocationIndexLookup2D;
+		CudaVector<ushort2*>					dSegmentAllocLoc2D;
 		//------
 
 		// Object Related Data (Comes from OGL)
 		// Kernel call ready aligned pointer(s)
-		thrust::device_vector<CObjectTransform*>		dRelativeTransforms;	// Transform matrices relative to the prev frame (world -> world)
-		thrust::device_vector<CObjectTransform*>		dTransforms;			// Transform matrices from object space (object -> world)
-		thrust::device_vector<CObjectAABB*>				dObjectAABB;			// Object Space Axis Aligned Bounding Box for each object
-		thrust::device_vector<CObjectVoxelInfo*>		dObjectInfo;			// Voxel Count of the object
+		CudaVector<CObjectTransform*>			dRelativeTransforms;	// Transform matrices relative to the prev frame (world -> world)
+		CudaVector<CObjectTransform*>			dTransforms;			// Transform matrices from object space (object -> world)
+		CudaVector<CObjectAABB*>				dObjectAABB;			// Object Space Axis Aligned Bounding Box for each object
+		CudaVector<CObjectVoxelInfo*>			dObjectInfo;			// Voxel Count of the object
+		
+		CudaVector<CVoxelPacked*>				dObjCache;
+		CudaVector<CVoxelRender*>				dObjRenderCache;
 
-		thrust::device_vector<CVoxelPacked*>			dObjCache;
-		thrust::device_vector<CVoxelRender*>			dObjRenderCache;
+		std::vector<CObjectTransform*>			hRelativeTransforms;	
+		std::vector<CObjectTransform*>			hTransforms;			
+		std::vector<CObjectAABB*>				hObjectAABB;			
+		std::vector<CObjectVoxelInfo*>			hObjectInfo;		
 
-		thrust::host_vector<CObjectTransform*>			hRelativeTransforms;	
-		thrust::host_vector<CObjectTransform*>			hTransforms;			
-		thrust::host_vector<CObjectAABB*>				hObjectAABB;			
-		thrust::host_vector<CObjectVoxelInfo*>			hObjectInfo;		
-								
-		thrust::host_vector<CVoxelPacked*>				hObjCache;
-		thrust::host_vector<CVoxelRender*>				hObjRenderCache;
+		std::vector<CVoxelPacked*>				hObjCache;
+		std::vector<CVoxelRender*>				hObjRenderCache;
 
 		// G Buffer Related Data
-		cudaTextureObject_t								depthBuffer;
-		cudaTextureObject_t								normalBuffer;
-		cudaSurfaceObject_t								lightIntensityBuffer;
+		cudaTextureObject_t						depthBuffer;
+		cudaTextureObject_t						normalBuffer;
+		cudaSurfaceObject_t						lightIntensityBuffer;
 
 		// Scene Light Related Data
-		std::vector<cudaTextureObject_t>				shadowMaps;
+		cudaTextureObject_t						shadowMaps;
 
 		// Interop Data
-		std::vector<cudaGraphicsResource*>				rTransformLinks;
-		std::vector<cudaGraphicsResource*>				transformLinks;
-		std::vector<cudaGraphicsResource*>				aabbLinks;
-		std::vector<cudaGraphicsResource*>				objectInfoLinks;
+		std::vector<cudaGraphicsResource_t>		rTransformLinks;
+		std::vector<cudaGraphicsResource_t>		transformLinks;
+		std::vector<cudaGraphicsResource_t>		aabbLinks;
+		std::vector<cudaGraphicsResource_t>		objectInfoLinks;
 
-		std::vector<cudaGraphicsResource*>				cacheLinks;
-		std::vector<cudaGraphicsResource*>				cacheRenderLinks;
+		std::vector<cudaGraphicsResource_t>		cacheLinks;
+		std::vector<cudaGraphicsResource_t>		cacheRenderLinks;
 
 		// Per Scene Interop Data
-		std::vector<cudaGraphicsResource*>				sceneShadowMapLinks;
-		cudaGraphicsResource*							depthBuffLink;
-		cudaGraphicsResource*							normalBuffLink;
-		cudaGraphicsResource*							lightIntensityLink;
+		cudaGraphicsResource_t					sceneShadowMapLink;	
+		cudaGraphicsResource_t					depthBuffLink;
+		cudaGraphicsResource_t					normalBuffLink;
+		cudaGraphicsResource_t					lightIntensityLink;
 
 		// Size Data
-		std::vector<size_t>								voxelCounts;
-		std::vector<size_t>								objectCounts;
-		size_t											totalObjectCount;
+		std::vector<size_t>						voxelCounts;
+		std::vector<size_t>						objectCounts;
+		size_t									totalObjectCount;
 
 		//
 		void					AddVoxelPage(size_t count);
@@ -116,7 +116,7 @@ class GICudaAllocator
 												  GLuint voxelCacheRender,
 												  uint32_t objCount,
 												  uint32_t voxelCount);
-		void					LinkSceneShadowMapArray(const std::vector<GLuint>& shadowMaps);
+		void					LinkSceneShadowMapArray(GLuint shadowMapArray);
 		void					LinkSceneGBuffers(GLuint depthTex,
 												  GLuint normalTex,
 												  GLuint lightIntensityTex);

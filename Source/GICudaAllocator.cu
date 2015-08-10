@@ -6,20 +6,20 @@
 
 // Small Helper Kernel That used to determine total segment size used by the object batch
 // Logic per object in batch
-__global__ void DetermineTotalSegment(int& dTotalSegmentCount,
+__global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 
 									  // Per object Related
 									  unsigned int* gObjectVoxStrides,
 									  unsigned int* gObjectAllocIndexLookup,
 									  const CObjectVoxelInfo* gVoxelInfo,
-									  uint32_t objCount)
+									  const uint32_t objCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= objCount) return;
 
 	// Determine Segment Count and add do total segment counter
 	unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
-	atomicAdd(&dTotalSegmentCount, segmentCount);
+	atomicAdd(dTotalSegmentCount, segmentCount);
 
 	// Determine Strides
 	// Here this implementation is slow and does redundant work 
@@ -42,7 +42,7 @@ __global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
 
 									  const unsigned int* gObjectAllocIndexLookup,
 									  const CObjectVoxelInfo* gVoxelInfo,
-									  uint32_t objCount)
+									  const uint32_t objCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= objCount) return;
@@ -61,7 +61,7 @@ GICudaAllocator::GICudaAllocator(const CVoxelGrid& gridInfo)
 	, hVoxelGridInfo(gridInfo)
 {
 	cudaGLSetGLDevice(0);
-	dVoxelGridInfo[0] = hVoxelGridInfo;
+	dVoxelGridInfo.Assign(0, hVoxelGridInfo);
 }
 
 void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
@@ -73,15 +73,16 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 										uint32_t objCount,
 										uint32_t voxelCount)
 {
+	cudaError_t cudaErr;
 	CudaTimer timer(0);
 	timer.Start();
 
-	rTransformLinks.emplace_back(nullptr);
-	transformLinks.emplace_back(nullptr);
-	aabbLinks.emplace_back(nullptr);
-	objectInfoLinks.emplace_back(nullptr);
-	cacheLinks.emplace_back(nullptr);
-	cacheRenderLinks.emplace_back(nullptr);
+	rTransformLinks.emplace_back();
+	transformLinks.emplace_back();
+	aabbLinks.emplace_back();
+	objectInfoLinks.emplace_back();
+	cacheLinks.emplace_back();
+	cacheRenderLinks.emplace_back();
 
 	cudaGraphicsGLRegisterBuffer(&rTransformLinks.back(), relativeTransformBuffer, cudaGraphicsMapFlagsReadOnly);
 	cudaGraphicsGLRegisterBuffer(&transformLinks.back(), batchTransformBuffer, cudaGraphicsMapFlagsReadOnly);
@@ -104,8 +105,8 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	// Determine object segement sizes
 	int* dTotalCount = nullptr;
 	int hTotalCount = 0;
-	cudaMalloc(reinterpret_cast<void**>(&dTotalCount), sizeof(int));
-	cudaMemset(dTotalCount, 0, sizeof(int));
+	cudaErr = cudaMalloc(reinterpret_cast<void**>(&dTotalCount), sizeof(int));
+	cudaErr = cudaMemset(dTotalCount, 0, sizeof(int));
 
 	// Mapping Pointer
 	CObjectVoxelInfo* dVoxelInfo = nullptr;
@@ -114,26 +115,27 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dVoxelInfo), &size, objectInfoLinks.back());
 	
 	uint32_t gridSize = static_cast<uint32_t>((objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK);
-	DetermineTotalSegment<<<gridSize, GI_THREAD_PER_BLOCK>>>(*dTotalCount,
-															 thrust::raw_pointer_cast(dVoxelStrides.back().data()),
-															 thrust::raw_pointer_cast(dObjectAllocationIndexLookup.back().data()),
+	DetermineTotalSegment<<<gridSize, GI_THREAD_PER_BLOCK>>>(dTotalCount,
+															 dVoxelStrides.back().Data(),
+															 dObjectAllocationIndexLookup.back().Data(),
 															 dVoxelInfo,
 															 objCount);
-
+	
+	// Allocation after determining total index count
 	cudaMemcpy(&hTotalCount, dTotalCount, sizeof(int), cudaMemcpyDeviceToHost);
 	dSegmentObjecId.emplace_back(hTotalCount);
 	dSegmentAllocLoc.emplace_back(hTotalCount);
+	cudaMemset(dSegmentAllocLoc.back().Data(), 0xFFFF, dSegmentAllocLoc.back().Size() * sizeof(ushort2));
 
-	DetermineSegmentObjId<<<gridSize, GI_THREAD_PER_BLOCK>>>(thrust::raw_pointer_cast(dSegmentObjecId.back().data()),
-															 thrust::raw_pointer_cast(dObjectAllocationIndexLookup.back().data()),
+	DetermineSegmentObjId<<<gridSize, GI_THREAD_PER_BLOCK>>>(dSegmentObjecId.back().Data(),
+															 dObjectAllocationIndexLookup.back().Data(),
 															 dVoxelInfo,
 															 objCount);
-
 	cudaGraphicsUnmapResources(1, &objectInfoLinks.back());
 
-	dObjectAllocationIndexLookup2D.push_back(thrust::raw_pointer_cast(dObjectAllocationIndexLookup.back().data()));
-	dSegmentAllocLoc2D.push_back(thrust::raw_pointer_cast(dSegmentAllocLoc.back().data()));
-
+	dObjectAllocationIndexLookup2D.InsertEnd(dObjectAllocationIndexLookup.back().Data());
+	dSegmentAllocLoc2D.InsertEnd(dSegmentAllocLoc.back().Data());
+	cudaFree(dTotalCount);
 	timer.Stop();
 	GI_LOG("Linked Object Batch to CUDA. Elaped time %f ms", timer.ElapsedMilliS());
 
@@ -150,17 +152,13 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	assert(dSegmentObjecId.size() == dSegmentAllocLoc.size());
 }
 
-void GICudaAllocator::LinkSceneShadowMapArray(const std::vector<GLuint>& shadowMaps)
+void GICudaAllocator::LinkSceneShadowMapArray(GLuint shadowMapArray)
 {
-	cudaGraphicsResource* resource = nullptr;
-	for(unsigned int i = 0; i < shadowMaps.size(); i++)
-	{
-		cudaGraphicsGLRegisterImage(&resource,
-									shadowMaps[i],
-									GL_TEXTURE_CUBE_MAP,
-									cudaGraphicsRegisterFlagsReadOnly);
-		sceneShadowMapLinks.push_back(resource);
-	}
+	cudaError_t cudaErr;
+	cudaErr = cudaGraphicsGLRegisterImage(&sceneShadowMapLink,
+										  shadowMapArray,
+										  GL_TEXTURE_2D_ARRAY,
+										  cudaGraphicsRegisterFlagsReadOnly);
 }
 
 void GICudaAllocator::LinkSceneGBuffers(GLuint depthTex,
@@ -183,9 +181,10 @@ void GICudaAllocator::LinkSceneGBuffers(GLuint depthTex,
 
 void GICudaAllocator::UnLinkGBuffers()
 {
-	cudaGraphicsUnregisterResource(depthBuffLink);
-	cudaGraphicsUnregisterResource(normalBuffLink);
-	cudaGraphicsUnregisterResource(lightIntensityLink);
+	cudaError_t cudaErr;
+	cudaErr = cudaGraphicsUnregisterResource(depthBuffLink);
+	cudaErr = cudaGraphicsUnregisterResource(normalBuffLink);
+	cudaErr = cudaGraphicsUnregisterResource(lightIntensityLink);
 }
 
 void GICudaAllocator::SetupDevicePointers()
@@ -227,55 +226,54 @@ void GICudaAllocator::SetupDevicePointers()
 	dObjCache = hObjCache;
 	dObjRenderCache = hObjRenderCache;
 
-
 	// Textures
-	cudaArray* texArray = nullptr;
+	cudaArray_t texArray;
+	cudaMipmappedArray_t mipArray;
 	cudaResourceDesc resDesc = {};
 	cudaTextureDesc texDesc = {};
 
-	resDesc.res.array.array = texArray;
-	resDesc.resType = cudaResourceTypeArray;
+	resDesc.resType = cudaResourceTypeMipmappedArray;
 
 	texDesc.addressMode[0] = cudaAddressModeWrap;
 	texDesc.addressMode[1] = cudaAddressModeWrap;
-	texDesc.filterMode = cudaFilterModeLinear;
-	texDesc.readMode = cudaReadModeNormalizedFloat;
-	texDesc.normalizedCoords = 0;
-
-	cudaGraphicsMapResources(static_cast<int>(sceneShadowMapLinks.size()), sceneShadowMapLinks.data());
-	for(unsigned int i = 0; i < sceneShadowMapLinks.size(); i++)
-	{
-		cudaGraphicsSubResourceGetMappedArray(&texArray, sceneShadowMapLinks[i], 0, 0);
-
-		shadowMaps.emplace_back();
-		cudaCreateTextureObject(&shadowMaps.back(), &resDesc, &texDesc, nullptr);
-	}
-
-	cudaGraphicsMapResources(1, &depthBuffLink);
-	cudaGraphicsSubResourceGetMappedArray(&texArray, depthBuffLink, 0, 0);
+	texDesc.filterMode = cudaFilterModePoint;
 	texDesc.readMode = cudaReadModeElementType;
-	cudaCreateTextureObject(&depthBuffer, &resDesc, &texDesc, nullptr);
+	texDesc.normalizedCoords = 1;
 
-	cudaGraphicsMapResources(1, &normalBuffLink);
-	cudaGraphicsSubResourceGetMappedArray(&texArray, normalBuffLink, 0, 0);
-	texDesc.readMode = cudaReadModeElementType;
-	cudaCreateTextureObject(&normalBuffer, &resDesc, &texDesc, nullptr);
+	cudaError_t cerr;
+	//cerr = cudaGraphicsMapResources(1, &sceneShadowMapLink);
+	//cerr = cudaGraphicsResourceGetMappedMipmappedArray(&mipArray, sceneShadowMapLink);
+	//resDesc.res.mipmap.mipmap = mipArray;
+	//cerr = cudaCreateTextureObject(&shadowMaps, &resDesc, &texDesc, nullptr);
 
-	cudaGraphicsMapResources(1, &lightIntensityLink);
-	cudaGraphicsSubResourceGetMappedArray(&texArray, lightIntensityLink, 0, 0);
-	cudaCreateSurfaceObject(&lightIntensityBuffer, &resDesc);
+	texDesc.normalizedCoords = 1;
+	resDesc.resType = cudaResourceTypeArray;
 
+	//cerr = cudaGraphicsMapResources(1, &depthBuffLink);
+	//cerr = cudaGraphicsSubResourceGetMappedArray(&texArray, depthBuffLink, 0, 0);
+	//resDesc.res.array.array = texArray;
+	//cerr = cudaCreateTextureObject(&depthBuffer, &resDesc, &texDesc, nullptr);
+
+	//cerr = cudaGraphicsMapResources(1, &normalBuffLink);
+	//cudaGraphicsSubResourceGetMappedArray(&texArray, normalBuffLink, 0, 0);
+	//resDesc.res.array.array = texArray;
+	//cudaCreateTextureObject(&normalBuffer, &resDesc, &texDesc, nullptr);
+
+	//cudaGraphicsMapResources(1, &lightIntensityLink);
+	//cudaGraphicsSubResourceGetMappedArray(&texArray, lightIntensityLink, 0, 0);
+	//resDesc.res.array.array = texArray;
+	//cudaCreateSurfaceObject(&lightIntensityBuffer, &resDesc);
 }
 
 void GICudaAllocator::ClearDevicePointers()
 {
-	dRelativeTransforms.clear();
-	dTransforms.clear();
-	dObjectAABB.clear();
-	dObjectInfo.clear();
+	dRelativeTransforms.Clear();
+	dTransforms.Clear();
+	dObjectAABB.Clear();
+	dObjectInfo.Clear();
 
-	dObjCache.clear();
-	dObjRenderCache.clear();
+	dObjCache.Clear();
+	dObjRenderCache.Clear();
 
 	hRelativeTransforms.clear();
 	hTransforms.clear();
@@ -285,28 +283,24 @@ void GICudaAllocator::ClearDevicePointers()
 	hObjCache.clear();
 	hObjRenderCache.clear();
 
-	cudaDestroySurfaceObject(lightIntensityBuffer);
-	cudaDestroyTextureObject(normalBuffer);
-	cudaDestroyTextureObject(depthBuffer);
+	cudaError_t cerr;
+	//cerr = cudaDestroySurfaceObject(lightIntensityBuffer);
+	//cerr = cudaDestroyTextureObject(normalBuffer);
+	//cerr = cudaDestroyTextureObject(depthBuffer);
+	//cerr = cudaDestroyTextureObject(shadowMaps);
 
-	for(unsigned int i = 0; i < shadowMaps.size(); i++)
-	{
-		cudaDestroyTextureObject(shadowMaps[i]);
-	}
-	shadowMaps.clear();
+	//cerr = cudaGraphicsUnmapResources(1, &lightIntensityLink);
+	//cerr = cudaGraphicsUnmapResources(1, &normalBuffLink);
+	//cerr = cudaGraphicsUnmapResources(1, &depthBuffLink);
+	//cerr = cudaGraphicsUnmapResources(1, &sceneShadowMapLink);
 
-	cudaGraphicsUnmapResources(1, &depthBuffLink);
-	cudaGraphicsUnmapResources(1, &normalBuffLink);
-	cudaGraphicsUnmapResources(1, &lightIntensityLink);
-	cudaGraphicsUnmapResources(static_cast<int>(sceneShadowMapLinks.size()), sceneShadowMapLinks.data());
+	cerr = cudaGraphicsUnmapResources(static_cast<int>(rTransformLinks.size()), rTransformLinks.data());
+	cerr = cudaGraphicsUnmapResources(static_cast<int>(transformLinks.size()), transformLinks.data());
+	cerr = cudaGraphicsUnmapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data());
+	cerr = cudaGraphicsUnmapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data());
 
-	cudaGraphicsUnmapResources(static_cast<int>(rTransformLinks.size()), rTransformLinks.data());
-	cudaGraphicsUnmapResources(static_cast<int>(transformLinks.size()), transformLinks.data());
-	cudaGraphicsUnmapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data());
-	cudaGraphicsUnmapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data());
-
-	cudaGraphicsUnmapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data());
-	cudaGraphicsUnmapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data());
+	cerr = cudaGraphicsUnmapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data());
+	cerr = cudaGraphicsUnmapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data());
 }
 
 void GICudaAllocator::AddVoxelPage(size_t count)
@@ -316,16 +310,16 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		// Allocating Page
 		hPageData.emplace_back(CVoxelPageData
 		{
-			thrust::device_vector<CVoxelPacked>(GI_PAGE_SIZE, CVoxelPacked {0, 0, 0, 0}),
-			thrust::device_vector<unsigned int>(GI_BLOCK_PER_PAGE, 0),
-			thrust::device_vector<char>(GI_BLOCK_PER_PAGE, 0)
+			CudaVector<CVoxelPacked>(GI_PAGE_SIZE),
+			CudaVector<unsigned int>(GI_BLOCK_PER_PAGE),
+			CudaVector<char>(GI_BLOCK_PER_PAGE)
 		});
 
 		CVoxelPage voxData =
 		{
-			thrust::raw_pointer_cast(hPageData.back().dVoxelPage.data()),
-			thrust::raw_pointer_cast(hPageData.back().dEmptySegmentList.data()),
-			thrust::raw_pointer_cast(hPageData.back().dIsSegmentOccupied.data()),
+			hPageData.back().dVoxelPage.Data(),
+			hPageData.back().dEmptySegmentList.Data(),
+			hPageData.back().dIsSegmentOccupied.Data(),
 			0
 		};
 		hVoxelPages.push_back(voxData);
@@ -344,12 +338,8 @@ void GICudaAllocator::ResetSceneData()
 
 		cudaGraphicsUnregisterResource(cacheLinks[i]);
 		cudaGraphicsUnregisterResource(cacheRenderLinks[i]);
-	}
-
-	for(unsigned int i = 0; i < sceneShadowMapLinks.size(); i++)
-	{
-		cudaGraphicsUnregisterResource(sceneShadowMapLinks[i]);
-	}
+	}	
+	cudaGraphicsUnregisterResource(sceneShadowMapLink);
 
 	rTransformLinks.clear();
 	transformLinks.clear();
@@ -359,8 +349,6 @@ void GICudaAllocator::ResetSceneData()
 	cacheLinks.clear();
 	cacheRenderLinks.clear();
 
-	sceneShadowMapLinks.clear();
-
 	dSegmentObjecId.clear();
 	dSegmentAllocLoc.clear();
 
@@ -368,8 +356,8 @@ void GICudaAllocator::ResetSceneData()
 	dObjectAllocationIndexLookup.clear();
 	dWriteSignals.clear();
 	
-	dObjectAllocationIndexLookup2D.clear();
-	dSegmentAllocLoc2D.clear();
+	dObjectAllocationIndexLookup2D.Clear();
+	dSegmentAllocLoc2D.Clear();
 
 	objectCounts.clear();
 	voxelCounts.clear();
@@ -379,9 +367,9 @@ void GICudaAllocator::ResetSceneData()
 
 void GICudaAllocator::Reserve(uint32_t pageAmount)
 {
-	if(dVoxelPages.size() < pageAmount)
+	if(dVoxelPages.Size() < pageAmount)
 	{
-		AddVoxelPage(pageAmount - dVoxelPages.size());
+		AddVoxelPage(pageAmount - dVoxelPages.Size());
 	}
 }
 
@@ -397,7 +385,7 @@ uint32_t GICudaAllocator::NumObjects(uint32_t batchIndex) const
 
 uint32_t GICudaAllocator::NumObjectSegments(uint32_t batchIndex) const
 {
-	return static_cast<uint32_t>(dSegmentObjecId[batchIndex].size());
+	return static_cast<uint32_t>(dSegmentObjecId[batchIndex].Size());
 }
 
 uint32_t GICudaAllocator::NumVoxels(uint32_t batchIndex) const
@@ -412,37 +400,37 @@ uint32_t GICudaAllocator::NumPages() const
 
 CVoxelGrid* GICudaAllocator::GetVoxelGridDevice()
 {
-	return thrust::raw_pointer_cast(dVoxelGridInfo.data());
+	return dVoxelGridInfo.Data();
 }
 
 CObjectTransform** GICudaAllocator::GetRelativeTransformsDevice() 
 {
-	return thrust::raw_pointer_cast(dRelativeTransforms.data());
+	return dRelativeTransforms.Data();
 }
 
 CObjectTransform** GICudaAllocator::GetTransformsDevice()
 {
-	return thrust::raw_pointer_cast(dTransforms.data());
+	return dTransforms.Data();
 }
 
 CObjectAABB** GICudaAllocator::GetObjectAABBDevice()
 {
-	return thrust::raw_pointer_cast(dObjectAABB.data());
+	return dObjectAABB.Data();
 }
 
 CObjectVoxelInfo** GICudaAllocator::GetObjectInfoDevice()
 {
-	return thrust::raw_pointer_cast(dObjectInfo.data());
+	return dObjectInfo.Data();
 }
 
 CVoxelPacked** GICudaAllocator::GetObjCacheDevice()
 {
-	return thrust::raw_pointer_cast(dObjCache.data());;
+	return dObjCache.Data();
 }
 
 CVoxelRender** GICudaAllocator::GetObjRenderCacheDevice()
 {
-	return thrust::raw_pointer_cast(dObjRenderCache.data());
+	return dObjRenderCache.Data();
 }
 
 CObjectTransform* GICudaAllocator::GetRelativeTransformsDevice(uint32_t index)
@@ -478,40 +466,40 @@ CVoxelRender* GICudaAllocator::GetObjRenderCacheDevice(uint32_t index)
 
 CVoxelPage* GICudaAllocator::GetVoxelPagesDevice()
 {
-	return thrust::raw_pointer_cast(dVoxelPages.data());
+	return dVoxelPages.Data();
 }
 
 unsigned int* GICudaAllocator::GetSegmentObjectID(uint32_t index)
 {
-	return thrust::raw_pointer_cast(dSegmentObjecId[index].data());
+	return dSegmentObjecId[index].Data();
 }
 
 ushort2* GICudaAllocator::GetSegmentAllocLoc(uint32_t index)
 {
-	return thrust::raw_pointer_cast(dSegmentAllocLoc[index].data());
+	return dSegmentAllocLoc[index].Data();
 }
 
 unsigned int* GICudaAllocator::GetVoxelStrides(uint32_t index)
 {
-	return thrust::raw_pointer_cast(dVoxelStrides[index].data());
+	return dVoxelStrides[index].Data();
 }
 
 unsigned int* GICudaAllocator::GetObjectAllocationIndexLookup(uint32_t index)
 {
-	return thrust::raw_pointer_cast(dObjectAllocationIndexLookup[index].data());
+	return dObjectAllocationIndexLookup[index].Data();
 }
 
 char* GICudaAllocator::GetWriteSignals(uint32_t index)
 {
-	return thrust::raw_pointer_cast(dWriteSignals[index].data());
+	return dWriteSignals[index].Data();
 }
 
 unsigned int** GICudaAllocator::GetObjectAllocationIndexLookup2D()
 {
-	return thrust::raw_pointer_cast(dObjectAllocationIndexLookup2D.data());
+	return dObjectAllocationIndexLookup2D.Data();
 }
 
 ushort2** GICudaAllocator::GetSegmentAllocLoc2D()
 {
-	return thrust::raw_pointer_cast(dSegmentAllocLoc2D.data());
+	return dSegmentAllocLoc2D.Data();
 }

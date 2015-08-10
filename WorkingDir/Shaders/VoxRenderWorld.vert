@@ -16,11 +16,8 @@
 
 #define OUT_COLOR layout(location = 0)
 
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict
-#define LU_AABB layout(std430, binding = 3) restrict readonly
-#define LU_MTRANSFORM layout(std430, binding = 4) restrict readonly
-
 #define U_FTRANSFORM layout(std140, binding = 0)
+#define U_VOXEL_GRID_INFO layout(std140, binding = 2)
 
 // Input
 in IN_POS vec3 vPos;

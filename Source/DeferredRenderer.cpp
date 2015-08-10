@@ -48,7 +48,7 @@ DeferredRenderer::DeferredRenderer()
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, gBuffer.getDepthGL(), 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, gBuffer.getDepthGL(), 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 	// SRGB Tex

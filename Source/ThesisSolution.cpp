@@ -34,7 +34,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 							1.0f, {512, 512, 512}, 9})
 {
 	voxelCacheUsageSize.AddData(0);
-	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGL(),
+	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),
 										   dRenderer.GetGBuffer().getNormalGL(),
 										   dRenderer.GetLightIntensityBufferGL());
 }
@@ -55,11 +55,9 @@ void ThesisSolution::Init(SceneI& s)
 	voxelScene.Reset();
 
 	// Initialiizng Relative Transform Buffer
-	relativeTransformBuffer.Resize(s.ObjectCount());
-	for(ModelTransform& mt : relativeTransformBuffer.CPUData())
+	for(unsigned int i = 0; i < s.ObjectCount(); i++)
 	{
-		mt.model = IEMatrix4x4::IdentityMatrix;
-		mt.modelRotation = IEMatrix4x4::IdentityMatrix;
+		relativeTransformBuffer.AddData(ModelTransform { IEMatrix4x4::IdentityMatrix, IEMatrix4x4::IdentityMatrix });
 	}
 	relativeTransformBuffer.SendData();
 	
@@ -207,8 +205,8 @@ void ThesisSolution::Init(SceneI& s)
 					   static_cast<uint32_t>(currentScene->ObjectCount()),
 					   voxInfo.sceneVoxCacheCount);
 	// Link ShadowMaps and GBuffer textures to cuda
-	voxelScene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapCubeArray());
-	voxelScene.AllocateInitialPages(voxInfo.sceneVoxCacheCount * 1.5f);
+	voxelScene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapArrayR32F());
+	voxelScene.AllocateInitialPages(static_cast<uint32_t>(voxInfo.sceneVoxCacheCount * 1.5f));
 	
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
@@ -276,8 +274,24 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	// DEBUG
 	DebugRenderVoxelCache(mainRenderCamera);
 
-
 	// VoxelSceneUpdate
+	// Unbind stuff for cuda
+	/*glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
+	glBindVertexArray(0);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, 0);
+
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 3, 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 4, 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 5, 0);*/
 	voxelScene.Voxelize(mainRenderCamera.pos);
 
 	
@@ -285,10 +299,10 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 
 
 	// Paged voxel rendering
-	uint32_t voxCount = 0;
-	VoxelDebugVAO& voxelVao = voxelScene.VoxelDataForRendering(voxCount);
-	voxelVao.Bind();
-	voxelVAO.Draw(voxCount, 0);
+	//uint32_t voxCount = 0;
+	//VoxelDebugVAO& voxelVao = voxelScene.VoxelDataForRendering(voxCount);
+	//voxelVao.Bind();
+	//voxelVAO.Draw(voxCount, 0);
 
 
 	

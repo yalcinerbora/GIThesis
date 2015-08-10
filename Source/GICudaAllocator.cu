@@ -4,21 +4,42 @@
 #include "CudaTimer.h"
 #include "Macros.h"
 
+// Small Helper Kernel That used to init inital obj Pages
+__global__ void DetermineTotalSegment(unsigned int* gPageEmptySegmentPos)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	gPageEmptySegmentPos[globalId] = globalId;
+}
+
 // Small Helper Kernel That used to determine total segment size used by the object batch
 // Logic per object in batch
 __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
+
+									  // Grid Related
+									  const CVoxelGrid& gGridInfo,
 
 									  // Per object Related
 									  unsigned int* gObjectVoxStrides,
 									  unsigned int* gObjectAllocIndexLookup,
 									  const CObjectVoxelInfo* gVoxelInfo,
+									  const CObjectTransform* gObjTransforms,
 									  const uint32_t objCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= objCount) return;
 
 	// Determine Segment Count and add do total segment counter
-	unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+
+	// We need to check scaling and adjust span
+	// Objects may have different voxel sizes and voxel sizes may change after scaling
+	float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
+	uint3 voxelDim;
+	voxelDim.x = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
+	voxelDim.y = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.y / gGridInfo.span);
+	voxelDim.z = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.z / gGridInfo.span);
+	unsigned int voxScale = voxelDim.x + voxelDim.y + voxelDim.z;
+
+	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	atomicAdd(dTotalSegmentCount, segmentCount);
 
 	// Determine Strides
@@ -27,8 +48,15 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 	unsigned int objStirde = 0, objIndexLookup = 0;
 	for(unsigned int i = 0; i < globalId; i++)
 	{
-		objStirde += gVoxelInfo[i].voxelCount;
-		unsigned int segmentCount = (gVoxelInfo[i].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+		float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
+		uint3 voxelDim;
+		voxelDim.x = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
+		voxelDim.y = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.y / gGridInfo.span);
+		voxelDim.z = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.z / gGridInfo.span);
+		unsigned int voxScale = voxelDim.x + voxelDim.y + voxelDim.z;
+
+		objStirde += gVoxelInfo[i].voxelCount * voxScale;
+		unsigned int segmentCount = ((gVoxelInfo[i].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 		objIndexLookup += segmentCount;
 	}
 
@@ -40,14 +68,25 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 // Logic per object in batch
 __global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
 
+									  // Grid Related
+									  const CVoxelGrid& gGridInfo,
+
 									  const unsigned int* gObjectAllocIndexLookup,
 									  const CObjectVoxelInfo* gVoxelInfo,
+									  const CObjectTransform* gObjTransforms,
 									  const uint32_t objCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= objCount) return;
 
-	unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+	float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
+	uint3 voxelDim;
+	voxelDim.x = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
+	voxelDim.y = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.y / gGridInfo.span);
+	voxelDim.z = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.z / gGridInfo.span);
+	unsigned int voxScale = voxelDim.x + voxelDim.y + voxelDim.z;
+
+	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	for(unsigned int i = 0; i < segmentCount; i++)
 	{
 		gSegmentObjectId[gObjectAllocIndexLookup[globalId] + i] = globalId;
@@ -110,28 +149,38 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 	// Mapping Pointer
 	CObjectVoxelInfo* dVoxelInfo = nullptr;
+	CObjectTransform* dObjTransform = nullptr;
 	size_t size = 0;
 	cudaGraphicsMapResources(1, &objectInfoLinks.back());
+	cudaGraphicsMapResources(1, &transformLinks.back());
 	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dVoxelInfo), &size, objectInfoLinks.back());
+	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dObjTransform), &size, transformLinks.back());
 	
 	uint32_t gridSize = static_cast<uint32_t>((objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK);
 	DetermineTotalSegment<<<gridSize, GI_THREAD_PER_BLOCK>>>(dTotalCount,
+															 *dVoxelGridInfo.Data(),
+
 															 dVoxelStrides.back().Data(),
 															 dObjectAllocationIndexLookup.back().Data(),
 															 dVoxelInfo,
+															 dObjTransform,
 															 objCount);
 	
 	// Allocation after determining total index count
 	cudaMemcpy(&hTotalCount, dTotalCount, sizeof(int), cudaMemcpyDeviceToHost);
 	dSegmentObjecId.emplace_back(hTotalCount);
 	dSegmentAllocLoc.emplace_back(hTotalCount);
-	cudaMemset(dSegmentAllocLoc.back().Data(), 0xFFFF, dSegmentAllocLoc.back().Size() * sizeof(ushort2));
+	dSegmentAllocLoc.back().Memset(0xFFFF, 0, dSegmentAllocLoc.back().Size());
 
 	DetermineSegmentObjId<<<gridSize, GI_THREAD_PER_BLOCK>>>(dSegmentObjecId.back().Data(),
+															 *dVoxelGridInfo.Data(),
+
 															 dObjectAllocationIndexLookup.back().Data(),
 															 dVoxelInfo,
+															 dObjTransform,
 															 objCount);
 	cudaGraphicsUnmapResources(1, &objectInfoLinks.back());
+	cudaGraphicsMapResources(1, &transformLinks.back());
 
 	dObjectAllocationIndexLookup2D.InsertEnd(dObjectAllocationIndexLookup.back().Data());
 	dSegmentAllocLoc2D.InsertEnd(dSegmentAllocLoc.back().Data());
@@ -315,12 +364,18 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 			CudaVector<char>(GI_BLOCK_PER_PAGE)
 		});
 
+		DetermineTotalSegment <<<GI_BLOCK_PER_PAGE, GI_THREAD_PER_BLOCK>>>
+		(
+			hPageData.back().dEmptySegmentList.Data()
+		);
+		hPageData.back().dIsSegmentOccupied.Memset(0, 0, hPageData.back().dIsSegmentOccupied.Size());
+
 		CVoxelPage voxData =
 		{
 			hPageData.back().dVoxelPage.Data(),
 			hPageData.back().dEmptySegmentList.Data(),
 			hPageData.back().dIsSegmentOccupied.Data(),
-			0
+			GI_THREAD_PER_BLOCK
 		};
 		hVoxelPages.push_back(voxData);
 	}

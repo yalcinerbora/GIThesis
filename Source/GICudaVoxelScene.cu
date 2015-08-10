@@ -59,7 +59,10 @@ void GICudaVoxelScene::Reset()
 	allocator.ResetSceneData();
 }
 
-void GICudaVoxelScene::Voxelize(const IEVector3& playerPos)
+void GICudaVoxelScene::Voxelize(float& ioTiming,
+								float& updateTiming,
+								float& svoReconTiming,
+								const IEVector3& playerPos)
 {
 	CudaTimer timer(0);
 	timer.Start();
@@ -94,46 +97,47 @@ void GICudaVoxelScene::Voxelize(const IEVector3& playerPos)
 		gridSize = (allocator.NumVoxels(i) + GI_THREAD_PER_BLOCK - 1) /
 					GI_THREAD_PER_BLOCK;
 		
-		//// KC OBJECT VOXEL INCLUDE
-		//VoxelObjectInclude<<<gridSize, GI_THREAD_PER_BLOCK>>>
-		//	(// Voxel System
-		//	 allocator.GetVoxelPagesDevice(),
-		//	 allocator.NumPages(),
-		//	 *allocator.GetVoxelGridDevice(),
-		//	 
-		//	 // Per Object Segment Related
-		//	 allocator.GetSegmentAllocLoc(i),
-		//	 allocator.GetSegmentObjectID(i),
-		//	 allocator.NumObjectSegments(i),
-		//	 
-		//	 // Per Object Related
-		//	 allocator.GetWriteSignals(i),
-		//	 allocator.GetVoxelStrides(i),
-		//	 allocator.GetObjectAllocationIndexLookup(i),
-		//	 allocator.GetObjectAABBDevice(i),
-		//	 allocator.GetTransformsDevice(i),
-		//	 allocator.GetObjectInfoDevice(i),
-		//	 allocator.NumObjects(i),
-		//	 
-		//	 // Per Voxel Related
-		//	 allocator.GetObjCacheDevice(i),
-		//	 allocator.NumVoxels(i),
+		// KC OBJECT VOXEL INCLUDE
+		VoxelObjectInclude<<<gridSize, GI_THREAD_PER_BLOCK>>>
+			(// Voxel System
+			 allocator.GetVoxelPagesDevice(),
+			 allocator.NumPages(),
+			 *allocator.GetVoxelGridDevice(),
+			 
+			 // Per Object Segment Related
+			 allocator.GetSegmentAllocLoc(i),
+			 allocator.GetSegmentObjectID(i),
+			 allocator.NumObjectSegments(i),
+			 
+			 // Per Object Related
+			 allocator.GetWriteSignals(i),
+			 allocator.GetVoxelStrides(i),
+			 allocator.GetObjectAllocationIndexLookup(i),
+			 allocator.GetObjectAABBDevice(i),
+			 allocator.GetTransformsDevice(i),
+			 allocator.GetObjectInfoDevice(i),
+			 allocator.NumObjects(i),
+			 
+			 // Per Voxel Related
+			 allocator.GetObjCacheDevice(i),
+			 allocator.NumVoxels(i),
 
-		//	 // Batch(ObjectGroup in terms of OGL) Id
-		//	 i);
+			 // Batch(ObjectGroup in terms of OGL) Id
+			 i);
 	}
 	timer.Stop();
-	GI_LOG("Voxel I-O Time %f ms", timer.ElapsedMilliS());
+	ioTiming = timer.ElapsedMilliS();
 	timer.Start();
 
 	// Now Call Update
 	timer.Stop();
-	GI_LOG("Voxel Update Time %f ms", timer.ElapsedMilliS());
+	updateTiming = timer.ElapsedMilliS();
 	timer.Start();
 
 	// Then Call SVO Reconstruct
 	timer.Stop();
-	GI_LOG("Voxel SVO Reconstruct Time %f ms", timer.ElapsedMilliS());
+	svoReconTiming = timer.ElapsedMilliS();
+
 	timer.Start();
 	
 	//

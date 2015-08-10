@@ -93,7 +93,7 @@ CudaVector<T>& CudaVector<T>::operator=(const std::vector<T>& vector)
 }
 
 template<class T>
-void  CudaVector<T>::InsertEnd(const T& hostData)
+void CudaVector<T>::InsertEnd(const T& hostData)
 {
 	if(1 > capacity - size)
 	{
@@ -104,24 +104,31 @@ void  CudaVector<T>::InsertEnd(const T& hostData)
 }
 
 template<class T>
-void  CudaVector<T>::RemoveEnd()
+void CudaVector<T>::RemoveEnd()
 {
 	size--;
 	std::max<size_t>(0u, size);
 }
 
 template<class T>
-void  CudaVector<T>::Assign(size_t index, const T& hostData)
+void CudaVector<T>::Assign(size_t index, const T& hostData)
 {
 	assert(index < size);
 	cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice);
 }
 
 template<class T>
-void  CudaVector<T>::Assign(size_t index, size_t dataLength, const T* hostData)
+void CudaVector<T>::Assign(size_t index, size_t dataLength, const T* hostData)
 {
-	assert(index + datalength < size);
+	assert(index + datalength <= size);
 	cudaMemcpy(d_data + index, sizeof(T), cudaMemcpyHostToDevice);
+}
+
+template<class T>
+void CudaVector<T>::Memset(int value, size_t stride, size_t count)
+{
+	assert(stride + count <= size);
+	cudaMemset(d_data + stride, value, count * sizeof(T));
 }
 
 template<class T>
@@ -165,7 +172,7 @@ const T* CudaVector<T>::Data() const
 }
 
 template<class T>
-size_t  CudaVector<T>::Size() const
+size_t CudaVector<T>::Size() const
 {
 	return size;
 }

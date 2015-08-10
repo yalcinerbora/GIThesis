@@ -20,8 +20,6 @@ class CudaVector
 	static_assert(std::is_pod<T>::value, "T must be POD for CudaVector");
 
 	private:
-		
-
 		T*						d_data;
 		size_t					size;
 		size_t					capacity;
@@ -47,6 +45,7 @@ class CudaVector
 		void			RemoveEnd();
 		void			Assign(size_t index, const T& hostData);
 		void			Assign(size_t index, size_t dataLength, const T* hostData);
+		void			Memset(int value, size_t stride, size_t count);
 
 		// Size Related
 		void			Reserve(size_t newSize);

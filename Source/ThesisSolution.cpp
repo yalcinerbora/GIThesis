@@ -221,6 +221,13 @@ void ThesisSolution::Init(SceneI& s)
 			   " label='Voxel Used' group='Voxel Octree' help='Voxel count in octree.' ");
 	TwAddVarRO(bar, "voxUsedSize", TW_TYPE_DOUBLE, &voxInfo.sceneVoxOctreeSize,
 			   " label='Voxel Used Size(MB)' group='Voxel Octree' precision=2 help='Octree Voxel total size in megabytes.' ");
+	TwAddSeparator(bar, NULL, NULL);
+	TwAddVarRO(bar, "ioTime", TW_TYPE_FLOAT, &ioTime,
+			   " label='I-O Time (ms)' group='Timings' precision=2 help='Voxel Include Exclude Timing per frame.' ");
+	TwAddVarRO(bar, "updateTime", TW_TYPE_FLOAT, &transformTime,
+			   " label='Update Time (ms)' group='Timings' precision=2 help='Voxel Grid Update Timing per frame.' ");
+	TwAddVarRO(bar, "svoReconTime", TW_TYPE_FLOAT, &svoTime,
+			   " label='SVO Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
 }
 
 void ThesisSolution::Release()
@@ -292,7 +299,10 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	glBindBufferBase(GL_UNIFORM_BUFFER, 3, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 4, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 5, 0);*/
-	voxelScene.Voxelize(mainRenderCamera.pos);
+	voxelScene.Voxelize(ioTime,
+						transformTime,
+						svoTime,
+						mainRenderCamera.pos);
 
 	
 	// Here check TW Bar if user wants to render voxels

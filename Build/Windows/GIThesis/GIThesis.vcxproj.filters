@@ -80,6 +80,9 @@
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp">
       <Filter>Utility</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\CudaVector.cpp">
+      <Filter>Utility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -233,6 +236,9 @@
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CudaTimer.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CudaVector.cuh">
       <Filter>Utility</Filter>
     </ClInclude>
   </ItemGroup>

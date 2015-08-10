@@ -1,6 +1,8 @@
 #include "GICudaVoxelScene.h"
 #include "GIKernels.cuh"
 #include "IEUtility/IEMath.h"
+#include "CudaTimer.h"
+#include "Macros.h"
 
 GICudaVoxelScene::GICudaVoxelScene(const CVoxelGrid& gridSetup)
 	: allocator(gridSetup)
@@ -59,6 +61,9 @@ void GICudaVoxelScene::Reset()
 
 void GICudaVoxelScene::Voxelize(const IEVector3& playerPos)
 {
+	CudaTimer timer(0);
+	timer.Start();
+
 	// Main Call Chain Called Every Frame
 	// Manages Voxel Pages
 	allocator.SetupDevicePointers();
@@ -117,12 +122,21 @@ void GICudaVoxelScene::Voxelize(const IEVector3& playerPos)
 			 // Batch(ObjectGroup in terms of OGL) Id
 			 i);
 	}
-	
+	timer.Stop();
+	GI_LOG("Voxel I-O Time %f ms", timer.ElapsedMilliS());
+	timer.Start();
+
 	// Now Call Update
+	timer.Stop();
+	GI_LOG("Voxel Update Time %f ms", timer.ElapsedMilliS());
+	timer.Start();
 
-
-	// Then Call GPU Stuff
+	// Then Call SVO Reconstruct
+	timer.Stop();
+	GI_LOG("Voxel SVO Reconstruct Time %f ms", timer.ElapsedMilliS());
+	timer.Start();
 	
+	// 
 	allocator.ClearDevicePointers();
 }
 

@@ -28,7 +28,6 @@ class CudaTimer
 		// Functionality
 		void			Start();
 		void			Stop();
-		void			Lap();
 
 		// Elapsed Time Between Start And Stop
 		double			ElapsedS();

@@ -25,15 +25,10 @@ void CudaTimer::Stop()
 	cudaEventRecord(end, stream);
 }
 
-void CudaTimer::Lap()
-{
-	Stop();
-	Start();
-}
-
 double CudaTimer::ElapsedS()
 {
 	float ms = 0;
+	cudaEventSynchronize(end);
 	cudaEventElapsedTime(&ms, start, end);
 	return static_cast<double>(ms) * 0.001;
 }
@@ -41,6 +36,7 @@ double CudaTimer::ElapsedS()
 double CudaTimer::ElapsedMilliS()
 {
 	float ms = 0;
+	cudaEventSynchronize(end);
 	cudaEventElapsedTime(&ms, start, end);
 	return static_cast<double>(ms);
 }
@@ -48,6 +44,7 @@ double CudaTimer::ElapsedMilliS()
 double CudaTimer::ElapsedMicroS()
 {
 	float ms = 0;
+	cudaEventSynchronize(end);
 	cudaEventElapsedTime(&ms, start, end);
 	return static_cast<double>(ms) * 1000.0;
 }
@@ -55,6 +52,7 @@ double CudaTimer::ElapsedMicroS()
 double CudaTimer::ElapsedNanoS()
 {
 	float ms = 0;
+	cudaEventSynchronize(end);
 	cudaEventElapsedTime(&ms, start, end);
 	return static_cast<double>(ms) * 1000.0 * 1000.0;
 }

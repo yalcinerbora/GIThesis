@@ -62,9 +62,9 @@ class ThesisSolution : public SolutionI
 		FrameTransformBuffer	cameraTransform;
 
 		// Timings
-		float					ioTime;
-		float					transformTime;
-		float					svoTime;
+		double					ioTime;
+		double					transformTime;
+		double					svoTime;
 
 		// Voxel Cache
 		StructuredBuffer<ObjGridInfo>			objectGridInfo;

@@ -284,9 +284,6 @@
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\CMatrix.cu">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </CudaCompile>
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu">
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
@@ -297,6 +294,9 @@
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\CMatrix.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
   </ItemGroup>

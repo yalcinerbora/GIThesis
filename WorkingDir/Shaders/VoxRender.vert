@@ -86,8 +86,7 @@ void main(void)
 	uint objId = voxIndex.w;
 	float span = objectGridInfo[objId].span;
 	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + 
-					(span * vec3(voxIndex.xyz)) +
-					vec3(span * 0.5f);
+					(span * vec3(voxIndex.xyz));
 	mat4 voxModel =	mat4( span,		0.0f,		0.0f,		0.0f,
 						  0.0f,			span,		0.0f,		0.0f,
 						  0.0f,			0.0f,		span,		0.0f,

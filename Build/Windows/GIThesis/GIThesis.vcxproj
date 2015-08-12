@@ -117,6 +117,7 @@
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <FileType>Document</FileType>
     </ClInclude>
+    <CudaCompile Include="..\..\..\Source\CMatrix.cu" />
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\GPUBuffer.cpp" />
@@ -195,7 +196,6 @@
     <ClInclude Include="..\..\..\Source\WindowInput.h" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="..\..\..\Source\CMatrix.cu" />
     <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu" />
     <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu" />

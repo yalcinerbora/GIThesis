@@ -15,8 +15,13 @@ struct CVoxelPage;
 struct CVoxelGrid;
 struct CObjectVoxelInfo;
 struct CVoxelRender;
+struct CVoxelGrid;
+struct CObjectTransform;
 
-extern __device__ void DetermineTotalVoxCount(int& totalVox,
+// Determine Vox count in pages
+// Call Logic per object
+extern __global__ void DetermineTotalVoxCount(int& totalVox,
+											  const CVoxelGrid& gGridInfo,
 											  
 											  // Per Obj Segment
 											  const ushort2* gObjectAllocLocations,
@@ -24,9 +29,10 @@ extern __device__ void DetermineTotalVoxCount(int& totalVox,
 											  // Per obj
 											  const unsigned int* gObjectAllocIndexLookup,
 											  const CObjectVoxelInfo* gObjInfo,
+											  const CObjectTransform* gObjTransforms,
 											  uint32_t objectCount);
 
-extern __device__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
+extern __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 									  uint4* voxelData,
 									  uchar4* voxelColorData,
 									  unsigned int& atomicIndex,

@@ -16,6 +16,7 @@ Memory Allocation
 #include "GLHeader.h"
 #include "CVoxelPage.h"
 #include <cudaGL.h>
+#include "IEUtility/IEVector3.h"
 
 struct CVoxelPageData
 {
@@ -137,6 +138,7 @@ class GICudaAllocator
 		uint32_t				NumPages() const;
 
 		CVoxelGrid*				GetVoxelGridDevice();
+		IEVector3				GetNewVoxelPos(const IEVector3& playerPos);
 
 		// Mapped OGL Pointers
 		CObjectTransform**		GetRelativeTransformsDevice();

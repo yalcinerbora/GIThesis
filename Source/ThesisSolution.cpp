@@ -30,8 +30,8 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxInfo({0})
 	, bar(nullptr)
 	, relativeTransformBuffer(1)
-	, voxelScene(CVoxelGrid{{intialCamPos.getX(), intialCamPos.getY(), intialCamPos.getZ()}, 
-							1.0f, {512, 512, 512}, 9})
+	, voxelScene(CVoxelGrid{{intialCamPos.getX() - (512.0f * 0.29f), intialCamPos.getY() - (512.0f * 0.29f), intialCamPos.getZ() - (512.0f * 0.29f)},
+							0.29f, {512, 512, 512}, 9})
 {
 	voxelCacheUsageSize.AddData(0);
 	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),
@@ -222,11 +222,11 @@ void ThesisSolution::Init(SceneI& s)
 	TwAddVarRO(bar, "voxUsedSize", TW_TYPE_DOUBLE, &voxInfo.sceneVoxOctreeSize,
 			   " label='Voxel Used Size(MB)' group='Voxel Octree' precision=2 help='Octree Voxel total size in megabytes.' ");
 	TwAddSeparator(bar, NULL, NULL);
-	TwAddVarRO(bar, "ioTime", TW_TYPE_FLOAT, &ioTime,
+	TwAddVarRO(bar, "ioTime", TW_TYPE_DOUBLE, &ioTime,
 			   " label='I-O Time (ms)' group='Timings' precision=2 help='Voxel Include Exclude Timing per frame.' ");
-	TwAddVarRO(bar, "updateTime", TW_TYPE_FLOAT, &transformTime,
+	TwAddVarRO(bar, "updateTime", TW_TYPE_DOUBLE, &transformTime,
 			   " label='Update Time (ms)' group='Timings' precision=2 help='Voxel Grid Update Timing per frame.' ");
-	TwAddVarRO(bar, "svoReconTime", TW_TYPE_FLOAT, &svoTime,
+	TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoTime,
 			   " label='SVO Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
 }
 
@@ -282,28 +282,14 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	DebugRenderVoxelCache(mainRenderCamera);
 
 	// VoxelSceneUpdate
-	// Unbind stuff for cuda
-	/*glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
-	glBindVertexArray(0);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, 0);
-
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 2, 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 3, 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 4, 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 5, 0);*/
 	voxelScene.Voxelize(ioTime,
 						transformTime,
 						svoTime,
 						mainRenderCamera.pos);
 
+	// Voxel Count in Pages
+	voxInfo.sceneVoxOctreeCount = voxelScene.VoxelCountInPage();
+	voxInfo.sceneVoxOctreeSize = static_cast<double>(voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
 	
 	// Here check TW Bar if user wants to render voxels
 

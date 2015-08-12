@@ -5,10 +5,20 @@
 #include "Macros.h"
 
 // Small Helper Kernel That used to init inital obj Pages
-__global__ void DetermineTotalSegment(unsigned int* gPageEmptySegmentPos)
+// Logic is per segment
+__global__ void EmptyPageInit(unsigned int* gPageEmptySegmentPos)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	gPageEmptySegmentPos[globalId] = globalId;
+}
+
+__global__ void SegmentAllocLocInit(ushort2* gSegments,
+									const uint32_t segmentCount)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	if(globalId >= segmentCount) return;
+	gSegments[globalId].x = 0xFFFF;
+	gSegments[globalId].y = 0xFFFF;
 }
 
 // Small Helper Kernel That used to determine total segment size used by the object batch
@@ -140,6 +150,10 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	dObjectAllocationIndexLookup.emplace_back(objCount);
 	dWriteSignals.emplace_back(objCount);
 
+	dVoxelStrides.back().Memset(0, 0, dVoxelStrides.back().Size());
+	dObjectAllocationIndexLookup.back().Memset(0, 0, dObjectAllocationIndexLookup.back().Size());
+	dWriteSignals.back().Memset(0, 0, dWriteSignals.back().Size());
+	
 	// Populate Helper Data
 	// Determine object segement sizes
 	int* dTotalCount = nullptr;
@@ -170,8 +184,13 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	cudaMemcpy(&hTotalCount, dTotalCount, sizeof(int), cudaMemcpyDeviceToHost);
 	dSegmentObjecId.emplace_back(hTotalCount);
 	dSegmentAllocLoc.emplace_back(hTotalCount);
-	dSegmentAllocLoc.back().Memset(0xFFFF, 0, dSegmentAllocLoc.back().Size());
+	//dSegmentAllocLoc.back().Memset(0xFF, 0, dSegmentAllocLoc.back().Size());
 
+	gridSize = static_cast<uint32_t>((hTotalCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK);
+	SegmentAllocLocInit<<<gridSize, GI_THREAD_PER_BLOCK>>>(dSegmentAllocLoc.back().Data(),
+														   hTotalCount);
+	
+	gridSize = static_cast<uint32_t>((objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK);
 	DetermineSegmentObjId<<<gridSize, GI_THREAD_PER_BLOCK>>>(dSegmentObjecId.back().Data(),
 															 *dVoxelGridInfo.Data(),
 
@@ -230,10 +249,9 @@ void GICudaAllocator::LinkSceneGBuffers(GLuint depthTex,
 
 void GICudaAllocator::UnLinkGBuffers()
 {
-	cudaError_t cudaErr;
-	cudaErr = cudaGraphicsUnregisterResource(depthBuffLink);
-	cudaErr = cudaGraphicsUnregisterResource(normalBuffLink);
-	cudaErr = cudaGraphicsUnregisterResource(lightIntensityLink);
+	cudaGraphicsUnregisterResource(depthBuffLink);
+	cudaGraphicsUnregisterResource(normalBuffLink);
+	cudaGraphicsUnregisterResource(lightIntensityLink);
 }
 
 void GICudaAllocator::SetupDevicePointers()
@@ -276,27 +294,27 @@ void GICudaAllocator::SetupDevicePointers()
 	dObjRenderCache = hObjRenderCache;
 
 	// Textures
-	cudaArray_t texArray;
-	cudaMipmappedArray_t mipArray;
-	cudaResourceDesc resDesc = {};
-	cudaTextureDesc texDesc = {};
+	//cudaArray_t texArray;
+	//cudaMipmappedArray_t mipArray;
+	//cudaResourceDesc resDesc = {};
+	//cudaTextureDesc texDesc = {};
 
-	resDesc.resType = cudaResourceTypeMipmappedArray;
+	//resDesc.resType = cudaResourceTypeMipmappedArray;
 
-	texDesc.addressMode[0] = cudaAddressModeWrap;
-	texDesc.addressMode[1] = cudaAddressModeWrap;
-	texDesc.filterMode = cudaFilterModePoint;
-	texDesc.readMode = cudaReadModeElementType;
-	texDesc.normalizedCoords = 1;
+	//texDesc.addressMode[0] = cudaAddressModeWrap;
+	//texDesc.addressMode[1] = cudaAddressModeWrap;
+	//texDesc.filterMode = cudaFilterModePoint;
+	//texDesc.readMode = cudaReadModeElementType;
+	//texDesc.normalizedCoords = 1;
 
-	cudaError_t cerr;
+	//cudaError_t cerr;
 	//cerr = cudaGraphicsMapResources(1, &sceneShadowMapLink);
 	//cerr = cudaGraphicsResourceGetMappedMipmappedArray(&mipArray, sceneShadowMapLink);
 	//resDesc.res.mipmap.mipmap = mipArray;
 	//cerr = cudaCreateTextureObject(&shadowMaps, &resDesc, &texDesc, nullptr);
 
-	texDesc.normalizedCoords = 1;
-	resDesc.resType = cudaResourceTypeArray;
+	//texDesc.normalizedCoords = 1;
+	//resDesc.resType = cudaResourceTypeArray;
 
 	//cerr = cudaGraphicsMapResources(1, &depthBuffLink);
 	//cerr = cudaGraphicsSubResourceGetMappedArray(&texArray, depthBuffLink, 0, 0);
@@ -331,7 +349,7 @@ void GICudaAllocator::ClearDevicePointers()
 
 	hObjCache.clear();
 	hObjRenderCache.clear();
-
+	
 	cudaError_t cerr;
 	//cerr = cudaDestroySurfaceObject(lightIntensityBuffer);
 	//cerr = cudaDestroyTextureObject(normalBuffer);
@@ -364,7 +382,7 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 			CudaVector<char>(GI_BLOCK_PER_PAGE)
 		});
 
-		DetermineTotalSegment <<<GI_BLOCK_PER_PAGE, GI_THREAD_PER_BLOCK>>>
+		EmptyPageInit<<<GI_BLOCK_PER_PAGE, GI_THREAD_PER_BLOCK>>>
 		(
 			hPageData.back().dEmptySegmentList.Data()
 		);
@@ -456,6 +474,18 @@ uint32_t GICudaAllocator::NumPages() const
 CVoxelGrid* GICudaAllocator::GetVoxelGridDevice()
 {
 	return dVoxelGridInfo.Data();
+}
+
+IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos)
+{
+	hVoxelGridInfo.position.x = playerPos.getX() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.x * 0.5f;
+	hVoxelGridInfo.position.y = playerPos.getY() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.y * 0.5f;
+	hVoxelGridInfo.position.z = playerPos.getZ() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.z * 0.5f;
+
+	//TODO: Dummy update, remove this when you call actual update
+	dVoxelGridInfo.Assign(0, hVoxelGridInfo);
+	
+	return {hVoxelGridInfo.position.x, hVoxelGridInfo.position.y, hVoxelGridInfo.position.z};
 }
 
 CObjectTransform** GICudaAllocator::GetRelativeTransformsDevice() 

@@ -55,9 +55,10 @@ class CudaVector
 		T*				Data();
 		const T*		Data() const;
 		
-		
-
 		size_t			Size() const;
+
+		// Debug
+		void			DumpToFile(const char* fName) const;
 };
 #include "CudaVector.hpp"
 #endif //__CUDAVECTOR_H__

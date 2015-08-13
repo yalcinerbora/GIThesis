@@ -34,7 +34,8 @@ CudaVector<T>::CudaVector(size_t count)
 
 template<class T>
 CudaVector<T>::CudaVector(const CudaVector<T>& cp)
-	: size(cp.size)
+	: d_data(nullptr)
+	, size(cp.size)
 	, capacity(cp.capacity)
 {
 	cudaMalloc<T>(&d_data, sizeof(T) * capacity);
@@ -175,4 +176,26 @@ template<class T>
 size_t CudaVector<T>::Size() const
 {
 	return size;
+}
+
+
+#include <fstream>
+static std::ostream& operator<< (std::ostream& ostr, const ushort2& shrt2)
+{
+	ostr << "{" << shrt2.x << ", " << shrt2.y << "}";
+	return ostr;
+}
+
+template<class T>
+void CudaVector<T>::DumpToFile(const char* fName) const
+{
+	std::vector<T> cpuData;
+	cpuData.resize(size);
+	cudaMemcpy(cpuData.data(), d_data, size * sizeof(T), cudaMemcpyDeviceToHost);
+
+	std::ofstream fOut;
+	fOut.open(fName);
+	
+	for(const T& data : cpuData)
+		fOut << data << std::endl;
 }

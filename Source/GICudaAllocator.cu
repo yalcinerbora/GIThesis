@@ -9,7 +9,8 @@
 __global__ void EmptyPageInit(unsigned int* gPageEmptySegmentPos)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	gPageEmptySegmentPos[globalId] = 1234;//globalId;
+	if(globalId >= GI_SEGMENT_PER_PAGE) return;
+	gPageEmptySegmentPos[globalId] = globalId;
 }
 
 __global__ void SegmentAllocLocInit(ushort2* gSegments,
@@ -181,7 +182,6 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 															 objCount);
 	
 	// Allocation after determining total index count
-	cudaDeviceSynchronize();
 	cudaMemcpy(&hTotalCount, dTotalCount, sizeof(int), cudaMemcpyDeviceToHost);
 	dSegmentObjecId.emplace_back(hTotalCount);
 	dSegmentAllocLoc.emplace_back(hTotalCount);
@@ -203,6 +203,14 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	cudaFree(dTotalCount);
 	timer.Stop();
 	GI_LOG("Linked Object Batch to CUDA. Elaped time %f ms", timer.ElapsedMilliS());
+
+	// Dump Initial Helper Files
+	//dSegmentAllocLoc.back().DumpToFile("segAllocLoc");
+	//dSegmentObjecId.back().DumpToFile("segObjId");
+
+	//dVoxelStrides.back().DumpToFile("voxStride");
+	//dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
+	//dWriteSignals.back().DumpToFile("writeSignals");
 
 	assert(rTransformLinks.size() == transformLinks.size());
 	assert(transformLinks.size() == aabbLinks.size());
@@ -379,7 +387,7 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 			CudaVector<char>(GI_SEGMENT_PER_PAGE)
 		});
 	
-		EmptyPageInit<<<GI_SEGMENT_PER_PAGE / GI_THREAD_PER_BLOCK, GI_THREAD_PER_BLOCK>>>
+		EmptyPageInit<<<(GI_SEGMENT_PER_PAGE + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK, GI_THREAD_PER_BLOCK>> >
 		(
 			hPageData.back().dEmptySegmentList.Data()
 		);
@@ -393,6 +401,12 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 			GI_SEGMENT_PER_PAGE
 		};
 		hVoxelPages.push_back(voxData);
+
+		if(i == 0)
+		{
+			hPageData.back().dEmptySegmentList.DumpToFile("pageEmpty");
+			hPageData.back().dIsSegmentOccupied.DumpToFile("pageOccp");
+		}
 	}
 	dVoxelPages = hVoxelPages;
 }

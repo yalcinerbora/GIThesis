@@ -107,7 +107,7 @@ int main()
 		}
 	};
 
-	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 4}, 5.27f);
+	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 4}, 2.9f);
 	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1}, 0.0f);
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);

@@ -30,8 +30,8 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxInfo({0})
 	, bar(nullptr)
 	, relativeTransformBuffer(1)
-	, voxelScene(CVoxelGrid{{intialCamPos.getX() - (512.0f * 1.0f * 0.5f), intialCamPos.getY() - (512.0f * 1.0f * 0.5f), intialCamPos.getZ() - (512.0f * 1.0f *  0.5f)},
-							1.0f, {512, 512, 512}, 9})
+	, voxelScene(CVoxelGrid{{intialCamPos.getX() - (512.0f * 0.5f * 0.5f), intialCamPos.getY() - (512.0f * 0.5f * 0.5f), intialCamPos.getZ() - (512.0f * 0.5f *  0.5f)},
+							0.5f, {512, 512, 512}, 9})
 {
 	voxelCacheUsageSize.AddData(0);
 	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),
@@ -206,7 +206,7 @@ void ThesisSolution::Init(SceneI& s)
 					   voxInfo.sceneVoxCacheCount);
 	// Link ShadowMaps and GBuffer textures to cuda
 	voxelScene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapArrayR32F());
-	voxelScene.AllocateInitialPages(static_cast<uint32_t>(voxInfo.sceneVoxCacheCount * 1.5f));
+	voxelScene.AllocateInitialPages(static_cast<uint32_t>(voxInfo.sceneVoxCacheCount * 4.0f));
 	
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,

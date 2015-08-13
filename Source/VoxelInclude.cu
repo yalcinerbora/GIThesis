@@ -120,20 +120,20 @@ __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 	return Intersects(gridAABB, transformedAABB);
 }
 
-__global__ void VoxelObjectAllocate(// Voxel System
-								    CVoxelPage* gVoxelData,
-								    const unsigned int gPageAmount,
-								    const CVoxelGrid& gGridInfo,
-								    
-								    // Per Object Segment Related
-								    ushort2* gObjectAllocLocations,
-									const unsigned int* gSegmentObjectId,
-								    const uint32_t totalSegments,
-								    
-								    // Per Object Related
-								    char* gWriteToPages,
-								    const CObjectAABB* gObjectAABB,
-								    const CObjectTransform* gObjTransforms)
+__global__ void VoxelObjectAllocDealloc(// Voxel System
+										CVoxelPage* gVoxelData,
+										const unsigned int gPageAmount,
+										const CVoxelGrid& gGridInfo,
+
+										// Per Object Segment Related
+										ushort2* gObjectAllocLocations,
+										const unsigned int* gSegmentObjectId,
+										const uint32_t totalSegments,
+
+										// Per Object Related
+										char* gWriteToPages,
+										const CObjectAABB* gObjectAABB,
+										const CObjectTransform* gObjTransforms)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -142,20 +142,16 @@ __global__ void VoxelObjectAllocate(// Voxel System
 	
 	// Determine Obj Id
 	unsigned int objectId = gSegmentObjectId[globalId];
-
 	bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId]);
 	ushort2 objAlloc = gObjectAllocLocations[globalId];
 	
-
-	if(globalId == 0)
-		printf("Total Segments %d\n", totalSegments);
-
-	gObjectAllocLocations[0] = { 0, 0 };
+//	gObjectAllocLocations[0].x = 0;
 
 
 	// Check If this object is in
 	if(intersects && objAlloc.x == 0xFFFF)
 	{
+		// "Allocate"
 		gWriteToPages[objectId] = 1;
 		
 		// Check page by page
@@ -177,6 +173,23 @@ __global__ void VoxelObjectAllocate(// Voxel System
 				atomicExch(&gVoxelData[i].dEmptySegmentIndex, 0);
 			}
 		}
+	}
+	else if(!intersects && objAlloc.x != 0xFFFF)
+	{
+		// "Dealocate"
+		unsigned int location;
+		location = atomicInc(&gVoxelData[objAlloc.x].dEmptySegmentIndex, 0xFFFFFFFF) - 1;
+		if(location < GI_SEGMENT_PER_PAGE)
+		{
+			gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
+		}
+		else
+		{
+			atomicExch(&gVoxelData[objAlloc.x].dEmptySegmentIndex, GI_SEGMENT_PER_PAGE);
+		}
+		gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = 0;
+		objAlloc.x = 0xFFFF;
+		objAlloc.y = 0xFFFF;
 	}
 }
 
@@ -221,35 +234,35 @@ __global__ void VoxelObjectInclude(// Voxel System
 	{
 		// We need to check scaling and adjust span
 		// Objects may have different voxel sizes and voxel sizes may change after scaling
-		//float3 scaling = ExtractScaleInfo(gObjTransforms[objectId.y].transform);
-		//uint3 voxelDim;
-		//voxelDim.x = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.x / gGridInfo.span);
-		//voxelDim.y = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.y / gGridInfo.span);
-		//voxelDim.z = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.z / gGridInfo.span);
+		float3 scaling = ExtractScaleInfo(gObjTransforms[objectId.y].transform);
+		uint3 voxelDim;
+		voxelDim.x = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.x / gGridInfo.span);
+		voxelDim.y = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.y / gGridInfo.span);
+		voxelDim.z = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.z / gGridInfo.span);
 
 		// Determine wich voxel is this thread on that specific object
 		unsigned int voxId = globalId - gObjectVoxStrides[objectId.y];
-		//unsigned int segment = (voxId * (voxelDim.x + voxelDim.y + voxelDim.z)) / GI_SEGMENT_SIZE;
-		//unsigned int segmentStart = gObjectAllocIndexLookup[objectId.y];
+		unsigned int segment = (voxId * (voxelDim.x * voxelDim.y * voxelDim.z)) / GI_SEGMENT_SIZE;
+		unsigned int segmentStart = gObjectAllocIndexLookup[objectId.y];
 
-		//if(segmentStart < segmentCount)
-		//{
-		//	ushort2 segmentLoc = gObjectAllocLocations[segmentStart + segment];
+		if(segmentStart < segmentCount)
+		{
+			ushort2 segmentLoc = gObjectAllocLocations[segmentStart + segment];
 
-		//	//// Finally Actual Voxel Write
-		//	//objectId.x = batchId;
-		//	//VoxelAdd(&gVoxelData[segmentLoc.x].dGridVoxels[segmentLoc.y],
-		//	//			objectId,
-		//	//			renderLoc,
-		//	//			normal,
-		//	//			voxPos,
-		//	//			voxelDim,
-		//	//			gObjTransforms[objectId.y],
-		//	//			gObjectAABB[objectId.y],
-		//	//			gObjInfo[objectId.y],
-		//	//			gGridInfo);
+			//// Finally Actual Voxel Write
+			//objectId.x = batchId;
+			//VoxelAdd(&gVoxelData[segmentLoc.x].dGridVoxels[segmentLoc.y],
+			//			objectId,
+			//			renderLoc,
+			//			normal,
+			//			voxPos,
+			//			voxelDim,
+			//			gObjTransforms[objectId.y],
+			//			gObjectAABB[objectId.y],
+			//			gObjInfo[objectId.y],
+			//			gGridInfo);
 
-		//}
+		}
 		
 		// All done stop write signal
 		// Determine a leader per object
@@ -260,44 +273,44 @@ __global__ void VoxelObjectInclude(// Voxel System
 	}
 }
 
-__global__ void VoxelObjectExclude(// Voxel System
-								   CVoxelPage* gVoxelData,
-								   const unsigned int gPageAmount,
-								   const CVoxelGrid& gGridInfo,
-
-								   // Per Object Segment Related
-								   ushort2* gObjectAllocLocations,
-								   unsigned int* gSegmentObjectId,
-								   uint32_t totalSegments,
-
-								   // Per Object Related
-								   const CObjectAABB* gObjectAABB,
-								   const CObjectTransform* gObjTransforms)
-{
-	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	if(globalId >= totalSegments) return;
-	
-	// Determine Obj Id
-	unsigned int objectId = gSegmentObjectId[globalId];
-	bool intersects = false; // CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId]);
-	ushort2 objAlloc = gObjectAllocLocations[globalId];
-
-	// Check If this object is in and allocated
-	if(!intersects && objAlloc.x != 0xFFFF)
-	{
-		// "Dealocate"
-		unsigned int location;
-		location = atomicInc(&gVoxelData[objAlloc.x].dEmptySegmentIndex, 0xFFFFFFFF) - 1;
-		if(location < GI_SEGMENT_PER_PAGE)
-		{
-			gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
-		}
-		else
-		{
-			atomicExch(&gVoxelData[objAlloc.x].dEmptySegmentIndex, GI_SEGMENT_PER_PAGE);
-		}
-		gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = 0;
-		objAlloc.x = 0xFFFF;
-		objAlloc.y = 0xFFFF;
-	}
-}
+//__global__ void VoxelObjectExclude(// Voxel System
+//								   CVoxelPage* gVoxelData,
+//								   const unsigned int gPageAmount,
+//								   const CVoxelGrid& gGridInfo,
+//
+//								   // Per Object Segment Related
+//								   ushort2* gObjectAllocLocations,
+//								   unsigned int* gSegmentObjectId,
+//								   uint32_t totalSegments,
+//
+//								   // Per Object Related
+//								   const CObjectAABB* gObjectAABB,
+//								   const CObjectTransform* gObjTransforms)
+//{
+//	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+//	if(globalId >= totalSegments) return;
+//	
+//	// Determine Obj Id
+//	unsigned int objectId = gSegmentObjectId[globalId];
+//	bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId]);
+//	ushort2 objAlloc = gObjectAllocLocations[globalId];
+//
+//	// Check If this object is in and allocated
+//	if(!intersects && objAlloc.x != 0xFFFF)
+//	{
+//		// "Dealocate"
+//		unsigned int location;
+//		location = atomicInc(&gVoxelData[objAlloc.x].dEmptySegmentIndex, 0xFFFFFFFF) - 1;
+//		if(location < GI_SEGMENT_PER_PAGE)
+//		{
+//			gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
+//		}
+//		else
+//		{
+//			atomicExch(&gVoxelData[objAlloc.x].dEmptySegmentIndex, GI_SEGMENT_PER_PAGE);
+//		}
+//		gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = 0;
+//		objAlloc.x = 0xFFFF;
+//		objAlloc.y = 0xFFFF;
+//	}
+//}

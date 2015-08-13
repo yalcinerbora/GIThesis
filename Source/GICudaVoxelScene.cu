@@ -79,28 +79,8 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK - 1) /
 								GI_THREAD_PER_BLOCK;
 
-		// KC OBJECT VOXEL EXLCUDE
-		VoxelObjectExclude<<<gridSize, GI_THREAD_PER_BLOCK>>>	
-			(// Voxel Pages
-			 allocator.GetVoxelPagesDevice(),
-			 allocator.NumPages(),
-			 *allocator.GetVoxelGridDevice(),
-
-			 // Per Object Segment
-			 allocator.GetSegmentAllocLoc(i),
-			 allocator.GetSegmentObjectID(i),
-			 allocator.NumObjectSegments(i),
-
-			 // Per Object
-			 allocator.GetObjectAABBDevice(i),
-			 allocator.GetTransformsDevice(i));
-		
-		// Call Logic Per Object Segment
-		gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK - 1) /
-			GI_THREAD_PER_BLOCK;
-
 		// KC ALLOCATE
-		VoxelObjectAllocate<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		VoxelObjectAllocDealloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
 			(// Voxel System
 			allocator.GetVoxelPagesDevice(),
 			allocator.NumPages(),
@@ -146,6 +126,8 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 
 			 // Batch(ObjectGroup in terms of OGL) Id
 			 i);
+
+		GI_LOG("%d", GI_SEGMENT_SIZE * allocator.NumObjectSegments(i));
 	}
 	timer.Stop();
 	ioTiming = timer.ElapsedMilliS();
@@ -176,25 +158,16 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 	cudaMalloc(&d_VoxCount, sizeof(int));
 	cudaMemset(d_VoxCount, 0, sizeof(int));
 
-	for(unsigned int i = 0; i < allocator.NumObjectBatches(); i++)
-	{
-		uint32_t gridSize = (allocator.NumObjects(i) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+	uint32_t gridSize = ((allocator.NumPages() * GI_SEGMENT_PER_PAGE) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 
-		// KC VOXEL COUNT DETERMINE
-		DetermineTotalVoxCount<<<gridSize, GI_THREAD_PER_BLOCK>>>
-			(*d_VoxCount,
-			 *allocator.GetVoxelGridDevice(),
-			 
-			 // Per Obj Segment
-			 allocator.GetSegmentAllocLoc(i),
-			 
-			 // Per obj
-			 allocator.GetObjectAllocationIndexLookup(i),
-			 allocator.GetObjectInfoDevice(i),
-			 allocator.GetTransformsDevice(i),
-			 allocator.NumObjects(i),
-			 allocator.NumObjectSegments(i));
-	}
+	// KC VOXEL COUNT DETERMINE
+	DetermineTotalVoxCount<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		(*d_VoxCount,
+		 // Page Related
+		 allocator.GetVoxelPagesDevice(),
+		 *allocator.GetVoxelGridDevice(),
+		 allocator.NumPages());
+
 	cudaMemcpy(&h_VoxCount, d_VoxCount, sizeof(int), cudaMemcpyDeviceToHost);
 	cudaFree(d_VoxCount);
 	return static_cast<uint32_t>(h_VoxCount);

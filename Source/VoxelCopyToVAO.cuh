@@ -21,17 +21,10 @@ struct CObjectTransform;
 // Determine Vox count in pages
 // Call Logic per object
 extern __global__ void DetermineTotalVoxCount(int& totalVox,
-											  const CVoxelGrid& gGridInfo,
-											  
-											  // Per Obj Segment
-											  const ushort2* gObjectAllocLocations,
 
-											  // Per obj
-											  const unsigned int* gObjectAllocIndexLookup,
-											  const CObjectVoxelInfo* gObjInfo,
-											  const CObjectTransform* gObjTransforms,
-											  uint32_t objectCount,
-											  uint32_t segmentCount);
+											  const CVoxelPage* gVoxPages,
+											  const CVoxelGrid& gGridInfo,
+											  const uint32_t pageCount);
 
 extern __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 									  uint4* voxelData,

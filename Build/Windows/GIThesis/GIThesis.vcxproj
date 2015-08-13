@@ -117,6 +117,7 @@
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <FileType>Document</FileType>
     </ClInclude>
+    <CudaCompile Include="..\..\..\Source\CAxisAlignedBB.cu" />
     <CudaCompile Include="..\..\..\Source\CMatrix.cu" />
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />

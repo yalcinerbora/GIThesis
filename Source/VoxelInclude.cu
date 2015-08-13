@@ -85,19 +85,20 @@ __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 	// Comparing two AABB (Grid Itself is an AABB)
 	const CAABB gridAABB =
 	{
-		{ gGridInfo.position.x, gGridInfo.position.y, gGridInfo.position.z },
+		{ gGridInfo.position.x, gGridInfo.position.y, gGridInfo.position.z, 1.0f },
 		{
 			gGridInfo.position.x + gGridInfo.span * gGridInfo.dimension.x,
 			gGridInfo.position.y + gGridInfo.span * gGridInfo.dimension.y,
-			gGridInfo.position.z + gGridInfo.span * gGridInfo.dimension.z
+			gGridInfo.position.z + gGridInfo.span * gGridInfo.dimension.z,
+			1.0f
 		},
 	};
 
 	// Construct Transformed AABB
 	CAABB transformedAABB =
 	{
-		{ FLT_MAX, FLT_MAX, FLT_MAX },
-		{ -FLT_MAX, -FLT_MAX, -FLT_MAX }
+		{ FLT_MAX, FLT_MAX, FLT_MAX, 1.0f },
+		{ -FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f }
 	};
 
 	for(unsigned int i = 0; i < 8; i++)
@@ -117,7 +118,12 @@ __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 		transformedAABB.min.y = fmin(transformedAABB.min.y, data.y);
 		transformedAABB.min.z = fmin(transformedAABB.min.z, data.z);
 	}
-	return Intersects(gridAABB, transformedAABB);
+
+	//transformedAABB.min.x = 900; transformedAABB.max.x = 910;
+	//transformedAABB.min.y = 900; transformedAABB.max.y = 910;
+	//transformedAABB.min.z = 900; transformedAABB.max.z = 910;
+
+	return IntersectsEBEN1992(gridAABB, transformedAABB);
 }
 
 __global__ void VoxelObjectAllocDealloc(// Voxel System

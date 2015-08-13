@@ -299,5 +299,8 @@
     <CudaCompile Include="..\..\..\Source\CMatrix.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\CAxisAlignedBB.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

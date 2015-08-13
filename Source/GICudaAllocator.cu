@@ -402,11 +402,11 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		};
 		hVoxelPages.push_back(voxData);
 
-		if(i == 0)
+		/*if(i == 0)
 		{
 			hPageData.back().dEmptySegmentList.DumpToFile("pageEmpty");
 			hPageData.back().dIsSegmentOccupied.DumpToFile("pageOccp");
-		}
+		}*/
 	}
 	dVoxelPages = hVoxelPages;
 }

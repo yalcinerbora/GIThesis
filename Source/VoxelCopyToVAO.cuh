@@ -30,7 +30,8 @@ extern __global__ void DetermineTotalVoxCount(int& totalVox,
 											  const unsigned int* gObjectAllocIndexLookup,
 											  const CObjectVoxelInfo* gObjInfo,
 											  const CObjectTransform* gObjTransforms,
-											  uint32_t objectCount);
+											  uint32_t objectCount,
+											  uint32_t segmentCount);
 
 extern __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 									  uint4* voxelData,

@@ -14,7 +14,8 @@ __global__ void DetermineTotalVoxCount(int& totalVox,
 									   const unsigned int* gObjectAllocIndexLookup,
 									   const CObjectVoxelInfo* gVoxelInfo,
 									   const CObjectTransform* gObjTransforms,
-									   uint32_t objectCount)
+									   uint32_t objectCount,
+									   uint32_t segmentCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= objectCount) return;
@@ -24,13 +25,15 @@ __global__ void DetermineTotalVoxCount(int& totalVox,
 	voxelDim.x = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
 	voxelDim.y = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.y / gGridInfo.span);
 	voxelDim.z = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.z / gGridInfo.span);
-	unsigned int voxScale = voxelDim.x + voxelDim.y + voxelDim.z;
+	unsigned int voxScale = voxelDim.x * voxelDim.y * voxelDim.z;
 	unsigned int voxelCount = (((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE) * GI_SEGMENT_SIZE;
 
-	if(gObjectAllocLocations[gObjectAllocIndexLookup[globalId]].x != 0xFFFF)
+	unsigned int objSegmentLoc = gObjectAllocIndexLookup[globalId];
+	if(objSegmentLoc < segmentCount &&
+	   gObjectAllocLocations[objSegmentLoc].x != 0xFFFF)
 	{
 		atomicAdd(&totalVox, voxelCount);
-		printf("%d : %#06x, %#06x\n", globalId, gObjectAllocLocations[gObjectAllocIndexLookup[globalId]].x, gObjectAllocLocations[gObjectAllocIndexLookup[globalId]].y);
+		//printf("%d : %#06x, %#06x\n", globalId, gObjectAllocLocations[gObjectAllocIndexLookup[globalId]].x, gObjectAllocLocations[gObjectAllocIndexLookup[globalId]].y);
 	}
 }
 

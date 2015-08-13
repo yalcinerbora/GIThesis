@@ -44,13 +44,11 @@ extern __global__ void VoxelObjectAllocate(// Voxel System
 
 										   // Per Object Segment Related
 										   ushort2* gObjectAllocLocations,
-										   unsigned int* gSegmentObjectId,
-										   uint32_t totalSegments,
+										   const unsigned int* gSegmentObjectId,
+										   const uint32_t totalSegments,
 
 										   // Per Object Related
 										   char* gWriteToPages,
-										   const unsigned int* gObjectVoxStrides,
-										   const unsigned int* gObjectAllocIndexLookup,
 										   const CObjectAABB* gObjectAABB,
 										   const CObjectTransform* gObjTransforms);
 
@@ -66,6 +64,7 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 
 										  // Per Object Segment Related
 										  ushort2* gObjectAllocLocations,
+										  const uint32_t segmentCount,
 										  
 										  // Per Object Related
 										  char* gWriteToPages,

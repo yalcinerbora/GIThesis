@@ -30,8 +30,8 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxInfo({0})
 	, bar(nullptr)
 	, relativeTransformBuffer(1)
-	, voxelScene(CVoxelGrid{{intialCamPos.getX() - (512.0f * 0.29f), intialCamPos.getY() - (512.0f * 0.29f), intialCamPos.getZ() - (512.0f * 0.29f)},
-							0.29f, {512, 512, 512}, 9})
+	, voxelScene(CVoxelGrid{{intialCamPos.getX() - (512.0f * 1.0f * 0.5f), intialCamPos.getY() - (512.0f * 1.0f * 0.5f), intialCamPos.getZ() - (512.0f * 1.0f *  0.5f)},
+							1.0f, {512, 512, 512}, 9})
 {
 	voxelCacheUsageSize.AddData(0);
 	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),

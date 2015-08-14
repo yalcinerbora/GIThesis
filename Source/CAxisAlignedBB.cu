@@ -1,6 +1,6 @@
 #include "CAxisAlignedBB.cuh"
 
-__device__ bool IntersectsEBEN1992(const CAABB& boxA, const CAABB& boxB)
+__device__ bool Intersects(const CAABB& boxA, const CAABB& boxB)
 {
 	//return ((boxA.max.x > boxB.min.x) && (boxB.max.x > boxA.min.x) &&
 	//		(boxA.max.y > boxB.min.y) && (boxB.max.y > boxA.min.y) &&

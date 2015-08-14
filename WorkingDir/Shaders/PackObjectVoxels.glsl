@@ -55,8 +55,8 @@ uvec4 PackVoxelData(in uvec3 voxCoord,
 	
 	// Here Pack the voxels
 	unsigned int value = 0;
-	value |= voxCoord.z << 20;
-	value |= voxCoord.y << 10;
+	value |= voxCoord.z << 18;
+	value |= voxCoord.y << 9;
 	value |= voxCoord.x;
 	result.x = value;
 

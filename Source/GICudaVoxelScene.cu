@@ -6,8 +6,18 @@
 #include "VoxelCopyToVAO.cuh"
 #include "IEUtility/IEVector3.h"
 
-GICudaVoxelScene::GICudaVoxelScene(const CVoxelGrid& gridSetup)
-	: allocator(gridSetup)
+GICudaVoxelScene::GICudaVoxelScene(const IEVector3& intialCenterPos, float span, unsigned int dim)
+	: allocator(CVoxelGrid 
+				{
+					{ 
+						intialCenterPos.getX() - (512.0f * span * 0.5f), 
+						intialCenterPos.getY() - (512.0f * span * 0.5f),
+						intialCenterPos.getZ() - (512.0f * span *  0.5f)
+					},
+					span, 
+					{ dim, dim, dim }, 
+					static_cast<unsigned int>(log2f(static_cast<float>(dim)))
+				})
 	, vaoData(512)
 	, vaoRenderData(512)
 	, voxelVAO(vaoData, vaoRenderData)
@@ -79,23 +89,41 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK - 1) /
 								GI_THREAD_PER_BLOCK;
 
-		// KC ALLOCATE
-		VoxelObjectAllocDealloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		// KC DEALLOCATE
+		VoxelObjectDealloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
 			(// Voxel System
-			allocator.GetVoxelPagesDevice(),
-			allocator.NumPages(),
-			*allocator.GetVoxelGridDevice(),
+			 allocator.GetVoxelPagesDevice(),
+			 allocator.NumPages(),
+			 *allocator.GetVoxelGridDevice(),
+			 
+			 // Per Object Segment Related
+			 allocator.GetSegmentAllocLoc(i),
+			 allocator.GetSegmentObjectID(i),
+			 allocator.NumObjectSegments(i),
+			 
+			 // Per Object Related
+			 allocator.GetWriteSignals(i),
+			 allocator.GetObjectAABBDevice(i),
+			 allocator.GetTransformsDevice(i));
 
-			// Per Object Segment Related
-			allocator.GetSegmentAllocLoc(i),
-			allocator.GetSegmentObjectID(i),
-			allocator.NumObjectSegments(i),
+		cudaDeviceSynchronize();
 
-			// Per Object Related
-			allocator.GetWriteSignals(i),
-			allocator.GetObjectAABBDevice(i),
-			allocator.GetTransformsDevice(i));
-
+		// KC ALLOCATE
+		VoxelObjectAlloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
+			(// Voxel System
+			 allocator.GetVoxelPagesDevice(),
+			 allocator.NumPages(),
+			 *allocator.GetVoxelGridDevice(),
+			 
+			 // Per Object Segment Related
+			 allocator.GetSegmentAllocLoc(i),
+			 allocator.GetSegmentObjectID(i),
+			 allocator.NumObjectSegments(i),
+			 
+			 // Per Object Related
+			 allocator.GetWriteSignals(i),
+			 allocator.GetObjectAABBDevice(i),
+			 allocator.GetTransformsDevice(i));
 
 		// Call Logic Per Voxel
 		gridSize = (allocator.NumVoxels(i) + GI_THREAD_PER_BLOCK - 1) /
@@ -126,8 +154,6 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 
 			 // Batch(ObjectGroup in terms of OGL) Id
 			 i);
-
-		GI_LOG("%d", GI_SEGMENT_SIZE * allocator.NumObjectSegments(i));
 	}
 	timer.Stop();
 	ioTiming = timer.ElapsedMilliS();
@@ -146,7 +172,6 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 
 
 	// Done
-	cudaDeviceSynchronize();
 	allocator.ClearDevicePointers();
 }
 

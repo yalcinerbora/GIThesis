@@ -63,8 +63,9 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 	ushort2 objectId;
 	uint3 voxPos;
 	float3 normal;
+	unsigned int voxelSpanRatio;
 	unsigned int renderLoc;
-	ExpandVoxelData(voxPos, normal, objectId, renderLoc, voxelPacked);
+	ExpandVoxelData(voxPos, normal, objectId, renderLoc, voxelSpanRatio, voxelPacked);
 	
 	if(gObjectAllocLocations[objectId.x][gObjectAllocIndexLookup[objectId.x][objectId.y]].x != 0xFFFF)
 	{

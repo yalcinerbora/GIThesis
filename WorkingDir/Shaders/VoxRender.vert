@@ -71,9 +71,9 @@ LU_MTRANSFORM buffer ModelTransform
 uvec4 UnpackVoxelData(in uvec4 voxPacked)
 {
 	uvec4 vec;
-	vec.x = (voxPacked.x & 0x000003FF);
-	vec.y = (voxPacked.x & 0x000FFC00) >> 10;
-	vec.z = (voxPacked.x & 0x3FF00000) >> 20;
+	vec.x = (voxPacked.x & 0x000001FF);
+	vec.y = (voxPacked.x & 0x0003FE00) >> 9;
+	vec.z = (voxPacked.x & 0x07FC0000) >> 18;
 	vec.w = (voxPacked.z & 0xFFFF0000) >> 16;
 	return vec;
 }

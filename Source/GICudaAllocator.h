@@ -23,6 +23,12 @@ struct CVoxelPageData
 	CudaVector<CVoxelPacked>	dVoxelPage;
 	CudaVector<unsigned int>	dEmptySegmentList;
 	CudaVector<char>			dIsSegmentOccupied;
+
+	CVoxelPageData(size_t sizeOfPage, size_t sizeOfHelper)
+		: dVoxelPage(sizeOfPage)
+		, dEmptySegmentList(sizeOfHelper)
+		, dIsSegmentOccupied(sizeOfHelper)
+	{}
 };
 
 class GICudaAllocator

@@ -33,24 +33,40 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 									   const unsigned int** gObjectAllocIndexLookup,
 									   const CObjectTransform** gObjTransformsRelative);
 
-// Voxel Allocate
+// Voxel Allocate - Deallocate
 // Allocates-Deallocates Voxels withn pages segment by segment
 // Call Logic "per object per segement"
 // Each segment allocates itself within the pages
-extern __global__ void VoxelObjectAllocDealloc(// Voxel System
-											   CVoxelPage* gVoxelData,
-											   const unsigned int gPageAmount,
-											   const CVoxelGrid& gGridInfo,
 
-											   // Per Object Segment Related
-											   ushort2* gObjectAllocLocations,
-											   const unsigned int* gSegmentObjectId,
-											   const uint32_t totalSegments,
+extern __global__ void VoxelObjectDealloc(// Voxel System
+										  CVoxelPage* gVoxelData,
+										  const unsigned int gPageAmount,
+										  const CVoxelGrid& gGridInfo,
 
-											   // Per Object Related
-											   char* gWriteToPages,
-											   const CObjectAABB* gObjectAABB,
-											   const CObjectTransform* gObjTransforms);
+										  // Per Object Segment Related
+										  ushort2* gObjectAllocLocations,
+										  const unsigned int* gSegmentObjectId,
+										  const uint32_t totalSegments,
+
+										  // Per Object Related
+										  char* gWriteToPages,
+										  const CObjectAABB* gObjectAABB,
+										  const CObjectTransform* gObjTransforms);
+
+extern __global__ void VoxelObjectAlloc(// Voxel System
+										CVoxelPage* gVoxelData,
+										const unsigned int gPageAmount,
+										const CVoxelGrid& gGridInfo,
+
+										// Per Object Segment Related
+										ushort2* gObjectAllocLocations,
+										const unsigned int* gSegmentObjectId,
+										const uint32_t totalSegments,
+
+										// Per Object Related
+										char* gWriteToPages,
+										const CObjectAABB* gObjectAABB,
+										const CObjectTransform* gObjTransforms);
 
 // Voxel Introduce
 // Introduces existing voxel to the voxel grid

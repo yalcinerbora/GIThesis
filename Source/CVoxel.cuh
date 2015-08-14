@@ -42,12 +42,14 @@ struct CVoxelRender
 __device__ inline void ExpandVoxelData(uint3& voxPos,
 									   float3& normal,
 									   ushort2& objId,
+									   unsigned int& voxelSpanRatio,
 									   unsigned int& voxRenderPtr,
 									   const CVoxelPacked& packedVoxData)
 {
-	voxPos.x = (packedVoxData.x & 0x000003FF);
-	voxPos.y = (packedVoxData.x & 0x000FFC00) >> 10;
-	voxPos.z = (packedVoxData.x & 0x3FF00000) >> 20;
+	voxPos.x = (packedVoxData.x & 0x000001FF);
+	voxPos.y = (packedVoxData.x & 0x0003FE00) >> 9;
+	voxPos.z = (packedVoxData.x & 0x07FC0000) >> 18;
+	voxelSpanRatio = (packedVoxData.x & 0xF8000000) >> 0;
 
 	normal.x = (float) (packedVoxData.y & 0x0000FFFF) / 0x0000FFFF;
 	normal.y = (float) ((packedVoxData.y & 0x7FFF0000) >> 16) / 0x00007FFF;
@@ -63,12 +65,15 @@ __device__  inline void PackVoxelData(CVoxelPacked& packedVoxData,
 									  const uint3& voxPos,
 									  const float3& normal,
 									  const ushort2& objId,
+									  const unsigned int voxelSpanRatio,
 									  const unsigned int voxRenderPtr)
 {
 	unsigned int value = 0;
-	value |= voxPos.z << 20;
-	value |= voxPos.y << 10;
+	value |= voxelSpanRatio << 27;
+	value |= voxPos.z	<< 18;
+	value |= voxPos.y	<< 9;
 	value |= voxPos.x;
+	
 	packedVoxData.x = value;
 
 	value = 0;

@@ -44,11 +44,10 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 	// We need to check scaling and adjust span
 	// Objects may have different voxel sizes and voxel sizes may change after scaling
 	float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
-	uint3 voxelDim;
-	voxelDim.x = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
-	voxelDim.y = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.y / gGridInfo.span);
-	voxelDim.z = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.z / gGridInfo.span);
-	unsigned int voxScale = voxelDim.x * voxelDim.y * voxelDim.z;
+	assert(scalingObj.x == scalingObj.y == scalingObj.z);
+
+	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
+	unsigned int voxScale = voxelDim == 0 ? 0 : 1;
 	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	
 	// Determine Strides
@@ -58,12 +57,11 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 	for(unsigned int i = 0; i < globalId; i++)
 	{
 		float3 scalingObj = ExtractScaleInfo(gObjTransforms[i].transform);
-		uint3 voxelDimObj;
-		voxelDimObj.x = static_cast<unsigned int>(gVoxelInfo[i].span * scalingObj.x / gGridInfo.span);
-		voxelDimObj.y = static_cast<unsigned int>(gVoxelInfo[i].span * scalingObj.y / gGridInfo.span);
-		voxelDimObj.z = static_cast<unsigned int>(gVoxelInfo[i].span * scalingObj.z / gGridInfo.span);
-		unsigned int voxScaleObj = voxelDimObj.x * voxelDimObj.y * voxelDimObj.z;
+		assert(scalingObj.x == scalingObj.y == scalingObj.z);
 
+		unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[i].span * scaling.x / gGridInfo.span);
+		unsigned int voxScaleObj = voxelDim == 0 ? 0 : 1;
+		
 		objStirde += gVoxelInfo[i].voxelCount * voxScaleObj;
 		objIndexLookup += ((gVoxelInfo[i].voxelCount * voxScaleObj) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	}
@@ -91,11 +89,10 @@ __global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
 	if(globalId >= objCount) return;
 
 	float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
-	uint3 voxelDim;
-	voxelDim.x = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
-	voxelDim.y = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.y / gGridInfo.span);
-	voxelDim.z = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.z / gGridInfo.span);
-	unsigned int voxScale = voxelDim.x * voxelDim.y * voxelDim.z;
+	assert(scalingObj.x == scalingObj.y == scalingObj.z);
+
+	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
+	unsigned int voxScale = voxelDim == 0 ? 0 : 1;
 
 	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	for(unsigned int i = 0; i < segmentCount; i++)
@@ -377,21 +374,17 @@ void GICudaAllocator::ClearDevicePointers()
 
 void GICudaAllocator::AddVoxelPage(size_t count)
 {
+	hPageData.reserve(hPageData.size() + count);
 	for(unsigned int i = 0; i < count; i++)
 	{
 		// Allocating Page
-		hPageData.emplace_back(CVoxelPageData
-		{
-			CudaVector<CVoxelPacked>(GI_PAGE_SIZE),
-			CudaVector<unsigned int>(GI_SEGMENT_PER_PAGE),
-			CudaVector<char>(GI_SEGMENT_PER_PAGE)
-		});
-	
+		hPageData.emplace_back(GI_PAGE_SIZE, GI_SEGMENT_PER_PAGE);
 		EmptyPageInit<<<(GI_SEGMENT_PER_PAGE + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK, GI_THREAD_PER_BLOCK>> >
 		(
 			hPageData.back().dEmptySegmentList.Data()
 		);
 		hPageData.back().dIsSegmentOccupied.Memset(0, 0, hPageData.back().dIsSegmentOccupied.Size());
+		hPageData.back().dVoxelPage.Memset(0, 0, hPageData.back().dVoxelPage.Size());
 
 		CVoxelPage voxData =
 		{
@@ -402,11 +395,11 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		};
 		hVoxelPages.push_back(voxData);
 
-		/*if(i == 0)
-		{
-			hPageData.back().dEmptySegmentList.DumpToFile("pageEmpty");
-			hPageData.back().dIsSegmentOccupied.DumpToFile("pageOccp");
-		}*/
+		//if(i == 0)
+		//{
+		//	hPageData.back().dEmptySegmentList.DumpToFile("pageEmpty");
+		//	hPageData.back().dIsSegmentOccupied.DumpToFile("pageOccp");
+		//}
 	}
 	dVoxelPages = hVoxelPages;
 }

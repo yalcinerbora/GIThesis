@@ -28,8 +28,9 @@ __global__ void VoxelTransform(// Voxel Pages
 	ushort2 objectId;
 	uint3 voxPos;
 	float3 normal;
+	unsigned int voxelSpanRatio;
 	unsigned int renderLoc;
-	ExpandVoxelData(voxPos, normal, objectId, renderLoc, gVoxelData[pageId].dGridVoxels[pageLocalId]);
+	ExpandVoxelData(voxPos, normal, objectId, renderLoc, voxelSpanRatio, gVoxelData[pageId].dGridVoxels[pageLocalId]);
 
 	// Skip if this object is not in the grid
 	// Or this object is not related to the transform

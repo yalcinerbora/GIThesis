@@ -39,7 +39,7 @@ class GICudaVoxelScene
 
 	public:
 		// Constructors & Destructor
-							GICudaVoxelScene(const CVoxelGrid& gridSetup);
+							GICudaVoxelScene(const IEVector3& intialCenterPos, float span, unsigned int dim);
 							GICudaVoxelScene(const GICudaVoxelScene&) = delete;
 		GICudaVoxelScene&	operator=(const GICudaVoxelScene&) = delete;
 							~GICudaVoxelScene();

@@ -52,12 +52,11 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 						voxDataBuffer.getGLBuffer(),
 						voxRenderDataBuffer.getGLBuffer()};
 	GLintptr offsets[] = { 0, 0, 0 };
-	GLsizei strides[] = { sizeof(float) * 3, sizeof(uint32_t) * 4, sizeof(uint32_t) };
+	GLsizei strides[] = { sizeof(float) * 3, sizeof(VoxelData), sizeof(VoxelRenderData)};
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
 
 	glBindVertexBuffers(0, 3, buffers, offsets, strides);
-	//glBindVertexBuffer(0, voxelCubeData.vertexBuffer, 0, sizeof(float) * 3);
 	// Cube Pos
 	glEnableVertexAttribArray(0);
 	glVertexAttribFormat(0,
@@ -96,6 +95,68 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 	glVertexAttribDivisor(3, 1);
 	glVertexAttribBinding(3, 2);
 }
+
+VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
+							 StructuredBuffer<uchar4>& voxRenderDataBuffer)
+							 : vaoId(0)
+{
+	if(voxelCubeData.indexBuffer == 0 &&
+	   voxelCubeData.vertexBuffer == 0)
+	{
+		InitVoxelCube();
+	}
+
+	glGenVertexArrays(1, &vaoId);
+	glBindVertexArray(vaoId);
+
+	GLuint buffers[] = {voxelCubeData.vertexBuffer,
+						voxDataBuffer.getGLBuffer(),
+						voxRenderDataBuffer.getGLBuffer()};
+	GLintptr offsets[] = { 0, 0, 0 };
+	GLsizei strides[] = { sizeof(float) * 3, sizeof(VoxelData), sizeof(uchar4) };
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
+
+	glBindVertexBuffers(0, 3, buffers, offsets, strides);
+	// Cube Pos
+	glEnableVertexAttribArray(0);
+	glVertexAttribFormat(0,
+						 3,
+						 GL_FLOAT,
+						 GL_FALSE,
+						 0);
+	glVertexAttribBinding(0, 0);
+
+	// VoxData
+	glEnableVertexAttribArray(2);
+	glVertexAttribIFormat(2,
+						  4,
+						  GL_UNSIGNED_INT,
+						  0);
+	glVertexAttribDivisor(2, 1);
+	glVertexAttribBinding(2, 1);
+
+	// Vox Color 
+	glEnableVertexAttribArray(1);
+	glVertexAttribFormat(1,
+						 4,
+						 GL_UNSIGNED_BYTE,
+						 GL_TRUE,
+						 0);
+	glVertexAttribDivisor(1, 1);
+	glVertexAttribBinding(1, 2);
+
+	// Vox Normal
+	glEnableVertexAttribArray(3);
+	glVertexAttribFormat(3,
+						 3,
+						 GL_FLOAT,
+						 GL_FALSE,
+						 0);
+	glVertexAttribDivisor(3, 1);
+	glVertexAttribBinding(3, 2);
+}
+
 
 VoxelDebugVAO::~VoxelDebugVAO()
 {

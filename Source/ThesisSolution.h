@@ -65,6 +65,7 @@ class ThesisSolution : public SolutionI
 		double					ioTime;
 		double					transformTime;
 		double					svoTime;
+		double					debugVoxTransferTime;
 
 		// Voxel Cache
 		StructuredBuffer<ObjGridInfo>			objectGridInfo;
@@ -83,6 +84,7 @@ class ThesisSolution : public SolutionI
 		
 		//
 		void									DebugRenderVoxelCache(const Camera& camera);
+		void									DebugRenderVoxelPage(const Camera& camera, VoxelDebugVAO& pageVoxels);
 
 		// Uncomment this for debugging voxelization 
 		// Normally this texture allocated and deallocated 
@@ -98,9 +100,7 @@ class ThesisSolution : public SolutionI
 		static size_t			MaxVoxelCacheSize;
 
 	protected:
-		void					CreateVoxel(size_t index);
-		void					DrawVoxel(size_t index);
-
+		
 	public:
 								ThesisSolution(DeferredRenderer&, const IEVector3& intialCamPos);
 								ThesisSolution(const ThesisSolution&) = delete;

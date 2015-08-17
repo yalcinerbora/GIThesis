@@ -55,6 +55,7 @@ class GICudaAllocator
 
 		// Array of Device Pointers
 		CudaVector<unsigned int*>				dObjectAllocationIndexLookup2D;
+		CudaVector<unsigned int*>				dObjectVoxStrides2D;
 		CudaVector<ushort2*>					dSegmentAllocLoc2D;
 		//------
 
@@ -176,6 +177,7 @@ class GICudaAllocator
 		char*					GetWriteSignals(uint32_t index);
 
 		unsigned int**			GetObjectAllocationIndexLookup2D();
+		unsigned int**			GetObjectVoxStrides2D();
 		ushort2**				GetSegmentAllocLoc2D();
 };
 #endif //__GICUDAALLOCATOR_H_

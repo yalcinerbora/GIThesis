@@ -31,10 +31,12 @@ class GICudaVoxelScene
 		GICudaAllocator						allocator;
 
 		StructuredBuffer<VoxelData>			vaoData;
-		StructuredBuffer<VoxelRenderData>	vaoRenderData;
+		StructuredBuffer<uchar4>			vaoColorData;
+		cudaGraphicsResource_t				vaoResource;
+		cudaGraphicsResource_t				vaoRenderResource;
+
 		VoxelDebugVAO						voxelVAO;
-
-
+		
 	protected:
 
 	public:
@@ -75,8 +77,8 @@ class GICudaVoxelScene
 		// Debug Related Functions
 		// Access for voxel data for rendering voxels
 		uint32_t			VoxelCountInPage();
-		VoxelDebugVAO&		VoxelDataForRendering(uint32_t voxCount);
-
+		VoxelDebugVAO&		VoxelDataForRendering(double& timing, uint32_t voxCount);
+		
 
 };
 #endif //__GICUDAVOXELSCENE_H__

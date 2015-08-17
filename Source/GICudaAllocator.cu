@@ -48,7 +48,7 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 	assert(scaling.y == scaling.z);
 
 	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
-	unsigned int voxScale = 1; voxelDim == 0 ? 0 : 1;
+	unsigned int voxScale = voxelDim == 0 ? 0 : 1;
 	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	
 	// Determine Strides
@@ -62,7 +62,7 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 		assert(scalingObj.y == scalingObj.z);
 
 		unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[i].span * scaling.x / gGridInfo.span);
-		unsigned int voxScaleObj = 1; voxelDim == 0 ? 0 : 1;
+		unsigned int voxScaleObj = voxelDim == 0 ? 0 : 1;
 		
 		objStirde += gVoxelInfo[i].voxelCount * voxScaleObj;
 		objIndexLookup += ((gVoxelInfo[i].voxelCount * voxScaleObj) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
@@ -94,7 +94,7 @@ __global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
 	assert(scaling.x == scaling.y);
 	assert(scaling.y == scaling.z);
 	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
-	unsigned int voxScale = 1;// voxelDim == 0 ? 0 : 1;
+	unsigned int voxScale = voxelDim == 0 ? 0 : 1;
 
 	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	for(unsigned int i = 0; i < segmentCount; i++)
@@ -199,6 +199,7 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 	dObjectAllocationIndexLookup2D.InsertEnd(dObjectAllocationIndexLookup.back().Data());
 	dSegmentAllocLoc2D.InsertEnd(dSegmentAllocLoc.back().Data());
+	dObjectVoxStrides2D.InsertEnd(dVoxelStrides.back().Data());
 	cudaFree(dTotalCount);
 	timer.Stop();
 	GI_LOG("Linked Object Batch to CUDA. Elaped time %f ms", timer.ElapsedMilliS());
@@ -588,6 +589,11 @@ char* GICudaAllocator::GetWriteSignals(uint32_t index)
 unsigned int** GICudaAllocator::GetObjectAllocationIndexLookup2D()
 {
 	return dObjectAllocationIndexLookup2D.Data();
+}
+
+unsigned int** GICudaAllocator::GetObjectVoxStrides2D()
+{
+	return dObjectVoxStrides2D.Data();
 }
 
 ushort2** GICudaAllocator::GetSegmentAllocLoc2D()

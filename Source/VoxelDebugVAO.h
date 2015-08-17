@@ -9,6 +9,7 @@ Vao for rendering voxel debug
 
 #include "GLHeaderLite.h"
 #include <cstdint>
+#include <vector_types.h>
 
 struct VoxelData;
 struct VoxelRenderData;
@@ -40,6 +41,8 @@ class VoxelDebugVAO
 		// Cosntructors & Destructor
 								VoxelDebugVAO(StructuredBuffer<VoxelData>&,
 											  StructuredBuffer<VoxelRenderData>&);
+								VoxelDebugVAO(StructuredBuffer<VoxelData>&,
+											  StructuredBuffer<uchar4>&);
 								VoxelDebugVAO(const VoxelDebugVAO&) = delete;
 		const VoxelDebugVAO&	operator= (const VoxelDebugVAO&) = delete;
 								~VoxelDebugVAO();

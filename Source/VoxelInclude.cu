@@ -48,14 +48,14 @@ __device__ unsigned int AtomicDeallocLoc(unsigned int* gPos)
 }
 
 __device__ void VoxelAdd(// Write Location
-						 CVoxelPacked* gVoxelData,
+						 CVoxelPacked& gVoxelData,
 
 						 // Model Space Voxel
 						 const ushort2& objectId,
 						 const unsigned int renderLoc,
 						 const float3& normal,
 						 const uint3& voxPos,
-						 const uint3& voxelDim,
+						// const uint3& voxelDim,
 
 						 // Object Related
 						 const CObjectTransform& gObjTransform,
@@ -63,9 +63,6 @@ __device__ void VoxelAdd(// Write Location
 						 const CObjectVoxelInfo& objInfo,
 						 const CVoxelGrid& gGridInfo)
 {
-	// Discard if voxel is too small
-	if(voxelDim.x * voxelDim.y * voxelDim.z == 0.0f) return;
-
 	// Generate Model Space Position from voxel
 	float4 localPos;
 	localPos.x = gObjAABB.min.x + voxPos.x * objInfo.span;
@@ -76,35 +73,22 @@ __device__ void VoxelAdd(// Write Location
 	// Convert it to world space
 	MultMatrixSelf(localPos, gObjTransform.transform);
 
-	unsigned int voxelSpanRatio = 0;
+	// Calculate Vox Span Ratio (if this object voxel is span higher level)
+	// This operation assumes object and voxel span is related (obj is pow of two multiple of grid)
+	unsigned int voxelSpanRatio = static_cast<unsigned int>(log2(objInfo.span / gGridInfo.span));
 
-	// We need to construct additional voxels if this voxel spans multiple gird locations
+	// Determine voxel position in the grid after world space transformation
 	uint3 newVoxPos;
-	for(unsigned int i = 0; i < voxelDim.x * voxelDim.y * voxelDim.z; i++)
-	{
-		float3 localPosSubVox;  
-		localPosSubVox.x = (localPos.x) + (i % voxelDim.x) * gGridInfo.span;
-		localPosSubVox.y = (localPos.y) + (i % voxelDim.y) * gGridInfo.span;
-		localPosSubVox.z = (localPos.z) + (i % voxelDim.z) * gGridInfo.span;
+	float invSpan = 1.0f / gGridInfo.span;
+	newVoxPos.x = static_cast<unsigned int>((localPos.x - gGridInfo.position.x) * invSpan);
+	newVoxPos.y = static_cast<unsigned int>((localPos.y - gGridInfo.position.y) * invSpan);
+	newVoxPos.z = static_cast<unsigned int>((localPos.z - gGridInfo.position.z) * invSpan);
 
-		// For each newly introduced voxel
-		// Compare world pos with grid
-		// Reconstruct Voxel Indices relative to the new pos of the grid
-		localPosSubVox.x -= gGridInfo.position.x;
-		localPosSubVox.y -= gGridInfo.position.y;
-		localPosSubVox.z -= gGridInfo.position.z;
-				
-		float invSpan = 1.0f / gGridInfo.span;
-		newVoxPos.x = static_cast<unsigned int>((localPos.x) * invSpan);
-		newVoxPos.y = static_cast<unsigned int>((localPos.y) * invSpan);
-		newVoxPos.z = static_cast<unsigned int>((localPos.z) * invSpan);
+	// Normal in world space
+	float3 normalWorld = MultMatrix(normal, gObjTransform.rotation);
 
-		// Normal in world space
-		float3 normalMult = MultMatrix(normal, gObjTransform.rotation);
-
-		// Write Back
-		PackVoxelData(gVoxelData[i], newVoxPos, normalMult, objectId, voxelSpanRatio, renderLoc);
-	}
+	// Write Back
+	PackVoxelData(gVoxelData, newVoxPos, normalWorld, objectId, voxelSpanRatio, renderLoc);
 }
 
 __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
@@ -278,37 +262,37 @@ __global__ void VoxelObjectInclude(// Voxel System
 	// We need to check if this obj is not already in the page system or not
 	if(gWriteToPages[objectId.y] == 1)
 	{
-		//// We need to check scaling and adjust span
-		//// Objects may have different voxel sizes and voxel sizes may change after scaling
-		//float3 scaling = ExtractScaleInfo(gObjTransforms[objectId.y].transform);
-		//assert(scaling.x == scaling.y);
-		//assert(scaling.y == scaling.z);
+		// We need to check scaling and adjust span
+		// Objects may have different voxel sizes and voxel sizes may change after scaling
+		float3 scaling = ExtractScaleInfo(gObjTransforms[objectId.y].transform);
+		assert(scaling.x == scaling.y);
+		assert(scaling.y == scaling.z);
+		unsigned int voxelDim = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.x / gGridInfo.span);
+		unsigned int voxScale = voxelDim == 0 ? 0 : 1;
 
-		//unsigned int voxelDim = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.x / gGridInfo.span);
-		//unsigned int voxScale = 1; voxelDim == 0 ? 0 : 1;
-
-		//// Determine wich voxel is this thread on that specific object
+		// Determine wich voxel is this thread on that specific object
 		unsigned int voxId = globalId - gObjectVoxStrides[objectId.y];
-		//unsigned int segment = (voxId * voxScale) / GI_SEGMENT_SIZE;
-		//unsigned int segmentStart = gObjectAllocIndexLookup[objectId.y];
-
-		//if(segmentStart < segmentCount)
-		//{
-		//	ushort2 segmentLoc = gObjectAllocLocations[segmentStart + segment];
-
-		//	//// Finally Actual Voxel Write
-		//	//objectId.x = batchId;
-		//	//VoxelAdd(&gVoxelData[segmentLoc.x].dGridVoxels[segmentLoc.y],
-		//	//			objectId,
-		//	//			renderLoc,
-		//	//			normal,
-		//	//			voxPos,
-		//	//			voxelDim,
-		//	//			gObjTransforms[objectId.y],
-		//	//			gObjectAABB[objectId.y],
-		//	//			gObjInfo[objectId.y],
-		//	//			gGridInfo);
-		//}
+		unsigned int segment = (voxId * voxScale) / GI_SEGMENT_SIZE;
+		
+		// Skip this if its too small
+		if(voxScale == 0)
+		{
+			unsigned int segmentStart = gObjectAllocIndexLookup[objectId.y];
+			ushort2 segmentLoc = gObjectAllocLocations[segmentStart + segment];
+			unsigned int segmentLocalVoxPos = (voxId - segment * GI_SEGMENT_SIZE);
+			
+			// Finally Actual Voxel Write
+			objectId.x = batchId;
+			VoxelAdd(gVoxelData[segmentLoc.x].dGridVoxels[segmentLoc.y + segmentLocalVoxPos],
+					 objectId,
+					 renderLoc,
+					 normal,
+					 voxPos,
+					 gObjTransforms[objectId.y],
+					 gObjectAABB[objectId.y],
+					 gObjInfo[objectId.y],
+					 gGridInfo);
+		}
 		
 		// All done stop write signal
 		// Determine a leader per object

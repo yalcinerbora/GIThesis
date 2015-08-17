@@ -30,7 +30,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxInfo({0})
 	, bar(nullptr)
 	, relativeTransformBuffer(1)
-	, voxelScene(intialCamPos, 0.5f, 5120)
+	, voxelScene(intialCamPos, 0.3f, 512)
 {
 	voxelCacheUsageSize.AddData(0);
 	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),
@@ -205,7 +205,7 @@ void ThesisSolution::Init(SceneI& s)
 					   voxInfo.sceneVoxCacheCount);
 	// Link ShadowMaps and GBuffer textures to cuda
 	voxelScene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapArrayR32F());
-	voxelScene.AllocateInitialPages(static_cast<uint32_t>(voxInfo.sceneVoxCacheCount * 4.0f));
+	voxelScene.AllocateInitialPages(static_cast<uint32_t>(voxInfo.sceneVoxCacheCount * 2.0f));
 	
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
@@ -227,6 +227,8 @@ void ThesisSolution::Init(SceneI& s)
 			   " label='Update Time (ms)' group='Timings' precision=2 help='Voxel Grid Update Timing per frame.' ");
 	TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoTime,
 			   " label='SVO Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
+	TwAddVarRO(bar, "transferTime", TW_TYPE_DOUBLE, &debugVoxTransferTime,
+			   " label='Dbg Transfer Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
 }
 
 void ThesisSolution::Release()
@@ -291,16 +293,9 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	voxInfo.sceneVoxOctreeSize = static_cast<double>(voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
 	
 	// Here check TW Bar if user wants to render voxels
-
-
-	// Paged voxel rendering
-	//uint32_t voxCount = 0;
-	//VoxelDebugVAO& voxelVao = voxelScene.VoxelDataForRendering(voxCount);
-	//voxelVao.Bind();
-	//voxelVAO.Draw(voxCount, 0);
-
-
-	
+	VoxelDebugVAO& vao = voxelScene.VoxelDataForRendering(debugVoxTransferTime, voxInfo.sceneVoxOctreeCount);
+	DebugRenderVoxelPage(mainRenderCamera, vao);
+		
 	// Or wants to render only voxel light contrubition to the scene
 
 	// Or renders the scene as whole

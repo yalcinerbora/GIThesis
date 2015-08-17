@@ -5,26 +5,30 @@
 #include "Macros.h"
 #include "VoxelCopyToVAO.cuh"
 #include "IEUtility/IEVector3.h"
+#include <cuda_gl_interop.h>
 
 GICudaVoxelScene::GICudaVoxelScene(const IEVector3& intialCenterPos, float span, unsigned int dim)
 	: allocator(CVoxelGrid 
 				{
 					{ 
-						intialCenterPos.getX() - (512.0f * span * 0.5f), 
-						intialCenterPos.getY() - (512.0f * span * 0.5f),
-						intialCenterPos.getZ() - (512.0f * span *  0.5f)
+						intialCenterPos.getX() - (dim * span * 0.5f),
+						intialCenterPos.getY() - (dim * span * 0.5f),
+						intialCenterPos.getZ() - (dim * span * 0.5f)
 					},
 					span, 
 					{ dim, dim, dim }, 
 					static_cast<unsigned int>(log2f(static_cast<float>(dim)))
 				})
 	, vaoData(512)
-	, vaoRenderData(512)
-	, voxelVAO(vaoData, vaoRenderData)
+	, vaoColorData(512)
+	, voxelVAO(vaoData, vaoColorData)
 {}
 
 GICudaVoxelScene::~GICudaVoxelScene()
-{}
+{
+	cudaGraphicsUnregisterResource(vaoResource);
+	cudaGraphicsUnregisterResource(vaoRenderResource);
+}
 
 void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 							   GLuint transformBufferID,
@@ -63,7 +67,12 @@ void GICudaVoxelScene::AllocateInitialPages(uint32_t approxVoxCount)
 	uint32_t pageCount = (voxCount + (GI_PAGE_SIZE - 1)) / GI_PAGE_SIZE;
 	allocator.Reserve(pageCount);
 	vaoData.Resize(voxCount);
-	vaoRenderData.Resize(voxCount);
+	vaoColorData.Resize(voxCount);
+
+	// Cuda Register
+	cudaError_t err;
+	err = cudaGraphicsGLRegisterBuffer(&vaoResource, vaoData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard);
+	err = cudaGraphicsGLRegisterBuffer(&vaoRenderResource, vaoColorData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard);
 }
 
 void GICudaVoxelScene::Reset()
@@ -106,7 +115,7 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 			 allocator.GetObjectAABBDevice(i),
 			 allocator.GetTransformsDevice(i));
 
-		cudaDeviceSynchronize();
+	//	cudaDeviceSynchronize();
 
 		// KC ALLOCATE
 		VoxelObjectAlloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
@@ -170,7 +179,6 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 	timer.Stop();
 	svoReconTiming = timer.ElapsedMilliS();
 
-
 	// Done
 	allocator.ClearDevicePointers();
 }
@@ -185,7 +193,7 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 
 	uint32_t gridSize = ((allocator.NumPages() * GI_SEGMENT_PER_PAGE) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 
-	// KC VOXEL COUNT DETERMINE
+	// KC VOXEL COUNT DETERMINE FROM PAGES
 	DetermineTotalVoxCount<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(*d_VoxCount,
 		 // Page Related
@@ -193,53 +201,77 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 		 *allocator.GetVoxelGridDevice(),
 		 allocator.NumPages());
 
+	// KC VOXEL COUNT DETERMINE FROM OBJECTS
+	//gridSize = (allocator.NumObjects(0) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+	//DetermineTotalVoxCount<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	//	(*d_VoxCount,
+
+	//	allocator.GetSegmentAllocLoc(0),
+	//	allocator.NumObjectSegments(0),
+
+	//	allocator.GetObjectAllocationIndexLookup(0),
+	//	allocator.GetObjectInfoDevice(0),
+	//	allocator.GetTransformsDevice(0),
+	//	allocator.NumObjects(0),
+	//	
+	//	*allocator.GetVoxelGridDevice());
+
 	cudaMemcpy(&h_VoxCount, d_VoxCount, sizeof(int), cudaMemcpyDeviceToHost);
 	cudaFree(d_VoxCount);
 	return static_cast<uint32_t>(h_VoxCount);
 }
 
 
-VoxelDebugVAO& GICudaVoxelScene::VoxelDataForRendering(uint32_t voxCount)
+VoxelDebugVAO& GICudaVoxelScene::VoxelDataForRendering(double& time, uint32_t voxCount)
 {
+	CudaTimer timer(0);
+	timer.Start();
+
+	// Map
+	unsigned int* d_atomicCounter = nullptr;
+	CVoxelPacked* vBufferPackedPtr = nullptr;
+	uchar4* vBufferRenderPackedPtr = nullptr;
+	size_t size = 0;
+	cudaError_t err;
 	
-
-	//// KC OBJECT VOXEL INCLUDE
-	//VoxelObjectInclude << <gridSize, GI_THREAD_PER_BLOCK >> >
-	//	(// Voxel System
-	//	allocator.GetVoxelPagesDevice(),
-	//	allocator.NumPages(),
-	//	*allocator.GetVoxelGridDevice(),
-
-	//	// Per Object Segment Related
-	//	allocator.GetSegmentAllocLoc(i),
-	//	allocator.GetSegmentObjectID(i),
-	//	allocator.NumObjectSegments(i),
-
-	//	// Per Object Related
-	//	allocator.GetWriteSignals(i),
-	//	allocator.GetVoxelStrides(i),
-	//	allocator.GetObjectAllocationIndexLookup(i),
-	//	allocator.GetObjectAABBDevice(i),
-	//	allocator.GetTransformsDevice(i),
-	//	allocator.GetObjectInfoDevice(i),
-	//	allocator.NumObjects(i),
-
-	//	// Per Voxel Related
-	//	allocator.GetObjCacheDevice(i),
-	//	allocator.NumVoxels(i),
-
-	//	// Batch(ObjectGroup in terms of OGL) Id
-	//	i);
-
+	err = cudaGraphicsMapResources(1, &vaoResource);
+	err = cudaGraphicsMapResources(1, &vaoRenderResource);
+	err = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferPackedPtr), &size, vaoResource);
+	err = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferPackedPtr), &size, vaoRenderResource);
 	
-	// Determine the size of vao buffer
-	//voxCount = 0;
-		// KC
-	// Resize structured buffers
-	// Copy to GL Buffer
-		// KC
+	cudaMalloc(&d_atomicCounter, sizeof(unsigned int));
+	cudaMemset(d_atomicCounter, 0x00, sizeof(unsigned int));
 
+	// Copy
+	// All Pages
+	uint32_t gridSize = (allocator.NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+	VoxelCopyToVAO<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		(// Two ogl Buffers for rendering used voxels
+		vBufferPackedPtr,
+		vBufferRenderPackedPtr,
+		*d_atomicCounter,
 
-	
+		// Per Obj Segment
+		allocator.GetSegmentAllocLoc2D(),
+
+		// Per obj
+		allocator.GetObjectAllocationIndexLookup2D(),
+
+		// Per vox
+		allocator.GetObjRenderCacheDevice(),
+
+		// Page
+		allocator.GetVoxelPagesDevice(),
+		allocator.NumPages(),
+		*allocator.GetVoxelGridDevice());
+		
+	// Unmap
+	err = cudaGraphicsUnmapResources(1, &vaoResource);
+	err = cudaGraphicsUnmapResources(1, &vaoRenderResource);
+	cudaFree(d_atomicCounter);
+
+	timer.Stop();
+	time = timer.ElapsedMilliS();
+
 	return voxelVAO;
 }

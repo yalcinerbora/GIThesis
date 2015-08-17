@@ -30,7 +30,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxInfo({0})
 	, bar(nullptr)
 	, relativeTransformBuffer(1)
-	, voxelScene(intialCamPos, 0.5f, 512)
+	, voxelScene(intialCamPos, 0.5f, 5120)
 {
 	voxelCacheUsageSize.AddData(0);
 	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),

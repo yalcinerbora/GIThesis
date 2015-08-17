@@ -44,10 +44,11 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 	// We need to check scaling and adjust span
 	// Objects may have different voxel sizes and voxel sizes may change after scaling
 	float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
-	assert(scalingObj.x == scalingObj.y == scalingObj.z);
+	assert(scaling.x == scaling.y);
+	assert(scaling.y == scaling.z);
 
 	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
-	unsigned int voxScale = voxelDim == 0 ? 0 : 1;
+	unsigned int voxScale = 1; voxelDim == 0 ? 0 : 1;
 	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	
 	// Determine Strides
@@ -57,10 +58,11 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 	for(unsigned int i = 0; i < globalId; i++)
 	{
 		float3 scalingObj = ExtractScaleInfo(gObjTransforms[i].transform);
-		assert(scalingObj.x == scalingObj.y == scalingObj.z);
+		assert(scalingObj.x == scalingObj.y);
+		assert(scalingObj.y == scalingObj.z);
 
 		unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[i].span * scaling.x / gGridInfo.span);
-		unsigned int voxScaleObj = voxelDim == 0 ? 0 : 1;
+		unsigned int voxScaleObj = 1; voxelDim == 0 ? 0 : 1;
 		
 		objStirde += gVoxelInfo[i].voxelCount * voxScaleObj;
 		objIndexLookup += ((gVoxelInfo[i].voxelCount * voxScaleObj) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
@@ -89,10 +91,10 @@ __global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
 	if(globalId >= objCount) return;
 
 	float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
-	assert(scalingObj.x == scalingObj.y == scalingObj.z);
-
+	assert(scaling.x == scaling.y);
+	assert(scaling.y == scaling.z);
 	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
-	unsigned int voxScale = voxelDim == 0 ? 0 : 1;
+	unsigned int voxScale = 1;// voxelDim == 0 ? 0 : 1;
 
 	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	for(unsigned int i = 0; i < segmentCount; i++)

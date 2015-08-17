@@ -10,6 +10,47 @@
 size_t ThesisSolution::InitialObjectGridSize = 256;
 size_t ThesisSolution::MaxVoxelCacheSize = 1024 * 1024 * 8;
 
+void TW_CALL ThesisSolution::GetShowLightIntensity(void *value, void *clientData)
+{
+	ThesisSolution* solution = static_cast<ThesisSolution*>(clientData);
+
+}
+
+void TW_CALL ThesisSolution::SetShowLightIntensity(const void *value, void *clientData)
+{
+	ThesisSolution* solution = static_cast<ThesisSolution*>(clientData);
+}
+
+void TW_CALL ThesisSolution::GetShowDebugVoxelPage(void *value, void *clientData)
+{
+
+}
+
+void TW_CALL ThesisSolution::SetShowDebugVoxelPage(const void *value, void *clientData)
+{
+
+}
+
+void TW_CALL ThesisSolution::GetShowDebugVoxelCache(void *value, void *clientData)
+{
+
+}
+
+void TW_CALL ThesisSolution::SetShowDebugVoxelCache(const void *value, void *clientData)
+{
+
+}
+
+void TW_CALL ThesisSolution::GetShowDeferred(void *value, void *clientData)
+{
+
+}
+
+void TW_CALL ThesisSolution::SetShowDeferred(const void *value, void *clientData)
+{
+
+}
+
 ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& intialCamPos)
 	: currentScene(nullptr)
 	, dRenderer(dRenderer)
@@ -229,6 +270,27 @@ void ThesisSolution::Init(SceneI& s)
 			   " label='SVO Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
 	TwAddVarRO(bar, "transferTime", TW_TYPE_DOUBLE, &debugVoxTransferTime,
 			   " label='Dbg Transfer Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
+	TwAddSeparator(bar, NULL, NULL);
+	TwAddVarCB(bar, "lightIntenShow", TW_TYPE_BOOLCPP,
+			   SetShowLightIntensity,
+			   GetShowLightIntensity,
+			   this,
+			   " label='Show LI Buffer' group='Rendering' help='Show Light Intensity Buffer' ");
+	TwAddVarCB(bar, "debugVoxPageShow", TW_TYPE_BOOLCPP,
+			   SetShowDebugVoxelPage,
+			   GetShowDebugVoxelPage,
+			   this,
+			   " label='Show Vox Page' group='Rendering' help='Show Voxels in the Page System' ");
+	TwAddVarCB(bar, "debugVoxCacheShow", TW_TYPE_BOOLCPP,
+			   SetShowDebugVoxelCache,
+			   GetShowDebugVoxelCache,
+			   this,
+			   " label='Show Vox Cache' group='Rendering' help='Show Voxels in the Entire Cache' ");
+	TwAddVarCB(bar, "deferredShow", TW_TYPE_BOOLCPP,
+			   SetShowDeferred,
+			   GetShowDeferred,
+			   this,
+			   " label='Show Deferred' group='Rendering' help='Show Deferred Rendered Scene' ");
 }
 
 void ThesisSolution::Release()
@@ -275,6 +337,11 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera)
 
 	voxelVAO.Bind();
 	voxelVAO.Draw(voxInfo.sceneVoxCacheCount, 0);
+}
+
+void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, VoxelDebugVAO& pageVoxels)
+{
+	
 }
 
 void ThesisSolution::Frame(const Camera& mainRenderCamera)

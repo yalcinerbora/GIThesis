@@ -86,6 +86,20 @@ class ThesisSolution : public SolutionI
 		void									DebugRenderVoxelCache(const Camera& camera);
 		void									DebugRenderVoxelPage(const Camera& camera, VoxelDebugVAO& pageVoxels);
 
+		// Tw Callbacks
+		static void TW_CALL						GetShowLightIntensity(void *value, void *clientData);
+		static void TW_CALL						SetShowLightIntensity(const void *value, void *clientData);
+
+		static void TW_CALL						GetShowDebugVoxelPage(void *value, void *clientData);
+		static void TW_CALL						SetShowDebugVoxelPage(const void *value, void *clientData);
+
+		static void TW_CALL						GetShowDebugVoxelCache(void *value, void *clientData);
+		static void TW_CALL						SetShowDebugVoxelCache(const void *value, void *clientData);
+
+		static void TW_CALL						GetShowDeferred(void *value, void *clientData);
+		static void TW_CALL						SetShowDeferred(const void *value, void *clientData);
+
+
 		// Uncomment this for debugging voxelization 
 		// Normally this texture allocated and deallocated 
 		// at init time and

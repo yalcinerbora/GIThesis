@@ -10,46 +10,13 @@
 size_t ThesisSolution::InitialObjectGridSize = 256;
 size_t ThesisSolution::MaxVoxelCacheSize = 1024 * 1024 * 8;
 
-void TW_CALL ThesisSolution::GetShowLightIntensity(void *value, void *clientData)
-{
-	ThesisSolution* solution = static_cast<ThesisSolution*>(clientData);
-
-}
-
-void TW_CALL ThesisSolution::SetShowLightIntensity(const void *value, void *clientData)
-{
-	ThesisSolution* solution = static_cast<ThesisSolution*>(clientData);
-}
-
-void TW_CALL ThesisSolution::GetShowDebugVoxelPage(void *value, void *clientData)
-{
-
-}
-
-void TW_CALL ThesisSolution::SetShowDebugVoxelPage(const void *value, void *clientData)
-{
-
-}
-
-void TW_CALL ThesisSolution::GetShowDebugVoxelCache(void *value, void *clientData)
-{
-
-}
-
-void TW_CALL ThesisSolution::SetShowDebugVoxelCache(const void *value, void *clientData)
-{
-
-}
-
-void TW_CALL ThesisSolution::GetShowDeferred(void *value, void *clientData)
-{
-
-}
-
-void TW_CALL ThesisSolution::SetShowDeferred(const void *value, void *clientData)
-{
-
-}
+const TwEnumVal ThesisSolution::renderSchemeVals[] = 
+{ 
+	{ GI_DEFERRED, "Deferred" }, 
+	{ GI_LIGHT_INTENSITY, "LI Buffer Only"}, 
+	{ GI_VOXEL_PAGE, "Render Voxel Page" },
+	{ GI_VOXEL_CACHE, "Render Voxel Cache" }
+};
 
 ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& intialCamPos)
 	: currentScene(nullptr)
@@ -72,11 +39,15 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, bar(nullptr)
 	, relativeTransformBuffer(1)
 	, voxelScene(intialCamPos, 0.3f, 512)
+	, renderScheme(GI_VOXEL_CACHE)
+	, gridInfoBuffer(1)
 {
 	voxelCacheUsageSize.AddData(0);
 	voxelScene.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),
 										   dRenderer.GetGBuffer().getNormalGL(),
 										   dRenderer.GetLightIntensityBufferGL());
+	renderType = TwDefineEnum("RenderType", renderSchemeVals, 4);
+	gridInfoBuffer.AddData({});
 }
 
 ThesisSolution::~ThesisSolution()
@@ -251,6 +222,12 @@ void ThesisSolution::Init(SceneI& s)
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
 			   " label='Frame(ms)' precision=2 help='Frame Time in milliseconds.' ");
+	TwAddVarRW(bar, "rendering", renderType,
+			   &renderScheme,
+			   " label='Render' help='Change What to show on screen' ");
+	TwAddVarRW(bar, "giOn", TW_TYPE_BOOLCPP,
+			   &giOn,
+			   " label='GI On' help='Cone Tracing GI On off' ");
 	TwAddSeparator(bar, NULL, NULL);
 	TwAddVarRO(bar, "voxCache", TW_TYPE_UINT32, &voxInfo.sceneVoxCacheCount,
 			   " label='Voxel Count' group='Voxel Cache' help='Cache voxel count.' ");
@@ -270,27 +247,8 @@ void ThesisSolution::Init(SceneI& s)
 			   " label='SVO Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
 	TwAddVarRO(bar, "transferTime", TW_TYPE_DOUBLE, &debugVoxTransferTime,
 			   " label='Dbg Transfer Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
-	TwAddSeparator(bar, NULL, NULL);
-	TwAddVarCB(bar, "lightIntenShow", TW_TYPE_BOOLCPP,
-			   SetShowLightIntensity,
-			   GetShowLightIntensity,
-			   this,
-			   " label='Show LI Buffer' group='Rendering' help='Show Light Intensity Buffer' ");
-	TwAddVarCB(bar, "debugVoxPageShow", TW_TYPE_BOOLCPP,
-			   SetShowDebugVoxelPage,
-			   GetShowDebugVoxelPage,
-			   this,
-			   " label='Show Vox Page' group='Rendering' help='Show Voxels in the Page System' ");
-	TwAddVarCB(bar, "debugVoxCacheShow", TW_TYPE_BOOLCPP,
-			   SetShowDebugVoxelCache,
-			   GetShowDebugVoxelCache,
-			   this,
-			   " label='Show Vox Cache' group='Rendering' help='Show Voxels in the Entire Cache' ");
-	TwAddVarCB(bar, "deferredShow", TW_TYPE_BOOLCPP,
-			   SetShowDeferred,
-			   GetShowDeferred,
-			   this,
-			   " label='Show Deferred' group='Rendering' help='Show Deferred Rendered Scene' ");
+	TwDefine(" ThesisGI size='325 300' ");
+	TwDefine(" ThesisGI valueswidth=fit ");
 }
 
 void ThesisSolution::Release()
@@ -329,7 +287,6 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera)
 
 	objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
-	cameraTransform.Bind();
 
 	// Bind Model Transform
 	DrawBuffer& dBuffer = currentScene->getDrawBuffer();
@@ -339,15 +296,75 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera)
 	voxelVAO.Draw(voxInfo.sceneVoxCacheCount, 0);
 }
 
-void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, VoxelDebugVAO& pageVoxels)
+void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, 
+										  VoxelDebugVAO& pageVoxels,
+										  const CVoxelGrid& voxGrid)
 {
-	
+	StructuredBuffer<VoxelData> voxels(512);
+	StructuredBuffer<uchar4> colors(512);
+
+	for(unsigned int i = 0; i < 512; i++)
+	{
+		unsigned int value = 0;
+		value |= 4 << 27;
+		value |= static_cast<unsigned int>(0) << 18;
+		value |= static_cast<unsigned int>(0) << 9;
+		value |= static_cast<unsigned int>(300);
+		voxels.AddData({{value, 0, 0, 0}});
+		colors.AddData({255, 255, 255, 255});
+	}
+	voxels.SendData();
+	colors.SendData();
+	VoxelDebugVAO vbg(voxels, colors);
+
+	//DEBUG VOXEL RENDER
+	// Frame Viewport
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0,
+			   static_cast<GLsizei>(camera.width),
+			   static_cast<GLsizei>(camera.height));
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+	glDisable(GL_MULTISAMPLE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDepthFunc(GL_LEQUAL);
+	glDepthMask(true);
+	glColorMask(true, true, true, true);
+
+	glClear(GL_COLOR_BUFFER_BIT |
+			GL_DEPTH_BUFFER_BIT);
+
+	// Debug Voxelize Pages
+	// User World Render Vertex Shader
+	Shader::Unbind(ShaderType::GEOMETRY);
+	vertexDebugWorldVoxel.Bind();
+	fragmentDebugVoxel.Bind();
+
+	// We need grid info buffer as uniform and frame transform buffer
+	cameraTransform.Bind();
+	cameraTransform.Update(camera.generateTransform());
+
+	VoxelGridInfoGL voxelGridGL = 
+	{
+		{voxGrid.position.x, voxGrid.position.y, voxGrid.position.z, voxGrid.span},
+		{voxGrid.dimension.x, voxGrid.dimension.y, voxGrid.dimension.z, voxGrid.depth},
+	};
+	gridInfoBuffer.CPUData()[0] = voxelGridGL;
+	gridInfoBuffer.SendData();
+	gridInfoBuffer.BindAsUniformBuffer(U_VOXEL_GRID_INFO);
+
+	//vbg.Bind();
+	//vbg.Draw(512, 0);
+
+	vbg.Bind();
+	pageVoxels.Draw(voxInfo.sceneVoxOctreeCount, 0);
 }
 
 void ThesisSolution::Frame(const Camera& mainRenderCamera)
 {
-	// DEBUG
-	DebugRenderVoxelCache(mainRenderCamera);
+	// Zero out debug transfer time since it may not be used
+	debugVoxTransferTime = 0;
 
 	// VoxelSceneUpdate
 	voxelScene.Voxelize(ioTime,
@@ -360,13 +377,38 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	voxInfo.sceneVoxOctreeSize = static_cast<double>(voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
 	
 	// Here check TW Bar if user wants to render voxels
-	VoxelDebugVAO& vao = voxelScene.VoxelDataForRendering(debugVoxTransferTime, voxInfo.sceneVoxOctreeCount);
-	DebugRenderVoxelPage(mainRenderCamera, vao);
-		
+	switch(renderScheme)
+	{
+		case GI_DEFERRED:
+		{
+			dRenderer.Render(*currentScene, mainRenderCamera);
+			break;
+		}
+		case GI_LIGHT_INTENSITY:
+		{
+			break;
+		}		
+		case GI_VOXEL_PAGE:
+		{
+			CVoxelGrid voxGrid;
+			VoxelDebugVAO& vao = voxelScene.VoxelDataForRendering(voxGrid, debugVoxTransferTime, voxInfo.sceneVoxOctreeCount);
+			DebugRenderVoxelPage(mainRenderCamera, vao, voxGrid);
+			break;
+		}
+		case GI_VOXEL_CACHE:
+		{
+			DebugRenderVoxelCache(mainRenderCamera);
+			break;
+		}
+	}
+
 	// Or wants to render only voxel light contrubition to the scene
 
 	// Or renders the scene as whole
-	//dRenderer.Render(*currentScene, mainRenderCamera);
+	//
+
+
+
 }
 
 void ThesisSolution::SetFPS(double fpsMS)

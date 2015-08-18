@@ -49,7 +49,7 @@ __device__ inline void ExpandVoxelData(uint3& voxPos,
 	voxPos.x = (packedVoxData.x & 0x000001FF);
 	voxPos.y = (packedVoxData.x & 0x0003FE00) >> 9;
 	voxPos.z = (packedVoxData.x & 0x07FC0000) >> 18;
-	voxelSpanRatio = (packedVoxData.x & 0xF8000000) >> 0;
+	voxelSpanRatio = (packedVoxData.x & 0xF8000000) >> 27;
 
 	normal.x = (float) (packedVoxData.y & 0x0000FFFF) / 0x0000FFFF;
 	normal.y = (float) ((packedVoxData.y & 0x7FFF0000) >> 16) / 0x00007FFF;

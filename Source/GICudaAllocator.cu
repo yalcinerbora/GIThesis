@@ -483,6 +483,11 @@ CVoxelGrid* GICudaAllocator::GetVoxelGridDevice()
 	return dVoxelGridInfo.Data();
 }
 
+CVoxelGrid GICudaAllocator::GetVoxelGridHost()
+{
+	return hVoxelGridInfo;
+}
+
 IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos)
 {
 	hVoxelGridInfo.position.x = playerPos.getX() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.x * 0.5f;

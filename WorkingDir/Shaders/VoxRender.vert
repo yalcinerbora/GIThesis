@@ -68,7 +68,7 @@ LU_MTRANSFORM buffer ModelTransform
 	} modelTransforms[];
 };
 
-uvec4 UnpackVoxelData(in uvec4 voxPacked)
+uvec4 UnpackVoxelDataAndObjId(in uvec4 voxPacked)
 {
 	uvec4 vec;
 	vec.x = (voxPacked.x & 0x000001FF);
@@ -82,8 +82,9 @@ void main(void)
 {
 	fColor = voxColor.rgb;
 
-	uvec4 voxIndex = UnpackVoxelData(voxPos);
+	uvec4 voxIndex = UnpackVoxelDataAndObjId(voxPos);
 	uint objId = voxIndex.w;
+
 	float span = objectGridInfo[objId].span;
 	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + 
 					(span * vec3(voxIndex.xyz));

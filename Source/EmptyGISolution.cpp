@@ -223,7 +223,8 @@ void EmptyGISolution::Init(SceneI& s)
 		params += " opened=false ";
 		TwDefine(params.c_str());
 	}
-
+	TwDefine(" EmptyGI size='300 250' ");
+	TwDefine(" EmptyGI valueswidth=180 ");
 }
 
 void EmptyGISolution::Release()

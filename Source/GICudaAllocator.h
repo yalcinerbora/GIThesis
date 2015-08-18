@@ -145,6 +145,7 @@ class GICudaAllocator
 		uint32_t				NumPages() const;
 
 		CVoxelGrid*				GetVoxelGridDevice();
+		CVoxelGrid				GetVoxelGridHost();
 		IEVector3				GetNewVoxelPos(const IEVector3& playerPos);
 
 		// Mapped OGL Pointers

@@ -28,8 +28,13 @@ struct ObjGridInfo
 	float span;
 	uint32_t voxCount;
 };
-#pragma pack(pop)
 
+struct VoxelGridInfoGL
+{
+	IEVector4		posSpan;
+	uint32_t		dimension[4];
+};
+#pragma pack(pop)
 
 struct VoxelInfo
 {
@@ -39,6 +44,14 @@ struct VoxelInfo
 	uint32_t	sceneVoxOctreeCount;
 	double		sceneVoxOctreeSize;
 
+};
+
+enum ThesisRenderScheme
+{
+	GI_DEFERRED,
+	GI_LIGHT_INTENSITY,
+	GI_VOXEL_PAGE,
+	GI_VOXEL_CACHE
 };
 
 class ThesisSolution : public SolutionI
@@ -61,12 +74,6 @@ class ThesisSolution : public SolutionI
 
 		FrameTransformBuffer	cameraTransform;
 
-		// Timings
-		double					ioTime;
-		double					transformTime;
-		double					svoTime;
-		double					debugVoxTransferTime;
-
 		// Voxel Cache
 		StructuredBuffer<ObjGridInfo>			objectGridInfo;
 		StructuredBuffer<VoxelData>				voxelData;
@@ -74,31 +81,30 @@ class ThesisSolution : public SolutionI
 		StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 		VoxelDebugVAO							voxelVAO;
 
+		// Utility Buffers
 		// Relative Transform buffer for rigid movements (for scene's draw buffer)
 		StructuredBuffer<ModelTransform>		relativeTransformBuffer;
+		StructuredBuffer<VoxelGridInfoGL>		gridInfoBuffer;
 
 		// GUI
 		TwBar*									bar;
-		double									frameTime;
+		bool									giOn;
 		VoxelInfo								voxInfo;
-		
-		//
+		double									frameTime;
+		double									ioTime;
+		double									transformTime;
+		double									svoTime;
+		double									debugVoxTransferTime;
+
+		ThesisRenderScheme						renderScheme;
+		static const TwEnumVal					renderSchemeVals[];
+		TwType									renderType;
+
+		// Debug Rendering
 		void									DebugRenderVoxelCache(const Camera& camera);
-		void									DebugRenderVoxelPage(const Camera& camera, VoxelDebugVAO& pageVoxels);
-
-		// Tw Callbacks
-		static void TW_CALL						GetShowLightIntensity(void *value, void *clientData);
-		static void TW_CALL						SetShowLightIntensity(const void *value, void *clientData);
-
-		static void TW_CALL						GetShowDebugVoxelPage(void *value, void *clientData);
-		static void TW_CALL						SetShowDebugVoxelPage(const void *value, void *clientData);
-
-		static void TW_CALL						GetShowDebugVoxelCache(void *value, void *clientData);
-		static void TW_CALL						SetShowDebugVoxelCache(const void *value, void *clientData);
-
-		static void TW_CALL						GetShowDeferred(void *value, void *clientData);
-		static void TW_CALL						SetShowDeferred(const void *value, void *clientData);
-
+		void									DebugRenderVoxelPage(const Camera& camera, 
+																	 VoxelDebugVAO& pageVoxels, 
+																	 const CVoxelGrid& voxGrid);
 
 		// Uncomment this for debugging voxelization 
 		// Normally this texture allocated and deallocated 

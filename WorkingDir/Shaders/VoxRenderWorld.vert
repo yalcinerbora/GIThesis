@@ -44,24 +44,24 @@ U_VOXEL_GRID_INFO uniform GridInfo
 	uvec4 dimension;	// Voxel Grid Dimentions, last component is depth of the SVO
 };
 
-uvec4 UnpackVoxelData(in uvec4 voxPacked)
+uvec4 UnpackVoxelDataAndSpan(in uvec4 voxPacked)
 {
 	uvec4 vec;
-	vec.x = (voxPacked.x & 0x000003FF);
-	vec.y = (voxPacked.x & 0x000FFC00) >> 10;
-	vec.z = (voxPacked.x & 0x3FF00000) >> 20;
-	vec.w = (voxPacked.z & 0xFFFF0000) >> 16;
+	vec.x = (voxPacked.x & 0x000001FF);
+	vec.y = (voxPacked.x & 0x0003FE00) >> 9;
+	vec.z = (voxPacked.x & 0x07FC0000) >> 18;
+	vec.w  = (voxPacked.x & 0xF8000000) >> 27;
 	return vec;
 }
 
 void main(void)
 {
 	fColor = voxColor.rgb;
-
-	uvec4 voxIndex = UnpackVoxelData(voxPos);
-	uint objId = voxIndex.w;
-	float span = position.w;
-	vec3 deltaPos = position.xyz + (span * vec3(voxIndex.xyz)) + vec3(span * 0.5f);
+	uvec4 voxIndex = UnpackVoxelDataAndSpan(voxPos);
+	uint spanRatio = 10;//voxIndex.w;
+	float span = position.w * spanRatio;
+	vec3 deltaPos = position.xyz + span * vec3(voxIndex.xyz);
+	
 	mat4 voxModel =	mat4( span,			0.0f,		0.0f,		0.0f,
 						  0.0f,			span,		0.0f,		0.0f,
 						  0.0f,			0.0f,		span,		0.0f,

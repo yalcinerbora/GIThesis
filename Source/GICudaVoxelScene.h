@@ -77,7 +77,7 @@ class GICudaVoxelScene
 		// Debug Related Functions
 		// Access for voxel data for rendering voxels
 		uint32_t			VoxelCountInPage();
-		VoxelDebugVAO&		VoxelDataForRendering(double& timing, uint32_t voxCount);
+		VoxelDebugVAO&		VoxelDataForRendering(CVoxelGrid&, double& timing, uint32_t voxCount);
 		
 
 };

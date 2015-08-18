@@ -222,7 +222,7 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 }
 
 
-VoxelDebugVAO& GICudaVoxelScene::VoxelDataForRendering(double& time, uint32_t voxCount)
+VoxelDebugVAO& GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, double& time, uint32_t voxCount)
 {
 	CudaTimer timer(0);
 	timer.Start();
@@ -265,6 +265,8 @@ VoxelDebugVAO& GICudaVoxelScene::VoxelDataForRendering(double& time, uint32_t vo
 		allocator.NumPages(),
 		*allocator.GetVoxelGridDevice());
 		
+	voxGridData = allocator.GetVoxelGridHost();
+
 	// Unmap
 	err = cudaGraphicsUnmapResources(1, &vaoResource);
 	err = cudaGraphicsUnmapResources(1, &vaoRenderResource);

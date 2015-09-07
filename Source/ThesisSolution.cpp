@@ -37,7 +37,6 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxelVAO(voxelData,voxelRenderData)
 	, voxInfo({0})
 	, bar(nullptr)
-	, relativeTransformBuffer(1)
 	, voxelScene(intialCamPos, 0.3f, 512)
 	, renderScheme(GI_VOXEL_CACHE)
 	, gridInfoBuffer(1)
@@ -65,13 +64,6 @@ void ThesisSolution::Init(SceneI& s)
 	// Reset GICudaScene
 	voxelScene.Reset();
 
-	// Initialiizng Relative Transform Buffer
-	for(unsigned int i = 0; i < s.ObjectCount(); i++)
-	{
-		relativeTransformBuffer.AddData(ModelTransform { IEMatrix4x4::IdentityMatrix, IEMatrix4x4::IdentityMatrix });
-	}
-	relativeTransformBuffer.SendData();
-	
 	// Voxelization
 	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 	currentScene = &s;
@@ -173,6 +165,7 @@ void ThesisSolution::Init(SceneI& s)
 		voxelRenderData.BindAsShaderStorageBuffer(LU_VOXEL_RENDER);
 		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
 		voxelCacheUsageSize.BindAsShaderStorageBuffer(LU_INDEX_CHECK);
+		glUniform1ui(U_OBJ_TYPE, static_cast<GLuint>(VoxelObjectType::STATIC));
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
 		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
 		glUniform1ui(U_MAX_CACHE_SIZE, static_cast<GLuint>(MaxVoxelCacheSize));
@@ -209,7 +202,6 @@ void ThesisSolution::Init(SceneI& s)
 	// Send it to CUDA
 	voxelScene.LinkOGL(currentScene->getDrawBuffer().getAABBBuffer().getGLBuffer(),
 					   currentScene->getDrawBuffer().getModelTransformBuffer().getGLBuffer(),
-					   relativeTransformBuffer.getGLBuffer(),
 					   objectGridInfo.getGLBuffer(),
 					   voxelData.getGLBuffer(),
 					   voxelRenderData.getGLBuffer(),
@@ -217,7 +209,8 @@ void ThesisSolution::Init(SceneI& s)
 					   voxInfo.sceneVoxCacheCount);
 	// Link ShadowMaps and GBuffer textures to cuda
 	voxelScene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapArrayR32F());
-	voxelScene.AllocateInitialPages(static_cast<uint32_t>(voxInfo.sceneVoxCacheCount * 2.0f));
+	// Allocate at least all of the scene voxel
+	voxelScene.AllocateInitialPages(static_cast<uint32_t>(voxInfo.sceneVoxCacheCount));
 	
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
@@ -300,22 +293,24 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 										  VoxelDebugVAO& pageVoxels,
 										  const CVoxelGrid& voxGrid)
 {
-	StructuredBuffer<VoxelData> voxels(512);
-	StructuredBuffer<uchar4> colors(512);
+	//StructuredBuffer<VoxelData> voxels(512);
+	//StructuredBuffer<uchar4> colors(512);
 
-	for(unsigned int i = 0; i < 512; i++)
-	{
-		unsigned int value = 0;
-		value |= 4 << 27;
-		value |= static_cast<unsigned int>(0) << 18;
-		value |= static_cast<unsigned int>(0) << 9;
-		value |= static_cast<unsigned int>(300);
-		voxels.AddData({{value, 0, 0, 0}});
-		colors.AddData({255, 255, 255, 255});
-	}
-	voxels.SendData();
-	colors.SendData();
-	VoxelDebugVAO vbg(voxels, colors);
+	//for(unsigned int i = 0; i < 512; i++)
+	//{
+	//	unsigned int value = 0;
+	//	value |= 16 << 27;
+	//	value |= static_cast<unsigned int>(256) << 18;	// Z
+	//	value |= static_cast<unsigned int>(256) << 9;	// Y
+	//	value |= static_cast<unsigned int>(456);		// X
+	//	voxels.AddData({{value, 0, 0, 0}});
+	//	colors.AddData({255, 255, 0, 255});
+	//}
+	//voxels.SendData();
+	//colors.SendData();
+	//voxels.Resize(1024);
+	//colors.Resize(1024);
+	//VoxelDebugVAO vbg(voxels, colors);
 
 	//DEBUG VOXEL RENDER
 	// Frame Viewport
@@ -357,7 +352,7 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 	//vbg.Bind();
 	//vbg.Draw(512, 0);
 
-	vbg.Bind();
+	pageVoxels.Bind();
 	pageVoxels.Draw(voxInfo.sceneVoxOctreeCount, 0);
 }
 
@@ -391,7 +386,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		case GI_VOXEL_PAGE:
 		{
 			CVoxelGrid voxGrid;
-			VoxelDebugVAO& vao = voxelScene.VoxelDataForRendering(voxGrid, debugVoxTransferTime, voxInfo.sceneVoxOctreeCount);
+			VoxelDebugVAO vao = voxelScene.VoxelDataForRendering(voxGrid, debugVoxTransferTime, voxInfo.sceneVoxOctreeCount);
 			DebugRenderVoxelPage(mainRenderCamera, vao, voxGrid);
 			break;
 		}

@@ -74,7 +74,7 @@ uvec4 UnpackVoxelDataAndObjId(in uvec4 voxPacked)
 	vec.x = (voxPacked.x & 0x000001FF);
 	vec.y = (voxPacked.x & 0x0003FE00) >> 9;
 	vec.z = (voxPacked.x & 0x07FC0000) >> 18;
-	vec.w = (voxPacked.z & 0xFFFF0000) >> 16;
+	vec.w = (voxPacked.z & 0x0000FFFF);
 	return vec;
 }
 

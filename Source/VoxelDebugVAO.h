@@ -44,6 +44,7 @@ class VoxelDebugVAO
 								VoxelDebugVAO(StructuredBuffer<VoxelData>&,
 											  StructuredBuffer<uchar4>&);
 								VoxelDebugVAO(const VoxelDebugVAO&) = delete;
+								//VoxelDebugVAO(VoxelDebugVAO&&);
 		const VoxelDebugVAO&	operator= (const VoxelDebugVAO&) = delete;
 								~VoxelDebugVAO();
 

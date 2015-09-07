@@ -35,7 +35,7 @@ class GICudaVoxelScene
 		cudaGraphicsResource_t				vaoResource;
 		cudaGraphicsResource_t				vaoRenderResource;
 
-		VoxelDebugVAO						voxelVAO;
+		
 		
 	protected:
 
@@ -49,8 +49,7 @@ class GICudaVoxelScene
 
 		// Determines and Allocates the initial Page Size for the first frame
 		void				LinkOGL(GLuint aabbBuffer,
-									GLuint transformBufferID,
-									GLuint relativeTransformBufferID,
+									GLuint transformBufferID,									
 									GLuint infoBufferID,
 									GLuint voxelCache,
 									GLuint voxelCacheRender,
@@ -77,7 +76,7 @@ class GICudaVoxelScene
 		// Debug Related Functions
 		// Access for voxel data for rendering voxels
 		uint32_t			VoxelCountInPage();
-		VoxelDebugVAO&		VoxelDataForRendering(CVoxelGrid&, double& timing, uint32_t voxCount);
+		VoxelDebugVAO		VoxelDataForRendering(CVoxelGrid&, double& timing, uint32_t voxCount);
 		
 
 };

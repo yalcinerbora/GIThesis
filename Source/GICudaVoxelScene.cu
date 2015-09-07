@@ -21,7 +21,6 @@ GICudaVoxelScene::GICudaVoxelScene(const IEVector3& intialCenterPos, float span,
 				})
 	, vaoData(512)
 	, vaoColorData(512)
-	, voxelVAO(vaoData, vaoColorData)
 {}
 
 GICudaVoxelScene::~GICudaVoxelScene()
@@ -32,15 +31,14 @@ GICudaVoxelScene::~GICudaVoxelScene()
 
 void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 							   GLuint transformBufferID,
-							   GLuint relativeTransformBufferID,
 							   GLuint infoBufferID,
 							   GLuint voxelCache,
 							   GLuint voxelCacheRender,
 							   uint32_t objCount,
 							   uint32_t voxelCount)
 {
-	allocator.LinkOGLVoxelCache(aabbBuffer, transformBufferID, relativeTransformBufferID,
-								infoBufferID, voxelCache, voxelCacheRender, objCount, voxelCount);
+	allocator.LinkOGLVoxelCache(aabbBuffer, transformBufferID, infoBufferID, 
+								voxelCache, voxelCacheRender, objCount, voxelCount);
 }
 
 void GICudaVoxelScene::LinkSceneTextures(GLuint shadowMapArray)
@@ -171,6 +169,29 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 	timer.Start();
 	IEVector3 gridNewPos = allocator.GetNewVoxelPos(playerPos);
 
+
+	unsigned int gridSize = (allocator.NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
+								GI_THREAD_PER_BLOCK;
+	VoxelTransform <<<gridSize, GI_THREAD_PER_BLOCK>>>
+	  (// Voxel Pages
+	   allocator.GetVoxelPagesDevice(),
+	   *allocator.GetVoxelGridDevice(),
+	   {gridNewPos.getX(), gridNewPos.getY(), gridNewPos.getZ()},
+	   
+	   // Per Object Segment
+	   allocator.GetSegmentAllocLoc2D(),				   
+
+	   // Object Related
+	   allocator.GetObjectAllocationIndexLookup2D(),
+	   allocator.GetTransformsDevice(),
+	   allocator.GetObjRenderCacheDevice(),
+	   allocator.GetObjCacheDevice(),
+	   allocator.GetObjectAABBDevice());
+
+
+	allocator.SendNewVoxPosToDevice();
+	
+
 	timer.Stop();
 	updateTiming = timer.ElapsedMilliS();
 
@@ -222,7 +243,7 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 }
 
 
-VoxelDebugVAO& GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, double& time, uint32_t voxCount)
+VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, double& time, uint32_t voxCount)
 {
 	CudaTimer timer(0);
 	timer.Start();
@@ -237,7 +258,7 @@ VoxelDebugVAO& GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, 
 	err = cudaGraphicsMapResources(1, &vaoResource);
 	err = cudaGraphicsMapResources(1, &vaoRenderResource);
 	err = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferPackedPtr), &size, vaoResource);
-	err = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferPackedPtr), &size, vaoRenderResource);
+	err = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferRenderPackedPtr), &size, vaoRenderResource);
 	
 	cudaMalloc(&d_atomicCounter, sizeof(unsigned int));
 	cudaMemset(d_atomicCounter, 0x00, sizeof(unsigned int));
@@ -271,9 +292,26 @@ VoxelDebugVAO& GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, 
 	err = cudaGraphicsUnmapResources(1, &vaoResource);
 	err = cudaGraphicsUnmapResources(1, &vaoRenderResource);
 	cudaFree(d_atomicCounter);
+	cudaDeviceSynchronize();
+
+	//// Hand made here
+	//vaoData.CPUData().resize(512);
+	//vaoColorData.CPUData().resize(512);
+	//for(unsigned int i = 0; i < 512; i++)
+	//{
+	//	unsigned int value = 0;
+	//	value |= static_cast<unsigned int>(16) << 27;
+	//	value |= static_cast<unsigned int>(256) << 18;	// Z
+	//	value |= static_cast<unsigned int>(256) << 9;	// Y
+	//	value |= static_cast<unsigned int>(456);		// X
+	//	vaoData.CPUData()[i].vox[0] = value;
+	//	vaoColorData.CPUData()[i] = uchar4{255, 0, 255, 255};
+	//}
+	//vaoData.SendData();
+	//vaoColorData.SendData();
 
 	timer.Stop();
 	time = timer.ElapsedMilliS();
 
-	return voxelVAO;
+	return VoxelDebugVAO(vaoData, vaoColorData);
 }

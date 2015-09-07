@@ -20,12 +20,14 @@ Memory Allocation
 
 struct CVoxelPageData
 {
-	CudaVector<CVoxelPacked>	dVoxelPage;
+	CudaVector<CVoxelNormPos>	dVoxelPageNormPos;
+	CudaVector<CVoxelIds>		dVoxelPageIds;
 	CudaVector<unsigned int>	dEmptySegmentList;
 	CudaVector<char>			dIsSegmentOccupied;
 
 	CVoxelPageData(size_t sizeOfPage, size_t sizeOfHelper)
-		: dVoxelPage(sizeOfPage)
+		: dVoxelPageNormPos(sizeOfPage)
+		, dVoxelPageIds(sizeOfPage)
 		, dEmptySegmentList(sizeOfHelper)
 		, dIsSegmentOccupied(sizeOfHelper)
 	{}
@@ -60,8 +62,7 @@ class GICudaAllocator
 		//------
 
 		// Object Related Data (Comes from OGL)
-		// Kernel call ready aligned pointer(s)
-		CudaVector<CObjectTransform*>			dRelativeTransforms;	// Transform matrices relative to the prev frame (world -> world)
+		// Kernel call ready aligned pointer(s)		
 		CudaVector<CObjectTransform*>			dTransforms;			// Transform matrices from object space (object -> world)
 		CudaVector<CObjectAABB*>				dObjectAABB;			// Object Space Axis Aligned Bounding Box for each object
 		CudaVector<CObjectVoxelInfo*>			dObjectInfo;			// Voxel Count of the object
@@ -69,7 +70,6 @@ class GICudaAllocator
 		CudaVector<CVoxelPacked*>				dObjCache;
 		CudaVector<CVoxelRender*>				dObjRenderCache;
 
-		std::vector<CObjectTransform*>			hRelativeTransforms;	
 		std::vector<CObjectTransform*>			hTransforms;			
 		std::vector<CObjectAABB*>				hObjectAABB;			
 		std::vector<CObjectVoxelInfo*>			hObjectInfo;		
@@ -86,7 +86,6 @@ class GICudaAllocator
 		cudaTextureObject_t						shadowMaps;
 
 		// Interop Data
-		std::vector<cudaGraphicsResource_t>		rTransformLinks;
 		std::vector<cudaGraphicsResource_t>		transformLinks;
 		std::vector<cudaGraphicsResource_t>		aabbLinks;
 		std::vector<cudaGraphicsResource_t>		objectInfoLinks;
@@ -118,7 +117,6 @@ class GICudaAllocator
 		// Linking and Unlinking Voxel Cache Data (from OGL)
 		void					LinkOGLVoxelCache(GLuint aabbBuffer,
 												  GLuint transformBufferID,
-												  GLuint relativeTransformBufferID,
 												  GLuint infoBufferID,
 												  GLuint voxelCache,
 												  GLuint voxelCacheRender,
@@ -134,6 +132,8 @@ class GICudaAllocator
 		void					ResetSceneData();
 		void					Reserve(uint32_t pageAmount);
 
+		void					SendNewVoxPosToDevice();
+
 		// Mapping OGL (mapped unmapped each frame)
 		void					SetupDevicePointers();
 		void					ClearDevicePointers();
@@ -148,8 +148,7 @@ class GICudaAllocator
 		CVoxelGrid				GetVoxelGridHost();
 		IEVector3				GetNewVoxelPos(const IEVector3& playerPos);
 
-		// Mapped OGL Pointers
-		CObjectTransform**		GetRelativeTransformsDevice();
+		// Mapped OGL Pointers		
 		CObjectTransform**		GetTransformsDevice();
 		CObjectAABB**			GetObjectAABBDevice();
 		CObjectVoxelInfo**		GetObjectInfoDevice();
@@ -157,7 +156,6 @@ class GICudaAllocator
 		CVoxelPacked**			GetObjCacheDevice();
 		CVoxelRender**			GetObjRenderCacheDevice();
 
-		CObjectTransform*		GetRelativeTransformsDevice(uint32_t index);
 		CObjectTransform*		GetTransformsDevice(uint32_t index);
 		CObjectAABB*			GetObjectAABBDevice(uint32_t index);
 		CObjectVoxelInfo*		GetObjectInfoDevice(uint32_t index);

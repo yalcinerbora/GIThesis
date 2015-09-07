@@ -47,50 +47,6 @@ __device__ unsigned int AtomicDeallocLoc(unsigned int* gPos)
 	return old;
 }
 
-__device__ void VoxelAdd(// Write Location
-						 CVoxelPacked& gVoxelData,
-
-						 // Model Space Voxel
-						 const ushort2& objectId,
-						 const unsigned int renderLoc,
-						 const float3& normal,
-						 const uint3& voxPos,
-						// const uint3& voxelDim,
-
-						 // Object Related
-						 const CObjectTransform& gObjTransform,
-						 const CObjectAABB& gObjAABB,
-						 const CObjectVoxelInfo& objInfo,
-						 const CVoxelGrid& gGridInfo)
-{
-	// Generate Model Space Position from voxel
-	float4 localPos;
-	localPos.x = gObjAABB.min.x + voxPos.x * objInfo.span;
-	localPos.y = gObjAABB.min.y + voxPos.y * objInfo.span;
-	localPos.z = gObjAABB.min.z + voxPos.z * objInfo.span;
-	localPos.w = 1.0f;
-
-	// Convert it to world space
-	MultMatrixSelf(localPos, gObjTransform.transform);
-
-	// Calculate Vox Span Ratio (if this object voxel is span higher level)
-	// This operation assumes object and voxel span is related (obj is pow of two multiple of grid)
-	unsigned int voxelSpanRatio = static_cast<unsigned int>(log2(objInfo.span / gGridInfo.span));
-
-	// Determine voxel position in the grid after world space transformation
-	uint3 newVoxPos;
-	float invSpan = 1.0f / gGridInfo.span;
-	newVoxPos.x = static_cast<unsigned int>((localPos.x - gGridInfo.position.x) * invSpan);
-	newVoxPos.y = static_cast<unsigned int>((localPos.y - gGridInfo.position.y) * invSpan);
-	newVoxPos.z = static_cast<unsigned int>((localPos.z - gGridInfo.position.z) * invSpan);
-
-	// Normal in world space
-	float3 normalWorld = MultMatrix(normal, gObjTransform.rotation);
-
-	// Write Back
-	PackVoxelData(gVoxelData, newVoxPos, normalWorld, objectId, voxelSpanRatio, renderLoc);
-}
-
 __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 									  const CObjectAABB& gObjectAABB,
 									  const CObjectTransform& gObjectTransform)
@@ -254,10 +210,11 @@ __global__ void VoxelObjectInclude(// Voxel System
 	// Mem Fetch
 	ushort2 objectId;
 	uint3 voxPos;
+	CVoxelObjectType objType;
 	float3 normal;
 	unsigned int voxelSpanRatio;
 	unsigned int renderLoc;
-	ExpandVoxelData(voxPos, normal, objectId, renderLoc, voxelSpanRatio, gObjectVoxelCache[globalId]);
+	ExpandVoxelData(voxPos, normal, objectId, objType, renderLoc, voxelSpanRatio, gObjectVoxelCache[globalId]);
 
 	// We need to check if this obj is not already in the page system or not
 	if(gWriteToPages[objectId.y] == 1)
@@ -283,15 +240,10 @@ __global__ void VoxelObjectInclude(// Voxel System
 			
 			// Finally Actual Voxel Write
 			objectId.x = batchId;
-			VoxelAdd(gVoxelData[segmentLoc.x].dGridVoxels[segmentLoc.y + segmentLocalVoxPos],
-					 objectId,
-					 renderLoc,
-					 normal,
-					 voxPos,
-					 gObjTransforms[objectId.y],
-					 gObjectAABB[objectId.y],
-					 gObjInfo[objectId.y],
-					 gGridInfo);
+			PackVoxelIds(gVoxelData[segmentLoc.x].dGridVoxIds[segmentLoc.y + segmentLocalVoxPos],
+						 objectId,
+						 objType,
+						 renderLoc);
 		}
 		
 		// All done stop write signal

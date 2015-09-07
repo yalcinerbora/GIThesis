@@ -23,15 +23,18 @@ struct CSVONode;
 // Call Logic "per voxel in the grid"
 extern  __global__ void VoxelTransform(// Voxel Pages
 									   CVoxelPage* gVoxelData,
-									   CVoxelGrid& gGridInfo,
-									   const float3& gNewGridPosition,
+									   const CVoxelGrid& gGridInfo,
+									   const float3 hNewGridPosition,
 
 									   // Per Object Segment
 									   ushort2** gObjectAllocLocations,
 
 									   // Object Related
-									   const unsigned int** gObjectAllocIndexLookup,
-									   const CObjectTransform** gObjTransformsRelative);
+									   unsigned int** gObjectAllocIndexLookup,
+									   CObjectTransform** gObjTransforms,
+									   CVoxelRender** gVoxRenderData,
+									   CVoxelPacked** gVoxCacheData,
+									   CObjectAABB** gObjectAABB);
 
 // Voxel Allocate - Deallocate
 // Allocates-Deallocates Voxels withn pages segment by segment

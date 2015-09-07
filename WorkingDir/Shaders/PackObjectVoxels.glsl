@@ -8,11 +8,13 @@
 
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
+#define U_OBJ_TYPE layout(location = 6)
 #define U_MAX_CACHE_SIZE layout(location = 5)
 
 #define I_VOX_READ layout(rgba32f, binding = 2) restrict
 
 // I-O
+U_OBJ_TYPE uniform uint objType;
 U_OBJ_ID uniform uint objId;
 U_TOTAL_VOX_DIM uniform uvec3 voxDim;
 U_MAX_CACHE_SIZE uniform uint maxSize;
@@ -49,6 +51,7 @@ uniform I_VOX_READ image3D voxelData;
 uvec4 PackVoxelData(in uvec3 voxCoord,
 					in vec3 normal,
 					in uint objId,
+					in uint objType,
 					in uint renderDataLoc)
 {
 	uvec4 result = uvec4(0);
@@ -67,8 +70,9 @@ uvec4 PackVoxelData(in uvec3 voxCoord,
 	result.y = value;
 
 	value = 0;
-	value |= objId << 16;
-	value |= 0;
+	value |= objType << 30;
+	value |= 0 << 16;
+	value |= objId;
 	result.z = value;
 
 	result.w = renderDataLoc;
@@ -95,7 +99,7 @@ void main(void)
 			if(index <= maxSize)
 			{
 				voxelArrayRender[index].color = floatBitsToUint(voxData.w);
-				voxelPacked[index] = PackVoxelData(voxId, voxData.xyz, objId, index);
+				voxelPacked[index] = PackVoxelData(voxId, voxData.xyz, objId, objType, index);
 			}
 		}
 	}

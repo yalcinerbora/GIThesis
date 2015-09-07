@@ -73,19 +73,32 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
 	if(gVoxPages[pageId].dIsSegmentOccupied[pageLocalSegmentId] == 0) return;
 
-	// Unpacking
-	CVoxelPacked voxelPacked = gVoxPages[pageId].dGridVoxels[pageLocalId];
+	// Data Read
+	CVoxelNormPos voxelNormalPos = gVoxPages[pageId].dGridVoxNormPos[pageLocalId];
+	CVoxelIds voxelIds = gVoxPages[pageId].dGridVoxIds[pageLocalId];
+
+	// Cull Check
 	ushort2 objectId;
-	uint3 voxPos;
-	float3 normal;
-	unsigned int voxelSpanRatio;
-	unsigned int renderLoc;
-	ExpandVoxelData(voxPos, normal, objectId, renderLoc, voxelSpanRatio, voxelPacked);
+	CVoxelObjectType objType;
+	unsigned int voxelId;
+	ExpandVoxelIds(voxelId, objectId, objType, voxelIds);
 	
-	if(gObjectAllocLocations[objectId.x][gObjectAllocIndexLookup[objectId.x][objectId.y]].x != 0xFFFF)
+//	if(gObjectAllocLocations[objectId.y][gObjectAllocIndexLookup[objectId.y][objectId.x]].x != 0xFFFF)
 	{
 		unsigned int index = atomicInc(&atomicIndex, 0xFFFFFFFF);
-		voxelData[index] = voxelPacked;
-		voxelColorData[index] = gVoxelRenderData[objectId.x][renderLoc].color;
+		
+		
+		unsigned int value = 0;
+		value |= static_cast<unsigned int>(16) << 27;
+		value |= static_cast<unsigned int>(256) << 18;	// Z
+		value |= static_cast<unsigned int>(256) << 9;	// Y
+		value |= static_cast<unsigned int>(456);		// X
+		voxelData[index] = CVoxelPacked { value, 0, 0, 0 };
+		voxelColorData[index] = uchar4 { 255, 0, 255, 255 };
+
+
+		//voxelData[index] = CVoxelPacked {voxelNormalPos.x, voxelNormalPos.y, voxelIds.x, voxelIds.y};
+		//voxelColorData[index] = gVoxelRenderData[objectId.y][voxelId].color;
+
 	}
 }

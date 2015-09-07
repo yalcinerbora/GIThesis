@@ -36,6 +36,14 @@ struct VoxelGridInfoGL
 };
 #pragma pack(pop)
 
+enum class VoxelObjectType : uint32_t
+{
+	STATIC,			// Object does not move
+	DYNAMIC,		// Object does move (with transform matrices)
+	SKEL_DYNAMIC,	// Object moves with weighted transformation matrices
+	MORPH_DYNAMIC,	// Object moves with morph targets (each voxel has their adjacent vertex morphs weighted)
+};
+
 struct VoxelInfo
 {
 	uint32_t	sceneVoxCacheCount;
@@ -82,8 +90,6 @@ class ThesisSolution : public SolutionI
 		VoxelDebugVAO							voxelVAO;
 
 		// Utility Buffers
-		// Relative Transform buffer for rigid movements (for scene's draw buffer)
-		StructuredBuffer<ModelTransform>		relativeTransformBuffer;
 		StructuredBuffer<VoxelGridInfoGL>		gridInfoBuffer;
 
 		// GUI

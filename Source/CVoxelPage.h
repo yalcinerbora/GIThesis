@@ -11,12 +11,23 @@
 
 static_assert(GI_PAGE_SIZE % GI_THREAD_PER_BLOCK == 0, "Page size must be divisible by thread per block");
 
+//struct CVoxelPage
+//{
+//	CVoxelPacked*		dGridVoxels;
+//	unsigned int*		dEmptySegmentPos;
+//	char*				dIsSegmentOccupied;
+//	unsigned int		dEmptySegmentIndex;
+//	
+//};
+
 struct CVoxelPage
 {
-	CVoxelPacked*		dGridVoxels;
+	CVoxelNormPos*		dGridVoxNormPos;
+	CVoxelIds*			dGridVoxIds;
 	unsigned int*		dEmptySegmentPos;
 	char*				dIsSegmentOccupied;
 	unsigned int		dEmptySegmentIndex;
-	
+
 };
+
 #endif //__CVOXELPAGE_H__

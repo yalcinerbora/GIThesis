@@ -83,7 +83,7 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 	unsigned int voxelId;
 	ExpandVoxelIds(voxelId, objectId, objType, voxelIds);
 	
-//	if(gObjectAllocLocations[objectId.y][gObjectAllocIndexLookup[objectId.y][objectId.x]].x != 0xFFFF)
+	if(gObjectAllocLocations[objectId.y][gObjectAllocIndexLookup[objectId.y][objectId.x]].x != 0xFFFF)
 	{
 		unsigned int index = atomicInc(&atomicIndex, 0xFFFFFFFF);
 		

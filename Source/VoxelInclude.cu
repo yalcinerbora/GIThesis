@@ -217,29 +217,29 @@ __global__ void VoxelObjectInclude(// Voxel System
 	ExpandVoxelData(voxPos, normal, objectId, objType, renderLoc, voxelSpanRatio, gObjectVoxelCache[globalId]);
 
 	// We need to check if this obj is not already in the page system or not
-	if(gWriteToPages[objectId.y] == 1)
+	if(gWriteToPages[objectId.x] == 1)
 	{
 		// We need to check scaling and adjust span
 		// Objects may have different voxel sizes and voxel sizes may change after scaling
-		float3 scaling = ExtractScaleInfo(gObjTransforms[objectId.y].transform);
+		float3 scaling = ExtractScaleInfo(gObjTransforms[objectId.x].transform);
 		assert(scaling.x == scaling.y);
 		assert(scaling.y == scaling.z);
-		unsigned int voxelDim = static_cast<unsigned int>(gObjInfo[objectId.y].span * scaling.x / gGridInfo.span);
+		unsigned int voxelDim = static_cast<unsigned int>(gObjInfo[objectId.x].span * scaling.x / gGridInfo.span);
 		unsigned int voxScale = voxelDim == 0 ? 0 : 1;
 
 		// Determine wich voxel is this thread on that specific object
-		unsigned int voxId = globalId - gObjectVoxStrides[objectId.y];
+		unsigned int voxId = globalId - gObjectVoxStrides[objectId.x];
 		unsigned int segment = (voxId * voxScale) / GI_SEGMENT_SIZE;
 		
 		// Skip this if its too small
 		if(voxScale == 0)
 		{
-			unsigned int segmentStart = gObjectAllocIndexLookup[objectId.y];
+			unsigned int segmentStart = gObjectAllocIndexLookup[objectId.x];
 			ushort2 segmentLoc = gObjectAllocLocations[segmentStart + segment];
 			unsigned int segmentLocalVoxPos = (voxId - segment * GI_SEGMENT_SIZE);
 			
 			// Finally Actual Voxel Write
-			objectId.x = batchId;
+			objectId.y = batchId;
 			PackVoxelIds(gVoxelData[segmentLoc.x].dGridVoxIds[segmentLoc.y + segmentLocalVoxPos],
 						 objectId,
 						 objType,
@@ -250,7 +250,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 		// Determine a leader per object
 		if(voxId == 0)
 		{
-			gWriteToPages[objectId.y] = 0;
+			gWriteToPages[objectId.x] = 0;
 		}
 	}
 }

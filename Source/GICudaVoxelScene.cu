@@ -161,7 +161,25 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 
 			 // Batch(ObjectGroup in terms of OGL) Id
 			 i);
+
+		// Clear Write Signals
+		cudaMemset(allocator.GetWriteSignals(i), 0, sizeof(char) * allocator.NumObjects(i));
 	}
+
+	// Call Logic Per Voxel in Page
+	unsigned int gridSize = (allocator.NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
+							GI_THREAD_PER_BLOCK;
+
+	// KC CLEAR MARKED
+	VoxelClearMarked<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
+
+	// Call Logic Per Segment in Page
+	gridSize = (allocator.NumPages() * GI_SEGMENT_PER_PAGE + GI_THREAD_PER_BLOCK - 1) /
+				GI_THREAD_PER_BLOCK;
+
+	// KC CLEAR SIGNAL
+	VoxelClearSignal <<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
+
 	timer.Stop();
 	ioTiming = timer.ElapsedMilliS();
 	
@@ -169,14 +187,13 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 	timer.Start();
 	IEVector3 gridNewPos = allocator.GetNewVoxelPos(playerPos);
 
-
-	unsigned int gridSize = (allocator.NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
-								GI_THREAD_PER_BLOCK;
+	gridSize = (allocator.NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
+				GI_THREAD_PER_BLOCK;
 	VoxelTransform <<<gridSize, GI_THREAD_PER_BLOCK>>>
 	  (// Voxel Pages
 	   allocator.GetVoxelPagesDevice(),
 	   *allocator.GetVoxelGridDevice(),
-	   {gridNewPos.getX(), gridNewPos.getY(), gridNewPos.getZ()},
+	   float3{gridNewPos.getX(), gridNewPos.getY(), gridNewPos.getZ()},
 	   
 	   // Per Object Segment
 	   allocator.GetSegmentAllocLoc2D(),				   
@@ -186,12 +203,11 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 	   allocator.GetTransformsDevice(),
 	   allocator.GetObjRenderCacheDevice(),
 	   allocator.GetObjCacheDevice(),
+	   allocator.GetObjectInfoDevice(),
 	   allocator.GetObjectAABBDevice());
-
 
 	allocator.SendNewVoxPosToDevice();
 	
-
 	timer.Stop();
 	updateTiming = timer.ElapsedMilliS();
 
@@ -212,30 +228,15 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 	cudaMalloc(&d_VoxCount, sizeof(int));
 	cudaMemset(d_VoxCount, 0, sizeof(int));
 
-	uint32_t gridSize = ((allocator.NumPages() * GI_SEGMENT_PER_PAGE) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+	uint32_t gridSize = ((allocator.NumPages() * GI_PAGE_SIZE) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 
-	// KC VOXEL COUNT DETERMINE FROM PAGES
+	// KC VOXEL COUNT DETERMINE FROM VOXELS
 	DetermineTotalVoxCount<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(*d_VoxCount,
 		 // Page Related
 		 allocator.GetVoxelPagesDevice(),
 		 *allocator.GetVoxelGridDevice(),
 		 allocator.NumPages());
-
-	// KC VOXEL COUNT DETERMINE FROM OBJECTS
-	//gridSize = (allocator.NumObjects(0) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
-	//DetermineTotalVoxCount<<<gridSize, GI_THREAD_PER_BLOCK>>>
-	//	(*d_VoxCount,
-
-	//	allocator.GetSegmentAllocLoc(0),
-	//	allocator.NumObjectSegments(0),
-
-	//	allocator.GetObjectAllocationIndexLookup(0),
-	//	allocator.GetObjectInfoDevice(0),
-	//	allocator.GetTransformsDevice(0),
-	//	allocator.NumObjects(0),
-	//	
-	//	*allocator.GetVoxelGridDevice());
 
 	cudaMemcpy(&h_VoxCount, d_VoxCount, sizeof(int), cudaMemcpyDeviceToHost);
 	cudaFree(d_VoxCount);
@@ -255,6 +256,8 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, d
 	size_t size = 0;
 	cudaError_t err;
 	
+	allocator.SetupDevicePointers();
+
 	err = cudaGraphicsMapResources(1, &vaoResource);
 	err = cudaGraphicsMapResources(1, &vaoRenderResource);
 	err = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferPackedPtr), &size, vaoResource);
@@ -292,7 +295,9 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, d
 	err = cudaGraphicsUnmapResources(1, &vaoResource);
 	err = cudaGraphicsUnmapResources(1, &vaoRenderResource);
 	cudaFree(d_atomicCounter);
-	cudaDeviceSynchronize();
+	allocator.ClearDevicePointers();
+	
+	//cudaDeviceSynchronize();
 
 	//// Hand made here
 	//vaoData.CPUData().resize(512);

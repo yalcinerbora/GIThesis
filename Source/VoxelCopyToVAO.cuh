@@ -27,19 +27,6 @@ extern __global__ void DetermineTotalVoxCount(int& totalVox,
 											  const CVoxelGrid& gGridInfo,
 											  const uint32_t pageCount);
 
-// Call Logic per object
-extern __global__ void DetermineTotalVoxCount(int& totalVox,
-
-											  const ushort2* gObjectAllocLocations,
-											  const uint32_t segmentCount,
-
-											  const unsigned int* gObjectAllocIndexLookup,
-											  const CObjectVoxelInfo* gVoxelInfo,
-											  const CObjectTransform* gObjTransforms,
-											  const uint32_t objCount,
-
-											  const CVoxelGrid& gGridInfo);
-
 
 extern __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 									  CVoxelPacked* voxelData,

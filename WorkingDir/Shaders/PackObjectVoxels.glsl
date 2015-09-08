@@ -65,8 +65,8 @@ uvec4 PackVoxelData(in uvec3 voxCoord,
 
 	value = 0;
 	value |= ~uint(sign(normal.z) + 1.0f * 0.5f) << 31;
-	value |= uint(normal.y * 0x00007FFF) << 16;
-	value |= uint(normal.x * 0x0000FFFF);
+	value |= uint((normal.y * 2.0f - 1.0f) * 0x00007FFF) << 16;
+	value |= uint((normal.x * 2.0f - 1.0f) * 0x0000FFFF);
 	result.y = value;
 
 	value = 0;

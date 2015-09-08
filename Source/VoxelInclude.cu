@@ -122,13 +122,11 @@ __global__ void VoxelObjectDealloc(// Voxel System
 		if(location < GI_SEGMENT_PER_PAGE)
 		{
 			gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
-			gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = 0;
+			gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = 2;
 			gObjectAllocLocations[globalId] = { 0xFFFF, 0xFFFF };
 		}
 	}
 }
-
-
 
 __global__ void VoxelObjectAlloc(// Voxel System
 								 CVoxelPage* gVoxelData,
@@ -162,7 +160,6 @@ __global__ void VoxelObjectAlloc(// Voxel System
 		// Check page by page
 		for(unsigned int i = 0; i < gPageAmount; i++)
 		{
-			//unsigned int location = atomicSub(&gVoxelData[i].dEmptySegmentIndex, 1) - 1;
 			unsigned int location = AtomicAllocLoc(&(gVoxelData[i].dEmptySegmentIndex)) - 1;
 			if(location < GI_SEGMENT_PER_PAGE)
 			{
@@ -214,7 +211,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 	float3 normal;
 	unsigned int voxelSpanRatio;
 	unsigned int renderLoc;
-	ExpandVoxelData(voxPos, normal, objectId, objType, renderLoc, voxelSpanRatio, gObjectVoxelCache[globalId]);
+	ExpandVoxelData(voxPos, normal, objectId, objType, voxelSpanRatio, renderLoc, gObjectVoxelCache[globalId]);
 
 	// We need to check if this obj is not already in the page system or not
 	if(gWriteToPages[objectId.x] == 1)
@@ -226,17 +223,17 @@ __global__ void VoxelObjectInclude(// Voxel System
 		assert(scaling.y == scaling.z);
 		unsigned int voxelDim = static_cast<unsigned int>(gObjInfo[objectId.x].span * scaling.x / gGridInfo.span);
 		unsigned int voxScale = voxelDim == 0 ? 0 : 1;
-
+		
 		// Determine wich voxel is this thread on that specific object
 		unsigned int voxId = globalId - gObjectVoxStrides[objectId.x];
-		unsigned int segment = (voxId * voxScale) / GI_SEGMENT_SIZE;
+		unsigned int segmentId = voxId / GI_SEGMENT_SIZE;
 		
 		// Skip this if its too small
-		if(voxScale == 0)
+		if(voxScale != 0)
 		{
 			unsigned int segmentStart = gObjectAllocIndexLookup[objectId.x];
-			ushort2 segmentLoc = gObjectAllocLocations[segmentStart + segment];
-			unsigned int segmentLocalVoxPos = (voxId - segment * GI_SEGMENT_SIZE);
+			ushort2 segmentLoc = gObjectAllocLocations[segmentStart + segmentId];
+			unsigned int segmentLocalVoxPos = (voxId - segmentId * GI_SEGMENT_SIZE);
 			
 			// Finally Actual Voxel Write
 			objectId.y = batchId;
@@ -245,12 +242,30 @@ __global__ void VoxelObjectInclude(// Voxel System
 						 objType,
 						 renderLoc);
 		}
-		
-		// All done stop write signal
-		// Determine a leader per object
-		if(voxId == 0)
-		{
-			gWriteToPages[objectId.x] = 0;
-		}
 	}
+}
+
+__global__ void VoxelClearMarked(CVoxelPage* gVoxelData)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = globalId / GI_PAGE_SIZE;
+	unsigned int pageLocalId = (globalId - pageId * GI_PAGE_SIZE);
+	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
+
+	// Check if segment is marked for clear
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] != 2) return;
+	
+	// Segment is marked for clear, clear it
+	gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2{0, 0};	
+}
+
+__global__ void VoxelClearSignal(CVoxelPage* gVoxelData)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = globalId / GI_SEGMENT_PER_PAGE;
+	unsigned int pageLocalSegmentId = (globalId - pageId * GI_SEGMENT_PER_PAGE);
+
+	// Check if segment is marked for clear
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == 2)
+		gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] = 0;
 }

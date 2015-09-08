@@ -63,8 +63,8 @@ __device__ inline uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 __device__ inline float3 ExpandOnlyNormal(const unsigned int packedVoxY)
 {
 	float3 result;
-	result.x = (float) (packedVoxY & 0x0000FFFF) / 0x0000FFFF;
-	result.y = (float) ((packedVoxY & 0x7FFF0000) >> 16) / 0x00007FFF;
+	result.x = (static_cast<float>(packedVoxY & 0x0000FFFF) / 0x0000FFFF) * 2.0f - 1.0f;
+	result.y = (static_cast<float>((packedVoxY & 0x7FFF0000) >> 16) / 0x00007FFF) * 2.0f - 1.0f;
 	result.z = (((packedVoxY >> 31) == 1) ? -1.0f : 1.0f) * 1.0f - sqrtf(result.x * result.x + result.y  * result.y);
 	return result;
 }

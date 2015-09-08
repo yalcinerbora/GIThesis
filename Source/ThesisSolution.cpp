@@ -396,14 +396,6 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			break;
 		}
 	}
-
-	// Or wants to render only voxel light contrubition to the scene
-
-	// Or renders the scene as whole
-	//
-
-
-
 }
 
 void ThesisSolution::SetFPS(double fpsMS)

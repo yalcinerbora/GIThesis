@@ -186,6 +186,12 @@ static std::ostream& operator<< (std::ostream& ostr, const ushort2& shrt2)
 	return ostr;
 }
 
+static std::ostream& operator<< (std::ostream& ostr, const uint2& int2)
+{
+	ostr << "{" << int2.x << ", " << int2.y << "}";
+	return ostr;
+}
+
 template<class T>
 void CudaVector<T>::DumpToFile(const char* fName) const
 {

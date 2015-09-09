@@ -113,8 +113,6 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 			 allocator.GetObjectAABBDevice(i),
 			 allocator.GetTransformsDevice(i));
 
-	//	cudaDeviceSynchronize();
-
 		// KC ALLOCATE
 		VoxelObjectAlloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
 			(// Voxel System

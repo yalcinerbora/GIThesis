@@ -37,8 +37,8 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxelVAO(voxelData,voxelRenderData)
 	, voxInfo({0})
 	, bar(nullptr)
-	, voxelScene(intialCamPos, 0.3f, 512)
-	, renderScheme(GI_VOXEL_CACHE)
+	, voxelScene(intialCamPos, 0.322f, 512)
+	, renderScheme(GI_VOXEL_PAGE)//, renderScheme(GI_VOXEL_CACHE)
 	, gridInfoBuffer(1)
 {
 	voxelCacheUsageSize.AddData(0);

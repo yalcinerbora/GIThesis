@@ -25,24 +25,25 @@ __global__ void VoxelTransform(// Voxel Pages
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = (globalId - pageId * GI_PAGE_SIZE);
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
-//	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == 0) return;
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == 0) return;
 	
-	// Mem Fetch and Expand (8 byte per warp, coalesced, 0 stride)
+	// Fetch this voxel's id chunk from page
+	// Skip if its invalid
+	CVoxelIds voxIdPacked = gVoxelData[pageId].dGridVoxIds[pageLocalId];
+	if(voxIdPacked.x == 0xFFFFFFFF && voxIdPacked.y == 0xFFFFFFFF) return;
+
 	CVoxelObjectType objType;
 	ushort2 objectId;
 	unsigned int renderLoc;
-	ExpandVoxelIds(renderLoc, objectId, objType, gVoxelData[pageId].dGridVoxIds[pageLocalId]);
+	ExpandVoxelIds(renderLoc, objectId, objType, voxIdPacked);
 
-	// Skip if this object is not in the grid
-//	if(gObjectAllocLocations[objectId.y][gObjectAllocIndexLookup[objectId.y][objectId.x]].x == 0xFFFF) return;
-
-	// Fetch NormalPos Array
+	// Fetch NormalPos from cache
 	uint3 voxPos;
 	float3 normal;
 	unsigned int voxelSpanRatio;
 	ExpandNormalPos(voxPos, normal, voxelSpanRatio, uint2{gVoxCacheData[objectId.y][renderLoc].x, gVoxCacheData[objectId.y][renderLoc].y});
 	
-	// Fetch AABB, transform and span
+	// Fetch AABB min, transform and span
 	float4 objAABBMin = gObjectAABB[objectId.y][objectId.x].min;
 	CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
 	float objSpan = gObjInfo[objectId.y][objectId.x].span;
@@ -72,7 +73,6 @@ __global__ void VoxelTransform(// Voxel Pages
 	worldPos.w = 1.0f;
 
 	// Transformations
-	objType = CVoxelObjectType::STATIC;
 	switch(objType)
 	{
 		case CVoxelObjectType::STATIC:
@@ -107,9 +107,9 @@ __global__ void VoxelTransform(// Voxel Pages
 	worldPos.z -= hNewGridPosition.z;
 
 	bool outOfBounds;
-	outOfBounds = (worldPos.x) < 0 || (worldPos.x > gGridInfo.dimension.x * gGridInfo.span);
-	outOfBounds |= (worldPos.y) < 0 || (worldPos.y > gGridInfo.dimension.y * gGridInfo.span);
-	outOfBounds |= (worldPos.z) < 0 || (worldPos.z > gGridInfo.dimension.z * gGridInfo.span);
+	outOfBounds = (worldPos.x < 0.0f) || (worldPos.x > gGridInfo.dimension.x * gGridInfo.span);
+	outOfBounds |= (worldPos.y < 0.0f) || (worldPos.y > gGridInfo.dimension.y * gGridInfo.span);
+	outOfBounds |= (worldPos.z < 0.0f) || (worldPos.z > gGridInfo.dimension.z * gGridInfo.span);
 
 	// Now Write
 	// Discard the out of bound voxels
@@ -117,14 +117,10 @@ __global__ void VoxelTransform(// Voxel Pages
 	if(!outOfBounds)
 	{
 		float invSpan = 1.0f / (gGridInfo.span);
-		voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan);
-		voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan);
-		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan);
+		voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan + 0.5f);
+		voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan + 0.5f);
+		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan + 0.5f);
 
-	/*	voxPos.x = 456; 
-		voxPos.y = 256; 
-		voxPos.z = 256;*/
-		
 		// Write to page
 		PackVoxelNormPos(gVoxelData[pageId].dGridVoxNormPos[pageLocalId], voxPos, normal, voxelSpanRatio);
 	}

@@ -10,7 +10,7 @@ __global__ void EmptyPageInit(unsigned int* gPageEmptySegmentPos)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= GI_SEGMENT_PER_PAGE) return;
-	gPageEmptySegmentPos[globalId] = globalId;
+	gPageEmptySegmentPos[globalId] = GI_SEGMENT_PER_PAGE - globalId - 1;
 }
 
 __global__ void SegmentAllocLocInit(ushort2* gSegments,
@@ -38,41 +38,26 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= objCount) return;
-
-	// Determine Segment Count and add do total segment counter
-
-	// We need to check scaling and adjust span
-	// Objects may have different voxel sizes and voxel sizes may change after scaling
-	float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
-	assert(scaling.x == scaling.y);
-	assert(scaling.y == scaling.z);
-
-	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
-	unsigned int voxScale = voxelDim == 0 ? 0 : 1;
-	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	
 	// Determine Strides
 	// Here this implementation is slow and does redundant work 
 	// but its most easily written version
 	unsigned int objStirde = 0, objIndexLookup = 0;
 	for(unsigned int i = 0; i < globalId; i++)
-	{
-		float3 scalingObj = ExtractScaleInfo(gObjTransforms[i].transform);
-		assert(scalingObj.x == scalingObj.y);
-		assert(scalingObj.y == scalingObj.z);
-
-		unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[i].span * scaling.x / gGridInfo.span);
-		unsigned int voxScaleObj = voxelDim == 0 ? 0 : 1;
-		
-		objStirde += gVoxelInfo[i].voxelCount * voxScaleObj;
-		objIndexLookup += ((gVoxelInfo[i].voxelCount * voxScaleObj) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+	{	
+		objStirde += gVoxelInfo[i].voxelCount;
+		objIndexLookup += (gVoxelInfo[i].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	}
-
-	if(globalId == objCount - 1)
-		dTotalSegmentCount[0] = objIndexLookup + segmentCount;
 
 	gObjectVoxStrides[globalId] = objStirde;
 	gObjectAllocIndexLookup[globalId] = objIndexLookup;
+
+	if(globalId == objCount - 1)
+	{
+		// Determine Segment Count and add do total segment counter
+		unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+		dTotalSegmentCount[0] = objIndexLookup + segmentCount;
+	}
 }
 
 // Used to populate segment object id's
@@ -94,12 +79,12 @@ __global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
 	assert(scaling.x == scaling.y);
 	assert(scaling.y == scaling.z);
 	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
-	unsigned int voxScale = voxelDim == 0 ? 0 : 1;
+	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+	unsigned int voxStart = (voxelDim == 0) ? 0xFFFFFFFF : globalId;
 
-	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount * voxScale) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	for(unsigned int i = 0; i < segmentCount; i++)
 	{
-		gSegmentObjectId[gObjectAllocIndexLookup[globalId] + i] = globalId;
+		gSegmentObjectId[gObjectAllocIndexLookup[globalId] + i] = voxStart;
 	}
 }
 
@@ -202,12 +187,12 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	GI_LOG("Linked Object Batch to CUDA. Elaped time %f ms", timer.ElapsedMilliS());
 
 	// Dump Initial Helper Files
-	//dSegmentAllocLoc.back().DumpToFile("segAllocLoc");
-	//dSegmentObjecId.back().DumpToFile("segObjId");
+	dSegmentAllocLoc.back().DumpToFile("segAllocLoc");
+	dSegmentObjecId.back().DumpToFile("segObjId");
 
-	//dVoxelStrides.back().DumpToFile("voxStride");
-	//dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
-	//dWriteSignals.back().DumpToFile("writeSignals");
+	dVoxelStrides.back().DumpToFile("voxStride");
+	dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
+	dWriteSignals.back().DumpToFile("writeSignals");
 
 	assert(transformLinks.size() == aabbLinks.size());
 	assert(aabbLinks.size() == transformLinks.size());
@@ -389,11 +374,6 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		};
 		hVoxelPages.push_back(voxData);
 
-		//if(i == 0)
-		//{
-		//	hPageData.back().dEmptySegmentList.DumpToFile("pageEmpty");
-		//	hPageData.back().dIsSegmentOccupied.DumpToFile("pageOccp");
-		//}
 	}
 	dVoxelPages = hVoxelPages;
 }

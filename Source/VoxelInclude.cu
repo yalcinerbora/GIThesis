@@ -120,20 +120,20 @@ __global__ void VoxelObjectDealloc(// Voxel System
 	if(!intersects && objAlloc.x != 0xFFFF)
 	{
 
-		// Non atomic dealloc
-		unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
-		unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
-		gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = 2;
-		gObjectAllocLocations[globalId] = { 0xFFFF, 0xFFFF };
+		//// Non atomic dealloc
+		//unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
+		//unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
+		//gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = 2;
+		//gObjectAllocLocations[globalId] = { 0xFFFF, 0xFFFF };
 
-		//// "Dealocate"
-		//unsigned int location = AtomicDeallocLoc(&(gVoxelData[objAlloc.x].dEmptySegmentIndex)) - 1;
-		//if(location < GI_SEGMENT_PER_PAGE)
-		//{
-		//	gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
-		//	gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = 2;
-		//	gObjectAllocLocations[globalId] = { 0xFFFF, 0xFFFF };
-		//}
+		// "Dealocate"
+		unsigned int location = AtomicDeallocLoc(&(gVoxelData[objAlloc.x].dEmptySegmentIndex)) - 1;
+		if(location < GI_SEGMENT_PER_PAGE)
+		{
+			gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
+			gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = 2;
+			gObjectAllocLocations[globalId] = { 0xFFFF, 0xFFFF };
+		}
 	}
 }
 
@@ -172,31 +172,31 @@ __global__ void VoxelObjectAlloc(// Voxel System
 			gWriteToPages[objectId] = 1;
 		
 
-		// Non atomic alloc
-		unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
-		unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
-		gObjectAllocLocations[globalId] = 
-		{
-			static_cast<unsigned short>(linearPageId),
-			static_cast<unsigned short>(linearPagelocalSegId)
-		};
-		gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = 1;
-
-		//// Check page by page
-		//for(unsigned int i = 0; i < gPageAmount; i++)
+		//// Non atomic alloc
+		//unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
+		//unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
+		//gObjectAllocLocations[globalId] = 
 		//{
-		//	unsigned int location = AtomicAllocLoc(&(gVoxelData[i].dEmptySegmentIndex)) - 1;
-		//	if(location < GI_SEGMENT_PER_PAGE)
-		//	{
-		//		gObjectAllocLocations[globalId] = 
-		//		{
-		//			static_cast<unsigned short>(i), 
-		//			static_cast<unsigned short>(gVoxelData[i].dEmptySegmentPos[location])
-		//		};
-		//		gVoxelData[i].dIsSegmentOccupied[location] = 1;
-		//		return;
-		//	}
-		//}
+		//	static_cast<unsigned short>(linearPageId),
+		//	static_cast<unsigned short>(linearPagelocalSegId)
+		//};
+		//gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = 1;
+
+		// Check page by page
+		for(unsigned int i = 0; i < gPageAmount; i++)
+		{
+			unsigned int location = AtomicAllocLoc(&(gVoxelData[i].dEmptySegmentIndex)) - 1;
+			if(location < GI_SEGMENT_PER_PAGE)
+			{
+				gObjectAllocLocations[globalId] = 
+				{
+					static_cast<unsigned short>(i), 
+					static_cast<unsigned short>(gVoxelData[i].dEmptySegmentPos[location])
+				};
+				gVoxelData[i].dIsSegmentOccupied[location] = 1;
+				return;
+			}
+		}
 	}
 }
 

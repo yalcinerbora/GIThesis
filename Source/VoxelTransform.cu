@@ -42,14 +42,13 @@ __global__ void VoxelTransform(// Voxel Pages
 	float3 normal;
 	unsigned int voxelSpanRatio;
 	ExpandNormalPos(voxPos, normal, voxelSpanRatio, uint2{gVoxCacheData[objectId.y][renderLoc].x, gVoxCacheData[objectId.y][renderLoc].y});
-	
+
 	// Fetch AABB min, transform and span
 	float4 objAABBMin = gObjectAABB[objectId.y][objectId.x].min;
-	CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
 	float objSpan = gObjInfo[objectId.y][objectId.x].span;
 
 	// Calculate Span Ratio
-	float3 scaling = ExtractScaleInfo(transform);
+	float3 scaling = {0.19f, 0.19f, 0.19f};//ExtractScaleInfo(transform);
 	assert(scaling.x == scaling.y);
 	assert(scaling.y == scaling.z);
 	// Calculate Vox Span Ratio (if this object voxel is span higher level)
@@ -80,6 +79,19 @@ __global__ void VoxelTransform(// Voxel Pages
 		{
 			// One Transform per voxel
 			CMatrix4x4 rotation = gObjTransforms[objectId.y][objectId.x].rotation;
+			//{{
+			//	{1.0f, 0.0f, 0.0f, 0.0f},
+			//	{0.0f, 1.0f, 0.0f, 0.0f},
+			//	{0.0f, 0.0f, 1.0f, 0.0f},
+			//	{0.0f, 0.0f, 0.0f, 1.0f},
+			//}};
+			CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
+			//{{
+			//	{0.19f, 0.0f, 0.0f, 0.0f},
+			//	{0.0f, 0.19f, 0.0f, 0.0f},
+			//	{0.0f, 0.0f, 0.19f, 0.0f},
+			//	{0.0f, 0.0f, 0.0f, 0.19f},
+			//}};
 
 			// Now voxel is in is world space
 			MultMatrixSelf(worldPos, transform);
@@ -117,11 +129,15 @@ __global__ void VoxelTransform(// Voxel Pages
 	if(!outOfBounds)
 	{
 		float invSpan = 1.0f / (gGridInfo.span);
-		voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan + 0.5f);
-		voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan + 0.5f);
-		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan + 0.5f);
+		voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan);
+		voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan);
+		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan);
 
 		// Write to page
 		PackVoxelNormPos(gVoxelData[pageId].dGridVoxNormPos[pageLocalId], voxPos, normal, voxelSpanRatio);
+	}
+	else
+	{
+		gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2{0, 0};
 	}
 }

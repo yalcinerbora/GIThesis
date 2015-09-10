@@ -205,7 +205,7 @@ void ThesisSolution::Init(SceneI& s)
 					   objectGridInfo.getGLBuffer(),
 					   voxelData.getGLBuffer(),
 					   voxelRenderData.getGLBuffer(),
-					   static_cast<uint32_t>(currentScene->ObjectCount()),
+					   static_cast<uint32_t>(currentScene->DrawCount()),
 					   voxInfo.sceneVoxCacheCount);
 	// Link ShadowMaps and GBuffer textures to cuda
 	voxelScene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapArrayR32F());

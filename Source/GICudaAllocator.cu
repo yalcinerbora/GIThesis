@@ -24,14 +24,14 @@ __global__ void SegmentAllocLocInit(ushort2* gSegments,
 
 // Small Helper Kernel That used to determine total segment size used by the object batch
 // Logic per object in batch
-__global__ void DetermineTotalSegment(int* dTotalSegmentCount,
+__global__ void DetermineTotalSegment(int& dTotalSegmentCount,
+									  // Per object Related (Write)
+									  unsigned int* gObjectVoxStrides,
+									  unsigned int* gObjectAllocIndexLookup,
 
 									  // Grid Related
 									  const CVoxelGrid& gGridInfo,
-
-									  // Per object Related
-									  unsigned int* gObjectVoxStrides,
-									  unsigned int* gObjectAllocIndexLookup,
+									  // Per object Related (Read)									  
 									  const CObjectVoxelInfo* gVoxelInfo,
 									  const CObjectTransform* gObjTransforms,
 									  const uint32_t objCount)
@@ -56,7 +56,7 @@ __global__ void DetermineTotalSegment(int* dTotalSegmentCount,
 	{
 		// Determine Segment Count and add do total segment counter
 		unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
-		dTotalSegmentCount[0] = objIndexLookup + segmentCount;
+		dTotalSegmentCount = objIndexLookup + segmentCount;
 	}
 }
 
@@ -79,7 +79,7 @@ __global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
 	assert(scaling.x == scaling.y);
 	assert(scaling.y == scaling.z);
 	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
-	unsigned int segmentCount = ((gVoxelInfo[globalId].voxelCount) + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
+	unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	unsigned int voxStart = (voxelDim == 0) ? 0xFFFFFFFF : globalId;
 
 	for(unsigned int i = 0; i < segmentCount; i++)
@@ -153,11 +153,11 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dObjTransform), &size, transformLinks.back());
 	
 	uint32_t gridSize = static_cast<uint32_t>((objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK);
-	DetermineTotalSegment<<<gridSize, GI_THREAD_PER_BLOCK>>>(dTotalCount,
-															 *dVoxelGridInfo.Data(),
-
+	DetermineTotalSegment<<<gridSize, GI_THREAD_PER_BLOCK>>>(*dTotalCount,
 															 dVoxelStrides.back().Data(),
 															 dObjectAllocationIndexLookup.back().Data(),
+
+															 *dVoxelGridInfo.Data(),
 															 dVoxelInfo,
 															 dObjTransform,
 															 objCount);
@@ -176,8 +176,31 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 															 dVoxelInfo,
 															 dObjTransform,
 															 objCount);
+
+
+
+	///DEBUG
+	dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
+	dVoxelStrides.back().DumpToFile("voxelStrides");
+	dSegmentObjecId.back().DumpToFile("segmentObjId");
+	dSegmentAllocLoc.back().DumpToFile("segmentAllocLoc");
+
+	std::vector<CObjectVoxelInfo> objInfoArray;
+	objInfoArray.resize(objCount);
+	cudaMemcpy(objInfoArray.data(), dVoxelInfo, objCount * sizeof(CObjectVoxelInfo), cudaMemcpyDeviceToHost);
+
+	std::ofstream fOut;
+	fOut.open("objVoxelInfo");
+
+	for(const CObjectVoxelInfo& data : objInfoArray)
+	{
+		fOut << "{" << data.span << ", " << data.voxelCount << "}" << std::endl;
+	}
+	fOut.close();
+	///DEBUG END
+
 	cudaGraphicsUnmapResources(1, &objectInfoLinks.back());
-	cudaGraphicsMapResources(1, &transformLinks.back());
+	cudaGraphicsUnmapResources(1, &transformLinks.back());
 
 	dObjectAllocationIndexLookup2D.InsertEnd(dObjectAllocationIndexLookup.back().Data());
 	dSegmentAllocLoc2D.InsertEnd(dSegmentAllocLoc.back().Data());
@@ -185,14 +208,6 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	cudaFree(dTotalCount);
 	timer.Stop();
 	GI_LOG("Linked Object Batch to CUDA. Elaped time %f ms", timer.ElapsedMilliS());
-
-	// Dump Initial Helper Files
-	dSegmentAllocLoc.back().DumpToFile("segAllocLoc");
-	dSegmentObjecId.back().DumpToFile("segObjId");
-
-	dVoxelStrides.back().DumpToFile("voxStride");
-	dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
-	dWriteSignals.back().DumpToFile("writeSignals");
 
 	assert(transformLinks.size() == aabbLinks.size());
 	assert(aabbLinks.size() == transformLinks.size());
@@ -363,7 +378,7 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		hPageData.back().dIsSegmentOccupied.Memset(0, 0, hPageData.back().dIsSegmentOccupied.Size());
 		hPageData.back().dVoxelPageNormPos.Memset(0, 0, hPageData.back().dVoxelPageNormPos.Size());
 		hPageData.back().dVoxelPageIds.Memset(0, 0, hPageData.back().dVoxelPageIds.Size());
-
+		
 		CVoxelPage voxData =
 		{
 			hPageData.back().dVoxelPageNormPos.Data(),
@@ -376,6 +391,9 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 
 	}
 	dVoxelPages = hVoxelPages;
+
+	///DEBUG
+	hPageData.back().dEmptySegmentList.DumpToFile("emptySegmentListFirstPage");
 }
 
 void GICudaAllocator::ResetSceneData()
@@ -464,11 +482,26 @@ CVoxelGrid GICudaAllocator::GetVoxelGridHost()
 
 IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos)
 {
-	hVoxelGridInfo.position.x = playerPos.getX() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.x * 0.5f;
-	hVoxelGridInfo.position.y = playerPos.getY() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.y * 0.5f;
-	hVoxelGridInfo.position.z = playerPos.getZ() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.z * 0.5f;
+	// only grid span increments are allowed
+	float3 voxelCornerPos;
+	voxelCornerPos.x = playerPos.getX() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.x * 0.5f;
+	voxelCornerPos.y = playerPos.getY() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.y * 0.5f;
+	voxelCornerPos.z = playerPos.getZ() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.z * 0.5f;
 	
-	return {hVoxelGridInfo.position.x, hVoxelGridInfo.position.y, hVoxelGridInfo.position.z};
+	voxelCornerPos.x -= fmodf(voxelCornerPos.x, hVoxelGridInfo.span);
+	voxelCornerPos.y -= fmodf(voxelCornerPos.y, hVoxelGridInfo.span);
+	voxelCornerPos.z -= fmodf(voxelCornerPos.z, hVoxelGridInfo.span);
+
+	hVoxelGridInfo.position.x = voxelCornerPos.x;
+	hVoxelGridInfo.position.y = voxelCornerPos.y;
+	hVoxelGridInfo.position.z = voxelCornerPos.z;
+
+	return 
+	{
+		hVoxelGridInfo.position.x, 
+		hVoxelGridInfo.position.y, 
+		hVoxelGridInfo.position.z
+	};
 }
 
 CObjectTransform** GICudaAllocator::GetTransformsDevice()

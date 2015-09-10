@@ -21,27 +21,27 @@ __device__ static const float3 aabbLookupTable[] =
 	{ 0.0f, 0.0f, 0.0f }		// V8
 };
 
-__device__ unsigned int AtomicAllocLoc(unsigned int* gPos)
+__device__ unsigned int AtomicAlloc(unsigned int* gStackSize)
 {
-	unsigned int assumed, old = *gPos;
+	unsigned int assumed, old = *gStackSize;
 	do
 	{
 		assumed = old;
 		unsigned int result = (assumed == 0) ? 0 : (assumed - 1);
-		old = atomicCAS(gPos, assumed, result);
+		old = atomicCAS(gStackSize, assumed, result);
 	}
 	while(assumed != old);
 	return old;
 }
 
-__device__ unsigned int AtomicDeallocLoc(unsigned int* gPos)
+__device__ unsigned int AtomicDealloc(unsigned int* gStackSize)
 {
-	unsigned int assumed, old = *gPos;
+	unsigned int assumed, old = *gStackSize;
 	do
 	{
 		assumed = old;
 		unsigned int result = (assumed == GI_SEGMENT_PER_PAGE) ? GI_SEGMENT_PER_PAGE : (assumed + 1);
-		old = atomicCAS(gPos, assumed, result);
+		old = atomicCAS(gStackSize, assumed, result);
 	}
 	while(assumed != old);
 	return old;
@@ -117,6 +117,7 @@ __global__ void VoxelObjectDealloc(// Voxel System
 	bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId]);
 	ushort2 objAlloc = gObjectAllocLocations[globalId];
 
+	intersects = true;
 	if(!intersects && objAlloc.x != 0xFFFF)
 	{
 
@@ -124,19 +125,16 @@ __global__ void VoxelObjectDealloc(// Voxel System
 		//unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
 		//unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
 		//gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = 2;
-		//gObjectAllocLocations[globalId] = { 0xFFFF, 0xFFFF };
+		//gObjectAllocLocations[globalId] = ushort2{0xFFFF, 0xFFFF};
 
 		// "Dealocate"
-		unsigned int location = AtomicDeallocLoc(&(gVoxelData[objAlloc.x].dEmptySegmentStackSize)) - 1;
-		if(location < GI_SEGMENT_PER_PAGE)
+		unsigned int size = AtomicDealloc(&(gVoxelData[objAlloc.x].dEmptySegmentStackSize));
+		if(size != GI_SEGMENT_PER_PAGE)
 		{
+			unsigned int location = size;
 			gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
 			gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = 2;
-			gObjectAllocLocations[globalId] = { 0xFFFF, 0xFFFF };
-		}
-		else
-		{
-			assert(false);
+			gObjectAllocLocations[globalId] = ushort2{0xFFFF, 0xFFFF};
 		}
 	}
 }
@@ -172,14 +170,15 @@ __global__ void VoxelObjectAlloc(// Voxel System
 	{
 		// "Allocate"
 		// First Segment is responsible for sending the signal
-		if(globalId == 0 || (globalId != 0 && gSegmentObjectId[globalId - 1] != objectId))
+		if(globalId == 0 || 
+		   (globalId != 0 && gSegmentObjectId[globalId - 1] != objectId))
 			gWriteToPages[objectId] = 1;
 		
 
 		//// Non atomic alloc
 		//unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
 		//unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
-		//gObjectAllocLocations[globalId] = 
+		//gObjectAllocLocations[globalId] = ushort2
 		//{
 		//	static_cast<unsigned short>(linearPageId),
 		//	static_cast<unsigned short>(linearPagelocalSegId)
@@ -189,12 +188,14 @@ __global__ void VoxelObjectAlloc(// Voxel System
 		// Check page by page
 		for(unsigned int i = 0; i < gPageAmount; i++)
 		{
-			unsigned int location = AtomicAllocLoc(&(gVoxelData[i].dEmptySegmentStackSize)) - 1;
-			if(location < GI_SEGMENT_PER_PAGE)
+			unsigned int size = AtomicAlloc(&(gVoxelData[i].dEmptySegmentStackSize));
+			if(size != 0)
 			{
-				gObjectAllocLocations[globalId] = 
+				unsigned int location = size - 1;
+				assert(gVoxelData[i].dIsSegmentOccupied[location] == 0);
+				gObjectAllocLocations[globalId] = ushort2
 				{
-					static_cast<unsigned short>(i), 
+					static_cast<unsigned short>(i),
 					static_cast<unsigned short>(gVoxelData[i].dEmptySegmentPos[location])
 				};
 				gVoxelData[i].dIsSegmentOccupied[location] = 1;

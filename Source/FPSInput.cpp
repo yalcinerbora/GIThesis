@@ -4,8 +4,8 @@
 #include "Camera.h"
 #include "GLFW/glfw3.h"
 
-double FPSInput::Sensitivity = 0.005f;
-double FPSInput::MoveRatio = 8.00f;
+double FPSInput::Sensitivity = 0.005;
+double FPSInput::MoveRatio = 4.30;
 
 FPSInput::FPSInput(Camera& cam,
 					 uint32_t& currentSolution,
@@ -18,12 +18,24 @@ FPSInput::FPSInput(Camera& cam,
 	, FPSMode(false)
 	, mouseX(0.0)
 	, mouseY(0.0)
+	, moveRatioModified(MoveRatio)
 {}
 
 void FPSInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 {
 	WindowInput::KeyboardUsedFunc(key, osKey, action, modifier);
 
+	// Shift modifier
+	if(action == GLFW_PRESS && key == GLFW_KEY_LEFT_SHIFT)
+	{
+		moveRatioModified = MoveRatio * 0.25;
+	}
+	else if(action == GLFW_RELEASE  && key == GLFW_KEY_LEFT_SHIFT)
+	{
+		moveRatioModified = MoveRatio;
+	}
+
+	// Movement
 	if(!(action == GLFW_RELEASE))
 	{
 		IEVector3 lookDir = (camera.centerOfInterest - camera.pos).NormalizeSelf();
@@ -32,21 +44,21 @@ void FPSInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 		{
 
 			case GLFW_KEY_W:
-				camera.pos += lookDir * static_cast<float>(MoveRatio);
-				camera.centerOfInterest += lookDir * static_cast<float>(MoveRatio);
+				camera.pos += lookDir * static_cast<float>(moveRatioModified);
+				camera.centerOfInterest += lookDir * static_cast<float>(moveRatioModified);
 				break;
 			case GLFW_KEY_A:
 
-				camera.pos += side * static_cast<float>(MoveRatio);
-				camera.centerOfInterest += side * static_cast<float>(MoveRatio);
+				camera.pos += side * static_cast<float>(moveRatioModified);
+				camera.centerOfInterest += side * static_cast<float>(moveRatioModified);
 				break;
 			case GLFW_KEY_S:
-				camera.pos += lookDir * static_cast<float>(-MoveRatio);
-				camera.centerOfInterest += lookDir * static_cast<float>(-MoveRatio);
+				camera.pos += lookDir * static_cast<float>(-moveRatioModified);
+				camera.centerOfInterest += lookDir * static_cast<float>(-moveRatioModified);
 				break;
 			case GLFW_KEY_D:
-				camera.pos += side * static_cast<float>(-MoveRatio);
-				camera.centerOfInterest += side * static_cast<float>(-MoveRatio);
+				camera.pos += side * static_cast<float>(-moveRatioModified);
+				camera.centerOfInterest += side * static_cast<float>(-moveRatioModified);
 				break;
 
 			default:

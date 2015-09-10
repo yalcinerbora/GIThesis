@@ -47,7 +47,7 @@ void main(void)
 	float span = max(max(dim.x, dim.y), dim.z);
 	//span = max(span, minSpan);
 	float resultSpan = span;
-	for(unsigned int i = 1; i <= 0x00000080; i = i << 1)
+	for(unsigned int i = 1; i <= 0x00000200; i = i << 1)
 	{
 		if(span <= minSpan * i &&
 			span > minSpan * (i >> 1)) 

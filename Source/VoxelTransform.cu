@@ -48,7 +48,14 @@ __global__ void VoxelTransform(// Voxel Pages
 	float objSpan = gObjInfo[objectId.y][objectId.x].span;
 
 	// Calculate Span Ratio
-	float3 scaling = {0.19f, 0.19f, 0.19f};//ExtractScaleInfo(transform);
+	CMatrix4x4 transform = //gObjTransforms[objectId.y][objectId.x].transform;
+		{{
+			{0.19f, 0.0f, 0.0f, 0.0f},
+			{0.0f, 0.19f, 0.0f, 0.0f},
+			{0.0f, 0.0f, 0.19f, 0.0f},
+			{0.0f, 0.0f, 0.0f, 0.19f},
+		}};
+	float3 scaling = ExtractScaleInfo(transform);
 	assert(scaling.x == scaling.y);
 	assert(scaling.y == scaling.z);
 	// Calculate Vox Span Ratio (if this object voxel is span higher level)
@@ -78,21 +85,14 @@ __global__ void VoxelTransform(// Voxel Pages
 		case CVoxelObjectType::DYNAMIC:
 		{
 			// One Transform per voxel
-			CMatrix4x4 rotation = gObjTransforms[objectId.y][objectId.x].rotation;
-			//{{
-			//	{1.0f, 0.0f, 0.0f, 0.0f},
-			//	{0.0f, 1.0f, 0.0f, 0.0f},
-			//	{0.0f, 0.0f, 1.0f, 0.0f},
-			//	{0.0f, 0.0f, 0.0f, 1.0f},
-			//}};
-			CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
-			//{{
-			//	{0.19f, 0.0f, 0.0f, 0.0f},
-			//	{0.0f, 0.19f, 0.0f, 0.0f},
-			//	{0.0f, 0.0f, 0.19f, 0.0f},
-			//	{0.0f, 0.0f, 0.0f, 0.19f},
-			//}};
-
+			CMatrix4x4 rotation = //gObjTransforms[objectId.y][objectId.x].rotation;
+			{{
+				{1.0f, 0.0f, 0.0f, 0.0f},
+				{0.0f, 1.0f, 0.0f, 0.0f},
+				{0.0f, 0.0f, 1.0f, 0.0f},
+				{0.0f, 0.0f, 0.0f, 1.0f},
+			}};
+		
 			// Now voxel is in is world space
 			MultMatrixSelf(worldPos, transform);
 			MultMatrixSelf(normal, rotation);
@@ -128,7 +128,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	// will come back into the grid
 	if(!outOfBounds)
 	{
-		float invSpan = 1.0f / (gGridInfo.span);
+		float invSpan = 1.0f / gGridInfo.span;
 		voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan);
 		voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan);
 		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan);

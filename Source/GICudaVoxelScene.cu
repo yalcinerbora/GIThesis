@@ -94,24 +94,7 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 	{
 		// Call Logic Per Obj Segment
 		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK - 1) /
-								GI_THREAD_PER_BLOCK;
-
-		// KC DEALLOCATE
-		VoxelObjectDealloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
-			(// Voxel System
-			 allocator.GetVoxelPagesDevice(),
-			 allocator.NumPages(),
-			 *allocator.GetVoxelGridDevice(),
-			 
-			 // Per Object Segment Related
-			 allocator.GetSegmentAllocLoc(i),
-			 allocator.GetSegmentObjectID(i),
-			 allocator.NumObjectSegments(i),
-			 
-			 // Per Object Related
-			 allocator.GetWriteSignals(i),
-			 allocator.GetObjectAABBDevice(i),
-			 allocator.GetTransformsDevice(i));
+			GI_THREAD_PER_BLOCK;
 
 		// KC ALLOCATE
 		VoxelObjectAlloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
@@ -164,6 +147,30 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 		cudaMemset(allocator.GetWriteSignals(i), 0, sizeof(char) * allocator.NumObjects(i));
 	}
 
+	for(unsigned int i = 0; i < allocator.NumObjectBatches(); i++)
+	{
+		// Call Logic Per Obj Segment
+		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK - 1) /
+			GI_THREAD_PER_BLOCK;
+
+		// KC DEALLOCATE
+		VoxelObjectDealloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
+			(// Voxel System
+			allocator.GetVoxelPagesDevice(),
+			allocator.NumPages(),
+			*allocator.GetVoxelGridDevice(),
+
+			// Per Object Segment Related
+			allocator.GetSegmentAllocLoc(i),
+			allocator.GetSegmentObjectID(i),
+			allocator.NumObjectSegments(i),
+
+			// Per Object Related
+			allocator.GetWriteSignals(i),
+			allocator.GetObjectAABBDevice(i),
+			allocator.GetTransformsDevice(i));
+	}
+
 	// Call Logic Per Voxel in Page
 	unsigned int gridSize = (allocator.NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
 							GI_THREAD_PER_BLOCK;
@@ -176,7 +183,7 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 				GI_THREAD_PER_BLOCK;
 
 	// KC CLEAR SIGNAL
-	VoxelClearSignal <<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
+	VoxelClearSignal<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
 
 	timer.Stop();
 	ioTiming = timer.ElapsedMilliS();

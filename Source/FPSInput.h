@@ -22,6 +22,7 @@ class FPSInput : public WindowInput
 		bool			FPSMode;
 		double			mouseX;
 		double			mouseY;
+		double			moveRatioModified;
 
 	protected:
 	public:

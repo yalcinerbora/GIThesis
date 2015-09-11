@@ -205,3 +205,17 @@ void CudaVector<T>::DumpToFile(const char* fName) const
 	for(const T& data : cpuData)
 		fOut << data << std::endl;
 }
+
+//template<class unsigned char>
+inline void CudaVector<unsigned char>::DumpToFile(const char* fName) const
+{
+	std::vector<unsigned char> cpuData;
+	cpuData.resize(size);
+	cudaMemcpy(cpuData.data(), d_data, size * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+
+	std::ofstream fOut;
+	fOut.open(fName);
+
+	for(const unsigned char& data : cpuData)
+		fOut << static_cast<unsigned int>(data) << "c" <<  std::endl;
+}

@@ -25,7 +25,8 @@ __global__ void VoxelTransform(// Voxel Pages
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = (globalId - pageId * GI_PAGE_SIZE);
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == 0) return;
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
 	
 	// Fetch this voxel's id chunk from page
 	// Skip if its invalid

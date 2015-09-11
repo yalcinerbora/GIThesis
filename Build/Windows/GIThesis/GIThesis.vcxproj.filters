@@ -241,6 +241,9 @@
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <Filter>Utility</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\CDebug.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -300,6 +303,9 @@
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\CAxisAlignedBB.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\CDebug.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
   </ItemGroup>

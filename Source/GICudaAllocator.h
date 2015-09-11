@@ -20,10 +20,10 @@ Memory Allocation
 
 struct CVoxelPageData
 {
-	CudaVector<CVoxelNormPos>	dVoxelPageNormPos;
-	CudaVector<CVoxelIds>		dVoxelPageIds;
-	CudaVector<unsigned int>	dEmptySegmentList;
-	CudaVector<char>			dIsSegmentOccupied;
+	CudaVector<CVoxelNormPos>		dVoxelPageNormPos;
+	CudaVector<CVoxelIds>			dVoxelPageIds;
+	CudaVector<unsigned char>		dEmptySegmentList;
+	CudaVector<SegmentOccupation>	dIsSegmentOccupied;
 
 	CVoxelPageData(size_t sizeOfPage, size_t sizeOfHelper)
 		: dVoxelPageNormPos(sizeOfPage)

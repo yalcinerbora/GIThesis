@@ -88,7 +88,7 @@ __device__ inline void ExpandVoxelIds(unsigned int& voxId,
 									  const CVoxelIds& packedVoxIds)
 {
 	objectId.x = (packedVoxIds.x & 0x0000FFFF);
-	objectId.y = (packedVoxIds.x & 0x4FFF0000) >> 16;
+	objectId.y = (packedVoxIds.x & 0x3FFF0000) >> 16;
 
 	objType = static_cast<CVoxelObjectType>((packedVoxIds.y & 0xC0000000) >> 30);
 
@@ -114,11 +114,11 @@ __device__ inline void PackVoxelIds(CVoxelIds& packedVoxId,
 									 const CVoxelObjectType& objType,
 									 const unsigned int voxRenderPtr)
 {
-	// 3rd word holds object id (16 bit each)
+	// 3rd word holds object id (14/16 bit each)
 	// 1st is batch id second is object id on that batch
 	unsigned int value = 0;
 	value |= static_cast<unsigned int>(objType) << 30;
-	value |= static_cast<unsigned int>(objId.y) << 14;
+	value |= static_cast<unsigned int>(objId.y) << 16;
 	value |= static_cast<unsigned int>(objId.x);
 	packedVoxId.x = value;
 

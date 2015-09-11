@@ -6,7 +6,7 @@
 
 // Small Helper Kernel That used to init inital obj Pages
 // Logic is per segment
-__global__ void EmptyPageInit(unsigned int* gPageEmptySegmentPos)
+__global__ void EmptyPageInit(unsigned char* gPageEmptySegmentPos)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= GI_SEGMENT_PER_PAGE) return;
@@ -377,7 +377,7 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		);
 		hPageData.back().dIsSegmentOccupied.Memset(0, 0, hPageData.back().dIsSegmentOccupied.Size());
 		hPageData.back().dVoxelPageNormPos.Memset(0, 0, hPageData.back().dVoxelPageNormPos.Size());
-		hPageData.back().dVoxelPageIds.Memset(0, 0, hPageData.back().dVoxelPageIds.Size());
+		hPageData.back().dVoxelPageIds.Memset(0xFF, 0, hPageData.back().dVoxelPageIds.Size());
 		
 		CVoxelPage voxData =
 		{

@@ -15,7 +15,7 @@ __global__ void DetermineTotalVoxCount(int& totalVox,
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = (globalId - pageId * GI_PAGE_SIZE);
 
-	if(gVoxPages[pageId].dGridVoxNormPos[pageLocalId].y != 0)
+//	if(gVoxPages[pageId].dGridVoxNormPos[pageLocalId].y != 0)
 	   atomicAdd(&totalVox, 1);
 }
 
@@ -42,7 +42,8 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 	unsigned int pageId = blockIdx.x / GI_BLOCK_PER_PAGE;
 	unsigned int pageLocalId = globalId - (pageId * GI_PAGE_SIZE);
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
-	if(gVoxPages[pageId].dIsSegmentOccupied[pageLocalSegmentId] == 0) return;
+	if(gVoxPages[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
+	if(gVoxPages[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
 
 	// Data Read
 	CVoxelNormPos voxelNormalPos = gVoxPages[pageId].dGridVoxNormPos[pageLocalId];
@@ -55,12 +56,13 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 	ExpandVoxelIds(voxelId, objectId, objType, voxelIds);
 	
 	// Zero normal means invalid voxel
-	if(voxelNormalPos.y != 0)
+//	if(voxelNormalPos.y != 0)
 	{
 		unsigned int index = atomicInc(&atomicIndex, 0xFFFFFFFF);
 		
 		voxelData[index] = CVoxelPacked {voxelNormalPos.x, voxelNormalPos.y, voxelIds.x, voxelIds.y};
-		voxelColorData[index] = gVoxelRenderData[objectId.y][voxelId].color;
 
+		if(objectId.y < 1)
+		voxelColorData[index] = gVoxelRenderData[objectId.y][voxelId].color;
 	}
 }

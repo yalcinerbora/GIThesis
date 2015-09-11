@@ -9,6 +9,9 @@ Voxel Sturcutres
 
 #include <vector_types.h>
 
+struct CVoxelGrid;
+struct CObjectTransform;
+
 // Global Voxel Data
 // using float4 because of alignment with ogl
 struct CAABB
@@ -16,6 +19,12 @@ struct CAABB
 	float4	min;	// World Position of the voxel grid
 	float4	max;	// Voxel Grid Dimentions last component voxel span
 };
+typedef CAABB CObjectAABB;
+
 extern __device__ bool Intersects(const CAABB& boxA, const CAABB& boxB);
+
+extern __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
+											 const CObjectAABB& gObjectAABB,
+											 const CObjectTransform& gObjectTransform);
 
 #endif //__CAXISALIGNEDBB_H__

@@ -198,14 +198,14 @@ void ThesisSolution::Init(SceneI& s)
 	bar = TwNewBar("ThesisGI");
 	TwDefine(" ThesisGI refresh=0.01 ");
 
-
 	// Send it to CUDA
 	voxelScene.LinkOGL(currentScene->getDrawBuffer().getAABBBuffer().getGLBuffer(),
 					   currentScene->getDrawBuffer().getModelTransformBuffer().getGLBuffer(),
 					   objectGridInfo.getGLBuffer(),
 					   voxelData.getGLBuffer(),
 					   voxelRenderData.getGLBuffer(),
-					   static_cast<uint32_t>(currentScene->DrawCount()),
+					   20,
+					   //static_cast<uint32_t>(currentScene->DrawCount()),
 					   voxInfo.sceneVoxCacheCount);
 	// Link ShadowMaps and GBuffer textures to cuda
 	voxelScene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapArrayR32F());

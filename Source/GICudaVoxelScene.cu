@@ -5,6 +5,7 @@
 #include "Macros.h"
 #include "VoxelCopyToVAO.cuh"
 #include "IEUtility/IEVector3.h"
+#include "CDebug.cuh"
 #include <cuda_gl_interop.h>
 
 GICudaVoxelScene::GICudaVoxelScene(const IEVector3& intialCenterPos, float span, unsigned int dim)
@@ -67,10 +68,9 @@ void GICudaVoxelScene::AllocateInitialPages(uint32_t approxVoxCount)
 	vaoData.Resize(voxCount);
 	vaoColorData.Resize(voxCount);
 
-	// Cuda Register
-	cudaError_t err;
-	err = cudaGraphicsGLRegisterBuffer(&vaoResource, vaoData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard);
-	err = cudaGraphicsGLRegisterBuffer(&vaoRenderResource, vaoColorData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard);
+	// Cuda Register	
+	cudaGraphicsGLRegisterBuffer(&vaoResource, vaoData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard);
+	cudaGraphicsGLRegisterBuffer(&vaoRenderResource, vaoColorData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard);
 }
 
 void GICudaVoxelScene::Reset()
@@ -185,9 +185,33 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 	// KC CLEAR SIGNAL
 	VoxelClearSignal<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
 
+
+	//DEBUG
+	// ONLY WORKS IF THERE IS SINGLE SEGMENT IN THE SYSTEM
+	// Call Logic Per Obj Segment
+	unsigned int gridSize2 = (allocator.NumObjectSegments(0) + GI_THREAD_PER_BLOCK - 1) /
+		GI_THREAD_PER_BLOCK;
+	// KC DEBUG CHECK UNIQUE ALLOC
+	DebugCheckUniqueAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>(allocator.GetSegmentAllocLoc(0),
+															  allocator.NumObjectSegments(0));
+	// KC DEBUG CHECK UNIQUE SEGMENT ALLOC
+	DebugCheckSegmentAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>
+		(*allocator.GetVoxelGridDevice(),
+		allocator.GetSegmentAllocLoc(0),
+		allocator.GetSegmentObjectID(0),
+		allocator.NumObjectSegments(0),
+		allocator.GetObjectAABBDevice(0),
+		allocator.GetTransformsDevice(0));
+	//DEBUG END
+
+
+
+
+
+
 	timer.Stop();
 	ioTiming = timer.ElapsedMilliS();
-	
+
 	// Now Call Update
 	timer.Start();
 	IEVector3 gridNewPos = allocator.GetNewVoxelPos(playerPos);
@@ -259,14 +283,17 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, d
 	CVoxelPacked* vBufferPackedPtr = nullptr;
 	uchar4* vBufferRenderPackedPtr = nullptr;
 	size_t size = 0;
-	cudaError_t err;
-	
+
 	allocator.SetupDevicePointers();
 
-	err = cudaGraphicsMapResources(1, &vaoResource);
-	err = cudaGraphicsMapResources(1, &vaoRenderResource);
-	err = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferPackedPtr), &size, vaoResource);
-	err = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferRenderPackedPtr), &size, vaoRenderResource);
+	unsigned int zero = 0;
+	glBindBuffer(GL_COPY_WRITE_BUFFER, vaoData.getGLBuffer());
+	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_RG32UI, GL_RED, GL_UNSIGNED_INT, &zero);
+
+	cudaGraphicsMapResources(1, &vaoResource);
+	cudaGraphicsMapResources(1, &vaoRenderResource);
+	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferPackedPtr), &size, vaoResource);
+	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&vBufferRenderPackedPtr), &size, vaoRenderResource);
 	
 	cudaMalloc(&d_atomicCounter, sizeof(unsigned int));
 	cudaMemset(d_atomicCounter, 0x00, sizeof(unsigned int));
@@ -297,28 +324,10 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, d
 	voxGridData = allocator.GetVoxelGridHost();
 
 	// Unmap
-	err = cudaGraphicsUnmapResources(1, &vaoResource);
-	err = cudaGraphicsUnmapResources(1, &vaoRenderResource);
+	cudaGraphicsUnmapResources(1, &vaoResource);
+	cudaGraphicsUnmapResources(1, &vaoRenderResource);
 	cudaFree(d_atomicCounter);
 	allocator.ClearDevicePointers();
-	
-	//cudaDeviceSynchronize();
-
-	//// Hand made here
-	//vaoData.CPUData().resize(512);
-	//vaoColorData.CPUData().resize(512);
-	//for(unsigned int i = 0; i < 512; i++)
-	//{
-	//	unsigned int value = 0;
-	//	value |= static_cast<unsigned int>(16) << 27;
-	//	value |= static_cast<unsigned int>(256) << 18;	// Z
-	//	value |= static_cast<unsigned int>(256) << 9;	// Y
-	//	value |= static_cast<unsigned int>(456);		// X
-	//	vaoData.CPUData()[i].vox[0] = value;
-	//	vaoColorData.CPUData()[i] = uchar4{255, 0, 255, 255};
-	//}
-	//vaoData.SendData();
-	//vaoColorData.SendData();
 
 	timer.Stop();
 	time = timer.ElapsedMilliS();

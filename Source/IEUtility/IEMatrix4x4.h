@@ -98,6 +98,7 @@ class IEMatrix4x4
 		static IEMatrix4x4			LookAt(const IEVector3& eyePos, 
 											const IEVector3& at, 
 											const IEVector3& up);
+		static IEVector3			ExtractScaleInfo(const IEMatrix4x4&);
 
 };
 

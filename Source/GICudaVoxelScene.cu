@@ -22,7 +22,16 @@ GICudaVoxelScene::GICudaVoxelScene(const IEVector3& intialCenterPos, float span,
 				})
 	, vaoData(512)
 	, vaoColorData(512)
-{}
+{
+
+	// Shared Memory Prep
+	// 16 Kb memory is enough for our needs most of the time
+	cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+
+	// Voxel Transform Function needs 48kb memory
+	cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferShared);
+
+}
 
 GICudaVoxelScene::~GICudaVoxelScene()
 {
@@ -121,7 +130,6 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 		VoxelObjectInclude<<<gridSize, GI_THREAD_PER_BLOCK>>>
 			(// Voxel System
 			 allocator.GetVoxelPagesDevice(),
-			 allocator.NumPages(),
 			 *allocator.GetVoxelGridDevice(),
 			 
 			 // Per Object Segment Related
@@ -157,7 +165,6 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 		VoxelObjectDealloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
 			(// Voxel System
 			allocator.GetVoxelPagesDevice(),
-			allocator.NumPages(),
 			*allocator.GetVoxelGridDevice(),
 
 			// Per Object Segment Related
@@ -186,23 +193,23 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 	VoxelClearSignal<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
 
 
-	//DEBUG
-	// ONLY WORKS IF THERE IS SINGLE SEGMENT IN THE SYSTEM
-	// Call Logic Per Obj Segment
-	unsigned int gridSize2 = (allocator.NumObjectSegments(0) + GI_THREAD_PER_BLOCK - 1) /
-		GI_THREAD_PER_BLOCK;
-	// KC DEBUG CHECK UNIQUE ALLOC
-	DebugCheckUniqueAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>(allocator.GetSegmentAllocLoc(0),
-															  allocator.NumObjectSegments(0));
-	// KC DEBUG CHECK UNIQUE SEGMENT ALLOC
-	DebugCheckSegmentAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>
-		(*allocator.GetVoxelGridDevice(),
-		allocator.GetSegmentAllocLoc(0),
-		allocator.GetSegmentObjectID(0),
-		allocator.NumObjectSegments(0),
-		allocator.GetObjectAABBDevice(0),
-		allocator.GetTransformsDevice(0));
-	//DEBUG END
+	////DEBUG
+	//// ONLY WORKS IF THERE IS SINGLE SEGMENT IN THE SYSTEM
+	//// Call Logic Per Obj Segment
+	//unsigned int gridSize2 = (allocator.NumObjectSegments(0) + GI_THREAD_PER_BLOCK - 1) /
+	//	GI_THREAD_PER_BLOCK;
+	//// KC DEBUG CHECK UNIQUE ALLOC
+	//DebugCheckUniqueAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>(allocator.GetSegmentAllocLoc(0),
+	//														  allocator.NumObjectSegments(0));
+	//// KC DEBUG CHECK UNIQUE SEGMENT ALLOC
+	//DebugCheckSegmentAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>
+	//	(*allocator.GetVoxelGridDevice(),
+	//	allocator.GetSegmentAllocLoc(0),
+	//	allocator.GetSegmentObjectID(0),
+	//	allocator.NumObjectSegments(0),
+	//	allocator.GetObjectAABBDevice(0),
+	//	allocator.GetTransformsDevice(0));
+	////DEBUG END
 
 
 

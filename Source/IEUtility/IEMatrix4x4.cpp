@@ -688,6 +688,26 @@ IEMatrix4x4 IEMatrix4x4::LookAt(const IEVector3& eyePos,
 						);
 }
 
+IEVector3 IEMatrix4x4::ExtractScaleInfo(const IEMatrix4x4& m)
+{
+	// This is kinda hacky 
+	// First it cannot determine negative scalings,
+	// Second it should fail if transform matrix has shear (didnt tested tho)
+	return IEVector3
+	(
+		sqrtf(m(1, 1) * m(1, 1) +
+			  m(1, 2) * m(1, 2) +
+			  m(1, 3) * m(1, 3)),
+		sqrtf(m(2, 1) * m(2, 1) +
+			  m(2, 2) * m(2, 2) +
+			  m(2, 3) * m(2, 3)),
+		sqrtf(m(3, 1) * m(3, 1) +
+			  m(3, 2) * m(3, 2) +
+			  m(3, 3) * m(3, 3))
+	);
+	
+}
+
 // Left Scalar operators
 IEMatrix4x4 operator*(float scalar, const IEMatrix4x4& matrix)
 {

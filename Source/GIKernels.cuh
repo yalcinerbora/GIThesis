@@ -43,7 +43,6 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 // Each segment allocates itself within the pages
 extern __global__ void VoxelObjectDealloc(// Voxel System
 										  CVoxelPage* gVoxelData,
-										  const unsigned int gPageAmount,
 										  const CVoxelGrid& gGridInfo,
 
 										  // Per Object Segment Related
@@ -87,7 +86,6 @@ __global__ void VoxelClearSignal(CVoxelPage* gVoxelData);
 // Each voxel writes its data to allocated segments
 extern __global__ void VoxelObjectInclude(// Voxel System
 										  CVoxelPage* gVoxelData,
-										  const unsigned int gPageAmount,
 										  const CVoxelGrid& gGridInfo,
 
 										  // Per Object Segment Related
@@ -109,28 +107,12 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 										  // Batch(ObjectGroup in terms of OGL) Id
 										  uint32_t batchId);
 
-// Object Exlude
-// Determines that this object's segments should deallocated
-// Call Logic "per object per segement"
-//extern __global__ void VoxelObjectExclude(// Voxel System
-//										  CVoxelPage* gVoxelData,
-//										  const unsigned int gPageAmount,
-//										  const CVoxelGrid& gGridInfo,
-//
-//										  // Per Object Segment Related
-//										  ushort2* gObjectAllocLocations,
-//										  unsigned int* gSegmentObjectId,
-//										  uint32_t totalSegments,
-//
-//										  // Per Object Related
-//										  const CObjectAABB* gObjectAABB,
-//										  const CObjectTransform* gObjTransforms);
 
 // Reconstruct SVO
 // Creates SVO tree top down manner
 // Implementation is opposite of parallel reduction
 // Call Logic "per svo node (varying)"
 extern  __global__ void SVOReconstruct(CSVONode* svo,
-									   const CVoxelPacked** gVoxelData);
+									   const CVoxelPage* gVoxelData);
 
 #endif //__GIKERNELS_H__

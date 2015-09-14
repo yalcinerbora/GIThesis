@@ -35,7 +35,6 @@ __device__ unsigned int AtomicDealloc(unsigned int* gStackSize)
 
 __global__ void VoxelObjectDealloc(// Voxel System
 								   CVoxelPage* gVoxelData,
-								   const unsigned int gPageAmount,
 								   const CVoxelGrid& gGridInfo,
 
 								   // Per Object Segment Related
@@ -148,7 +147,6 @@ __global__ void VoxelObjectAlloc(// Voxel System
 
 __global__ void VoxelObjectInclude(// Voxel System
 								   CVoxelPage* gVoxelData,
-								   const unsigned int gPageAmount,
 								   const CVoxelGrid& gGridInfo,
 
 								   // Per Object Segment Related
@@ -185,7 +183,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 	ExpandVoxelData(voxPos, normal, objectId, objType, voxelSpanRatio, renderLoc, gObjectVoxelCache[globalId]);
 
 	// We need to check if this obj is not already in the page system or not
-	if(objectId.x < 20)
+	//if(objectId.x < 20)
 	if(gWriteToPages[objectId.x] == 1)
 	{
 		// Determine where to write this pixel

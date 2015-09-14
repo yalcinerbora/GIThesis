@@ -115,11 +115,13 @@
     <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
+    <ClInclude Include="..\..\..\Source\CHash.cuh" />
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <FileType>Document</FileType>
     </ClInclude>
     <CudaCompile Include="..\..\..\Source\CAxisAlignedBB.cu" />
     <CudaCompile Include="..\..\..\Source\CDebug.cu" />
+    <CudaCompile Include="..\..\..\Source\CHash.cu" />
     <CudaCompile Include="..\..\..\Source\CMatrix.cu" />
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />

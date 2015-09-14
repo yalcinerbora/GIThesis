@@ -59,7 +59,29 @@ enum ThesisRenderScheme
 	GI_DEFERRED,
 	GI_LIGHT_INTENSITY,
 	GI_VOXEL_PAGE,
-	GI_VOXEL_CACHE
+	GI_VOXEL_CACHE512,
+	GI_VOXEL_CACHE256,
+	GI_VOXEL_CACHE128
+};
+
+struct VoxelObjectCache
+{
+	StructuredBuffer<ObjGridInfo>			objectGridInfo;
+	StructuredBuffer<VoxelData>				voxelData;
+	StructuredBuffer<VoxelRenderData>		voxelRenderData;
+	StructuredBuffer<uint32_t>				voxelCacheUsageSize;
+	VoxelDebugVAO							voxelVAO;
+	VoxelInfo								voxInfo;
+
+	VoxelObjectCache(size_t objectCount, size_t voxelCount)
+		: objectGridInfo(objectCount)
+		, voxelData(voxelCount)
+		, voxelRenderData(voxelCount)
+		, voxelCacheUsageSize(1)
+		, voxelVAO(voxelData, voxelRenderData)
+	{
+		voxelCacheUsageSize.AddData(0);
+	}
 };
 
 class ThesisSolution : public SolutionI
@@ -82,44 +104,42 @@ class ThesisSolution : public SolutionI
 
 		FrameTransformBuffer	cameraTransform;
 
-		// Voxel Cache
-		StructuredBuffer<ObjGridInfo>			objectGridInfo;
-		StructuredBuffer<VoxelData>				voxelData;
-		StructuredBuffer<VoxelRenderData>		voxelRenderData;
-		StructuredBuffer<uint32_t>				voxelCacheUsageSize;
-		VoxelDebugVAO							voxelVAO;
-
+		// Voxel Cache for each cascade
+		VoxelObjectCache		cache512;
+		VoxelObjectCache		cache256;
+		VoxelObjectCache		cache128;
+		
 		// Utility Buffers
-		StructuredBuffer<VoxelGridInfoGL>		gridInfoBuffer;
+		StructuredBuffer<VoxelGridInfoGL>	gridInfoBuffer;
+											
+		// GUI								
+		TwBar*								bar;
+		bool								giOn;
+		double								frameTime;
+		double								ioTime;
+		double								transformTime;
+		double								svoTime;
+		double								debugVoxTransferTime;
+											
+		ThesisRenderScheme					renderScheme;
+		static const TwEnumVal				renderSchemeVals[];
+		TwType								renderType;
+											
+		// Debug Rendering					
+		void								DebugRenderVoxelCache(const Camera& camera, VoxelObjectCache&);
+		void								DebugRenderVoxelPage(const Camera& camera,
+																 VoxelDebugVAO& pageVoxels,
+																 const CVoxelGrid& voxGrid);
 
-		// GUI
-		TwBar*									bar;
-		bool									giOn;
-		VoxelInfo								voxInfo;
-		double									frameTime;
-		double									ioTime;
-		double									transformTime;
-		double									svoTime;
-		double									debugVoxTransferTime;
-
-		ThesisRenderScheme						renderScheme;
-		static const TwEnumVal					renderSchemeVals[];
-		TwType									renderType;
-
-		// Debug Rendering
-		void									DebugRenderVoxelCache(const Camera& camera);
-		void									DebugRenderVoxelPage(const Camera& camera, 
-																	 VoxelDebugVAO& pageVoxels, 
-																	 const CVoxelGrid& voxGrid);
-
-		// Uncomment this for debugging voxelization 
-		// Normally this texture allocated and deallocated 
-		// at init time and
-		// Comment the one at Init function
-		//VoxelRenderTexture voxelRenderTexture;
-
+		 // Voxelizes the scene for a cache level
+		double								Voxelize(VoxelObjectCache&,
+													 float gridSpan, unsigned int minSpanMultiplier);
+		void								LinkCacheWithVoxScene(GICudaVoxelScene&, VoxelObjectCache&);
+													 
 		// Cuda Segment
-		GICudaVoxelScene		voxelScene;
+		GICudaVoxelScene		voxelScene512;
+		GICudaVoxelScene		voxelScene256;
+		GICudaVoxelScene		voxelScene128;
 
 		static size_t			InitialObjectGridSize;
 		static size_t			InitialVoxelBufferSizes;

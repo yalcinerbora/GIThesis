@@ -101,14 +101,14 @@ int main()
 		// Square light
 		// Covers Entire Room
 		{
-			{ 0.0f, 183.0f, 0.0f, static_cast<float>(LightType::POINT)},
-			{ 0.0f, -1.0f, 0.0f, 230.0f},
-			IEVector4(1.0f, 1.0f, 1.0f, 9000.0f)
+			{ 0.0f, 160.0f, 0.0f, static_cast<float>(LightType::POINT)},
+			{ 0.0f, -1.0f, 0.0f, 3300.0f},
+			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
 		}
 	};
 
 	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 4}, 1.7f);
-	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1}, 0.0f);
+	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1}, 1.0f);
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);
 

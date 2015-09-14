@@ -160,7 +160,8 @@ void __stdcall Window::OGLCallbackRender(GLenum,
 										 const void*)
 {
 	// Dont Show Others For Now
-	if(type == GL_DEBUG_TYPE_OTHER)
+	if(type == GL_DEBUG_TYPE_OTHER ||	//
+	   id == 131186)					// Buffer Copy warning omit
 		return;
 
 	GI_DEBUG_LOG("---------------------OGL-Callback-Render------------");

@@ -9,6 +9,7 @@
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
 #define U_OBJ_TYPE layout(location = 6)
+#define U_SPAN_RATIO layout(location = 7)
 #define U_MAX_CACHE_SIZE layout(location = 5)
 
 #define I_VOX_READ layout(rgba32f, binding = 2) restrict
@@ -16,6 +17,7 @@
 // I-O
 U_OBJ_TYPE uniform uint objType;
 U_OBJ_ID uniform uint objId;
+U_SPAN_RATIO uniform uint spanRatio;
 U_TOTAL_VOX_DIM uniform uvec3 voxDim;
 U_MAX_CACHE_SIZE uniform uint maxSize;
 
@@ -58,6 +60,7 @@ uvec4 PackVoxelData(in uvec3 voxCoord,
 	
 	// Here Pack the voxels
 	unsigned int value = 0;
+	value |= spanRatio << 27;
 	value |= voxCoord.z << 18;
 	value |= voxCoord.y << 9;
 	value |= voxCoord.x;

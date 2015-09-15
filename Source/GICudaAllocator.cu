@@ -393,7 +393,7 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 	dVoxelPages = hVoxelPages;
 
 	///DEBUG
-	hPageData.back().dEmptySegmentList.DumpToFile("emptySegmentListFirstPage");
+	//hPageData.back().dEmptySegmentList.DumpToFile("emptySegmentListFirstPage");
 }
 
 void GICudaAllocator::ResetSceneData()

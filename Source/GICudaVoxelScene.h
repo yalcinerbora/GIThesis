@@ -22,6 +22,15 @@ struct VoxelData
 struct VoxelRenderData
 {
 	uint32_t color;
+
+	// For Moprh Targets
+	// uint3 parentVertexIndex
+	// float3 vertexWeights
+
+	// For Skeleton Anim
+	// bone index (at most 4)
+	// bone weights (at most 4)
+
 };
 #pragma pack(pop)
 

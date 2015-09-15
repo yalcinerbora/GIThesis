@@ -1,4 +1,5 @@
 #include "CudaVector.cuh"
+#include "CVoxelPage.h"
 #include <cuda_runtime.h>
 #include <cassert>
 #include <algorithm>
@@ -189,6 +190,12 @@ static std::ostream& operator<< (std::ostream& ostr, const ushort2& shrt2)
 static std::ostream& operator<< (std::ostream& ostr, const uint2& int2)
 {
 	ostr << "{" << int2.x << ", " << int2.y << "}";
+	return ostr;
+}
+
+static std::ostream& operator<< (std::ostream& ostr, const SegmentOccupation& seg)
+{
+	ostr << static_cast<int>(seg);
 	return ostr;
 }
 

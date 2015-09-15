@@ -190,7 +190,8 @@ void GICudaVoxelScene::Voxelize(double& ioTiming,
 				GI_THREAD_PER_BLOCK;
 
 	// KC CLEAR SIGNAL
-	VoxelClearSignal<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
+	VoxelClearSignal<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice(),
+														allocator.NumPages());
 
 
 	////DEBUG

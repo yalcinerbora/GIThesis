@@ -81,31 +81,31 @@ __global__ void VoxelTransform(// Voxel Pages
 		case CVoxelObjectType::DYNAMIC:
 		{
 			// Load matrices
-			if(blockLocalId < 16)
-			{
-				// Load Transform
-				reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] = 
-					reinterpret_cast<float*>(&gObjTransforms[objectId.y][objectId.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
-			}
-			else if(blockLocalId < 32)
-			{
-				reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
-					reinterpret_cast<float*>(&gObjTransforms[objectId.y][objectId.x].rotation.column[blockLocalId / 4])[blockLocalId % 4];
-			}
-			__syncthreads();
+			//if(blockLocalId < 16)
+			//{
+			//	// Load Transform
+			//	reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] = 
+			//		reinterpret_cast<float*>(&gObjTransforms[objectId.y][objectId.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
+			//}
+			//else if(blockLocalId < 32)
+			//{
+			//	reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
+			//		reinterpret_cast<float*>(&gObjTransforms[objectId.y][objectId.x].rotation.column[blockLocalId / 4])[blockLocalId % 4];
+			//}
+			//__syncthreads();
 
 			// One Transform per voxel
 			// 
-			//CMatrix4x4 rotation = gObjTransforms[objectId.y][objectId.x].rotation;
-			CMatrix4x4 rotation = sRotationMatrices[0];
+			CMatrix4x4 rotation = gObjTransforms[objectId.y][objectId.x].rotation;
+			//CMatrix4x4 rotation = sRotationMatrices[0];
 			//{{
 			//	{1.0f, 0.0f, 0.0f, 0.0f},
 			//	{0.0f, 1.0f, 0.0f, 0.0f},
 			//	{0.0f, 0.0f, 1.0f, 0.0f},
 			//	{0.0f, 0.0f, 0.0f, 1.0f},
 			//}};
-			//CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
-			CMatrix4x4 transform = sTransformMatrices[0];
+			CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
+			//CMatrix4x4 transform = sTransformMatrices[0];
 			//{{
 			//	{0.19f, 0.0f, 0.0f, 0.0f},
 			//	{0.0f, 0.19f, 0.0f, 0.0f},
@@ -121,11 +121,13 @@ __global__ void VoxelTransform(// Voxel Pages
 		case CVoxelObjectType::SKEL_DYNAMIC:
 		{
 			// TODO Implement
+			//
 			break;
 		}
 		case CVoxelObjectType::MORPH_DYNAMIC:
 		{
 			// TODO Implement
+			//
 			break;
 		}
 		default:

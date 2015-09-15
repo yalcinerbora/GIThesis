@@ -78,7 +78,8 @@ __global__ void VoxelClearMarked(CVoxelPage* gVoxelData);
 // Voxel Clear Signal
 // Stops Clear Signal 
 // Logic per segment in page system
-__global__ void VoxelClearSignal(CVoxelPage* gVoxelData);
+__global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
+								 const uint32_t numPages);
 
 // Voxel Include
 // Introduces existing voxel to the voxel grid

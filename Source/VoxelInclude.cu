@@ -63,21 +63,21 @@ __global__ void VoxelObjectDealloc(// Voxel System
 	if(!intersects && objAlloc.x != 0xFFFF)
 	{
 
-		//// Non atomic dealloc
-		//unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
-		//unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
-		//gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = SegmentOccupation::MARKED_FOR_CLEAR;
-		//gObjectAllocLocations[globalId] = ushort2{0xFFFF, 0xFFFF};
+		// Non atomic dealloc
+		unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
+		unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
+		gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = SegmentOccupation::MARKED_FOR_CLEAR;
+		gObjectAllocLocations[globalId] = ushort2{0xFFFF, 0xFFFF};
 
-		// "Dealocate"
-		unsigned int size = AtomicDealloc(&(gVoxelData[objAlloc.x].dEmptySegmentStackSize));
-		if(size != GI_SEGMENT_PER_PAGE)
-		{
-			unsigned int location = size;
-			gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
-			gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = SegmentOccupation::MARKED_FOR_CLEAR;
-			gObjectAllocLocations[globalId] = ushort2{0xFFFF, 0xFFFF};
-		}
+		//// "Dealocate"
+		//unsigned int size = AtomicDealloc(&(gVoxelData[objAlloc.x].dEmptySegmentStackSize));
+		//if(size != GI_SEGMENT_PER_PAGE)
+		//{
+		//	unsigned int location = size;
+		//	gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
+		//	gVoxelData[objAlloc.x].dIsSegmentOccupied[location] = SegmentOccupation::MARKED_FOR_CLEAR;
+		//	gObjectAllocLocations[globalId] = ushort2{0xFFFF, 0xFFFF};
+		//}
 	}
 }
 
@@ -115,33 +115,33 @@ __global__ void VoxelObjectAlloc(// Voxel System
 			gWriteToPages[objectId] = 1;
 		
 
-		//// Non atomic alloc
-		//unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
-		//unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
-		//gObjectAllocLocations[globalId] = ushort2
-		//{
-		//	static_cast<unsigned short>(linearPageId),
-		//	static_cast<unsigned short>(linearPagelocalSegId)
-		//};
-		//gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = SegmentOccupation::OCCUPIED;
+		// Non atomic alloc
+		unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
+		unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
+		gObjectAllocLocations[globalId] = ushort2
+		{
+			static_cast<unsigned short>(linearPageId),
+			static_cast<unsigned short>(linearPagelocalSegId)
+		};
+		gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = SegmentOccupation::OCCUPIED;
 
 		// Check page by page
-		for(unsigned int i = 0; i < gPageAmount; i++)
-		{
-			unsigned int size = AtomicAlloc(&(gVoxelData[i].dEmptySegmentStackSize));
-			if(size != 0)
-			{
-				unsigned int location = size - 1;
-				assert(gVoxelData[i].dIsSegmentOccupied[location] == SegmentOccupation::EMPTY);
-				gObjectAllocLocations[globalId] = ushort2
-				{
-					static_cast<unsigned short>(i),
-					static_cast<unsigned short>(gVoxelData[i].dEmptySegmentPos[location])
-				};
-				gVoxelData[i].dIsSegmentOccupied[location] = SegmentOccupation::OCCUPIED;
-				return;
-			}
-		}
+		//for(unsigned int i = 0; i < gPageAmount; i++)
+		//{
+		//	unsigned int size = AtomicAlloc(&(gVoxelData[i].dEmptySegmentStackSize));
+		//	if(size != 0)
+		//	{
+		//		unsigned int location = size - 1;
+		//		assert(gVoxelData[i].dIsSegmentOccupied[location] == SegmentOccupation::EMPTY);
+		//		gObjectAllocLocations[globalId] = ushort2
+		//		{
+		//			static_cast<unsigned short>(i),
+		//			static_cast<unsigned short>(gVoxelData[i].dEmptySegmentPos[location])
+		//		};
+		//		gVoxelData[i].dIsSegmentOccupied[location] = SegmentOccupation::OCCUPIED;
+		//		return;
+		//	}
+		//}
 	}
 }
 
@@ -222,13 +222,15 @@ __global__ void VoxelClearMarked(CVoxelPage* gVoxelData)
 	}
 }
 
-__global__ void VoxelClearSignal(CVoxelPage* gVoxelData)
+__global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
+								 const uint32_t numPages)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_SEGMENT_PER_PAGE;
 	unsigned int pageLocalSegmentId = globalId % GI_SEGMENT_PER_PAGE;
 
 	// Check if segment is marked for clear
+	if(globalId >= numPages * GI_SEGMENT_PER_PAGE) return;
 	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR)
 		gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] = SegmentOccupation::EMPTY;
 }

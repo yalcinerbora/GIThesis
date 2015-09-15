@@ -157,6 +157,11 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 	glVertexAttribBinding(3, 2);
 }
 
+VoxelDebugVAO::VoxelDebugVAO(VoxelDebugVAO&& mv)
+	: vaoId(mv.vaoId)
+{
+	mv.vaoId = 0;
+}
 
 VoxelDebugVAO::~VoxelDebugVAO()
 {

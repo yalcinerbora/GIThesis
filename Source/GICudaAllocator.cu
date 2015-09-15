@@ -180,23 +180,23 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 
 	///DEBUG
-	//dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
-	//dVoxelStrides.back().DumpToFile("voxelStrides");
-	//dSegmentObjecId.back().DumpToFile("segmentObjId");
-	//dSegmentAllocLoc.back().DumpToFile("segmentAllocLoc");
+	dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
+	dVoxelStrides.back().DumpToFile("voxelStrides");
+	dSegmentObjecId.back().DumpToFile("segmentObjId");
+	dSegmentAllocLoc.back().DumpToFile("segmentAllocLoc");
 
-	//std::vector<CObjectVoxelInfo> objInfoArray;
-	//objInfoArray.resize(objCount);
-	//cudaMemcpy(objInfoArray.data(), dVoxelInfo, objCount * sizeof(CObjectVoxelInfo), cudaMemcpyDeviceToHost);
+	std::vector<CObjectVoxelInfo> objInfoArray;
+	objInfoArray.resize(objCount);
+	cudaMemcpy(objInfoArray.data(), dVoxelInfo, objCount * sizeof(CObjectVoxelInfo), cudaMemcpyDeviceToHost);
 
-	//std::ofstream fOut;
-	//fOut.open("objVoxelInfo");
+	std::ofstream fOut;
+	fOut.open("objVoxelInfo");
 
-	//for(const CObjectVoxelInfo& data : objInfoArray)
-	//{
-	//	fOut << "{" << data.span << ", " << data.voxelCount << "}" << std::endl;
-	//}
-	//fOut.close();
+	for(const CObjectVoxelInfo& data : objInfoArray)
+	{
+		fOut << "{" << data.span << ", " << data.voxelCount << "}" << std::endl;
+	}
+	fOut.close();
 	///DEBUG END
 
 	cudaGraphicsUnmapResources(1, &objectInfoLinks.back());
@@ -393,7 +393,8 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 	dVoxelPages = hVoxelPages;
 
 	///DEBUG
-	//hPageData.back().dEmptySegmentList.DumpToFile("emptySegmentListFirstPage");
+	hPageData.front().dEmptySegmentList.DumpToFile("emptySegmentListFirstPage");
+	hPageData.front().dIsSegmentOccupied.DumpToFile("isSegmentOcuupListFirstPage");
 }
 
 void GICudaAllocator::ResetSceneData()
@@ -434,6 +435,9 @@ void GICudaAllocator::ResetSceneData()
 
 void GICudaAllocator::Reserve(uint32_t pageAmount)
 {
+	//WARNING
+	pageAmount = std::max(50u, pageAmount);
+
 	if(dVoxelPages.Size() < pageAmount)
 	{
 		AddVoxelPage(pageAmount - dVoxelPages.Size());

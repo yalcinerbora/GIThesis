@@ -6,7 +6,7 @@
 	Author		: Bora Yalciner
 	Description	:
 
-		Renders World Space voxels
+		Renders World Space voxels with cascade culling
 */
 
 #define IN_POS layout(location = 0)
@@ -15,6 +15,7 @@
 #define IN_VOX_NORMAL layout(location = 3)
 
 #define OUT_COLOR layout(location = 0)
+#define OUT_CULL layout(location = 1)
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_VOXEL_GRID_INFO layout(std140, binding = 2)
@@ -28,6 +29,7 @@ in IN_VOX_NORMAL vec3 voxNormal;
 // Output
 out gl_PerVertex {invariant vec4 gl_Position;};	// Mandatory
 out OUT_COLOR vec3 fColor;
+flat out OUT_CULL int fCull;
 
 // Textures
 
@@ -59,9 +61,31 @@ void main(void)
 	// Color directly to fragment
 	fColor = voxColor.rgb;
 
+	// Unpacking voxel data
+	uvec4 voxIndex = UnpackVoxelDataAndSpan(voxPos);
+
+	// Checking if the voxel is in inner segment
+	uvec3 innerLimit = dimension.xyz / 4;
+	uvec3 outerLimit = 3 * (dimension.xyz / 4);
+
+	if(voxIndex.x >= innerLimit.x &&
+		voxIndex.y >= innerLimit.y &&
+		voxIndex.z >= innerLimit.z &&
+
+		voxIndex.x <= outerLimit.x &&
+		voxIndex.y <= outerLimit.y &&
+		voxIndex.z <= outerLimit.z)
+		fCull = 1;
+	else 
+		fCull = 0;
+
+
+	//bvec3 isInnerCascade = greaterThan(voxIndex.xyz, dimension.xyz / 4) &&
+	//						lessThan(voxIndex.xyz, 3 * dimension.xyz / 4);
+	//fCull = int(any(isInnerCascade));
+		
 	// Voxels are in world space
 	// Need to determine the scale and relative position wrt the grid
-	uvec4 voxIndex = UnpackVoxelDataAndSpan(voxPos);
 	float span = position.w * voxIndex.w;
 	vec3 deltaPos = position.xyz + position.w * vec3(voxIndex.xyz);
 	mat4 voxModel =	mat4( span,			0.0f,		0.0f,		0.0f,

@@ -87,10 +87,10 @@ void GICudaVoxelScene::Reset()
 	allocator.ResetSceneData();
 }
 
-void GICudaVoxelScene::Voxelize(double& ioTiming,
-								double& updateTiming,
-								double& svoReconTiming,
-								const IEVector3& playerPos)
+void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
+								   double& updateTiming,
+								   double& svoReconTiming,
+								   const IEVector3& playerPos)
 {
 	CudaTimer timer(0);
 	timer.Start();

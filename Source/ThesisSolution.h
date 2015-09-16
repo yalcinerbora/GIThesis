@@ -91,10 +91,14 @@ class ThesisSolution : public SolutionI
 
 		DeferredRenderer&		dRenderer;
 
+		// Voxel Render Shaders
 		Shader					vertexDebugVoxel;
 		Shader					vertexDebugWorldVoxel;
 		Shader					fragmentDebugVoxel;
+		Shader					vertexDebugWorldVoxelCascade;
+		Shader					fragmentDebugWorldVoxelCascade;
 
+		// Voxelization Shaders
 		Shader					vertexVoxelizeObject;
 		Shader					geomVoxelizeObject;
 		Shader					fragmentVoxelizeObject;
@@ -129,7 +133,8 @@ class ThesisSolution : public SolutionI
 		void								DebugRenderVoxelCache(const Camera& camera, VoxelObjectCache&);
 		void								DebugRenderVoxelPage(const Camera& camera,
 																 VoxelDebugVAO& pageVoxels,
-																 const CVoxelGrid& voxGrid);
+																 const CVoxelGrid& voxGrid,
+																 bool isOuterCascade);
 
 		 // Voxelizes the scene for a cache level
 		double								Voxelize(VoxelObjectCache&,

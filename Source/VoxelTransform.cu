@@ -6,6 +6,125 @@
 #include "GICudaAllocator.h"
 #include "CHash.cuh"
 
+__device__ void LoadTransformData(// Shared Mem
+								  unsigned int* sHashIndex,
+								  CMatrix4x4* sTransformMatrices,
+								  CMatrix4x4* sRotationMatrices,
+
+								  // Object Transform Matrix
+								  CObjectTransform** gObjTransforms,
+
+								  // Object Type that will be broadcasted
+								  const CVoxelObjectType& objType,
+								  const ushort2& objectId)
+
+{
+	__shared__ CVoxelObjectType sObjType;
+	unsigned int blockLocalId = threadIdx.x;
+	
+	// Broadcast objType
+	if(blockLocalId == 0)
+	{
+		sObjType = objType;
+	}
+	__syncthreads();
+	
+	// Init Index Cache if this object type is morph dynamic or skeleton dynamic
+	if((sObjType != CVoxelObjectType::STATIC || 
+		sObjType != CVoxelObjectType::DYNAMIC) &&
+		blockLocalId < GI_MAX_SHARED_COUNT_PRIME)
+	{
+		sHashIndex[blockLocalId] = 0;
+	}
+	__syncthreads();
+
+
+	// Each Voxel Type Has Different Deformation(Animation)
+	switch(objType)
+	{
+		case CVoxelObjectType::STATIC:
+		case CVoxelObjectType::DYNAMIC:
+		{
+			// Static or Dynamic Objects have single transformation matrix to animate
+			// they also have rotation only matrix for normal manipulation
+
+			// Here we will load transform and rotation matrices
+			// Each thread will load 1 float. There is two 4x4 matrix
+			// 32 floats will be loaded
+			// Just enough for a warp to do the work
+			// Because of that we will broadcast obj id using the first warp
+			// Pack objId to int
+			unsigned int objIdShuffle;
+			objIdShuffle = static_cast<unsigned int>(objectId.y) << 16;
+			objIdShuffle |= static_cast<unsigned int>(objectId.x);
+
+			// Broadcast
+			objIdShuffle = __shfl(objIdShuffle, 0);
+			
+			// Unpack broadcasted objId to ushort2
+			ushort2 objIdAfterShuffle;
+			objIdAfterShuffle.x = (objIdShuffle & 0x0000FFFF);
+			objIdAfterShuffle.y = (objIdShuffle & 0xFFFF0000) >> 16;
+		
+			//// Load matrices
+			//if(blockLocalId < 16)
+			////if(blockLocalId < 4)
+			//{
+			//	reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
+			//		reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
+			//	//sTransformMatrices[0].column[blockLocalId % 4] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId % 4];
+			//}
+			//else if(blockLocalId < 32)
+			////else if(blockLocalId < 8)
+			//{
+			//	blockLocalId -= 16;
+			//	reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
+			//		reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId / 4])[blockLocalId % 4];
+			//	//sRotationMatrices[0].column[blockLocalId % 4] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId % 4];
+			//}
+			
+			if(blockLocalId == 0)
+			{
+				sTransformMatrices[0] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform;
+				//{{
+				//	{0.19f, 0.0f, 0.0f, 0.0f},
+				//	{0.0f, 0.19f, 0.0f, 0.0f},
+				//	{0.0f, 0.0f, 0.19f, 0.0f},
+				//	{0.0f, 0.0f, 0.0f, 0.19f},
+				//}};
+			}
+			else if(blockLocalId == 1)
+			{
+				sRotationMatrices[0] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation;
+				//{{
+				//	{1.0f, 0.0f, 0.0f, 0.0f},
+				//	{0.0f, 1.0f, 0.0f, 0.0f},
+				//	{0.0f, 0.0f, 1.0f, 0.0f},
+				//	{0.0f, 0.0f, 0.0f, 1.0f},
+				//}};
+			}
+			break;
+		}
+		case CVoxelObjectType::SKEL_DYNAMIC:
+		{
+			// TODO Implement
+			//
+			break;
+		}
+		case CVoxelObjectType::MORPH_DYNAMIC:
+		{
+			// TODO Implement
+			//
+			break;
+		}
+		default:
+			assert(false);
+			break;
+	}
+	// We write to shared mem sync between warps
+	__syncthreads();
+}
+
 __global__ void VoxelTransform(// Voxel Pages
 							   CVoxelPage* gVoxelData,
 							   const CVoxelGrid& gGridInfo,
@@ -22,40 +141,44 @@ __global__ void VoxelTransform(// Voxel Pages
 							   CObjectVoxelInfo** gObjInfo,	
 							   CObjectAABB** gObjectAABB)
 {
-	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GI_PAGE_SIZE;
-	unsigned int pageLocalId = (globalId - pageId * GI_PAGE_SIZE);
-	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
-	unsigned int blockLocalId = threadIdx.x;
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
-	
-	 // CacheLoading
-	 // Each Block has half a segment 
-	 // Segment has an object
-	 // Object worst case contains multiple of matrices
+	// CacheLoading
+	// Shared Memory which used for transform rendering
 	__shared__ unsigned int sHashIndex[GI_MAX_SHARED_COUNT_PRIME];
 	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_SHARED_COUNT_PRIME];
 	__shared__ CMatrix4x4 sRotationMatrices[GI_MAX_SHARED_COUNT_PRIME];
+		
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = globalId / GI_PAGE_SIZE;
+	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
+	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
 
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
+	
 	// Fetch this voxel's id chunk from page
-	// Skip if its invalid
-	CVoxelIds voxIdPacked = gVoxelData[pageId].dGridVoxIds[pageLocalId];
-	if(voxIdPacked.x == 0xFFFFFFFF && voxIdPacked.y == 0xFFFFFFFF) return;
-
 	CVoxelObjectType objType;
 	ushort2 objectId;
 	unsigned int renderLoc;
+
+	CVoxelIds voxIdPacked = gVoxelData[pageId].dGridVoxIds[pageLocalId];
 	ExpandVoxelIds(renderLoc, objectId, objType, voxIdPacked);
 
-	// Init Index Cache if this object type is morph dynamic of skeleton dynamic
-	if((objType != CVoxelObjectType::STATIC || objType != CVoxelObjectType::DYNAMIC) &&
-		blockLocalId < GI_MAX_SHARED_COUNT_PRIME)
-	{
-		sHashIndex[blockLocalId] = 0;
-	}
-	__syncthreads();
-	
+	// Segment is occupied so load matrices before culling unused warps
+	LoadTransformData(// Shared Mem
+					  sHashIndex,
+					  sTransformMatrices,
+					  sRotationMatrices,
+
+					  // Object Transform Matrix
+					  gObjTransforms,
+
+					  // Object Type that will be broadcasted
+					  objType,
+					  objectId);
+
+	// Cull unused warps
+	if(voxIdPacked.x == 0xFFFFFFFF && voxIdPacked.y == 0xFFFFFFFF) return;
+
 	// Fetch NormalPos from cache
 	uint3 voxPos;
 	float3 normal;
@@ -80,42 +203,54 @@ __global__ void VoxelTransform(// Voxel Pages
 		case CVoxelObjectType::STATIC:
 		case CVoxelObjectType::DYNAMIC:
 		{
-			// Load matrices
-			//if(blockLocalId < 16)
-			//{
-			//	// Load Transform
-			//	reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] = 
-			//		reinterpret_cast<float*>(&gObjTransforms[objectId.y][objectId.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
-			//}
-			//else if(blockLocalId < 32)
-			//{
-			//	reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
-			//		reinterpret_cast<float*>(&gObjTransforms[objectId.y][objectId.x].rotation.column[blockLocalId / 4])[blockLocalId % 4];
-			//}
-			//__syncthreads();
+			// Entire block will do the assertion
+			if(objectId.x != 7 &&
+			   objectId.x != 16 )
+			{
+				assert(sTransformMatrices[0].column[0].x == 0.18954435f);
+				assert(sTransformMatrices[0].column[0].y == 0.0f);
+				assert(sTransformMatrices[0].column[0].z == 0.0f);
+				assert(sTransformMatrices[0].column[0].w == 0.0f);
 
-			// One Transform per voxel
-			// 
-			CMatrix4x4 rotation = gObjTransforms[objectId.y][objectId.x].rotation;
-			//CMatrix4x4 rotation = sRotationMatrices[0];
-			//{{
-			//	{1.0f, 0.0f, 0.0f, 0.0f},
-			//	{0.0f, 1.0f, 0.0f, 0.0f},
-			//	{0.0f, 0.0f, 1.0f, 0.0f},
-			//	{0.0f, 0.0f, 0.0f, 1.0f},
-			//}};
-			CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
-			//CMatrix4x4 transform = sTransformMatrices[0];
-			//{{
-			//	{0.19f, 0.0f, 0.0f, 0.0f},
-			//	{0.0f, 0.19f, 0.0f, 0.0f},
-			//	{0.0f, 0.0f, 0.19f, 0.0f},
-			//	{0.0f, 0.0f, 0.0f, 0.19f},
-			//}};
-		
+				assert(sTransformMatrices[0].column[1].x == 0.0f);
+				assert(sTransformMatrices[0].column[1].y == 0.18954435f);
+				assert(sTransformMatrices[0].column[1].z == 0.0f);
+				assert(sTransformMatrices[0].column[1].w == 0.0f);
+
+				assert(sTransformMatrices[0].column[2].x == 0.0f);
+				assert(sTransformMatrices[0].column[2].y == 0.0f);
+				assert(sTransformMatrices[0].column[2].z == 0.18954435f);
+				assert(sTransformMatrices[0].column[2].w == 0.0f);
+
+				//assert(sTransformMatrices[0].column[3].x == 0.0f);
+				//assert(sTransformMatrices[0].column[3].y == 0.0f);
+				//assert(sTransformMatrices[0].column[3].z == 0.0f);
+				//assert(sTransformMatrices[0].column[3].w == 1.0f);
+
+
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[0].x == 0.18954435f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[0].y == 0.0f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[0].z == 0.0f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[0].w == 0.0f);
+
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[1].x == 0.0f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[1].y == 0.18954435f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[1].z == 0.0f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[1].w == 0.0f);
+
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[2].x == 0.0f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[2].y == 0.0f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[2].z == 0.18954435f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[2].w == 0.0f);
+
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[3].x == 0.0f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[3].y == 0.0f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[3].z == 0.0f);
+				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[3].w == 1.0f);
+			}
 			// Now voxel is in is world space
-			MultMatrixSelf(worldPos, transform);
-			MultMatrixSelf(normal, rotation);
+			MultMatrixSelf(worldPos, sTransformMatrices[0]);
+			MultMatrixSelf(normal, sRotationMatrices[0]);
 			break;
 		}
 		case CVoxelObjectType::SKEL_DYNAMIC:
@@ -147,7 +282,6 @@ __global__ void VoxelTransform(// Voxel Pages
 
 	// Now Write
 	// Discard the out of bound voxels
-	// will come back into the grid
 	if(!outOfBounds)
 	{
 		float invSpan = 1.0f / gGridInfo.span;

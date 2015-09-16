@@ -26,6 +26,8 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
 	, vertexDebugWorldVoxel(ShaderType::VERTEX, "Shaders/VoxRenderWorld.vert")
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
+	, vertexDebugWorldVoxelCascade(ShaderType::VERTEX, "Shaders/VoxRenderWorldCascaded.vert")
+	, fragmentDebugWorldVoxelCascade(ShaderType::FRAGMENT, "Shaders/VoxRenderWorldCascaded.frag")
 	, vertexVoxelizeObject(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert")
 	, geomVoxelizeObject(ShaderType::GEOMETRY, "Shaders/VoxelizeGeom.geom")
 	, fragmentVoxelizeObject(ShaderType::FRAGMENT, "Shaders/VoxelizeGeom.frag")
@@ -89,7 +91,7 @@ void ThesisSolution::Init(SceneI& s)
 	// Voxel Page System Linking
 	LinkCacheWithVoxScene(voxelScene512, cache512);
 	LinkCacheWithVoxScene(voxelScene256, cache256);
-//	LinkCacheWithVoxScene(voxelScene128, cache128);
+	LinkCacheWithVoxScene(voxelScene128, cache128);
 	
 	// Tw Bar Creation
 	bar = TwNewBar("ThesisGI");
@@ -361,7 +363,8 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera, VoxelObjectCach
 
 void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, 
 										  VoxelDebugVAO& pageVoxels,
-										  const CVoxelGrid& voxGrid)
+										  const CVoxelGrid& voxGrid,
+										  bool isOuterCascade)
 {
 	//DEBUG VOXEL RENDER
 	// Frame Viewport
@@ -374,15 +377,24 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 	glDisable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
-	glDepthFunc(GL_LEQUAL);
+	glDepthFunc(GL_LESS);
 	glDepthMask(true);
 	glColorMask(true, true, true, true);
 
 	// Debug Voxelize Pages
 	// User World Render Vertex Shader
 	Shader::Unbind(ShaderType::GEOMETRY);
-	vertexDebugWorldVoxel.Bind();
-	fragmentDebugVoxel.Bind();
+
+	if(isOuterCascade)
+	{
+		vertexDebugWorldVoxelCascade.Bind();
+		fragmentDebugWorldVoxelCascade.Bind();
+	}
+	else
+	{
+		vertexDebugWorldVoxel.Bind();
+		fragmentDebugVoxel.Bind();
+	}
 
 	// We need grid info buffer as uniform and frame transform buffer
 	cameraTransform.Bind();
@@ -407,20 +419,20 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	debugVoxTransferTime = 0;
 
 	// VoxelSceneUpdate
-	voxelScene512.Voxelize(ioTime,
+	voxelScene512.VoxelUpdate(ioTime,
 						transformTime,
 						svoTime,
 						mainRenderCamera.pos);
 
-	voxelScene256.Voxelize(ioTime,
+	voxelScene256.VoxelUpdate(ioTime,
 						   transformTime,
 						   svoTime,
 						   mainRenderCamera.pos);
 
-	voxelScene128.Voxelize(ioTime,
-						   transformTime,
-						   svoTime,
-						   mainRenderCamera.pos);
+	voxelScene128.VoxelUpdate(ioTime,
+							  transformTime,
+							  svoTime,
+							  mainRenderCamera.pos);
 
 	// Voxel Count in Pages
 	cache512.voxInfo.sceneVoxOctreeCount = voxelScene512.VoxelCountInPage();
@@ -450,21 +462,21 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			glClear(GL_COLOR_BUFFER_BIT |
 					GL_DEPTH_BUFFER_BIT);
 
-			//CVoxelGrid voxGrid128;
-			//VoxelDebugVAO vao128 = voxelScene128.VoxelDataForRendering(voxGrid128, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			//DebugRenderVoxelPage(mainRenderCamera, vao128, voxGrid128);
+			CVoxelGrid voxGrid128;
+			VoxelDebugVAO vao128 = voxelScene128.VoxelDataForRendering(voxGrid128, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
+			DebugRenderVoxelPage(mainRenderCamera, vao128, voxGrid128, false);
 
-			glClear(GL_DEPTH_BUFFER_BIT);
+			//glClear(GL_DEPTH_BUFFER_BIT);
 
-			CVoxelGrid voxGrid256;
-			VoxelDebugVAO vao256 = voxelScene256.VoxelDataForRendering(voxGrid256, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256);
+			//CVoxelGrid voxGrid256;
+			//VoxelDebugVAO vao256 = voxelScene256.VoxelDataForRendering(voxGrid256, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
+			//DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256, false);
 
-			glClear(GL_DEPTH_BUFFER_BIT);
+			//glClear(GL_DEPTH_BUFFER_BIT);
 
-			CVoxelGrid voxGrid512;
-			VoxelDebugVAO vao512 = voxelScene512.VoxelDataForRendering(voxGrid512, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512);
+			//CVoxelGrid voxGrid512;
+			//VoxelDebugVAO vao512 = voxelScene512.VoxelDataForRendering(voxGrid512, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
+			//DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512, false);
 			break;
 		}
 		case GI_VOXEL_CACHE512:

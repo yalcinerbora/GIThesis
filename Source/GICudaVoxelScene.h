@@ -77,10 +77,10 @@ class GICudaVoxelScene
 		// Adds newly entered voxels from the cache
 		// Repositions existing voxels which is already in the grid
 		// Reconstructs SVO tree
-		void				Voxelize(double& ioTiming,
-									 double& updateTiming,
-									 double& svoReconsTiming,
-									 const IEVector3& playerPos);
+		void				VoxelUpdate(double& ioTiming,
+										double& updateTiming,
+										double& svoReconsTiming,
+										const IEVector3& playerPos);
 
 		// Debug Related Functions
 		// Access for voxel data for rendering voxels

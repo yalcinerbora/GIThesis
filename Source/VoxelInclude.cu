@@ -125,7 +125,7 @@ __global__ void VoxelObjectAlloc(// Voxel System
 		};
 		gVoxelData[linearPageId].dIsSegmentOccupied[linearPagelocalSegId] = SegmentOccupation::OCCUPIED;
 
-		// Check page by page
+		//// Check page by page
 		//for(unsigned int i = 0; i < gPageAmount; i++)
 		//{
 		//	unsigned int size = AtomicAlloc(&(gVoxelData[i].dEmptySegmentStackSize));

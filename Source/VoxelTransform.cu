@@ -66,43 +66,48 @@ __device__ void LoadTransformData(// Shared Mem
 			objIdAfterShuffle.x = (objIdShuffle & 0x0000FFFF);
 			objIdAfterShuffle.y = (objIdShuffle & 0xFFFF0000) >> 16;
 		
-			//// Load matrices
-			//if(blockLocalId < 16)
-			////if(blockLocalId < 4)
-			//{
-			//	reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
-			//		reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
-			//	//sTransformMatrices[0].column[blockLocalId % 4] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId % 4];
-			//}
-			//else if(blockLocalId < 32)
-			////else if(blockLocalId < 8)
-			//{
-			//	blockLocalId -= 16;
-			//	reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
-			//		reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId / 4])[blockLocalId % 4];
-			//	//sRotationMatrices[0].column[blockLocalId % 4] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId % 4];
-			//}
+			// Load matrices
+			if(blockLocalId < 16)
+			//if(blockLocalId < 4)
+			{
+				if(objIdAfterShuffle.x == 244)
+				{
+					assert(blockLocalId != 15);
+				}
+
+				reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
+					reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
+				//sTransformMatrices[0].column[blockLocalId % 4] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId % 4];
+			}
+			else if(blockLocalId < 32)
+			//else if(blockLocalId < 8)
+			{
+				blockLocalId -= 16;
+				reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
+					reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId / 4])[blockLocalId % 4];
+				//sRotationMatrices[0].column[blockLocalId % 4] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId % 4];
+			}
 			
-			if(blockLocalId == 0)
-			{
-				sTransformMatrices[0] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform;
-				//{{
-				//	{0.19f, 0.0f, 0.0f, 0.0f},
-				//	{0.0f, 0.19f, 0.0f, 0.0f},
-				//	{0.0f, 0.0f, 0.19f, 0.0f},
-				//	{0.0f, 0.0f, 0.0f, 0.19f},
-				//}};
-			}
-			else if(blockLocalId == 1)
-			{
-				sRotationMatrices[0] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation;
-				//{{
-				//	{1.0f, 0.0f, 0.0f, 0.0f},
-				//	{0.0f, 1.0f, 0.0f, 0.0f},
-				//	{0.0f, 0.0f, 1.0f, 0.0f},
-				//	{0.0f, 0.0f, 0.0f, 1.0f},
-				//}};
-			}
+			//if(blockLocalId == 0)
+			//{
+			//	sTransformMatrices[0] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform;
+			//	//{{
+			//	//	{0.19f, 0.0f, 0.0f, 0.0f},
+			//	//	{0.0f, 0.19f, 0.0f, 0.0f},
+			//	//	{0.0f, 0.0f, 0.19f, 0.0f},
+			//	//	{0.0f, 0.0f, 0.0f, 0.19f},
+			//	//}};
+			//}
+			//else if(blockLocalId == 1)
+			//{
+			//	sRotationMatrices[0] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation;
+			//	//{{
+			//	//	{1.0f, 0.0f, 0.0f, 0.0f},
+			//	//	{0.0f, 1.0f, 0.0f, 0.0f},
+			//	//	{0.0f, 0.0f, 1.0f, 0.0f},
+			//	//	{0.0f, 0.0f, 0.0f, 1.0f},
+			//	//}};
+			//}
 			break;
 		}
 		case CVoxelObjectType::SKEL_DYNAMIC:
@@ -207,20 +212,20 @@ __global__ void VoxelTransform(// Voxel Pages
 			if(objectId.x != 7 &&
 			   objectId.x != 16 )
 			{
-				assert(sTransformMatrices[0].column[0].x == 0.18954435f);
-				assert(sTransformMatrices[0].column[0].y == 0.0f);
-				assert(sTransformMatrices[0].column[0].z == 0.0f);
-				assert(sTransformMatrices[0].column[0].w == 0.0f);
+				//assert(fabs(sTransformMatrices[0].column[0].x - 0.18954435f) < 0.001f);
+				//assert(fabs(sTransformMatrices[0].column[0].y - 0.0f) < 0.001f);
+				//assert(fabs(sTransformMatrices[0].column[0].z - 0.0f) < 0.001f);
+				//assert(fabs(sTransformMatrices[0].column[0].w - 0.0f) < 0.001f);
 
-				assert(sTransformMatrices[0].column[1].x == 0.0f);
-				assert(sTransformMatrices[0].column[1].y == 0.18954435f);
-				assert(sTransformMatrices[0].column[1].z == 0.0f);
-				assert(sTransformMatrices[0].column[1].w == 0.0f);
+				//assert(fabs(sTransformMatrices[0].column[1].x - 0.0f) < 0.001f);
+				//assert(fabs(sTransformMatrices[0].column[1].y - 0.18954435f) < 0.001f);
+				//assert(fabs(sTransformMatrices[0].column[1].z - 0.0f) < 0.001f);
+				//assert(fabs(sTransformMatrices[0].column[1].w - 0.0f) < 0.001f);
 
-				assert(sTransformMatrices[0].column[2].x == 0.0f);
-				assert(sTransformMatrices[0].column[2].y == 0.0f);
-				assert(sTransformMatrices[0].column[2].z == 0.18954435f);
-				assert(sTransformMatrices[0].column[2].w == 0.0f);
+				//assert(fabs(sTransformMatrices[0].column[2].x - 0.0f) < 0.001f);
+				//assert(fabs(sTransformMatrices[0].column[2].y - 0.0f) < 0.001f);
+				//assert(fabs(sTransformMatrices[0].column[2].z - 0.18954435f) < 0.001f);
+				//assert(fabs(sTransformMatrices[0].column[2].w - 0.0f) < 0.001f);
 
 				//assert(sTransformMatrices[0].column[3].x == 0.0f);
 				//assert(sTransformMatrices[0].column[3].y == 0.0f);

@@ -16,7 +16,12 @@ struct CSVONode
 {
 	unsigned short	childId;					// Which Child Are you
 	unsigned short	childCount;					// How many childs you have
-	CSVONode*		childPtrs[/*childCount*/];	// Childs
+	
+	
+	unsigned int ids; // at most 8
+
+	
+	CSVONode*		childPtr;					// Children (all children are adjacent)
 };
 
 
@@ -49,9 +54,9 @@ __global__ unsigned int FindIntersection(const CVoxelGrid& gGridInfo,
 		// Iterate child array
 		for(unsigned int i = 0; i < currentNode->childCount; i++)
 		{
-			if(currentNode->childPtrs[i]->childId == nextChildId)
+			if(currentNode->childPtr[i].childId == nextChildId)
 			{
-				currentNode = currentNode->childPtrs[i];
+				currentNode = &currentNode->childPtr[i];
 				depth++;
 			}
 		}

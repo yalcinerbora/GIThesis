@@ -482,13 +482,13 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 
 			CVoxelGrid voxGrid128;
 			VoxelDebugVAO vao128 = voxelScene128.VoxelDataForRendering(voxGrid128, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao128, voxGrid128, false);
+			DebugRenderVoxelPage(mainRenderCamera, vao128, voxGrid128, true);
 
 			glClear(GL_DEPTH_BUFFER_BIT);
 
 			CVoxelGrid voxGrid256;
 			VoxelDebugVAO vao256 = voxelScene256.VoxelDataForRendering(voxGrid256, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256, false);
+			DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256, true);
 
 			glClear(GL_DEPTH_BUFFER_BIT);
 

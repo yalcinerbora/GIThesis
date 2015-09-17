@@ -490,9 +490,9 @@ IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos)
 	voxelCornerPos.y = playerPos.getY() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.y * 0.5f;
 	voxelCornerPos.z = playerPos.getZ() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.z * 0.5f;
 	
-	voxelCornerPos.x -= fmodf(voxelCornerPos.x, hVoxelGridInfo.span);
-	voxelCornerPos.y -= fmodf(voxelCornerPos.y, hVoxelGridInfo.span);
-	voxelCornerPos.z -= fmodf(voxelCornerPos.z, hVoxelGridInfo.span);
+	voxelCornerPos.x -= fmodf(voxelCornerPos.x + hVoxelGridInfo.span * 0.5f, hVoxelGridInfo.span);
+	voxelCornerPos.y -= fmodf(voxelCornerPos.y + hVoxelGridInfo.span * 0.5f, hVoxelGridInfo.span);
+	voxelCornerPos.z -= fmodf(voxelCornerPos.z + hVoxelGridInfo.span * 0.5f, hVoxelGridInfo.span);
 
 	hVoxelGridInfo.position.x = voxelCornerPos.x;
 	hVoxelGridInfo.position.y = voxelCornerPos.y;

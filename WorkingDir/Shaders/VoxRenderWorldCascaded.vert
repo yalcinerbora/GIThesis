@@ -65,24 +65,13 @@ void main(void)
 	uvec4 voxIndex = UnpackVoxelDataAndSpan(voxPos);
 
 	// Checking if the voxel is in inner segment
-	uvec3 innerLimit = dimension.xyz / 4;
-	uvec3 outerLimit = 3 * (dimension.xyz / 4);
+	uvec3 innerLimit = dimension.xyz + 3 / 4;
+	uvec3 outerLimit = 3 * (dimension.xyz + 3 / 4);
 
-	if(voxIndex.x >= innerLimit.x &&
-		voxIndex.y >= innerLimit.y &&
-		voxIndex.z >= innerLimit.z &&
-
-		voxIndex.x <= outerLimit.x &&
-		voxIndex.y <= outerLimit.y &&
-		voxIndex.z <= outerLimit.z)
-		fCull = 1;
-	else 
-		fCull = 0;
-
-
-	//bvec3 isInnerCascade = greaterThan(voxIndex.xyz, dimension.xyz / 4) &&
-	//						lessThan(voxIndex.xyz, 3 * dimension.xyz / 4);
-	//fCull = int(any(isInnerCascade));
+	// Cull inner voxels (other cascase is responsible)
+	bvec3 isInnerCascade = greaterThan(voxIndex.xyz, dimension.xyz / 4) &&
+							lessThan(voxIndex.xyz, 3 * dimension.xyz / 4);
+	fCull = int(all(isInnerCascade));
 		
 	// Voxels are in world space
 	// Need to determine the scale and relative position wrt the grid

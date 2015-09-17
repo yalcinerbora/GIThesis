@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 #include <cassert>
 #include <algorithm>
+#include "CudaDefinitions.h"
 
 template<class T>
 void CudaVector<T>::ExtendStorage()
@@ -10,9 +11,9 @@ void CudaVector<T>::ExtendStorage()
 	if(capacity == 0) capacity = CUDA_VEC_INITIAL_CAPACITY;
 	size_t newCount = static_cast<size_t>(capacity * CUDA_VEC_RESIZE_FACTOR);
 	T* d_newAlloc = nullptr;
-	cudaMalloc<T>(&d_newAlloc, sizeof(T) * newCount);
-	cudaMemcpy(d_newAlloc, d_data, sizeof(T)  * size, cudaMemcpyDeviceToDevice);
-	cudaFree(d_data);
+	CUDA_CHECK(cudaMalloc<T>(&d_newAlloc, sizeof(T) * newCount));
+	CUDA_CHECK(cudaMemcpy(d_newAlloc, d_data, sizeof(T)  * size, cudaMemcpyDeviceToDevice));
+	CUDA_CHECK(cudaFree(d_data));
 	d_data = d_newAlloc;
 	capacity = newCount;
 }
@@ -30,7 +31,7 @@ CudaVector<T>::CudaVector(size_t count)
 	, size(count)
 	, capacity(((count + CUDA_VEC_INITIAL_CAPACITY - 1) / CUDA_VEC_INITIAL_CAPACITY) * CUDA_VEC_INITIAL_CAPACITY)
 {
-	cudaMalloc<T>(&d_data, sizeof(T) * capacity);
+	CUDA_CHECK(cudaMalloc<T>(&d_data, sizeof(T) * capacity));
 }
 
 template<class T>
@@ -39,8 +40,8 @@ CudaVector<T>::CudaVector(const CudaVector<T>& cp)
 	, size(cp.size)
 	, capacity(cp.capacity)
 {
-	cudaMalloc<T>(&d_data, sizeof(T) * capacity);
-	cudaMemcpy(d_data, cp.d_data, sizeof(T) * cp.size, cudaMemcpyDeviceToDevice);
+	CUDA_CHECK(cudaMalloc<T>(&d_data, sizeof(T) * capacity));
+	CUDA_CHECK(cudaMemcpy(d_data, cp.d_data, sizeof(T) * cp.size, cudaMemcpyDeviceToDevice));
 }
 
 template<class T>
@@ -57,7 +58,7 @@ CudaVector<T>::CudaVector(CudaVector<T>&& mv)
 template<class T>
 CudaVector<T>::~CudaVector()
 {
-	cudaFree(d_data);
+	CUDA_CHECK(cudaFree(d_data));
 	d_data = nullptr;
 	size = 0;
 	capacity = 0;
@@ -85,11 +86,11 @@ CudaVector<T>& CudaVector<T>::operator=(const std::vector<T>& vector)
 	{
 		capacity = ((vector.size() + CUDA_VEC_INITIAL_CAPACITY - 1) / CUDA_VEC_INITIAL_CAPACITY) * CUDA_VEC_INITIAL_CAPACITY;		
 		T* d_newAlloc = nullptr;
-		cudaMalloc<T>(&d_newAlloc, sizeof(T) * capacity);
-		cudaFree(d_data);
+		CUDA_CHECK(cudaMalloc<T>(&d_newAlloc, sizeof(T) * capacity));
+		CUDA_CHECK(cudaFree(d_data));
 		d_data = d_newAlloc;
 	}
-	cudaMemcpy(d_data, vector.data(), sizeof(T) * vector.size(), cudaMemcpyHostToDevice);
+	CUDA_CHECK((cudaMemcpy(d_data, vector.data(), sizeof(T) * vector.size(), cudaMemcpyHostToDevice)));
 	size = vector.size();
 	return *this;
 }
@@ -101,7 +102,7 @@ void CudaVector<T>::InsertEnd(const T& hostData)
 	{
 		ExtendStorage();
 	}
-	cudaMemcpy(d_data + size, &hostData, sizeof(T), cudaMemcpyHostToDevice);
+	CUDA_CHECK(cudaMemcpy(d_data + size, &hostData, sizeof(T), cudaMemcpyHostToDevice));
 	size++;
 }
 
@@ -116,6 +117,7 @@ template<class T>
 void CudaVector<T>::Assign(size_t index, const T& hostData)
 {
 	assert(index < size);
+	//CUDA_CHECK(cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice));
 	cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice);
 }
 
@@ -123,14 +125,14 @@ template<class T>
 void CudaVector<T>::Assign(size_t index, size_t dataLength, const T* hostData)
 {
 	assert(index + datalength <= size);
-	cudaMemcpy(d_data + index, sizeof(T), cudaMemcpyHostToDevice);
+	CUDA_CHECK(cudaMemcpy(d_data + index, sizeof(T), cudaMemcpyHostToDevice));
 }
 
 template<class T>
 void CudaVector<T>::Memset(int value, size_t stride, size_t count)
 {
 	assert(stride + count <= size);
-	cudaMemset(d_data + stride, value, count * sizeof(T));
+	CUDA_CHECK(cudaMemset(d_data + stride, value, count * sizeof(T)));
 }
 
 template<class T>
@@ -204,7 +206,7 @@ void CudaVector<T>::DumpToFile(const char* fName) const
 {
 	std::vector<T> cpuData;
 	cpuData.resize(size);
-	cudaMemcpy(cpuData.data(), d_data, size * sizeof(T), cudaMemcpyDeviceToHost);
+	CUDA_CHECK(cudaMemcpy(cpuData.data(), d_data, size * sizeof(T), cudaMemcpyDeviceToHost));
 
 	std::ofstream fOut;
 	fOut.open(fName);
@@ -218,7 +220,7 @@ inline void CudaVector<unsigned char>::DumpToFile(const char* fName) const
 {
 	std::vector<unsigned char> cpuData;
 	cpuData.resize(size);
-	cudaMemcpy(cpuData.data(), d_data, size * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	CUDA_CHECK(cudaMemcpy(cpuData.data(), d_data, size * sizeof(unsigned char), cudaMemcpyDeviceToHost));
 
 	std::ofstream fOut;
 	fOut.open(fName);

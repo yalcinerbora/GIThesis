@@ -40,7 +40,7 @@ __global__ void DebugCheckSegmentAlloc(const CVoxelGrid& gGridInfo,
 	if(globalId >= segmentCount) return;
 
 	unsigned int objectId = gSegmentObjectId[globalId];
-	bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId]);
+	bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId].transform);
 	ushort2 myAllocLoc = gObjectAllocLocations[globalId];
 
 	if(intersects)

@@ -45,6 +45,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	//, renderScheme(GI_VOXEL_CACHE512)
 	, gridInfoBuffer(1)
 {
+
 	voxelScene512.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),
 											  dRenderer.GetGBuffer().getNormalGL(),
 											  dRenderer.GetLightIntensityBufferGL());
@@ -419,20 +420,37 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	debugVoxTransferTime = 0;
 
 	// VoxelSceneUpdate
-	voxelScene512.VoxelUpdate(ioTime,
-						transformTime,
-						svoTime,
-						mainRenderCamera.pos);
+	double ioTimeSegment, transformTimeSegment, svoTimeSegment;
+	ioTime = 0;
+	transformTime = 0;
+	svoTime = 0;
 
-	voxelScene256.VoxelUpdate(ioTime,
-						   transformTime,
-						   svoTime,
-						   mainRenderCamera.pos);
-
-	voxelScene128.VoxelUpdate(ioTime,
-							  transformTime,
-							  svoTime,
+	// Cascade #1 Update
+	voxelScene512.VoxelUpdate(ioTimeSegment,
+							  transformTimeSegment,
+							  svoTimeSegment,
 							  mainRenderCamera.pos);
+	ioTime += ioTimeSegment;
+	transformTime += transformTimeSegment;
+	svoTime += svoTimeSegment;
+
+	// Cascade #2 Update
+	voxelScene256.VoxelUpdate(ioTimeSegment,
+							  transformTimeSegment,
+							  svoTimeSegment,
+							  mainRenderCamera.pos);
+	ioTime += ioTimeSegment;
+	transformTime += transformTimeSegment;
+	svoTime += svoTimeSegment;
+
+	// Cascade #3 Update
+	voxelScene128.VoxelUpdate(ioTimeSegment,
+							  transformTimeSegment,
+							  svoTimeSegment,
+							  mainRenderCamera.pos);
+	ioTime += ioTimeSegment;
+	transformTime += transformTimeSegment;
+	svoTime += svoTimeSegment;
 
 	// Voxel Count in Pages
 	cache512.voxInfo.sceneVoxOctreeCount = voxelScene512.VoxelCountInPage();
@@ -466,17 +484,17 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			VoxelDebugVAO vao128 = voxelScene128.VoxelDataForRendering(voxGrid128, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
 			DebugRenderVoxelPage(mainRenderCamera, vao128, voxGrid128, false);
 
-			//glClear(GL_DEPTH_BUFFER_BIT);
+			glClear(GL_DEPTH_BUFFER_BIT);
 
-			//CVoxelGrid voxGrid256;
-			//VoxelDebugVAO vao256 = voxelScene256.VoxelDataForRendering(voxGrid256, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			//DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256, false);
+			CVoxelGrid voxGrid256;
+			VoxelDebugVAO vao256 = voxelScene256.VoxelDataForRendering(voxGrid256, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
+			DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256, false);
 
-			//glClear(GL_DEPTH_BUFFER_BIT);
+			glClear(GL_DEPTH_BUFFER_BIT);
 
-			//CVoxelGrid voxGrid512;
-			//VoxelDebugVAO vao512 = voxelScene512.VoxelDataForRendering(voxGrid512, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			//DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512, false);
+			CVoxelGrid voxGrid512;
+			VoxelDebugVAO vao512 = voxelScene512.VoxelDataForRendering(voxGrid512, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
+			DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512, false);
 			break;
 		}
 		case GI_VOXEL_CACHE512:

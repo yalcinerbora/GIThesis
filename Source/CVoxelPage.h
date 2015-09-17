@@ -5,6 +5,9 @@
 
 #include <vector_types.h>
 
+// Used in kernel calls that may not saturate enough cores
+#define GI_THREAD_PER_BLOCK_SMALL 64
+
 #define GI_PAGE_SIZE 65536
 #define GI_THREAD_PER_BLOCK 512
 #define GI_BLOCK_PER_PAGE (GI_PAGE_SIZE / GI_THREAD_PER_BLOCK)

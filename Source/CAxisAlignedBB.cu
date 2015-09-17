@@ -27,7 +27,7 @@ __device__ static const float3 aabbLookupTable[] =
 
 __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 									  const CObjectAABB& gObjectAABB,
-									  const CObjectTransform& gObjectTransform)
+									  const CMatrix4x4& gObjectTransform)
 {
 	// Comparing two AABB (Grid Itself is an AABB)
 	const CAABB gridAABB =
@@ -48,6 +48,7 @@ __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 		{ -FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f }
 	};
 
+	#pragma unroll
 	for(unsigned int i = 0; i < 8; i++)
 	{
 		float4 data;
@@ -56,7 +57,7 @@ __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 		data.z = aabbLookupTable[i].z * gObjectAABB.max.z + (1.0f - aabbLookupTable[i].z) * gObjectAABB.min.z;
 		data.w = 1.0f;
 
-		MultMatrixSelf(data, gObjectTransform.transform);
+		MultMatrixSelf(data, gObjectTransform);
 		transformedAABB.max.x = fmax(transformedAABB.max.x, data.x);
 		transformedAABB.max.y = fmax(transformedAABB.max.y, data.y);
 		transformedAABB.max.z = fmax(transformedAABB.max.z, data.z);

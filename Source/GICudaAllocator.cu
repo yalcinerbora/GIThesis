@@ -3,6 +3,7 @@
 #include <cuda_gl_interop.h>
 #include "CudaTimer.h"
 #include "Macros.h"
+#include "CudaDefinitions.h"
 
 // Small Helper Kernel That used to init inital obj Pages
 // Logic is per segment
@@ -94,7 +95,6 @@ GICudaAllocator::GICudaAllocator(const CVoxelGrid& gridInfo)
 	, dVoxelGridInfo(1)
 	, hVoxelGridInfo(gridInfo)
 {
-	cudaGLSetGLDevice(0);
 	dVoxelGridInfo.Assign(0, hVoxelGridInfo);
 }
 
@@ -106,7 +106,6 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 										uint32_t objCount,
 										uint32_t voxelCount)
 {
-	cudaError_t cudaErr;
 	CudaTimer timer(0);
 	timer.Start();
 
@@ -116,12 +115,12 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	cacheLinks.emplace_back();
 	cacheRenderLinks.emplace_back();
 
-	cudaGraphicsGLRegisterBuffer(&transformLinks.back(), batchTransformBuffer, cudaGraphicsMapFlagsReadOnly);
-	cudaGraphicsGLRegisterBuffer(&aabbLinks.back(), batchAABBBuffer, cudaGraphicsMapFlagsReadOnly);
-	cudaGraphicsGLRegisterBuffer(&objectInfoLinks.back(), infoBuffer, cudaGraphicsMapFlagsReadOnly);
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&transformLinks.back(), batchTransformBuffer, cudaGraphicsMapFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&aabbLinks.back(), batchAABBBuffer, cudaGraphicsMapFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&objectInfoLinks.back(), infoBuffer, cudaGraphicsMapFlagsReadOnly));
 
-	cudaGraphicsGLRegisterBuffer(&cacheLinks.back(), voxelBuffer, cudaGraphicsMapFlagsReadOnly);
-	cudaGraphicsGLRegisterBuffer(&cacheRenderLinks.back(), voxelRenderBuffer, cudaGraphicsMapFlagsReadOnly);
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheLinks.back(), voxelBuffer, cudaGraphicsMapFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheRenderLinks.back(), voxelRenderBuffer, cudaGraphicsMapFlagsReadOnly));
 
 	objectCounts.emplace_back(objCount);
 	voxelCounts.emplace_back(voxelCount);
@@ -140,17 +139,17 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	// Determine object segement sizes
 	int* dTotalCount = nullptr;
 	int hTotalCount = 0;
-	cudaErr = cudaMalloc(reinterpret_cast<void**>(&dTotalCount), sizeof(int));
-	cudaErr = cudaMemcpy(dTotalCount, &hTotalCount, sizeof(int), cudaMemcpyHostToDevice);
+	CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dTotalCount), sizeof(int)));
+	CUDA_CHECK(cudaMemcpy(dTotalCount, &hTotalCount, sizeof(int), cudaMemcpyHostToDevice));
 
 	// Mapping Pointer
 	CObjectVoxelInfo* dVoxelInfo = nullptr;
 	CObjectTransform* dObjTransform = nullptr;
 	size_t size = 0;
-	cudaGraphicsMapResources(1, &objectInfoLinks.back());
-	cudaGraphicsMapResources(1, &transformLinks.back());
-	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dVoxelInfo), &size, objectInfoLinks.back());
-	cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dObjTransform), &size, transformLinks.back());
+	CUDA_CHECK(cudaGraphicsMapResources(1, &objectInfoLinks.back()));
+	CUDA_CHECK(cudaGraphicsMapResources(1, &transformLinks.back()));
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dVoxelInfo), &size, objectInfoLinks.back()));
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dObjTransform), &size, transformLinks.back()));
 	
 	uint32_t gridSize = static_cast<uint32_t>((objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK);
 	DetermineTotalSegment<<<gridSize, GI_THREAD_PER_BLOCK>>>(*dTotalCount,
@@ -163,7 +162,7 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 															 objCount);
 	
 	// Allocation after determining total index count
-	cudaMemcpy(&hTotalCount, dTotalCount, sizeof(int), cudaMemcpyDeviceToHost);
+	CUDA_CHECK(cudaMemcpy(&hTotalCount, dTotalCount, sizeof(int), cudaMemcpyDeviceToHost));
 	dSegmentObjecId.emplace_back(hTotalCount);
 	dSegmentAllocLoc.emplace_back(hTotalCount);
 	dSegmentAllocLoc.back().Memset(0xFF, 0, dSegmentAllocLoc.back().Size());
@@ -199,13 +198,13 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	fOut.close();
 	///DEBUG END
 
-	cudaGraphicsUnmapResources(1, &objectInfoLinks.back());
-	cudaGraphicsUnmapResources(1, &transformLinks.back());
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &objectInfoLinks.back()));
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &transformLinks.back()));
 
 	dObjectAllocationIndexLookup2D.InsertEnd(dObjectAllocationIndexLookup.back().Data());
 	dSegmentAllocLoc2D.InsertEnd(dSegmentAllocLoc.back().Data());
 	dObjectVoxStrides2D.InsertEnd(dVoxelStrides.back().Data());
-	cudaFree(dTotalCount);
+	CUDA_CHECK(cudaFree(dTotalCount));
 	timer.Stop();
 	GI_LOG("Linked Object Batch to CUDA. Elaped time %f ms", timer.ElapsedMilliS());
 
@@ -223,46 +222,45 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 void GICudaAllocator::LinkSceneShadowMapArray(GLuint shadowMapArray)
 {
-	cudaError_t cudaErr;
-	cudaErr = cudaGraphicsGLRegisterImage(&sceneShadowMapLink,
-										  shadowMapArray,
-										  GL_TEXTURE_2D_ARRAY,
-										  cudaGraphicsRegisterFlagsReadOnly);
+	CUDA_CHECK(cudaGraphicsGLRegisterImage(&sceneShadowMapLink,
+										   shadowMapArray,
+										   GL_TEXTURE_2D_ARRAY,
+										   cudaGraphicsRegisterFlagsReadOnly));
 }
 
 void GICudaAllocator::LinkSceneGBuffers(GLuint depthTex,
 										GLuint normalTex,
 										GLuint lightIntensityTex)
 {
-	cudaGraphicsGLRegisterImage(&depthBuffLink,
-								depthTex,
-								GL_TEXTURE_2D,
-								cudaGraphicsRegisterFlagsReadOnly);
-	cudaGraphicsGLRegisterImage(&normalBuffLink,
-								normalTex,
-								GL_TEXTURE_2D,
-								cudaGraphicsRegisterFlagsReadOnly);
-	cudaGraphicsGLRegisterImage(&lightIntensityLink,
-								lightIntensityTex,
-								GL_TEXTURE_2D,
-								cudaGraphicsRegisterFlagsSurfaceLoadStore);
+	CUDA_CHECK(cudaGraphicsGLRegisterImage(&depthBuffLink,
+											depthTex,
+											GL_TEXTURE_2D,
+											cudaGraphicsRegisterFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterImage(&normalBuffLink,
+											normalTex,
+											GL_TEXTURE_2D,
+											cudaGraphicsRegisterFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterImage(&lightIntensityLink,
+											lightIntensityTex,
+											GL_TEXTURE_2D,
+											cudaGraphicsRegisterFlagsSurfaceLoadStore));
 }
 
 void GICudaAllocator::UnLinkGBuffers()
 {
-	cudaGraphicsUnregisterResource(depthBuffLink);
-	cudaGraphicsUnregisterResource(normalBuffLink);
-	cudaGraphicsUnregisterResource(lightIntensityLink);
+	CUDA_CHECK(cudaGraphicsUnregisterResource(depthBuffLink));
+	CUDA_CHECK(cudaGraphicsUnregisterResource(normalBuffLink));
+	CUDA_CHECK(cudaGraphicsUnregisterResource(lightIntensityLink));
 }
 
 void GICudaAllocator::SetupDevicePointers()
 {
-	cudaGraphicsMapResources(static_cast<int>(transformLinks.size()), transformLinks.data());
-	cudaGraphicsMapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data());
-	cudaGraphicsMapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data());
+	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(transformLinks.size()), transformLinks.data()));
+	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data()));
+	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data()));
 
-	cudaGraphicsMapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data());
-	cudaGraphicsMapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data());
+	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data()));
+	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data()));
 
 	size_t size = 0;
 	for(unsigned int i = 0; i < objectCounts.size(); i++)
@@ -274,12 +272,12 @@ void GICudaAllocator::SetupDevicePointers()
 		hObjCache.push_back(nullptr);
 		hObjRenderCache.push_back(nullptr);
 
-		cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hTransforms.back()), &size, transformLinks[i]);
-		cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjectAABB.back()), &size, aabbLinks[i]);
-		cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjectInfo.back()), &size, objectInfoLinks[i]);
+		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hTransforms.back()), &size, transformLinks[i]));
+		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjectAABB.back()), &size, aabbLinks[i]));
+		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjectInfo.back()), &size, objectInfoLinks[i]));
 
-		cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjCache.back()), &size, cacheLinks[i]);
-		cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjRenderCache.back()), &size, cacheRenderLinks[i]);
+		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjCache.back()), &size, cacheLinks[i]));
+		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjRenderCache.back()), &size, cacheRenderLinks[i]));
 	}
 
 	//// Data Sent to GPU
@@ -304,29 +302,28 @@ void GICudaAllocator::SetupDevicePointers()
 	//texDesc.readMode = cudaReadModeElementType;
 	//texDesc.normalizedCoords = 1;
 
-	//cudaError_t cerr;
-	//cerr = cudaGraphicsMapResources(1, &sceneShadowMapLink);
-	//cerr = cudaGraphicsResourceGetMappedMipmappedArray(&mipArray, sceneShadowMapLink);
+	//CUDA_CHECK(cudaGraphicsMapResources(1, &sceneShadowMapLink));
+	//CUDA_CHECK(cudaGraphicsResourceGetMappedMipmappedArray(&mipArray, sceneShadowMapLink));
 	//resDesc.res.mipmap.mipmap = mipArray;
-	//cerr = cudaCreateTextureObject(&shadowMaps, &resDesc, &texDesc, nullptr);
+	//CUDA_CHECK(cudaCreateTextureObject(&shadowMaps, &resDesc, &texDesc, nullptr));
 
 	//texDesc.normalizedCoords = 1;
 	//resDesc.resType = cudaResourceTypeArray;
 
-	//cerr = cudaGraphicsMapResources(1, &depthBuffLink);
-	//cerr = cudaGraphicsSubResourceGetMappedArray(&texArray, depthBuffLink, 0, 0);
+	//CUDA_CHECK(cudaGraphicsMapResources(1, &depthBuffLink));
+	//CUDA_CHECK(cudaGraphicsSubResourceGetMappedArray(&texArray, depthBuffLink, 0, 0));
 	//resDesc.res.array.array = texArray;
-	//cerr = cudaCreateTextureObject(&depthBuffer, &resDesc, &texDesc, nullptr);
+	//CUDA_CHECK(cudaCreateTextureObject(&depthBuffer, &resDesc, &texDesc, nullptr));
 
-	//cerr = cudaGraphicsMapResources(1, &normalBuffLink);
-	//cudaGraphicsSubResourceGetMappedArray(&texArray, normalBuffLink, 0, 0);
+	//CUDA_CHECK(cudaGraphicsMapResources(1, &normalBuffLink));
+	//CUDA_CHECK(cudaGraphicsSubResourceGetMappedArray(&texArray, normalBuffLink, 0, 0));
 	//resDesc.res.array.array = texArray;
-	//cudaCreateTextureObject(&normalBuffer, &resDesc, &texDesc, nullptr);
+	//CUDA_CHECK(cudaCreateTextureObject(&normalBuffer, &resDesc, &texDesc, nullptr));
 
-	//cudaGraphicsMapResources(1, &lightIntensityLink);
-	//cudaGraphicsSubResourceGetMappedArray(&texArray, lightIntensityLink, 0, 0);
+	//CUDA_CHECK(cudaGraphicsMapResources(1, &lightIntensityLink));
+	//CUDA_CHECK(cudaGraphicsSubResourceGetMappedArray(&texArray, lightIntensityLink, 0, 0));
 	//resDesc.res.array.array = texArray;
-	//cudaCreateSurfaceObject(&lightIntensityBuffer, &resDesc);
+	//CUDA_CHECK(cudaCreateSurfaceObject(&lightIntensityBuffer, &resDesc));
 }
 
 void GICudaAllocator::ClearDevicePointers()
@@ -345,23 +342,22 @@ void GICudaAllocator::ClearDevicePointers()
 	hObjCache.clear();
 	hObjRenderCache.clear();
 	
-	cudaError_t cerr;
-	//cerr = cudaDestroySurfaceObject(lightIntensityBuffer);
-	//cerr = cudaDestroyTextureObject(normalBuffer);
-	//cerr = cudaDestroyTextureObject(depthBuffer);
-	//cerr = cudaDestroyTextureObject(shadowMaps);
+	//CUDA_CHECK(cudaDestroySurfaceObject(lightIntensityBuffer));
+	//CUDA_CHECK(cudaDestroyTextureObject(normalBuffer));
+	//CUDA_CHECK(cudaDestroyTextureObject(depthBuffer));
+	//CUDA_CHECK(cudaDestroyTextureObject(shadowMaps));
 
-	//cerr = cudaGraphicsUnmapResources(1, &lightIntensityLink);
-	//cerr = cudaGraphicsUnmapResources(1, &normalBuffLink);
-	//cerr = cudaGraphicsUnmapResources(1, &depthBuffLink);
-	//cerr = cudaGraphicsUnmapResources(1, &sceneShadowMapLink);
+	//CUDA_CHECK(cudaGraphicsUnmapResources(1, &lightIntensityLink));
+	//CUDA_CHECK(cudaGraphicsUnmapResources(1, &normalBuffLink));
+	//CUDA_CHECK(cudaGraphicsUnmapResources(1, &depthBuffLink));
+	//CUDA_CHECK(cudaGraphicsUnmapResources(1, &sceneShadowMapLink));
 
-	cerr = cudaGraphicsUnmapResources(static_cast<int>(transformLinks.size()), transformLinks.data());
-	cerr = cudaGraphicsUnmapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data());
-	cerr = cudaGraphicsUnmapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data());
+	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(transformLinks.size()), transformLinks.data()));
+	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data()));
+	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data()));
 
-	cerr = cudaGraphicsUnmapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data());
-	cerr = cudaGraphicsUnmapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data());
+	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data()));
+	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data()));
 }
 
 void GICudaAllocator::AddVoxelPage(size_t count)
@@ -401,14 +397,16 @@ void GICudaAllocator::ResetSceneData()
 {
 	for(unsigned int i = 0; i < transformLinks.size(); i++)
 	{
-		cudaGraphicsUnregisterResource(transformLinks[i]);
-		cudaGraphicsUnregisterResource(aabbLinks[i]);
-		cudaGraphicsUnregisterResource(objectInfoLinks[i]);
+		CUDA_CHECK(cudaGraphicsUnregisterResource(transformLinks[i]));
+		CUDA_CHECK(cudaGraphicsUnregisterResource(aabbLinks[i]));
+		CUDA_CHECK(cudaGraphicsUnregisterResource(objectInfoLinks[i]));
 
-		cudaGraphicsUnregisterResource(cacheLinks[i]);
-		cudaGraphicsUnregisterResource(cacheRenderLinks[i]);
+		CUDA_CHECK(cudaGraphicsUnregisterResource(cacheLinks[i]));
+		CUDA_CHECK(cudaGraphicsUnregisterResource(cacheRenderLinks[i]));
 	}	
-	cudaGraphicsUnregisterResource(sceneShadowMapLink);
+
+	if(sceneShadowMapLink)
+		CUDA_CHECK(cudaGraphicsUnregisterResource(sceneShadowMapLink));
 
 	transformLinks.clear();
 	aabbLinks.clear();

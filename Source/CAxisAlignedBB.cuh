@@ -10,7 +10,7 @@ Voxel Sturcutres
 #include <vector_types.h>
 
 struct CVoxelGrid;
-struct CObjectTransform;
+struct CMatrix4x4;
 
 // Global Voxel Data
 // using float4 because of alignment with ogl
@@ -25,6 +25,6 @@ extern __device__ bool Intersects(const CAABB& boxA, const CAABB& boxB);
 
 extern __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 											 const CObjectAABB& gObjectAABB,
-											 const CObjectTransform& gObjectTransform);
+											 const CMatrix4x4& gObjectTransform);
 
 #endif //__CAXISALIGNEDBB_H__

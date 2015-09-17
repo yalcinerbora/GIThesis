@@ -56,10 +56,19 @@ __global__ void VoxelObjectDealloc(// Voxel System
 	unsigned int objectId = gSegmentObjectId[globalId];
 	if(objectId == 0xFFFFFFFF) return;
 
-	bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId]);
-	ushort2 objAlloc = gObjectAllocLocations[globalId];
 	
-	//intersects = true;
+	CMatrix4x4 transform = gObjTransforms[objectId].transform;
+	//{{
+	//	{0.19f, 0.0f, 0.0f, 0.0f},
+	//	{0.0f, 0.19f, 0.0f, 0.0f},
+	//	{0.0f, 0.0f, 0.19f, 0.0f},
+	//	{0.0f, 0.0f, 0.0f, 0.19f},
+	//}};
+	CObjectAABB objAABB = gObjectAABB[objectId];
+	bool intersects = CheckGridVoxIntersect(gGridInfo, objAABB, transform);
+
+	// Check if this object is not allocated
+	ushort2 objAlloc = gObjectAllocLocations[globalId];
 	if(!intersects && objAlloc.x != 0xFFFF)
 	{
 
@@ -99,14 +108,23 @@ __global__ void VoxelObjectAlloc(// Voxel System
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= totalSegments) return;
 	
-	// Determine Obj Id (-1 Id means this object is too small for this grid
+	// Determine Obj Id (-1 Id means this object is too small for this grid)
 	unsigned int objectId = gSegmentObjectId[globalId];
 	if(objectId == 0xFFFFFFFF) return;
 
-	bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId]);
-	ushort2 objAlloc = gObjectAllocLocations[globalId];
+	// Intersection Check
+	CMatrix4x4 transform = gObjTransforms[objectId].transform;
+	//{{
+	//	{ 0.19f, 0.0f, 0.0f, 0.0f },
+	//	{ 0.0f, 0.19f, 0.0f, 0.0f },
+	//	{ 0.0f, 0.0f, 0.19f, 0.0f },
+	//	{ 0.0f, 0.0f, 0.0f, 0.19f },
+	//}};
+	CObjectAABB objAABB = gObjectAABB[objectId];
+	bool intersects = CheckGridVoxIntersect(gGridInfo, objAABB, transform);
 
-	// Check If this object is in
+	// Check if this object already allocated
+	ushort2 objAlloc = gObjectAllocLocations[globalId];
 	if(intersects && objAlloc.x == 0xFFFF)
 	{
 		// "Allocate"
@@ -175,15 +193,11 @@ __global__ void VoxelObjectInclude(// Voxel System
 	
 	// Mem Fetch
 	ushort2 objectId;
-	uint3 voxPos;
 	CVoxelObjectType objType;
-	float3 normal;
-	unsigned int voxelSpanRatio;
 	unsigned int renderLoc;
-	ExpandVoxelData(voxPos, normal, objectId, objType, voxelSpanRatio, renderLoc, gObjectVoxelCache[globalId]);
-
+	ExpandVoxelIds(renderLoc, objectId, objType, uint2{gObjectVoxelCache[globalId].z, gObjectVoxelCache[globalId].w});
+	
 	// We need to check if this obj is not already in the page system or not
-	//if(objectId.x < 20)
 	if(gWriteToPages[objectId.x] == 1)
 	{
 		// Determine where to write this pixel

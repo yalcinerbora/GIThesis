@@ -116,6 +116,7 @@
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
     <ClInclude Include="..\..\..\Source\CHash.cuh" />
+    <ClInclude Include="..\..\..\Source\CudaDefinitions.h" />
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <FileType>Document</FileType>
     </ClInclude>

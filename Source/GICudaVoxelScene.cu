@@ -22,21 +22,25 @@ GICudaVoxelScene::GICudaVoxelScene(const IEVector3& intialCenterPos, float span,
 				})
 	, vaoData(512)
 	, vaoColorData(512)
-{
-
-	// Shared Memory Prep
-	// 16 Kb memory is enough for our needs most of the time
-	cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-
-	// Voxel Transform Function needs 48kb memory
-	cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferShared);
-
-}
+{}
 
 GICudaVoxelScene::~GICudaVoxelScene()
 {
-	cudaGraphicsUnregisterResource(vaoResource);
-	cudaGraphicsUnregisterResource(vaoRenderResource);
+	CUDA_CHECK(cudaGraphicsUnregisterResource(vaoResource));
+	CUDA_CHECK(cudaGraphicsUnregisterResource(vaoRenderResource));
+}
+
+void GICudaVoxelScene::InitCuda()
+{
+	cudaSetDevice(0);
+
+	// Shared Memory Prep
+	// 16 Kb memory is enough for our needs most of the time
+	CUDA_CHECK(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
+
+	// Voxel Transform Function needs 48kb memory
+	CUDA_CHECK(cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferShared));
+
 }
 
 void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
@@ -78,8 +82,8 @@ void GICudaVoxelScene::AllocateInitialPages(uint32_t approxVoxCount)
 	vaoColorData.Resize(voxCount);
 
 	// Cuda Register	
-	cudaGraphicsGLRegisterBuffer(&vaoResource, vaoData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard);
-	cudaGraphicsGLRegisterBuffer(&vaoRenderResource, vaoColorData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard);
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&vaoResource, vaoData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&vaoRenderResource, vaoColorData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard));
 }
 
 void GICudaVoxelScene::Reset()
@@ -102,11 +106,11 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	for(unsigned int i = 0; i < allocator.NumObjectBatches(); i++)
 	{
 		// Call Logic Per Obj Segment
-		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK - 1) /
-			GI_THREAD_PER_BLOCK;
+		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK_SMALL - 1) /
+			GI_THREAD_PER_BLOCK_SMALL;
 
 		// KC ALLOCATE
-		VoxelObjectAlloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		VoxelObjectAlloc<<<gridSize, GI_THREAD_PER_BLOCK_SMALL>>>
 			(// Voxel System
 			 allocator.GetVoxelPagesDevice(),
 			 allocator.NumPages(),
@@ -121,6 +125,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			 allocator.GetWriteSignals(i),
 			 allocator.GetObjectAABBDevice(i),
 			 allocator.GetTransformsDevice(i));
+		CUDA_CHECK(cudaGetLastError());
 
 		// Call Logic Per Voxel
 		gridSize = (allocator.NumVoxels(i) + GI_THREAD_PER_BLOCK - 1) /
@@ -150,19 +155,20 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 
 			 // Batch(ObjectGroup in terms of OGL) Id
 			 i);
+		CUDA_CHECK(cudaGetLastError());
 
 		// Clear Write Signals
-		cudaMemset(allocator.GetWriteSignals(i), 0, sizeof(char) * allocator.NumObjects(i));
+		CUDA_CHECK(cudaMemset(allocator.GetWriteSignals(i), 0, sizeof(char) * allocator.NumObjects(i)));
 	}
 
 	for(unsigned int i = 0; i < allocator.NumObjectBatches(); i++)
 	{
 		// Call Logic Per Obj Segment
-		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK - 1) /
-			GI_THREAD_PER_BLOCK;
+		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK_SMALL - 1) /
+			GI_THREAD_PER_BLOCK_SMALL;
 
 		// KC DEALLOCATE
-		VoxelObjectDealloc<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		VoxelObjectDealloc<<<gridSize, GI_THREAD_PER_BLOCK_SMALL>>>
 			(// Voxel System
 			allocator.GetVoxelPagesDevice(),
 			*allocator.GetVoxelGridDevice(),
@@ -176,6 +182,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			allocator.GetWriteSignals(i),
 			allocator.GetObjectAABBDevice(i),
 			allocator.GetTransformsDevice(i));
+		CUDA_CHECK(cudaGetLastError());
 	}
 
 	// Call Logic Per Voxel in Page
@@ -184,6 +191,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 
 	// KC CLEAR MARKED
 	VoxelClearMarked<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
+	CUDA_CHECK(cudaGetLastError());
 
 	// Call Logic Per Segment in Page
 	gridSize = (allocator.NumPages() * GI_SEGMENT_PER_PAGE + GI_THREAD_PER_BLOCK - 1) /
@@ -192,6 +200,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	// KC CLEAR SIGNAL
 	VoxelClearSignal<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice(),
 														allocator.NumPages());
+	CUDA_CHECK(cudaGetLastError());
 
 
 	////DEBUG
@@ -202,6 +211,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	//// KC DEBUG CHECK UNIQUE ALLOC
 	//DebugCheckUniqueAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>(allocator.GetSegmentAllocLoc(0),
 	//														  allocator.NumObjectSegments(0));
+	//CUDA_CHECK(cudaGetLastError());
 	//// KC DEBUG CHECK UNIQUE SEGMENT ALLOC
 	//DebugCheckSegmentAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>
 	//	(*allocator.GetVoxelGridDevice(),
@@ -210,12 +220,8 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	//	allocator.NumObjectSegments(0),
 	//	allocator.GetObjectAABBDevice(0),
 	//	allocator.GetTransformsDevice(0));
+	//CUDA_CHECK(cudaGetLastError());
 	////DEBUG END
-
-
-
-
-
 
 	timer.Stop();
 	ioTiming = timer.ElapsedMilliS();
@@ -242,6 +248,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	   allocator.GetObjCacheDevice(),
 	   allocator.GetObjectInfoDevice(),
 	   allocator.GetObjectAABBDevice());
+	CUDA_CHECK(cudaGetLastError());
 
 	allocator.SendNewVoxPosToDevice();
 	
@@ -262,8 +269,8 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 	int h_VoxCount;
 	int* d_VoxCount = nullptr;
 
-	cudaMalloc(&d_VoxCount, sizeof(int));
-	cudaMemset(d_VoxCount, 0, sizeof(int));
+	CUDA_CHECK(cudaMalloc(&d_VoxCount, sizeof(int)));
+	CUDA_CHECK(cudaMemset(d_VoxCount, 0, sizeof(int)));
 
 	uint32_t gridSize = ((allocator.NumPages() * GI_PAGE_SIZE) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 
@@ -275,8 +282,8 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 		 *allocator.GetVoxelGridDevice(),
 		 allocator.NumPages());
 
-	cudaMemcpy(&h_VoxCount, d_VoxCount, sizeof(int), cudaMemcpyDeviceToHost);
-	cudaFree(d_VoxCount);
+	CUDA_CHECK(cudaMemcpy(&h_VoxCount, d_VoxCount, sizeof(int), cudaMemcpyDeviceToHost));
+	CUDA_CHECK(cudaFree(d_VoxCount));
 	return static_cast<uint32_t>(h_VoxCount);
 }
 

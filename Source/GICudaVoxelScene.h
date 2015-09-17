@@ -43,8 +43,6 @@ class GICudaVoxelScene
 		StructuredBuffer<uchar4>			vaoColorData;
 		cudaGraphicsResource_t				vaoResource;
 		cudaGraphicsResource_t				vaoRenderResource;
-
-		
 		
 	protected:
 
@@ -55,6 +53,7 @@ class GICudaVoxelScene
 		GICudaVoxelScene&	operator=(const GICudaVoxelScene&) = delete;
 							~GICudaVoxelScene();
 
+		static void			InitCuda();
 
 		// Determines and Allocates the initial Page Size for the first frame
 		void				LinkOGL(GLuint aabbBuffer,

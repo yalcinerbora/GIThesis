@@ -38,9 +38,8 @@ __device__ void LoadTransformData(// Shared Mem
 	}
 	__syncthreads();
 
-
 	// Each Voxel Type Has Different Deformation(Animation)
-	switch(objType)
+	switch(sObjType)
 	{
 		case CVoxelObjectType::STATIC:
 		case CVoxelObjectType::DYNAMIC:
@@ -68,58 +67,44 @@ __device__ void LoadTransformData(// Shared Mem
 		
 			// Load matrices
 			if(blockLocalId < 16)
-			//if(blockLocalId < 4)
 			{
-				if(objIdAfterShuffle.x == 244)
-				{
-					assert(blockLocalId != 15);
-				}
-
 				reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
 					reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
-				//sTransformMatrices[0].column[blockLocalId % 4] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId % 4];
 			}
 			else if(blockLocalId < 32)
-			//else if(blockLocalId < 8)
 			{
 				blockLocalId -= 16;
 				reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
 					reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId / 4])[blockLocalId % 4];
-				//sRotationMatrices[0].column[blockLocalId % 4] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId % 4];
 			}
-			
-			//if(blockLocalId == 0)
-			//{
-			//	sTransformMatrices[0] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform;
-			//	//{{
-			//	//	{0.19f, 0.0f, 0.0f, 0.0f},
-			//	//	{0.0f, 0.19f, 0.0f, 0.0f},
-			//	//	{0.0f, 0.0f, 0.19f, 0.0f},
-			//	//	{0.0f, 0.0f, 0.0f, 0.19f},
-			//	//}};
-			//}
-			//else if(blockLocalId == 1)
-			//{
-			//	sRotationMatrices[0] = gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation;
-			//	//{{
-			//	//	{1.0f, 0.0f, 0.0f, 0.0f},
-			//	//	{0.0f, 1.0f, 0.0f, 0.0f},
-			//	//	{0.0f, 0.0f, 1.0f, 0.0f},
-			//	//	{0.0f, 0.0f, 0.0f, 1.0f},
-			//	//}};
-			//}
 			break;
 		}
 		case CVoxelObjectType::SKEL_DYNAMIC:
 		{
 			// TODO Implement
 			//
+			// All valid objects will request matrix load
+				// then entire block will try to load it
+			// Max skeleton bone count is 64
+			// Worst case 64 * 16 = 1024 float will be loaded to sMem
+			// Some blocks will load twice
+			// However its extremely rare (even impossible case)
+			// In a realistic scenario (and if a segment holds adjacent voxels)
+			// And if max bone influence per vertex is around 4 
+			// there should be at most 8
+			
 			break;
 		}
 		case CVoxelObjectType::MORPH_DYNAMIC:
 		{
 			// TODO Implement
 			//
+			// Caching shouldnt increase performance here
+			// but we'll store morph target positions in shmem
+			// inorder to reduce register usage
+			// Each vox will load 9 float (3 vertex parent targets)
+			// Worst case 9 * 512 = 4608 floats will be loaded
+
 			break;
 		}
 		default:
@@ -184,6 +169,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	// Cull unused warps
 	if(voxIdPacked.x == 0xFFFFFFFF && voxIdPacked.y == 0xFFFFFFFF) return;
 
+
 	// Fetch NormalPos from cache
 	uint3 voxPos;
 	float3 normal;
@@ -208,54 +194,15 @@ __global__ void VoxelTransform(// Voxel Pages
 		case CVoxelObjectType::STATIC:
 		case CVoxelObjectType::DYNAMIC:
 		{
-			// Entire block will do the assertion
-			if(objectId.x != 7 &&
-			   objectId.x != 16 )
-			{
-				//assert(fabs(sTransformMatrices[0].column[0].x - 0.18954435f) < 0.001f);
-				//assert(fabs(sTransformMatrices[0].column[0].y - 0.0f) < 0.001f);
-				//assert(fabs(sTransformMatrices[0].column[0].z - 0.0f) < 0.001f);
-				//assert(fabs(sTransformMatrices[0].column[0].w - 0.0f) < 0.001f);
-
-				//assert(fabs(sTransformMatrices[0].column[1].x - 0.0f) < 0.001f);
-				//assert(fabs(sTransformMatrices[0].column[1].y - 0.18954435f) < 0.001f);
-				//assert(fabs(sTransformMatrices[0].column[1].z - 0.0f) < 0.001f);
-				//assert(fabs(sTransformMatrices[0].column[1].w - 0.0f) < 0.001f);
-
-				//assert(fabs(sTransformMatrices[0].column[2].x - 0.0f) < 0.001f);
-				//assert(fabs(sTransformMatrices[0].column[2].y - 0.0f) < 0.001f);
-				//assert(fabs(sTransformMatrices[0].column[2].z - 0.18954435f) < 0.001f);
-				//assert(fabs(sTransformMatrices[0].column[2].w - 0.0f) < 0.001f);
-
-				//assert(sTransformMatrices[0].column[3].x == 0.0f);
-				//assert(sTransformMatrices[0].column[3].y == 0.0f);
-				//assert(sTransformMatrices[0].column[3].z == 0.0f);
-				//assert(sTransformMatrices[0].column[3].w == 1.0f);
-
-
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[0].x == 0.18954435f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[0].y == 0.0f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[0].z == 0.0f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[0].w == 0.0f);
-
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[1].x == 0.0f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[1].y == 0.18954435f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[1].z == 0.0f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[1].w == 0.0f);
-
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[2].x == 0.0f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[2].y == 0.0f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[2].z == 0.18954435f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[2].w == 0.0f);
-
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[3].x == 0.0f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[3].y == 0.0f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[3].z == 0.0f);
-				//assert(gObjTransforms[objectId.y][objectId.x].transform.column[3].w == 1.0f);
-			}
 			// Now voxel is in is world space
 			MultMatrixSelf(worldPos, sTransformMatrices[0]);
 			MultMatrixSelf(normal, sRotationMatrices[0]);
+
+			//// Unoptimized Matrix Load
+			//CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
+			//CMatrix4x4 rotation = gObjTransforms[objectId.y][objectId.x].transform;
+			//MultMatrixSelf(worldPos, transform);
+			//MultMatrixSelf(normal, rotation);
 			break;
 		}
 		case CVoxelObjectType::SKEL_DYNAMIC:
@@ -299,6 +246,6 @@ __global__ void VoxelTransform(// Voxel Pages
 	}
 	else
 	{
-		gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2{0, 0};
+		gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2 { 0, 0 };
 	}
 }

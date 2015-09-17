@@ -247,6 +247,9 @@
     <ClInclude Include="..\..\..\Source\CHash.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\CudaDefinitions.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

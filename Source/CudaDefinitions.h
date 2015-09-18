@@ -18,8 +18,12 @@ Cuda Definitions
 					assert(false); \
 				} \
 			}
+#define CUDA_KERNEL_CHECK() \
+			CUDA_CHECK(cudaPeekAtLastError()); \
+			CUDA_CHECK(cudaDeviceSynchronize());
 #else
 	#define CUDA_CHECK(func) func;
+	#define CUDA_KERNEL_CHECK()
 #endif
 
 

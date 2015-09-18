@@ -16,12 +16,14 @@ struct CObjectTransform;
 struct CVoxelGrid;
 
 // Debug Kernel that checks that we allocated unqiuely
+// Each segment compares its id with all other segments
 // Only works if there is a single batch in system
 // Call logic per segment
 __global__ void DebugCheckUniqueAlloc(ushort2* gObjectAllocLocations,
 									  unsigned int segmentCount);
 
 // Checks if the interected object has all of its segments allocated
+// Each segment does an intersection test and checks if it is allocated.
 // this requires very big page system so that objects guaranteed to have
 // its segments fully allocated
 // Call logic per segment

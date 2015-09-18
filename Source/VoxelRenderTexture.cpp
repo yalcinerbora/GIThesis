@@ -9,7 +9,7 @@ VoxelRenderTexture::VoxelRenderTexture()
 	glBindTexture(GL_TEXTURE_3D, texId);
 	glTexStorage3D(GL_TEXTURE_3D,
 				   1,
-				   GL_RGBA32F,
+				   GL_RGBA16UI,
 				   VOXEL_GRID_SIZE,
 				   VOXEL_GRID_SIZE,
 				   VOXEL_GRID_SIZE);
@@ -22,11 +22,11 @@ VoxelRenderTexture::~VoxelRenderTexture()
 
 void VoxelRenderTexture::BindAsImage(uint32_t index, GLenum access)
 {
-	glBindImageTexture(index, texId, 0, GL_TRUE, 0, access, GL_RGBA32F);
+	glBindImageTexture(index, texId, 0, GL_TRUE, 0, access, GL_RGBA16UI);
 }
 
 void VoxelRenderTexture::Clear()
 {
-	GLuint zero = 0;
-	glClearTexImage(texId, 0, GL_RGBA, GL_UNSIGNED_BYTE, &zero);
+	GLushort ff[4] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };
+	glClearTexImage(texId, 0, GL_RGBA_INTEGER, GL_UNSIGNED_SHORT, &ff);
 }

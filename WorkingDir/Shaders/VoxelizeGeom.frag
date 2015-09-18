@@ -18,7 +18,7 @@
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict readonly
 
 #define T_COLOR layout(binding = 0)
-#define I_VOX_WRITE layout(rgba32f, binding = 2) restrict writeonly
+#define I_VOX_WRITE layout(rgba16ui, binding = 2) restrict writeonly
 #define U_OBJ_ID layout(location = 4)
 
 // Input
@@ -31,7 +31,7 @@ out vec4 colorDebug;
 
 // Textures
 uniform T_COLOR sampler2D colorTex;
-uniform I_VOX_WRITE image3D voxelData;
+uniform I_VOX_WRITE uimage3D voxelData;
 
 // Uniforms
 U_OBJ_ID uniform uint objId;
@@ -54,22 +54,36 @@ LU_OBJECT_GRID_INFO buffer GridInfo
 	} objectGridInfo[];
 };
 
-uint PackColor(vec3 color) 
+uvec2 PackColor(vec3 color) 
 {
-	uint result;
+	uvec2 result;
 	color *= vec3(255.0f);
-    result = uint(color.r) << 0;
-	result |= uint(color.g) << 8;
-	result |= uint(color.b) << 16;
+    result.x = uint(color.g) << 8;
+	result.x |= uint(color.r);
+	result.y = uint(/*color.a*/0) << 16;
+	result.y |= uint(color.b) << 0;
     
     return result;
+}
+
+uvec2 PackNormal(in vec3 normal)
+{
+	// 1615 XY Format
+	// 32 bit format LS 16 bits are X
+	// MSB is the sign of Z
+	// Rest is Y
+	// both x and y is SNORM types
+	uvec2 result = uvec2(0.0f);
+	result.x = uint((normal.x * 0.5f + 0.5f) * 0xFFFF);
+	result.y = uint((normal.y * 0.5f + 0.5f) * 0x7FFF);
+	result.y |= (floatBitsToUint(normal.z) >> 16) & 0x00008000;
+	return result;
 }
 
 void main(void)
 {
 	// Data Packing forming
 	vec3 color = texture2D(colorTex, fUV).rgb;
-	uint colorPacked = PackColor(color);
 
 	// DEBUG
 	//colorDebug =  vec4(color.rgb, 1.0f);
@@ -84,7 +98,7 @@ void main(void)
 	// Should i need barrier here or some sort of snyc?
 	// its ok if these writes atomic, but if vec4 write to tex is not
 	// atomic there will be mutated voxels which is bad.
-	imageStore(voxelData, ivec3(voxelCoord), vec4(fNormal.xyz, uintBitsToFloat(colorPacked))); 
+	imageStore(voxelData, ivec3(voxelCoord), uvec4(PackNormal(fNormal.xyz), PackColor(color))); 
 	//imageStore(voxelData, ivec3(voxelCoord), vec4(color.rgb, uintBitsToFloat(colorPacked))); 
 	//imageStore(voxelData, ivec3(0), vec4(1.0f)); 
 }

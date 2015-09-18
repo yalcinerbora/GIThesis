@@ -107,10 +107,12 @@ int main()
 		}
 	};
 
-	Scene crySponza(Scene::sponzaFileName, { sponzaLights, 4}, 1.7f);
-	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1}, 1.0f);
+	Scene crySponza(Scene::sponzaFileName, {sponzaLights, 4}, 1.7f);
+	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1}, 0.322f);
+	Scene movingObjects(Scene::movingObjectsFileName, {sponzaLights, 4}, 0.322f);
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);
+	scenes.push_back(&movingObjects);
 
 	// Solutions
 	EmptyGISolution emptySolution(deferredRenderer);

@@ -134,7 +134,8 @@ class ThesisSolution : public SolutionI
 		void								DebugRenderVoxelPage(const Camera& camera,
 																 VoxelDebugVAO& pageVoxels,
 																 const CVoxelGrid& voxGrid,
-																 bool isOuterCascade);
+																 bool isOuterCascade,
+																 uint32_t voxCount);
 
 		 // Voxelizes the scene for a cache level
 		double								Voxelize(VoxelObjectCache&,

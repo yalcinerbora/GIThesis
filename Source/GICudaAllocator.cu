@@ -5,6 +5,22 @@
 #include "Macros.h"
 #include "CudaDefinitions.h"
 
+__global__ void PurgePages(CVoxelPage* gVoxelData)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = globalId / GI_PAGE_SIZE;
+	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
+
+	if(pageLocalId == 0) gVoxelData[pageId].dEmptySegmentStackSize = GI_SEGMENT_PER_PAGE;
+	if(pageLocalId < GI_SEGMENT_PER_PAGE)
+	{
+		gVoxelData[pageId].dIsSegmentOccupied[pageLocalId] = SegmentOccupation::EMPTY;
+		gVoxelData[pageId].dEmptySegmentPos[pageLocalId] = GI_SEGMENT_PER_PAGE - globalId - 1;
+	}
+	gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2 { 0xFFFFFFFF, 0xFFFFFFFF };
+	gVoxelData[pageId].dGridVoxIds[pageLocalId] = uint2 { 0xFFFFFFFF, 0xFFFFFFFF };
+}
+
 // Small Helper Kernel That used to init inital obj Pages
 // Logic is per segment
 __global__ void EmptyPageInit(unsigned char* gPageEmptySegmentPos)
@@ -77,9 +93,9 @@ __global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
 	if(globalId >= objCount) return;
 
 	float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
-	assert(scaling.x == scaling.y);
-	assert(scaling.y == scaling.z);
-	unsigned int voxelDim = static_cast<unsigned int>(gVoxelInfo[globalId].span * scaling.x / gGridInfo.span);
+	assert(fabs(scaling.x - scaling.y) < 0.0001f);
+	assert(fabs(scaling.y - scaling.z) < 0.0001f);
+	unsigned int voxelDim = static_cast<unsigned int>((gVoxelInfo[globalId].span * scaling.x + 0.1f) / gGridInfo.span);
 	unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	unsigned int voxStart = (voxelDim == 0) ? 0xFFFFFFFF : globalId;
 
@@ -222,35 +238,35 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 void GICudaAllocator::LinkSceneShadowMapArray(GLuint shadowMapArray)
 {
-	CUDA_CHECK(cudaGraphicsGLRegisterImage(&sceneShadowMapLink,
-										   shadowMapArray,
-										   GL_TEXTURE_2D_ARRAY,
-										   cudaGraphicsRegisterFlagsReadOnly));
+	//CUDA_CHECK(cudaGraphicsGLRegisterImage(&sceneShadowMapLink,
+	//									   shadowMapArray,
+	//									   GL_TEXTURE_2D_ARRAY,
+	//									   cudaGraphicsRegisterFlagsReadOnly));
 }
 
 void GICudaAllocator::LinkSceneGBuffers(GLuint depthTex,
 										GLuint normalTex,
 										GLuint lightIntensityTex)
 {
-	CUDA_CHECK(cudaGraphicsGLRegisterImage(&depthBuffLink,
-											depthTex,
-											GL_TEXTURE_2D,
-											cudaGraphicsRegisterFlagsReadOnly));
-	CUDA_CHECK(cudaGraphicsGLRegisterImage(&normalBuffLink,
-											normalTex,
-											GL_TEXTURE_2D,
-											cudaGraphicsRegisterFlagsReadOnly));
-	CUDA_CHECK(cudaGraphicsGLRegisterImage(&lightIntensityLink,
-											lightIntensityTex,
-											GL_TEXTURE_2D,
-											cudaGraphicsRegisterFlagsSurfaceLoadStore));
+	//CUDA_CHECK(cudaGraphicsGLRegisterImage(&depthBuffLink,
+	//										depthTex,
+	//										GL_TEXTURE_2D,
+	//										cudaGraphicsRegisterFlagsReadOnly));
+	//CUDA_CHECK(cudaGraphicsGLRegisterImage(&normalBuffLink,
+	//										normalTex,
+	//										GL_TEXTURE_2D,
+	//										cudaGraphicsRegisterFlagsReadOnly));
+	//CUDA_CHECK(cudaGraphicsGLRegisterImage(&lightIntensityLink,
+	//										lightIntensityTex,
+	//										GL_TEXTURE_2D,
+	//										cudaGraphicsRegisterFlagsSurfaceLoadStore));
 }
 
 void GICudaAllocator::UnLinkGBuffers()
 {
-	CUDA_CHECK(cudaGraphicsUnregisterResource(depthBuffLink));
-	CUDA_CHECK(cudaGraphicsUnregisterResource(normalBuffLink));
-	CUDA_CHECK(cudaGraphicsUnregisterResource(lightIntensityLink));
+	//CUDA_CHECK(cudaGraphicsUnregisterResource(depthBuffLink));
+	//CUDA_CHECK(cudaGraphicsUnregisterResource(normalBuffLink));
+	//CUDA_CHECK(cudaGraphicsUnregisterResource(lightIntensityLink));
 }
 
 void GICudaAllocator::SetupDevicePointers()
@@ -372,7 +388,7 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 			hPageData.back().dEmptySegmentList.Data()
 		);
 		hPageData.back().dIsSegmentOccupied.Memset(0, 0, hPageData.back().dIsSegmentOccupied.Size());
-		hPageData.back().dVoxelPageNormPos.Memset(0, 0, hPageData.back().dVoxelPageNormPos.Size());
+		hPageData.back().dVoxelPageNormPos.Memset(0xFF, 0, hPageData.back().dVoxelPageNormPos.Size());
 		hPageData.back().dVoxelPageIds.Memset(0xFF, 0, hPageData.back().dVoxelPageIds.Size());
 		
 		CVoxelPage voxData =
@@ -429,6 +445,13 @@ void GICudaAllocator::ResetSceneData()
 	voxelCounts.clear();
 
 	totalObjectCount = 0;
+
+	if(NumPages() > 0)
+	{
+		unsigned int gridSize = (NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
+								 GI_THREAD_PER_BLOCK;
+		PurgePages<<<gridSize, GI_THREAD_PER_BLOCK>>>(GetVoxelPagesDevice());
+	}
 }
 
 void GICudaAllocator::Reserve(uint32_t pageAmount)

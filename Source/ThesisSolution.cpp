@@ -91,8 +91,8 @@ void ThesisSolution::Init(SceneI& s)
 
 	// Voxel Page System Linking
 	LinkCacheWithVoxScene(voxelScene512, cache512);
-	LinkCacheWithVoxScene(voxelScene256, cache256);
-	LinkCacheWithVoxScene(voxelScene128, cache128);
+	//LinkCacheWithVoxScene(voxelScene256, cache256);
+	//LinkCacheWithVoxScene(voxelScene128, cache128);
 	
 	// Tw Bar Creation
 	bar = TwNewBar("ThesisGI");
@@ -204,7 +204,6 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 
 	// For Each Object
 	voxelRenderTexture.Clear();
-
 	for(unsigned int i = 0; i < currentScene->DrawCount(); i++)
 	{
 		// First Call Voxelize over 3D Texture
@@ -251,9 +250,9 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		auto& objGridInfoBuffer = cache.objectGridInfo.CPUData();
 		// Extract scale 
 		IEVector3 scale = IEMatrix4x4::ExtractScaleInfo(transformBuffer[i].model);
-		assert(scale.getX() == scale.getY());
-		assert(scale.getY() == scale.getZ());
-		GLuint spanRatio = static_cast<unsigned int>(objGridInfoBuffer[i].span * scale.getX() / gridSpan);
+		assert(fabs(scale.getX() - scale.getY()) < 0.0001f);
+		assert(fabs(scale.getY() - scale.getZ()) < 0.0001f);
+		GLuint spanRatio = static_cast<unsigned int>((objGridInfoBuffer[i].span * scale.getX() + 0.1f) / gridSpan);
 		// Fast nearest pow of two
 		spanRatio--;
 		spanRatio |= spanRatio >> 1;
@@ -365,7 +364,8 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera, VoxelObjectCach
 void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, 
 										  VoxelDebugVAO& pageVoxels,
 										  const CVoxelGrid& voxGrid,
-										  bool isOuterCascade)
+										  bool isOuterCascade,
+										  uint32_t voxCount)
 {
 	//DEBUG VOXEL RENDER
 	// Frame Viewport
@@ -411,7 +411,7 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 	gridInfoBuffer.BindAsUniformBuffer(U_VOXEL_GRID_INFO);
 
 	pageVoxels.Bind();
-	pageVoxels.Draw(cache512.voxInfo.sceneVoxOctreeCount, 0);
+	pageVoxels.Draw(voxCount, 0);
 }
 
 void ThesisSolution::Frame(const Camera& mainRenderCamera)
@@ -434,33 +434,33 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	transformTime += transformTimeSegment;
 	svoTime += svoTimeSegment;
 
-	// Cascade #2 Update
-	voxelScene256.VoxelUpdate(ioTimeSegment,
-							  transformTimeSegment,
-							  svoTimeSegment,
-							  mainRenderCamera.pos);
-	ioTime += ioTimeSegment;
-	transformTime += transformTimeSegment;
-	svoTime += svoTimeSegment;
+	//// Cascade #2 Update
+	//voxelScene256.VoxelUpdate(ioTimeSegment,
+	//						  transformTimeSegment,
+	//						  svoTimeSegment,
+	//						  mainRenderCamera.pos);
+	//ioTime += ioTimeSegment;
+	//transformTime += transformTimeSegment;
+	//svoTime += svoTimeSegment;
 
-	// Cascade #3 Update
-	voxelScene128.VoxelUpdate(ioTimeSegment,
-							  transformTimeSegment,
-							  svoTimeSegment,
-							  mainRenderCamera.pos);
-	ioTime += ioTimeSegment;
-	transformTime += transformTimeSegment;
-	svoTime += svoTimeSegment;
+	//// Cascade #3 Update
+	//voxelScene128.VoxelUpdate(ioTimeSegment,
+	//						  transformTimeSegment,
+	//						  svoTimeSegment,
+	//						  mainRenderCamera.pos);
+	//ioTime += ioTimeSegment;
+	//transformTime += transformTimeSegment;
+	//svoTime += svoTimeSegment;
 
 	// Voxel Count in Pages
 	cache512.voxInfo.sceneVoxOctreeCount = voxelScene512.VoxelCountInPage();
 	cache512.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache512.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
 
-	cache256.voxInfo.sceneVoxOctreeCount = voxelScene256.VoxelCountInPage();
-	cache256.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache256.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
+	//cache256.voxInfo.sceneVoxOctreeCount = voxelScene256.VoxelCountInPage();
+	//cache256.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache256.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
 
-	cache128.voxInfo.sceneVoxOctreeCount = voxelScene128.VoxelCountInPage();
-	cache128.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache128.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
+	//cache128.voxInfo.sceneVoxOctreeCount = voxelScene128.VoxelCountInPage();
+	//cache128.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache128.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
 	
 	// Here check TW Bar if user wants to render voxels
 	switch(renderScheme)
@@ -477,38 +477,45 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		case GI_VOXEL_PAGE:
 		{
 			// Clear the frame since each function will overwrite eachother
+			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT |
 					GL_DEPTH_BUFFER_BIT);
 
-			CVoxelGrid voxGrid128;
-			VoxelDebugVAO vao128 = voxelScene128.VoxelDataForRendering(voxGrid128, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao128, voxGrid128, true);
+			//CVoxelGrid voxGrid128;
+			//VoxelDebugVAO vao128 = voxelScene128.VoxelDataForRendering(voxGrid128, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
+			//DebugRenderVoxelPage(mainRenderCamera, vao128, voxGrid128, true,
+			//					 cache128.voxInfo.sceneVoxOctreeCount);
 
-			glClear(GL_DEPTH_BUFFER_BIT);
+			//glClear(GL_DEPTH_BUFFER_BIT);
 
-			CVoxelGrid voxGrid256;
-			VoxelDebugVAO vao256 = voxelScene256.VoxelDataForRendering(voxGrid256, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256, true);
+			//CVoxelGrid voxGrid256;
+			//VoxelDebugVAO vao256 = voxelScene256.VoxelDataForRendering(voxGrid256, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
+			//DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256, true,
+			//					 cache256.voxInfo.sceneVoxOctreeCount);
 
-			glClear(GL_DEPTH_BUFFER_BIT);
+			//glClear(GL_DEPTH_BUFFER_BIT);
 
 			CVoxelGrid voxGrid512;
 			VoxelDebugVAO vao512 = voxelScene512.VoxelDataForRendering(voxGrid512, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512, false);
+			DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512, false,
+								 cache512.voxInfo.sceneVoxOctreeCount);
 			break;
 		}
 		case GI_VOXEL_CACHE512:
 		{
+			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 			DebugRenderVoxelCache(mainRenderCamera, cache512);
 			break;
 		}
 		case GI_VOXEL_CACHE256:
 		{
+			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 			DebugRenderVoxelCache(mainRenderCamera, cache256);
 			break;
 		}
 		case GI_VOXEL_CACHE128:
 		{
+			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 			DebugRenderVoxelCache(mainRenderCamera, cache128);
 			break;
 		}

@@ -54,31 +54,31 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 		// Solution Change
 		case GLFW_KEY_KP_7:
 			GI_LOG("Changing Solution");
-			currentSolution++;
+			currentSolution--;
 			break;
 		case GLFW_KEY_KP_9:
 			GI_LOG("Changing Solution");
-			currentSolution--;
+			currentSolution++;
 			break;
 
 		// Scene Change
 		case GLFW_KEY_KP_4:
-			currentScene++;
+			currentScene--;
 			GI_LOG("Changing Scene");
 			break;
 		case GLFW_KEY_KP_6:
 			GI_LOG("Changing Scene");
-			currentScene--;
+			currentScene++;
 			break;
 
 		// Input Schemes
 		case GLFW_KEY_KP_1:
 			GI_LOG("Changing Input Scheme");
-			currentInput++;
+			currentInput--;
 			break;
 		case GLFW_KEY_KP_3:
 			GI_LOG("Changing Input Scheme");
-			currentInput--;
+			currentInput++;
 			break;
 
 		default:

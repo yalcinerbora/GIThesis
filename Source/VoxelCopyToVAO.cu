@@ -15,7 +15,7 @@ __global__ void DetermineTotalVoxCount(int& totalVox,
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = (globalId - pageId * GI_PAGE_SIZE);
 
-	if(gVoxPages[pageId].dGridVoxNormPos[pageLocalId].y != 0)
+	if(gVoxPages[pageId].dGridVoxNormPos[pageLocalId].y != 0xFFFFFFFF)
 	   atomicAdd(&totalVox, 1);
 }
 
@@ -56,7 +56,7 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 	ExpandVoxelIds(voxelId, objectId, objType, voxelIds);
 	
 	// Zero normal means invalid voxel
-	if(voxelNormalPos.y != 0)
+	if(voxelNormalPos.y != 0xFFFFFFFF)
 	{
 		unsigned int index = atomicInc(&atomicIndex, 0xFFFFFFFF);
 		

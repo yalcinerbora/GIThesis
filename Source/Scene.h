@@ -46,6 +46,7 @@ class Scene : public SceneI
 		// Static Files
 		static const char*		sponzaFileName;
 		static const char*		cornellboxFileName;
+		static const char*		movingObjectsFileName;
 
 		DrawBuffer&				getDrawBuffer() override;
 		GPUBuffer&				getGPUBuffer() override;

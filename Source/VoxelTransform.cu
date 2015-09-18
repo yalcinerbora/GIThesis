@@ -169,7 +169,6 @@ __global__ void VoxelTransform(// Voxel Pages
 	// Cull unused warps
 	if(voxIdPacked.x == 0xFFFFFFFF && voxIdPacked.y == 0xFFFFFFFF) return;
 
-
 	// Fetch NormalPos from cache
 	uint3 voxPos;
 	float3 normal;
@@ -246,6 +245,6 @@ __global__ void VoxelTransform(// Voxel Pages
 	}
 	else
 	{
-		gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2 { 0, 0 };
+		gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2 {0xFFFFFFFF, 0xFFFFFFFF };
 	}
 }

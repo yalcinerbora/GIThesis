@@ -26,8 +26,8 @@ GICudaVoxelScene::GICudaVoxelScene(const IEVector3& intialCenterPos, float span,
 
 GICudaVoxelScene::~GICudaVoxelScene()
 {
-	CUDA_CHECK(cudaGraphicsUnregisterResource(vaoResource));
-	CUDA_CHECK(cudaGraphicsUnregisterResource(vaoRenderResource));
+	if (vaoResource) CUDA_CHECK(cudaGraphicsUnregisterResource(vaoResource));
+	if (vaoRenderResource) CUDA_CHECK(cudaGraphicsUnregisterResource(vaoRenderResource));
 }
 
 void GICudaVoxelScene::InitCuda()
@@ -107,7 +107,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	{
 		// Call Logic Per Obj Segment
 		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK_SMALL - 1) /
-			GI_THREAD_PER_BLOCK_SMALL;
+									GI_THREAD_PER_BLOCK_SMALL;
 
 		// KC ALLOCATE
 		VoxelObjectAlloc<<<gridSize, GI_THREAD_PER_BLOCK_SMALL>>>
@@ -125,7 +125,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			 allocator.GetWriteSignals(i),
 			 allocator.GetObjectAABBDevice(i),
 			 allocator.GetTransformsDevice(i));
-		CUDA_CHECK(cudaGetLastError());
+		CUDA_KERNEL_CHECK();
 
 		// Call Logic Per Voxel
 		gridSize = (allocator.NumVoxels(i) + GI_THREAD_PER_BLOCK - 1) /
@@ -155,7 +155,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 
 			 // Batch(ObjectGroup in terms of OGL) Id
 			 i);
-		CUDA_CHECK(cudaGetLastError());
+		CUDA_KERNEL_CHECK();
 
 		// Clear Write Signals
 		CUDA_CHECK(cudaMemset(allocator.GetWriteSignals(i), 0, sizeof(char) * allocator.NumObjects(i)));
@@ -182,7 +182,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			allocator.GetWriteSignals(i),
 			allocator.GetObjectAABBDevice(i),
 			allocator.GetTransformsDevice(i));
-		CUDA_CHECK(cudaGetLastError());
+		CUDA_KERNEL_CHECK();
 	}
 
 	// Call Logic Per Voxel in Page
@@ -191,7 +191,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 
 	// KC CLEAR MARKED
 	VoxelClearMarked<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
-	CUDA_CHECK(cudaGetLastError());
+	CUDA_KERNEL_CHECK();
 
 	// Call Logic Per Segment in Page
 	gridSize = (allocator.NumPages() * GI_SEGMENT_PER_PAGE + GI_THREAD_PER_BLOCK - 1) /
@@ -200,28 +200,30 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	// KC CLEAR SIGNAL
 	VoxelClearSignal<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice(),
 														allocator.NumPages());
-	CUDA_CHECK(cudaGetLastError());
+	CUDA_KERNEL_CHECK();
 
 
-	////DEBUG
-	//// ONLY WORKS IF THERE IS SINGLE SEGMENT IN THE SYSTEM
-	//// Call Logic Per Obj Segment
-	//unsigned int gridSize2 = (allocator.NumObjectSegments(0) + GI_THREAD_PER_BLOCK - 1) /
-	//	GI_THREAD_PER_BLOCK;
-	//// KC DEBUG CHECK UNIQUE ALLOC
-	//DebugCheckUniqueAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>(allocator.GetSegmentAllocLoc(0),
-	//														  allocator.NumObjectSegments(0));
-	//CUDA_CHECK(cudaGetLastError());
-	//// KC DEBUG CHECK UNIQUE SEGMENT ALLOC
-	//DebugCheckSegmentAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>
-	//	(*allocator.GetVoxelGridDevice(),
-	//	allocator.GetSegmentAllocLoc(0),
-	//	allocator.GetSegmentObjectID(0),
-	//	allocator.NumObjectSegments(0),
-	//	allocator.GetObjectAABBDevice(0),
-	//	allocator.GetTransformsDevice(0));
-	//CUDA_CHECK(cudaGetLastError());
-	////DEBUG END
+	//-----------------------------------------------
+	//DEBUG
+	// ONLY WORKS IF THERE IS SINGLE SEGMENT IN THE SYSTEM
+	// Call Logic Per Obj Segment
+	unsigned int gridSize2 = (allocator.NumObjectSegments(0) + GI_THREAD_PER_BLOCK - 1) /
+		GI_THREAD_PER_BLOCK;
+	// KC DEBUG CHECK UNIQUE ALLOC
+	DebugCheckUniqueAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>(allocator.GetSegmentAllocLoc(0),
+															  allocator.NumObjectSegments(0));
+	CUDA_KERNEL_CHECK();
+	// KC DEBUG CHECK UNIQUE SEGMENT ALLOC
+	DebugCheckSegmentAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>
+		(*allocator.GetVoxelGridDevice(),
+		allocator.GetSegmentAllocLoc(0),
+		allocator.GetSegmentObjectID(0),
+		allocator.NumObjectSegments(0),
+		allocator.GetObjectAABBDevice(0),
+		allocator.GetTransformsDevice(0));
+	CUDA_KERNEL_CHECK();
+	//DEBUG END
+	//-----------------------------------------------
 
 	timer.Stop();
 	ioTiming = timer.ElapsedMilliS();
@@ -248,7 +250,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	   allocator.GetObjCacheDevice(),
 	   allocator.GetObjectInfoDevice(),
 	   allocator.GetObjectAABBDevice());
-	CUDA_CHECK(cudaGetLastError());
+	CUDA_KERNEL_CHECK();
 
 	allocator.SendNewVoxPosToDevice();
 	

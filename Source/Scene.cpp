@@ -6,6 +6,8 @@
 
 const char* Scene::sponzaFileName = "crySponza.gfg";
 const char* Scene::cornellboxFileName = "cornell.gfg";
+//const char* Scene::movingObjectsFileName = "movingObjects.gfg";
+const char* Scene::movingObjectsFileName = "mvObj1.gfg";
 
 Scene::Scene(const char* sceneFileName,
 			 const Array32<Light>& lights,

@@ -15,14 +15,14 @@
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
 
-#define I_VOX_READ layout(rgba32f, binding = 2) restrict readonly
+#define I_VOX_READ layout(rgba16ui, binding = 2) restrict readonly
 
 // Input
 
 // Output
 
 // Textures
-uniform I_VOX_READ image3D voxelData;
+uniform I_VOX_READ uimage3D voxelData;
 
 // Uniforms
 U_OBJ_ID uniform uint objId;
@@ -46,12 +46,11 @@ void main(void)
 		voxId.z > voxDim.z) return;
 
 	//memoryBarrier();
-	vec4 voxData = imageLoad(voxelData, ivec3(voxId));
+	uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
 	// Empty Normal Means its vox is empty
-	if(voxData.x != 0.0f ||
-		voxData.y != 0.0f ||
-		voxData.z != 0.0f)
+	if(voxData.x != 0xFFFF ||
+		voxData.y != 0xFFFF)
 	{
 		atomicAdd(objectGridInfo[objId].voxCount, 1);
 	}

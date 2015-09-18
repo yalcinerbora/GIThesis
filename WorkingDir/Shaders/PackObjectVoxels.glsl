@@ -12,7 +12,7 @@
 #define U_SPAN_RATIO layout(location = 7)
 #define U_MAX_CACHE_SIZE layout(location = 5)
 
-#define I_VOX_READ layout(rgba32f, binding = 2) restrict
+#define I_VOX_READ layout(rgba16ui, binding = 2) restrict
 
 // I-O
 U_OBJ_TYPE uniform uint objType;
@@ -48,10 +48,18 @@ LU_OBJECT_GRID_INFO buffer GridInfo
 	} objectGridInfo[];
 };
 
-uniform I_VOX_READ image3D voxelData;
+uniform I_VOX_READ uimage3D voxelData;
+
+uint MergeColor(uvec2 colorShort2)
+{
+	uint result;
+	result = colorShort2.y << 16;
+	result |= colorShort2.x;
+	return result;
+}
 
 uvec4 PackVoxelData(in uvec3 voxCoord,
-					in vec3 normal,
+					in uvec2 normal,
 					in uint objId,
 					in uint objType,
 					in uint renderDataLoc)
@@ -67,9 +75,9 @@ uvec4 PackVoxelData(in uvec3 voxCoord,
 	result.x = value;
 
 	value = 0;
-	value |= ~uint(sign(normal.z) + 1.0f * 0.5f) << 31;
-	value |= uint((normal.y * 2.0f - 1.0f) * 0x00007FFF) << 16;
-	value |= uint((normal.x * 2.0f - 1.0f) * 0x0000FFFF);
+	value |= normal.y << 16;
+	value |= normal.x;
+	
 	result.y = value;
 
 	value = 0;
@@ -91,22 +99,21 @@ void main(void)
 		voxId.z <= voxDim.z)
 	{
 		//memoryBarrier();
-		vec4 voxData = imageLoad(voxelData, ivec3(voxId));
+		uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
 		// Empty Normal Means its vox is empty
-		if(voxData.x != 0.0f ||
-			voxData.y != 0.0f ||
-			voxData.z != 0.0f)
+		if(voxData.x != 0xFFFF ||
+			voxData.y != 0xFFFF)
 		{
 			uint index = atomicAdd(writeIndex, 1);
 			if(index <= maxSize)
 			{
-				voxelArrayRender[index].color = floatBitsToUint(voxData.w);
-				voxelPacked[index] = PackVoxelData(voxId, voxData.xyz, objId, objType, index);
+				voxelArrayRender[index].color = MergeColor(voxData.zw);
+				voxelPacked[index] = PackVoxelData(voxId, voxData.xy, objId, objType, index);
 			}
 		}
 	}
 	// Reset Color For next iteration
-	imageStore(voxelData, ivec3(voxId), vec4(0.0f));
+	imageStore(voxelData, ivec3(voxId), uvec4(0xFFFF));
 	//memoryBarrier();
 }

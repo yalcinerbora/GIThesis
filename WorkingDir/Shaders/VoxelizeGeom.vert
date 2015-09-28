@@ -51,9 +51,14 @@ mat4 orthoFromAABB()
 	// any of the min max components can be equal (this makes scales zero and we dont want that
 
 	// Near Far Left Right Top Bottom
-	vec2 nf = vec2(objectAABBInfo[objId].aabbMin.z - 1.0f, objectAABBInfo[objId].aabbMax.z + 1.0f);
-	vec2 lr = vec2(objectAABBInfo[objId].aabbMin.x - 1.0f, objectAABBInfo[objId].aabbMax.x + 1.0f);
-	vec2 tb = vec2(objectAABBInfo[objId].aabbMax.y, objectAABBInfo[objId].aabbMin.y);
+	// Increase AABB slightly here so that we gurantee entire object will not get culled
+	vec3 aabbExpandedMin, aabbExpandedMax;
+	aabbExpandedMin = objectAABBInfo[objId].aabbMin.xyz - (abs(0.0000001f * objectAABBInfo[objId].aabbMin.xyz));
+	aabbExpandedMax = objectAABBInfo[objId].aabbMax.xyz + (abs(0.0000001f * objectAABBInfo[objId].aabbMax.xyz));
+
+	vec2 nf = vec2(aabbExpandedMin.z, aabbExpandedMax.z);
+	vec2 lr = vec2(aabbExpandedMin.x, aabbExpandedMax.x);
+	vec2 tb = vec2(aabbExpandedMax.y, aabbExpandedMin.y);
 
 	vec3 diff = vec3((nf.y - nf.x) < 0.00001f ? 0.00001f : (nf.y - nf.x),
 					(lr.y - lr.x) < 0.00001f ? 0.00001f : (lr.y - lr.x),

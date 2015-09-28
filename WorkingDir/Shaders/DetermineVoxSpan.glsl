@@ -7,7 +7,7 @@
 #define U_TOTAL_OBJ_COUNT layout(location = 4)
 #define U_MIN_SPAN layout(location = 5)
 
-#define MAX_GRID_DIM 256.0f
+#define MAX_GRID_DIM 512.0f//256.0f
 #define MAX_GRID_DEPTH 8
 //#define MIN_SPAN 1.5f
 

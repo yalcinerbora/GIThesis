@@ -245,6 +245,6 @@ __global__ void VoxelTransform(// Voxel Pages
 	}
 	else
 	{
-		gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2 {0xFFFFFFFF, 0xFFFFFFFF };
+		gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2{0xFFFFFFFF, 0xFFFFFFFF};
 	}
 }

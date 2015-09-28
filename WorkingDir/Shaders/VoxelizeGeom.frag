@@ -89,16 +89,20 @@ void main(void)
 	//colorDebug =  vec4(color.rgb, 1.0f);
 	
 	// interpolated object space pos
-	vec3 voxelCoord = fPos - objectAABBInfo[objId].aabbMin.xyz;
-	voxelCoord /= objectGridInfo[objId].span;
-	voxelCoord = clamp(voxelCoord, vec3(0.0f), vec3(imageSize(voxelData) - 1.0f));
+	vec3 voxelCoord = (fPos - objectAABBInfo[objId].aabbMin.xyz) / objectGridInfo[objId].span;
+	ivec3 voxelCoordInt = ivec3(voxelCoord + 0.5f);
+	voxelCoordInt = clamp(voxelCoordInt, ivec3(0), imageSize(voxelData) - 1);
 	
-	// TODO: Average the voxel results
-	// At the moment it is overwrite
-	// Should i need barrier here or some sort of snyc?
-	// its ok if these writes atomic, but if vec4 write to tex is not
-	// atomic there will be mutated voxels which is bad.
-	imageStore(voxelData, ivec3(voxelCoord), uvec4(PackNormal(fNormal.xyz), PackColor(color))); 
-	//imageStore(voxelData, ivec3(voxelCoord), vec4(color.rgb, uintBitsToFloat(colorPacked))); 
-	//imageStore(voxelData, ivec3(0), vec4(1.0f)); 
+	if(all(lessThan(voxelCoordInt, imageSize(voxelData))) &&
+		all(greaterThanEqual(voxelCoordInt, ivec3(0))))
+	{
+		// TODO: Average the voxel results
+		// At the moment it is overwrite
+		// Should i need barrier here or some sort of snyc?
+		// its ok if these writes atomic, but if vec4 write to tex is not
+		// atomic there will be mutated voxels which is bad.
+		imageStore(voxelData, voxelCoordInt, uvec4(PackNormal(fNormal.xyz), PackColor(color))); 
+		//imageStore(voxelData, ivec3(voxelCoord), vec4(color.rgb, uintBitsToFloat(colorPacked))); 
+		//imageStore(voxelData, ivec3(0), vec4(1.0f)); 
+	}
 }

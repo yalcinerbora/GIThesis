@@ -203,27 +203,27 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	CUDA_KERNEL_CHECK();
 
 
-	//-----------------------------------------------
-	//DEBUG
-	// ONLY WORKS IF THERE IS SINGLE SEGMENT IN THE SYSTEM
-	// Call Logic Per Obj Segment
-	unsigned int gridSize2 = (allocator.NumObjectSegments(0) + GI_THREAD_PER_BLOCK - 1) /
-		GI_THREAD_PER_BLOCK;
-	// KC DEBUG CHECK UNIQUE ALLOC
-	DebugCheckUniqueAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>(allocator.GetSegmentAllocLoc(0),
-															  allocator.NumObjectSegments(0));
-	CUDA_KERNEL_CHECK();
-	// KC DEBUG CHECK UNIQUE SEGMENT ALLOC
-	DebugCheckSegmentAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>
-		(*allocator.GetVoxelGridDevice(),
-		allocator.GetSegmentAllocLoc(0),
-		allocator.GetSegmentObjectID(0),
-		allocator.NumObjectSegments(0),
-		allocator.GetObjectAABBDevice(0),
-		allocator.GetTransformsDevice(0));
-	CUDA_KERNEL_CHECK();
-	//DEBUG END
-	//-----------------------------------------------
+	////-----------------------------------------------
+	////DEBUG
+	//// ONLY WORKS IF THERE IS SINGLE SEGMENT IN THE SYSTEM
+	//// Call Logic Per Obj Segment
+	//unsigned int gridSize2 = (allocator.NumObjectSegments(0) + GI_THREAD_PER_BLOCK - 1) /
+	//	GI_THREAD_PER_BLOCK;
+	//// KC DEBUG CHECK UNIQUE ALLOC
+	//DebugCheckUniqueAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>(allocator.GetSegmentAllocLoc(0),
+	//														  allocator.NumObjectSegments(0));
+	//CUDA_KERNEL_CHECK();
+	//// KC DEBUG CHECK UNIQUE SEGMENT ALLOC
+	//DebugCheckSegmentAlloc<<<gridSize2, GI_THREAD_PER_BLOCK>>>
+	//	(*allocator.GetVoxelGridDevice(),
+	//	allocator.GetSegmentAllocLoc(0),
+	//	allocator.GetSegmentObjectID(0),
+	//	allocator.NumObjectSegments(0),
+	//	allocator.GetObjectAABBDevice(0),
+	//	allocator.GetTransformsDevice(0));
+	//CUDA_KERNEL_CHECK();
+	////DEBUG END
+	////-----------------------------------------------
 
 	timer.Stop();
 	ioTiming = timer.ElapsedMilliS();

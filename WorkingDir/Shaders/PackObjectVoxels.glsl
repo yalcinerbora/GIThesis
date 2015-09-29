@@ -94,11 +94,10 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {
 	uvec3 voxId = gl_GlobalInvocationID.xyz;
-	if(voxId.x < voxDim.x &&
-		voxId.y < voxDim.y &&
-		voxId.z < voxDim.z)
+	//if(voxId.x < (voxDim.x - 1)  &&
+	//	voxId.y < (voxDim.y - 1) &&
+	//	voxId.z < (voxDim.z - 1))
 	{
-		//memoryBarrier();
 		uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
 		// Empty Normal Means its vox is empty
@@ -114,6 +113,5 @@ void main(void)
 		}
 	}
 	// Reset Color For next iteration
-	imageStore(voxelData, ivec3(voxId), uvec4(0xFFFF));
-	//memoryBarrier();
+	imageStore(voxelData, ivec3(voxId), uvec4(0xFFFFFFFF));
 }

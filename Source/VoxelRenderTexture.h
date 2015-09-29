@@ -11,7 +11,7 @@
 #include "GLHeaderLite.h"
 #include <cstdint>
 
-#define VOXEL_GRID_SIZE 512//256
+#define VOXEL_GRID_SIZE 512
 
 class VoxelRenderTexture
 {

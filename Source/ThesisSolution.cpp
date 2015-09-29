@@ -156,6 +156,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 {
 	cache.objectGridInfo.Resize(currentScene->DrawCount());
 
+	// Timing Voxelization Process
 	GLuint queryID;
 	glGenQueries(1, &queryID);
 	glBeginQuery(GL_TIME_ELAPSED, queryID);
@@ -172,6 +173,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(currentScene->DrawCount()));
 	glUniform1f(U_MIN_SPAN, currentScene->MinSpan() * minSpanMultiplier);
+	glUniform1ui(U_MAX_GRID_DIM, VOXEL_GRID_SIZE);
 
 	size_t blockCount = (currentScene->DrawCount() / 128);
 	size_t factor = ((currentScene->DrawCount() % 128) == 0) ? 0 : 1;
@@ -180,18 +182,18 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 	cache.objectGridInfo.RecieveData(currentScene->DrawCount());
 
-	// Render Objects to Voxel Grid
-	// Use MSAA to prevent missing small triangles on voxels
-	// (Instead of conservative rendering)
-
 	// Buffers
 	cameraTransform.Bind();
 	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
 	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
+	
+	// Render Objects to Voxel Grid
+	// Use MSAA to prevent missing small triangles on voxels
+	// (Instead of conservative rendering)
+	glEnable(GL_MULTISAMPLE);
+	//glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
 
 	// State
-	//glEnable(GL_MULTISAMPLE);
-	glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glDepthMask(false);
@@ -219,13 +221,6 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		// Material Buffer we need to fetch color from material
 		dBuffer.BindMaterialForDraw(i);
 
-		// We need to set viewport coords to match the voxel dims
-		const AABBData& objAABB = currentScene->getDrawBuffer().getAABBBuffer().CPUData()[i];
-		GLuint voxDimX, voxDimY, voxDimZ;
-		voxDimX = static_cast<GLuint>((objAABB.max.getX() - objAABB.min.getX()) / cache.objectGridInfo.CPUData()[i].span) + 1u;
-		voxDimY = static_cast<GLuint>((objAABB.max.getY() - objAABB.min.getY()) / cache.objectGridInfo.CPUData()[i].span) + 1u;
-		voxDimZ = static_cast<GLuint>((objAABB.max.getZ() - objAABB.min.getZ()) / cache.objectGridInfo.CPUData()[i].span) + 1u;
-
 		// Draw Call
 		glDrawElementsIndirect(GL_TRIANGLES,
 							   GL_UNSIGNED_INT,
@@ -236,6 +231,13 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		//		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
 		// Second Call: Determine voxel count
+		// We need to set viewport coords to match the voxel dims
+		const AABBData& objAABB = currentScene->getDrawBuffer().getAABBBuffer().CPUData()[i];
+		GLuint voxDimX, voxDimY, voxDimZ;
+		voxDimX = static_cast<GLuint>(std::ceil((objAABB.max.getX() - objAABB.min.getX()) / cache.objectGridInfo.CPUData()[i].span));
+		voxDimY = static_cast<GLuint>(std::ceil((objAABB.max.getY() - objAABB.min.getY()) / cache.objectGridInfo.CPUData()[i].span));
+		voxDimZ = static_cast<GLuint>(std::ceil((objAABB.max.getZ() - objAABB.min.getZ()) / cache.objectGridInfo.CPUData()[i].span));
+
 		computeVoxelizeCount.Bind();
 		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_ONLY);
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
@@ -279,7 +281,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		//		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 		// Voxelization Done!
 	}
-	glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
+	//glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
 	glEndQuery(GL_TIME_ELAPSED);
 	glFlush();
 
@@ -506,6 +508,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		}
 		case GI_VOXEL_CACHE512:
 		{
+			//Voxelize(cache512, 0.322f, 1);
+
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 			DebugRenderVoxelCache(mainRenderCamera, cache512);
 			break;

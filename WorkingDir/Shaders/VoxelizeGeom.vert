@@ -60,9 +60,10 @@ mat4 orthoFromAABB()
 	vec2 lr = vec2(aabbExpandedMin.x, aabbExpandedMax.x);
 	vec2 tb = vec2(aabbExpandedMax.y, aabbExpandedMin.y);
 
-	vec3 diff = vec3((nf.y - nf.x) < 0.00001f ? 0.00001f : (nf.y - nf.x),
-					(lr.y - lr.x) < 0.00001f ? 0.00001f : (lr.y - lr.x),
-					(tb.x - tb.y) < 0.00001f ? 0.00001f : (tb.x - tb.y)); 
+	vec3 diff = max(vec3((nf.y - nf.x), 
+						(lr.y - lr.x),
+						(tb.x - tb.y)),
+					vec3(0.00001f));
 
 	vec3 translate = vec3(-(lr.y + lr.x),
 						  -(tb.x + tb.y),

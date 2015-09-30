@@ -136,14 +136,19 @@ __global__ void VoxelTransform(// Voxel Pages
 	__shared__ unsigned int sHashIndex[GI_MAX_SHARED_COUNT_PRIME];
 	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_SHARED_COUNT_PRIME];
 	__shared__ CMatrix4x4 sRotationMatrices[GI_MAX_SHARED_COUNT_PRIME];
-		
+	__shared__ SegmentOccupation sSegmentOccupation;
+
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
+	
+	if(threadIdx.x == 0)
+		sSegmentOccupation = gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId];
+	__syncthreads();
 
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
+	if(sSegmentOccupation == SegmentOccupation::EMPTY) return;
+	if(sSegmentOccupation == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
 	
 	// Fetch this voxel's id chunk from page
 	CVoxelObjectType objType;

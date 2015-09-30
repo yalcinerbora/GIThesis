@@ -37,6 +37,7 @@ class StructuredBuffer
 		void					AddData(const T&);
 		GLuint					getGLBuffer();
 		size_t					Count() const;
+		size_t					Capacity() const;
 
 		void					BindAsUniformBuffer(GLuint location, 
 													GLuint countOffset,

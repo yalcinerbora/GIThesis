@@ -43,7 +43,8 @@ class GICudaVoxelScene
 		StructuredBuffer<uchar4>			vaoColorData;
 		cudaGraphicsResource_t				vaoResource;
 		cudaGraphicsResource_t				vaoRenderResource;
-		
+		cudaStream_t						stream;
+
 	protected:
 
 	public:
@@ -86,6 +87,8 @@ class GICudaVoxelScene
 		uint32_t			VoxelCountInPage();
 		VoxelDebugVAO		VoxelDataForRendering(CVoxelGrid&, double& timing, uint32_t voxCount);
 		
+		static void			SyncVoxelUpdateBatch() {cudaDeviceSynchronize();};
+
 
 };
 #endif //__GICUDAVOXELSCENE_H__

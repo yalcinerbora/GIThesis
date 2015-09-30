@@ -149,7 +149,12 @@ class ThesisSolution : public SolutionI
 
 		static size_t			InitialObjectGridSize;
 		static size_t			InitialVoxelBufferSizes;
-		static size_t			MaxVoxelCacheSize;
+
+		// Pre Allocating withput determining total size
+		// These are pre calculated
+		static size_t			MaxVoxelCacheSize512;
+		static size_t			MaxVoxelCacheSize256;
+		static size_t			MaxVoxelCacheSize128;
 
 	protected:
 		

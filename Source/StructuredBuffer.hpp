@@ -71,9 +71,15 @@ GLuint StructuredBuffer<T>::getGLBuffer()
 }
 
 template <class T>
-size_t  StructuredBuffer<T>::Count() const
+size_t StructuredBuffer<T>::Count() const
 {
 	return dataGPUImage.size();
+}
+
+template <class T>
+size_t  StructuredBuffer<T>::Capacity() const
+{
+	return bufferCapacity;
 }
 
 template <class T>

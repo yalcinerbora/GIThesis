@@ -32,6 +32,7 @@ extern __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxe
 									  CVoxelPacked* voxelData,
 									  uchar4* voxelColorData,
 									  unsigned int& atomicIndex,
+									  const unsigned int maxBufferSize,
 
 									  // Per Obj Segment
 									  ushort2** gObjectAllocLocations,

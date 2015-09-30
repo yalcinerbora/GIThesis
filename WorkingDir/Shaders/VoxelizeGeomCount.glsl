@@ -41,11 +41,11 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {
 	uvec3 voxId = gl_GlobalInvocationID.xyz;
-	//if(voxId.x >= (voxDim.x - 0) || 
-	//	voxId.y >= (voxDim.y - 0) ||
-	//	voxId.z >= (voxDim.z - 0)) 
-	//	return;
-
+	if(voxId.x >= (voxDim.x - 0) || 
+		voxId.y >= (voxDim.y - 0) ||
+		voxId.z >= (voxDim.z - 0)) 
+		return;
+	
 	uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
 	// Empty Normal Means its vox is empty

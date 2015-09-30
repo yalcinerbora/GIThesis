@@ -8,9 +8,9 @@
 
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
+#define U_MAX_CACHE_SIZE layout(location = 5)
 #define U_OBJ_TYPE layout(location = 6)
 #define U_SPAN_RATIO layout(location = 7)
-#define U_MAX_CACHE_SIZE layout(location = 5)
 
 #define I_VOX_READ layout(rgba16ui, binding = 2) restrict
 
@@ -94,9 +94,9 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {
 	uvec3 voxId = gl_GlobalInvocationID.xyz;
-	//if(voxId.x < (voxDim.x - 1)  &&
-	//	voxId.y < (voxDim.y - 1) &&
-	//	voxId.z < (voxDim.z - 1))
+	if(voxId.x < (voxDim.x + 0)  &&
+		voxId.y < (voxDim.y + 0) &&
+		voxId.z < (voxDim.z + 0))
 	{
 		uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
@@ -113,5 +113,5 @@ void main(void)
 		}
 	}
 	// Reset Color For next iteration
-	imageStore(voxelData, ivec3(voxId), uvec4(0xFFFFFFFF));
+	imageStore(voxelData, ivec3(voxId), uvec4(0xFFFF));
 }

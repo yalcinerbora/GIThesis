@@ -122,6 +122,16 @@ void CudaVector<T>::Assign(size_t index, const T& hostData)
 }
 
 template<class T>
+void CudaVector<T>::Assign(size_t index, const T& hostData, cudaStream_t stream)
+{
+	assert(index < size);
+	//CUDA_CHECK(cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice));
+	cudaMemcpyAsync(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice, stream);
+}
+
+
+
+template<class T>
 void CudaVector<T>::Assign(size_t index, size_t dataLength, const T* hostData)
 {
 	assert(index + datalength <= size);

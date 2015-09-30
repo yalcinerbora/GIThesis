@@ -24,6 +24,7 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 							   CVoxelPacked* voxelData,
 							   uchar4* voxelColorData,
 							   unsigned int& atomicIndex,
+							   const unsigned int maxBufferSize,
 
 							   // Per Obj Segment
 							   ushort2** gObjectAllocLocations,
@@ -54,14 +55,15 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 	if(voxelNormalPos.y != 0xFFFFFFFF)
 	{
 		unsigned int index = atomicInc(&atomicIndex, 0xFFFFFFFF);
-	
+		assert(index < maxBufferSize);
+
 		// Cull Check
 		ushort2 objectId;
 		CVoxelObjectType objType;
 		unsigned int voxelId;
 		ExpandVoxelIds(voxelId, objectId, objType, voxelIds);
 
-		voxelData[index] = CVoxelPacked {voxelNormalPos.x, voxelNormalPos.y, voxelIds.x, voxelIds.y};
+		voxelData[index] = CVoxelPacked { voxelNormalPos.x, voxelNormalPos.y, voxelIds.x, voxelIds.y };
 		voxelColorData[index] = gVoxelRenderData[objectId.y][voxelId].color;
 	}
 }

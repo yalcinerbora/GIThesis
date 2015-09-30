@@ -176,6 +176,7 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 															 dVoxelInfo,
 															 dObjTransform,
 															 objCount);
+	CUDA_KERNEL_CHECK();
 	
 	// Allocation after determining total index count
 	CUDA_CHECK(cudaMemcpy(&hTotalCount, dTotalCount, sizeof(int), cudaMemcpyDeviceToHost));
@@ -191,7 +192,7 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 															 dVoxelInfo,
 															 dObjTransform,
 															 objCount);
-
+	CUDA_KERNEL_CHECK();
 
 
 	///DEBUG
@@ -387,6 +388,7 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 		(
 			hPageData.back().dEmptySegmentList.Data()
 		);
+		CUDA_KERNEL_CHECK();
 		hPageData.back().dIsSegmentOccupied.Memset(0, 0, hPageData.back().dIsSegmentOccupied.Size());
 		hPageData.back().dVoxelPageNormPos.Memset(0xFF, 0, hPageData.back().dVoxelPageNormPos.Size());
 		hPageData.back().dVoxelPageIds.Memset(0xFF, 0, hPageData.back().dVoxelPageIds.Size());
@@ -451,13 +453,14 @@ void GICudaAllocator::ResetSceneData()
 		unsigned int gridSize = (NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
 								 GI_THREAD_PER_BLOCK;
 		PurgePages<<<gridSize, GI_THREAD_PER_BLOCK>>>(GetVoxelPagesDevice());
+		CUDA_KERNEL_CHECK();
 	}
 }
 
 void GICudaAllocator::Reserve(uint32_t pageAmount)
 {
 	//WARNING
-	pageAmount = std::max(50u, pageAmount);
+	pageAmount = std::max(100u, pageAmount);
 
 	if(dVoxelPages.Size() < pageAmount)
 	{

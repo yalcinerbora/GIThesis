@@ -9,8 +9,6 @@ Voxel Sturcutres
 
 #include <vector_types.h>
 
-#include <vector_types.h>
-
 enum class CVoxelObjectType
 {
 	STATIC,			// Object does not move
@@ -27,9 +25,6 @@ struct CVoxelGrid
 	uint3 dimension;	// Voxel Grid Dimentions, last component is depth of the SVO
 	unsigned int depth;
 };
-
-// Main Voxel Data
-typedef uint4 CVoxelPacked;
 
 // Seperated Voxel Data
 typedef uint2 CVoxelNormPos;
@@ -96,17 +91,17 @@ __device__ inline void ExpandVoxelIds(unsigned int& voxId,
 }
 
 //
-__device__ inline void ExpandVoxelData(uint3& voxPos,
-									   float3& normal,
-									   ushort2& objId,
-									   CVoxelObjectType& objType,
-									   unsigned int& voxelSpanRatio,
-									   unsigned int& voxRenderPtr,
-									   const CVoxelPacked& packedVoxData)
-{
-	ExpandNormalPos(voxPos, normal, voxelSpanRatio, uint2{packedVoxData.x, packedVoxData.y});
-	ExpandVoxelIds(voxRenderPtr, objId, objType, uint2{packedVoxData.z, packedVoxData.w});
-}
+//__device__ inline void ExpandVoxelData(uint3& voxPos,
+//									   float3& normal,
+//									   ushort2& objId,
+//									   CVoxelObjectType& objType,
+//									   unsigned int& voxelSpanRatio,
+//									   unsigned int& voxRenderPtr,
+//									   const CVoxelPacked& packedVoxData)
+//{
+//	ExpandNormalPos(voxPos, normal, voxelSpanRatio, uint2{packedVoxData.x, packedVoxData.y});
+//	ExpandVoxelIds(voxRenderPtr, objId, objType, uint2{packedVoxData.z, packedVoxData.w});
+//}
 
 
 __device__ inline void PackVoxelIds(CVoxelIds& packedVoxId,

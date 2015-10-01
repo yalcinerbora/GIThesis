@@ -89,9 +89,10 @@ static const TwStructMember lightMembers[] =
 #define U_VOXEL_GRID_INFO 2
 
 // Large Uniform
-#define LU_VOXEL 0
+#define LU_VOXEL_NORM_POS 0
 #define LU_VOXEL_RENDER 1
 #define LU_OBJECT_GRID_INFO 2
+#define LU_VOXEL_IDS 3
 #define LU_AABB 3
 #define LU_MTRANSFORM 4
 #define LU_INDEX_CHECK 4

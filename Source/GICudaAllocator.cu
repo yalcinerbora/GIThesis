@@ -117,7 +117,8 @@ GICudaAllocator::GICudaAllocator(const CVoxelGrid& gridInfo)
 void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 										GLuint batchTransformBuffer,
 										GLuint infoBuffer,
-										GLuint voxelBuffer,
+										GLuint voxelNormPosBuffer,
+										GLuint voxelIdsBuffer,
 										GLuint voxelRenderBuffer,
 										uint32_t objCount,
 										uint32_t voxelCount)
@@ -128,14 +129,16 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	transformLinks.emplace_back();
 	aabbLinks.emplace_back();
 	objectInfoLinks.emplace_back();
-	cacheLinks.emplace_back();
+	cacheNormPosLinks.emplace_back();
+	cacheIdsLinks.emplace_back();
 	cacheRenderLinks.emplace_back();
 
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&transformLinks.back(), batchTransformBuffer, cudaGraphicsMapFlagsReadOnly));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&aabbLinks.back(), batchAABBBuffer, cudaGraphicsMapFlagsReadOnly));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&objectInfoLinks.back(), infoBuffer, cudaGraphicsMapFlagsReadOnly));
 
-	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheLinks.back(), voxelBuffer, cudaGraphicsMapFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheNormPosLinks.back(), voxelNormPosBuffer, cudaGraphicsMapFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheIdsLinks.back(), voxelIdsBuffer, cudaGraphicsMapFlagsReadOnly));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheRenderLinks.back(), voxelRenderBuffer, cudaGraphicsMapFlagsReadOnly));
 
 	objectCounts.emplace_back(objCount);
@@ -276,7 +279,8 @@ void GICudaAllocator::SetupDevicePointers()
 	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data()));
 	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data()));
 
-	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data()));
+	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(cacheNormPosLinks.size()), cacheNormPosLinks.data()));
+	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(cacheIdsLinks.size()), cacheIdsLinks.data()));
 	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data()));
 
 	size_t size = 0;
@@ -286,14 +290,16 @@ void GICudaAllocator::SetupDevicePointers()
 		hObjectAABB.push_back(nullptr);
 		hObjectInfo.push_back(nullptr);
 
-		hObjCache.push_back(nullptr);
+		hObjNormPosCache.push_back(nullptr);
+		hObjIdsCache.push_back(nullptr);
 		hObjRenderCache.push_back(nullptr);
 
 		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hTransforms.back()), &size, transformLinks[i]));
 		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjectAABB.back()), &size, aabbLinks[i]));
 		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjectInfo.back()), &size, objectInfoLinks[i]));
 
-		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjCache.back()), &size, cacheLinks[i]));
+		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjNormPosCache.back()), &size, cacheNormPosLinks[i]));
+		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjIdsCache.back()), &size, cacheIdsLinks[i]));
 		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjRenderCache.back()), &size, cacheRenderLinks[i]));
 	}
 
@@ -302,7 +308,8 @@ void GICudaAllocator::SetupDevicePointers()
 	dObjectAABB = hObjectAABB;
 	dObjectInfo = hObjectInfo;
 
-	dObjCache = hObjCache;
+	dObjNormPosCache = hObjNormPosCache;
+	dObjIdsCache = hObjIdsCache;
 	dObjRenderCache = hObjRenderCache;
 
 	// Textures
@@ -349,14 +356,16 @@ void GICudaAllocator::ClearDevicePointers()
 	dObjectAABB.Clear();
 	dObjectInfo.Clear();
 
-	dObjCache.Clear();
+	dObjNormPosCache.Clear();
+	dObjIdsCache.Clear();
 	dObjRenderCache.Clear();
 
 	hTransforms.clear();
 	hObjectAABB.clear();
 	hObjectInfo.clear();
 
-	hObjCache.clear();
+	hObjNormPosCache.clear();
+	hObjIdsCache.clear();
 	hObjRenderCache.clear();
 	
 	//CUDA_CHECK(cudaDestroySurfaceObject(lightIntensityBuffer));
@@ -373,7 +382,8 @@ void GICudaAllocator::ClearDevicePointers()
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data()));
 
-	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheLinks.size()), cacheLinks.data()));
+	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheNormPosLinks.size()), cacheNormPosLinks.data()));
+	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheIdsLinks.size()), cacheIdsLinks.data()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data()));
 }
 
@@ -419,7 +429,8 @@ void GICudaAllocator::ResetSceneData()
 		CUDA_CHECK(cudaGraphicsUnregisterResource(aabbLinks[i]));
 		CUDA_CHECK(cudaGraphicsUnregisterResource(objectInfoLinks[i]));
 
-		CUDA_CHECK(cudaGraphicsUnregisterResource(cacheLinks[i]));
+		CUDA_CHECK(cudaGraphicsUnregisterResource(cacheNormPosLinks[i]));
+		CUDA_CHECK(cudaGraphicsUnregisterResource(cacheIdsLinks[i]));
 		CUDA_CHECK(cudaGraphicsUnregisterResource(cacheRenderLinks[i]));
 	}	
 
@@ -430,7 +441,8 @@ void GICudaAllocator::ResetSceneData()
 	aabbLinks.clear();
 	objectInfoLinks.clear();
 
-	cacheLinks.clear();
+	cacheNormPosLinks.clear();
+	cacheIdsLinks.clear();
 	cacheRenderLinks.clear();
 
 	dSegmentObjecId.clear();
@@ -460,12 +472,46 @@ void GICudaAllocator::ResetSceneData()
 void GICudaAllocator::Reserve(uint32_t pageAmount)
 {
 	//WARNING
-	pageAmount = std::max(100u, pageAmount);
+	pageAmount = static_cast<uint32_t>(pageAmount * 1.6f);
 
 	if(dVoxelPages.Size() < pageAmount)
 	{
 		AddVoxelPage(pageAmount - dVoxelPages.Size());
 	}
+}
+
+uint64_t GICudaAllocator::SystemTotalMemoryUsage() const
+{
+	uint64_t memory = 0;
+
+	// Page Pointer Lookup Array
+	memory += dVoxelPages.Size() * sizeof(CVoxelPage);
+
+	// Actual Page Data
+	memory += dVoxelPages.Size() * GI_SEGMENT_PER_PAGE * (sizeof(SegmentOccupation) + 
+														  sizeof(unsigned char));
+
+	memory += dVoxelPages.Size() * GI_PAGE_SIZE * (sizeof(CVoxelNormPos) +
+												   sizeof(CVoxelIds));
+
+	// Object Batch Helpers
+	for(unsigned int i = 0; i < dSegmentObjecId.size(); i++)
+	{
+		// Per Segment Related
+		memory += dSegmentObjecId[i].Size() * (sizeof(unsigned int) + 
+											   sizeof(ushort2));
+		
+		// Per Object Related
+		memory += dVoxelStrides.size() * (sizeof(unsigned int) + 
+										  sizeof(unsigned int) + 
+										  sizeof(unsigned int));
+	}
+
+	memory += dObjectAllocationIndexLookup2D.Size() * (sizeof(unsigned int*) +
+													   sizeof(unsigned int*) +
+													   sizeof(ushort2*));
+
+	return memory;
 }
 
 void GICudaAllocator::SendNewVoxPosToDevice()
@@ -547,9 +593,14 @@ CObjectVoxelInfo** GICudaAllocator::GetObjectInfoDevice()
 	return dObjectInfo.Data();
 }
 
-CVoxelPacked** GICudaAllocator::GetObjCacheDevice()
+CVoxelNormPos** GICudaAllocator::GetObjCacheNormPosDevice()
 {
-	return dObjCache.Data();
+	return dObjNormPosCache.Data();
+}
+
+CVoxelIds** GICudaAllocator::GetObjCacheIdsDevice()
+{
+	return dObjIdsCache.Data();
 }
 
 CVoxelRender** GICudaAllocator::GetObjRenderCacheDevice()
@@ -573,9 +624,14 @@ CObjectVoxelInfo* GICudaAllocator::GetObjectInfoDevice(uint32_t index)
 }
 
 
-CVoxelPacked* GICudaAllocator::GetObjCacheDevice(uint32_t index)
+CVoxelNormPos* GICudaAllocator::GetObjCacheNormPosDevice(uint32_t index)
 {
-	return hObjCache[index];
+	return hObjNormPosCache[index];
+}
+
+CVoxelIds* GICudaAllocator::GetObjCacheIdsDevice(uint32_t index)
+{
+	return hObjIdsCache[index];
 }
 
 CVoxelRender* GICudaAllocator::GetObjRenderCacheDevice(uint32_t index)

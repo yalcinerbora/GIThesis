@@ -126,8 +126,8 @@ __global__ void VoxelTransform(// Voxel Pages
 							   // Object Related
 							   unsigned int** gObjectAllocIndexLookup,
 							   CObjectTransform** gObjTransforms,
+							   CVoxelNormPos** gVoxNormPosCacheData,
 							   CVoxelRender** gVoxRenderData,
-							   CVoxelPacked** gVoxCacheData,
 							   CObjectVoxelInfo** gObjInfo,	
 							   CObjectAABB** gObjectAABB)
 {
@@ -173,7 +173,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	uint3 voxPos;
 	float3 normal;
 	unsigned int voxelSpanRatio;
-	ExpandNormalPos(voxPos, normal, voxelSpanRatio, uint2{gVoxCacheData[objectId.y][renderLoc].x, gVoxCacheData[objectId.y][renderLoc].y});
+	ExpandNormalPos(voxPos, normal, voxelSpanRatio, gVoxNormPosCacheData[objectId.y][renderLoc]);
 
 	// Fetch AABB min, transform and span
 	float4 objAABBMin = gObjectAABB[objectId.y][objectId.x].min;

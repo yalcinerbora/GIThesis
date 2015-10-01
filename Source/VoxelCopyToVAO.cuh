@@ -13,7 +13,7 @@ Copying voxels to VAO
 
 struct CVoxelPage;
 struct CVoxelRender;
-typedef uint4 CVoxelPacked;
+typedef uint2 CVoxelNormPos;
 struct CVoxelGrid;
 struct CObjectVoxelInfo;
 struct CVoxelGrid;
@@ -29,7 +29,7 @@ extern __global__ void DetermineTotalVoxCount(int& totalVox,
 
 
 extern __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
-									  CVoxelPacked* voxelData,
+									  CVoxelNormPos* voxelData,
 									  uchar4* voxelColorData,
 									  unsigned int& atomicIndex,
 									  const unsigned int maxBufferSize,

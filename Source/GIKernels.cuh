@@ -11,7 +11,8 @@ Global Illumination Kernels
 
 struct CAABB;
 typedef CAABB CObjectAABB;
-typedef uint4 CVoxelPacked;
+typedef uint2 CVoxelNormPos;
+typedef uint2 CVoxelIds;
 struct CObjectTransform;
 struct CVoxelRender;
 struct CVoxelPage;
@@ -32,8 +33,8 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 									   // Object Related
 									   unsigned int** gObjectAllocIndexLookup,
 									   CObjectTransform** gObjTransforms,
+									   CVoxelNormPos** gVoxNormPosCacheData,
 									   CVoxelRender** gVoxRenderData,
-									   CVoxelPacked** gVoxCacheData,
 									   CObjectVoxelInfo** gObjInfo,
 									   CObjectAABB** gObjectAABB);
 
@@ -102,7 +103,7 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 										  const CObjectVoxelInfo* gObjInfo,
 
 										  // Per Voxel Related
-										  const CVoxelPacked* gObjectVoxelCache,
+										  const CVoxelIds* gVoxelIdsCache,
 										  uint32_t voxCount,
 
 										  // Batch(ObjectGroup in terms of OGL) Id

@@ -14,9 +14,14 @@ Voxel Representation of the Scene
 class IEVector3;
 
 #pragma pack(push, 1)
-struct VoxelData
+struct VoxelNormPos
 {
-	uint32_t vox[4];
+	uint32_t vNormPos[2];
+};
+
+struct VoxelIds
+{
+	uint32_t vIds[2];
 };
 
 struct VoxelRenderData
@@ -39,9 +44,9 @@ class GICudaVoxelScene
 	private:
 		GICudaAllocator						allocator;
 
-		StructuredBuffer<VoxelData>			vaoData;
+		StructuredBuffer<VoxelNormPos>		vaoNormPosData;
 		StructuredBuffer<uchar4>			vaoColorData;
-		cudaGraphicsResource_t				vaoResource;
+		cudaGraphicsResource_t				vaoNormPosResource;
 		cudaGraphicsResource_t				vaoRenderResource;
 		cudaStream_t						stream;
 
@@ -60,7 +65,8 @@ class GICudaVoxelScene
 		void				LinkOGL(GLuint aabbBuffer,
 									GLuint transformBufferID,									
 									GLuint infoBufferID,
-									GLuint voxelCache,
+									GLuint voxelCacheNormPos,
+									GLuint voxelCacheIds,
 									GLuint voxelCacheRender,
 									uint32_t objCount,
 									uint32_t voxelCount);
@@ -84,6 +90,7 @@ class GICudaVoxelScene
 
 		// Debug Related Functions
 		// Access for voxel data for rendering voxels
+		uint64_t			AllocatorMemoryUsage() const;
 		uint32_t			VoxelCountInPage();
 		VoxelDebugVAO		VoxelDataForRendering(CVoxelGrid&, double& timing, uint32_t voxCount);
 		

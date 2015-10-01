@@ -11,7 +11,13 @@ Vao for rendering voxel debug
 #include <cstdint>
 #include <vector_types.h>
 
-struct VoxelData;
+#define IN_POS 0
+#define IN_VOX_COLOR 1
+#define IN_VOX_NORM_POS 2
+#define IN_VOX_IDS 3
+
+struct VoxelNormPos;
+struct VoxelIds;
 struct VoxelRenderData;
 
 template<class T>
@@ -39,9 +45,10 @@ class VoxelDebugVAO
 
 	public:
 		// Cosntructors & Destructor
-								VoxelDebugVAO(StructuredBuffer<VoxelData>&,
+								VoxelDebugVAO(StructuredBuffer<VoxelNormPos>&,
+											  StructuredBuffer<VoxelIds>&,
 											  StructuredBuffer<VoxelRenderData>&);
-								VoxelDebugVAO(StructuredBuffer<VoxelData>&,
+								VoxelDebugVAO(StructuredBuffer<VoxelNormPos>&,
 											  StructuredBuffer<uchar4>&);
 								VoxelDebugVAO(const VoxelDebugVAO&) = delete;
 								VoxelDebugVAO(VoxelDebugVAO&&);

@@ -67,7 +67,8 @@ enum ThesisRenderScheme
 struct VoxelObjectCache
 {
 	StructuredBuffer<ObjGridInfo>			objectGridInfo;
-	StructuredBuffer<VoxelData>				voxelData;
+	StructuredBuffer<VoxelNormPos>			voxelNormPos;
+	StructuredBuffer<VoxelIds>				voxelIds;
 	StructuredBuffer<VoxelRenderData>		voxelRenderData;
 	StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 	VoxelDebugVAO							voxelVAO;
@@ -75,10 +76,11 @@ struct VoxelObjectCache
 
 	VoxelObjectCache(size_t objectCount, size_t voxelCount)
 		: objectGridInfo(objectCount)
-		, voxelData(voxelCount)
+		, voxelNormPos(voxelCount)
+		, voxelIds(voxelCount)
 		, voxelRenderData(voxelCount)
 		, voxelCacheUsageSize(1)
-		, voxelVAO(voxelData, voxelRenderData)
+		, voxelVAO(voxelNormPos, voxelIds, voxelRenderData)
 	{
 		voxelCacheUsageSize.AddData(0);
 	}

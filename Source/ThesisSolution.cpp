@@ -43,8 +43,8 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxelScene512(intialCamPos, 0.513f, 512)
 	, voxelScene256(intialCamPos, 0.513f * 2, 512)
 	, voxelScene128(intialCamPos, 0.513f * 4, 512)
-	, renderScheme(GI_VOXEL_PAGE)
-	//, renderScheme(GI_VOXEL_CACHE512)
+	//, renderScheme(GI_VOXEL_PAGE)
+	, renderScheme(GI_VOXEL_CACHE512)
 	, gridInfoBuffer(1)
 {
 
@@ -96,6 +96,15 @@ void ThesisSolution::Init(SceneI& s)
 	LinkCacheWithVoxScene(voxelScene256, cache256);
 	LinkCacheWithVoxScene(voxelScene128, cache128);
 	
+	// Memory Usage Total
+	GI_LOG("Voxel Sytem #1 Total Memory Usage %f MB", 
+		   static_cast<double>(voxelScene512.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
+	GI_LOG("Voxel Sytem #2 Total Memory Usage %f MB",
+		   static_cast<double>(voxelScene256.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
+	GI_LOG("Voxel Sytem #3 Total Memory Usage %f MB",
+		   static_cast<double>(voxelScene128.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
+
+
 	// Tw Bar Creation
 	bar = TwNewBar("ThesisGI");
 	TwDefine(" ThesisGI refresh=0.01 ");
@@ -236,9 +245,9 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		// We need to set viewport coords to match the voxel dims
 		const AABBData& objAABB = currentScene->getDrawBuffer().getAABBBuffer().CPUData()[i];
 		GLuint voxDimX, voxDimY, voxDimZ;
-		voxDimX = static_cast<GLuint>(std::ceil((objAABB.max.getX() - objAABB.min.getX()) / cache.objectGridInfo.CPUData()[i].span));
-		voxDimY = static_cast<GLuint>(std::ceil((objAABB.max.getY() - objAABB.min.getY()) / cache.objectGridInfo.CPUData()[i].span));
-		voxDimZ = static_cast<GLuint>(std::ceil((objAABB.max.getZ() - objAABB.min.getZ()) / cache.objectGridInfo.CPUData()[i].span));
+		voxDimX = static_cast<GLuint>(std::floor((objAABB.max.getX() - objAABB.min.getX()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
+		voxDimY = static_cast<GLuint>(std::floor((objAABB.max.getY() - objAABB.min.getY()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
+		voxDimZ = static_cast<GLuint>(std::floor((objAABB.max.getZ() - objAABB.min.getZ()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
 
 		computeVoxelizeCount.Bind();
 		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_ONLY);
@@ -271,14 +280,15 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		// Create sparse voxel array according to the size of voxel count
 		// Last Call: Pack Draw Calls to the buffer
 		computePackObjectVoxels.Bind();
-		cache.voxelData.BindAsShaderStorageBuffer(LU_VOXEL);
+		cache.voxelNormPos.BindAsShaderStorageBuffer(LU_VOXEL_NORM_POS);
+		cache.voxelIds.BindAsShaderStorageBuffer(LU_VOXEL_IDS);
 		cache.voxelRenderData.BindAsShaderStorageBuffer(LU_VOXEL_RENDER);
-		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
 		cache.voxelCacheUsageSize.BindAsShaderStorageBuffer(LU_INDEX_CHECK);
+		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
 		glUniform1ui(U_OBJ_TYPE, static_cast<GLuint>(VoxelObjectType::STATIC));
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
 		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
-		glUniform1ui(U_MAX_CACHE_SIZE, static_cast<GLuint>(cache.voxelData.Capacity()));
+		glUniform1ui(U_MAX_CACHE_SIZE, static_cast<GLuint>(cache.voxelNormPos.Capacity()));
 		glUniform1ui(U_SPAN_RATIO, static_cast<GLuint>(spanRatio));
 		glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
 		//glDispatchCompute(VOXEL_GRID_SIZE / 8, VOXEL_GRID_SIZE / 8, VOXEL_GRID_SIZE / 8);
@@ -297,7 +307,12 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	for(int i = 0; i < currentScene->DrawCount(); i++)
 		cache.voxInfo.sceneVoxCacheCount += cache.objectGridInfo.CPUData()[i].voxCount;
 	assert(cache.voxelCacheUsageSize.CPUData()[0] == cache.voxInfo.sceneVoxCacheCount);
-	cache.voxInfo.sceneVoxCacheSize = static_cast<double>(cache.voxInfo.sceneVoxCacheCount * (sizeof(VoxelData) + sizeof(VoxelRenderData))) / (1024.0 * 1024.0);
+	cache.voxInfo.sceneVoxCacheSize = static_cast<double>(cache.voxInfo.sceneVoxCacheCount * 
+														  (sizeof(CVoxelNormPos) + 
+														   sizeof(VoxelRenderData) + 
+														   sizeof(CVoxelIds))) /
+														  1024.0 / 
+														  1024.0;
 
 	double time = timeElapsed / 1000000.0;
 	GI_LOG("------------------------------------");
@@ -320,7 +335,8 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene, VoxelObjectC
 	scene.LinkOGL(currentScene->getDrawBuffer().getAABBBuffer().getGLBuffer(),
 						  currentScene->getDrawBuffer().getModelTransformBuffer().getGLBuffer(),
 						  cache.objectGridInfo.getGLBuffer(),
-						  cache.voxelData.getGLBuffer(),
+						  cache.voxelNormPos.getGLBuffer(),
+						  cache.voxelIds.getGLBuffer(),
 						  cache.voxelRenderData.getGLBuffer(),
 						  static_cast<uint32_t>(currentScene->DrawCount()),
 						  cache.voxInfo.sceneVoxCacheCount);
@@ -328,7 +344,6 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene, VoxelObjectC
 	scene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapArrayR32F());
 	// Allocate at least all of the scene voxel
 	scene.AllocateInitialPages(static_cast<uint32_t>(cache.voxInfo.sceneVoxCacheCount));
-
 }
 
 void ThesisSolution::DebugRenderVoxelCache(const Camera& camera, VoxelObjectCache& cache)
@@ -445,24 +460,24 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	svoTime += svoTimeSegment;
 
 	// Cascade #2 Update
-	voxelScene256.VoxelUpdate(ioTimeSegment,
-							  transformTimeSegment,
-							  svoTimeSegment,
-							  mainRenderCamera.pos);
-	ioTime += ioTimeSegment;
-	transformTime += transformTimeSegment;
-	svoTime += svoTimeSegment;
+	//voxelScene256.VoxelUpdate(ioTimeSegment,
+	//						  transformTimeSegment,
+	//						  svoTimeSegment,
+	//						  mainRenderCamera.pos);
+	//ioTime += ioTimeSegment;
+	//transformTime += transformTimeSegment;
+	//svoTime += svoTimeSegment;
 
 	// Cascade #3 Update
-	voxelScene128.VoxelUpdate(ioTimeSegment,
-							  transformTimeSegment,
-							  svoTimeSegment,
-							  mainRenderCamera.pos);
-	ioTime += ioTimeSegment;
-	transformTime += transformTimeSegment;
-	svoTime += svoTimeSegment;
+	//voxelScene128.VoxelUpdate(ioTimeSegment,
+	//						  transformTimeSegment,
+	//						  svoTimeSegment,
+	//						  mainRenderCamera.pos);
+	//ioTime += ioTimeSegment;
+	//transformTime += transformTimeSegment;
+	//svoTime += svoTimeSegment;
 
-	GICudaVoxelScene::SyncVoxelUpdateBatch();
+	//GICudaVoxelScene::SyncVoxelUpdateBatch();
 
 	// Voxel Count in Pages
 	cache512.voxInfo.sceneVoxOctreeCount = voxelScene512.VoxelCountInPage();

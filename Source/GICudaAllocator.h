@@ -67,14 +67,16 @@ class GICudaAllocator
 		CudaVector<CObjectAABB*>				dObjectAABB;			// Object Space Axis Aligned Bounding Box for each object
 		CudaVector<CObjectVoxelInfo*>			dObjectInfo;			// Voxel Count of the object
 		
-		CudaVector<CVoxelPacked*>				dObjCache;
+		CudaVector<CVoxelNormPos*>				dObjNormPosCache;
+		CudaVector<CVoxelIds*>					dObjIdsCache;
 		CudaVector<CVoxelRender*>				dObjRenderCache;
 
 		std::vector<CObjectTransform*>			hTransforms;			
 		std::vector<CObjectAABB*>				hObjectAABB;			
 		std::vector<CObjectVoxelInfo*>			hObjectInfo;		
 
-		std::vector<CVoxelPacked*>				hObjCache;
+		std::vector<CVoxelNormPos*>				hObjNormPosCache;
+		std::vector<CVoxelIds*>					hObjIdsCache;
 		std::vector<CVoxelRender*>				hObjRenderCache;
 
 		// G Buffer Related Data
@@ -90,7 +92,8 @@ class GICudaAllocator
 		std::vector<cudaGraphicsResource_t>		aabbLinks;
 		std::vector<cudaGraphicsResource_t>		objectInfoLinks;
 
-		std::vector<cudaGraphicsResource_t>		cacheLinks;
+		std::vector<cudaGraphicsResource_t>		cacheNormPosLinks;
+		std::vector<cudaGraphicsResource_t>		cacheIdsLinks;
 		std::vector<cudaGraphicsResource_t>		cacheRenderLinks;
 
 		// Per Scene Interop Data
@@ -118,7 +121,8 @@ class GICudaAllocator
 		void					LinkOGLVoxelCache(GLuint aabbBuffer,
 												  GLuint transformBufferID,
 												  GLuint infoBufferID,
-												  GLuint voxelCache,
+												  GLuint voxelNormPosBuffer,
+												  GLuint voxelIdsBuffer,
 												  GLuint voxelCacheRender,
 												  uint32_t objCount,
 												  uint32_t voxelCount);
@@ -148,19 +152,24 @@ class GICudaAllocator
 		CVoxelGrid				GetVoxelGridHost();
 		IEVector3				GetNewVoxelPos(const IEVector3& playerPos);
 
+		// Memory Usage Func
+		uint64_t				SystemTotalMemoryUsage() const;
+
 		// Mapped OGL Pointers		
 		CObjectTransform**		GetTransformsDevice();
 		CObjectAABB**			GetObjectAABBDevice();
 		CObjectVoxelInfo**		GetObjectInfoDevice();
 
-		CVoxelPacked**			GetObjCacheDevice();
+		CVoxelNormPos**			GetObjCacheNormPosDevice();
+		CVoxelIds**				GetObjCacheIdsDevice();
 		CVoxelRender**			GetObjRenderCacheDevice();
 
 		CObjectTransform*		GetTransformsDevice(uint32_t index);
 		CObjectAABB*			GetObjectAABBDevice(uint32_t index);
 		CObjectVoxelInfo*		GetObjectInfoDevice(uint32_t index);
 
-		CVoxelPacked*			GetObjCacheDevice(uint32_t index);
+		CVoxelNormPos*			GetObjCacheNormPosDevice(uint32_t index);
+		CVoxelIds*				GetObjCacheIdsDevice(uint32_t index);
 		CVoxelRender*			GetObjRenderCacheDevice(uint32_t index);
 
 		// Pages

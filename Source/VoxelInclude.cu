@@ -180,7 +180,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 								   const CObjectVoxelInfo* gObjInfo,
 
 								   // Per Voxel Related
-								   const CVoxelPacked* gObjectVoxelCache,
+								   const CVoxelIds* gVoxelIdsCache,
 								   uint32_t voxCount,
 
 								   // Batch(ObjectGroup in terms of OGL) Id
@@ -195,7 +195,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 	ushort2 objectId;
 	CVoxelObjectType objType;
 	unsigned int renderLoc;
-	ExpandVoxelIds(renderLoc, objectId, objType, uint2{gObjectVoxelCache[globalId].z, gObjectVoxelCache[globalId].w});
+	ExpandVoxelIds(renderLoc, objectId, objType, gVoxelIdsCache[globalId]);
 	
 	// We need to check if this obj is not already in the page system or not
 	if(gWriteToPages[objectId.x] == 1)

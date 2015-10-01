@@ -1,7 +1,8 @@
 #version 430
 				
 // Definitions
-#define LU_VOXEL layout(std430, binding = 0) restrict 
+#define LU_VOXEL_NORM_POS layout(std430, binding = 0) restrict
+#define LU_VOXEL_IDS layout(std430, binding = 3) restrict
 #define LU_VOXEL_RENDER layout(std430, binding = 1) restrict 
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict readonly
 #define LU_INDEX_CHECK layout(std430, binding = 4) restrict
@@ -26,9 +27,14 @@ LU_INDEX_CHECK buffer CountArray
 	uint writeIndex;
 };
 
-LU_VOXEL buffer VoxelArray
+LU_VOXEL_NORM_POS buffer VoxelNormPosArray
 {
-	uvec4 voxelPacked[];
+	uvec2 voxelNormPos[];
+};
+
+LU_VOXEL_IDS buffer VoxelIdsArray
+{
+	uvec2 voxelIds[];
 };
 
 LU_VOXEL_RENDER buffer VoxelArrayRender
@@ -58,35 +64,44 @@ uint MergeColor(uvec2 colorShort2)
 	return result;
 }
 
-uvec4 PackVoxelData(in uvec3 voxCoord,
-					in uvec2 normal,
-					in uint objId,
-					in uint objType,
-					in uint renderDataLoc)
+uvec2 PackVoxelNormPos(in uvec3 voxCoord,
+					   in uvec2 normal,
+					   in uint spanDepth)
 {
-	uvec4 result = uvec4(0);
+	uvec2 result = uvec2(0);
 	
-	// Here Pack the voxels
+	// Voxel Ids 9 Bit Each (last 5 bit is span depth)
 	unsigned int value = 0;
-	value |= spanRatio << 27;
+	value |= spanDepth << 27;
 	value |= voxCoord.z << 18;
 	value |= voxCoord.y << 9;
 	value |= voxCoord.x;
 	result.x = value;
 
+	// Normal is Already Packed (X16Y15Z1 format)
 	value = 0;
 	value |= normal.y << 16;
 	value |= normal.x;
-	
 	result.y = value;
 
-	value = 0;
+	return result;
+}
+
+uvec2 PackVoxelIds(in uint objId,
+				   in uint objType,
+				   in uint renderDataLoc)
+{
+	uvec2 result = uvec2(0);
+
+	// Object Id (13 bit batch id, 16 bit object id)
+	// Last 2 bits is for object type
+	unsigned int value = 0;
 	value |= objType << 30;
 	value |= 0 << 16;
 	value |= objId;
-	result.z = value;
+	result.x = value;
 
-	result.w = renderDataLoc;
+	result.y = renderDataLoc;
 	return result;
 }
 		
@@ -94,9 +109,9 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {
 	uvec3 voxId = gl_GlobalInvocationID.xyz;
-	if(voxId.x < (voxDim.x + 0)  &&
-		voxId.y < (voxDim.y + 0) &&
-		voxId.z < (voxDim.z + 0))
+	if(voxId.x < (voxDim.x)  &&
+		voxId.y < (voxDim.y) &&
+		voxId.z < (voxDim.z))
 	{
 		uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
@@ -108,7 +123,8 @@ void main(void)
 			if(index <= maxSize)
 			{
 				voxelArrayRender[index].color = MergeColor(voxData.zw);
-				voxelPacked[index] = PackVoxelData(voxId, voxData.xy, objId, objType, index);
+				voxelNormPos[index] = PackVoxelNormPos(voxId, voxData.xy, spanRatio);
+				voxelIds[index] = PackVoxelIds(objId, objType, index);
 			}
 		}
 	}

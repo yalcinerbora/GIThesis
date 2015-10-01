@@ -11,8 +11,8 @@
 
 #define IN_POS layout(location = 0)
 #define IN_VOX_COLOR layout(location = 1)
-#define IN_VOX_POS layout(location = 2)
-#define IN_VOX_NORMAL layout(location = 3)
+#define IN_VOX_NORM_POS layout(location = 2)
+#define IN_VOX_IDS layout(location = 3)
 
 #define OUT_COLOR layout(location = 0)
 
@@ -25,8 +25,8 @@
 // Input
 in IN_POS vec3 vPos;
 in IN_VOX_COLOR vec4 voxColor;
-in IN_VOX_POS uvec4 voxPos;
-in IN_VOX_NORMAL vec3 voxNormal;
+in IN_VOX_NORM_POS uvec2 voxNormPos;
+in IN_VOX_IDS uvec2 voxIds;
 
 // Output
 out gl_PerVertex {vec4 gl_Position;};	// Mandatory
@@ -68,13 +68,13 @@ LU_MTRANSFORM buffer ModelTransform
 	} modelTransforms[];
 };
 
-uvec4 UnpackVoxelDataAndObjId(in uvec4 voxPacked)
+uvec4 UnpackVoxelDataAndObjId(in uint voxNormPosX, in uint voxIdsX)
 {
 	uvec4 vec;
-	vec.x = (voxPacked.x & 0x000001FF);
-	vec.y = (voxPacked.x & 0x0003FE00) >> 9;
-	vec.z = (voxPacked.x & 0x07FC0000) >> 18;
-	vec.w = (voxPacked.z & 0x0000FFFF);
+	vec.x = (voxNormPosX & 0x000001FF);
+	vec.y = (voxNormPosX & 0x0003FE00) >> 9;
+	vec.z = (voxNormPosX & 0x07FC0000) >> 18;
+	vec.w = (voxIdsX & 0x0000FFFF);
 	return vec;
 }
 
@@ -82,7 +82,7 @@ void main(void)
 {
 	fColor = voxColor.rgb;
 
-	uvec4 voxIndex = UnpackVoxelDataAndObjId(voxPos);
+	uvec4 voxIndex = UnpackVoxelDataAndObjId(voxNormPos.x, voxIds.x);
 	uint objId = voxIndex.w;
 
 	float span = objectGridInfo[objId].span;

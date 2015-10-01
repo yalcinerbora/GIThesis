@@ -21,7 +21,7 @@ __global__ void DetermineTotalVoxCount(int& totalVox,
 }
 
 __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
-							   CVoxelPacked* voxelData,
+							   CVoxelNormPos* voxelNormPosData,
 							   uchar4* voxelColorData,
 							   unsigned int& atomicIndex,
 							   const unsigned int maxBufferSize,
@@ -49,7 +49,6 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 
 	// Data Read
 	CVoxelNormPos voxelNormalPos = gVoxPages[pageId].dGridVoxNormPos[pageLocalId];
-	CVoxelIds voxelIds = gVoxPages[pageId].dGridVoxIds[pageLocalId];
 	
 	// All one normal means invalid voxel
 	if(voxelNormalPos.y != 0xFFFFFFFF)
@@ -61,9 +60,9 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 		ushort2 objectId;
 		CVoxelObjectType objType;
 		unsigned int voxelId;
-		ExpandVoxelIds(voxelId, objectId, objType, voxelIds);
+		ExpandVoxelIds(voxelId, objectId, objType, gVoxPages[pageId].dGridVoxIds[pageLocalId]);
 
-		voxelData[index] = CVoxelPacked { voxelNormalPos.x, voxelNormalPos.y, voxelIds.x, voxelIds.y };
+		voxelNormPosData[index] = voxelNormalPos;
 		voxelColorData[index] = gVoxelRenderData[objectId.y][voxelId].color;
 	}
 }

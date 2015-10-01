@@ -11,8 +11,7 @@
 
 #define IN_POS layout(location = 0)
 #define IN_VOX_COLOR layout(location = 1)
-#define IN_VOX_POS layout(location = 2)
-#define IN_VOX_NORMAL layout(location = 3)
+#define IN_VOX_NORM_POS layout(location = 2)
 
 #define OUT_COLOR layout(location = 0)
 
@@ -22,8 +21,7 @@
 // Input
 in IN_POS vec3 vPos;
 in IN_VOX_COLOR vec4 voxColor;
-in IN_VOX_POS uvec4 voxPos;
-in IN_VOX_NORMAL vec3 voxNormal;
+in IN_VOX_NORM_POS uvec2 voxNormPos;
 
 // Output
 out gl_PerVertex {invariant vec4 gl_Position;};	// Mandatory
@@ -44,13 +42,13 @@ U_VOXEL_GRID_INFO uniform GridInfo
 	uvec4 dimension;	// Voxel Grid Dimentions, last component is depth of the SVO
 };
 
-uvec4 UnpackVoxelDataAndSpan(in uvec4 voxPacked)
+uvec4 UnpackVoxelDataAndSpan(in uint voxNormPosX)
 {
 	uvec4 vec;
-	vec.x = (voxPacked.x & 0x000001FF);
-	vec.y = (voxPacked.x & 0x0003FE00) >> 9;
-	vec.z = (voxPacked.x & 0x07FC0000) >> 18;
-	vec.w  = (voxPacked.x & 0xF8000000) >> 27;
+	vec.x = (voxNormPosX & 0x000001FF);
+	vec.y = (voxNormPosX & 0x0003FE00) >> 9;
+	vec.z = (voxNormPosX & 0x07FC0000) >> 18;
+	vec.w  = (voxNormPosX & 0xF8000000) >> 27;
 	return vec;
 }
 
@@ -61,7 +59,7 @@ void main(void)
 
 	// Voxels are in world space
 	// Need to determine the scale and relative position wrt the grid
-	uvec4 voxIndex = UnpackVoxelDataAndSpan(voxPos);
+	uvec4 voxIndex = UnpackVoxelDataAndSpan(voxNormPos.x);
 	float span = position.w * voxIndex.w;
 	vec3 deltaPos = position.xyz + position.w * vec3(voxIndex.xyz);
 	mat4 voxModel =	mat4( span,			0.0f,		0.0f,		0.0f,

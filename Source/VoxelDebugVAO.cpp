@@ -35,7 +35,8 @@ void VoxelDebugVAO::InitVoxelCube()
 	voxelCubeData.indexCount = static_cast<GLuint>(loader.Header().meshes[0].headerCore.indexCount);
 }
 
-VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
+VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
+							 StructuredBuffer<VoxelIds>& voxIdBuffer,
 							 StructuredBuffer<VoxelRenderData>& voxRenderDataBuffer)
 	: vaoId(0)
 {
@@ -49,56 +50,59 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 	glBindVertexArray(vaoId);
 
 	GLuint buffers[] = {voxelCubeData.vertexBuffer, 
-						voxDataBuffer.getGLBuffer(),
+						voxNormPosBuffer.getGLBuffer(),
+						voxIdBuffer.getGLBuffer(),
 						voxRenderDataBuffer.getGLBuffer()};
-	GLintptr offsets[] = { 0, 0, 0 };
-	GLsizei strides[] = { sizeof(float) * 3, sizeof(VoxelData), sizeof(VoxelRenderData)};
+	GLintptr offsets[] = { 0, 0, 0, 0 };
+	GLsizei strides[] = { sizeof(float) * 3,
+						  sizeof(VoxelNormPos),
+						  sizeof(VoxelIds), 
+						  sizeof(VoxelRenderData) };
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
 
-	glBindVertexBuffers(0, 3, buffers, offsets, strides);
+	glBindVertexBuffers(0, 4, buffers, offsets, strides);
 	// Cube Pos
-	glEnableVertexAttribArray(0);
-	glVertexAttribFormat(0,
+	glEnableVertexAttribArray(IN_POS);
+	glVertexAttribFormat(IN_POS,
 						 3,
 						 GL_FLOAT,
 						 GL_FALSE,
 						 0);
-	glVertexAttribBinding(0, 0);
+	glVertexAttribBinding(IN_POS, 0);
 
-	// VoxData
-	glEnableVertexAttribArray(2);
-	glVertexAttribIFormat(2,
-						  4,
+	// VoxNormPos
+	glEnableVertexAttribArray(IN_VOX_NORM_POS);
+	glVertexAttribIFormat(IN_VOX_NORM_POS,
+						  2,
 						  GL_UNSIGNED_INT,
 						  0);
-	glVertexAttribDivisor(2, 1);
-	glVertexAttribBinding(2, 1);
+	glVertexAttribDivisor(IN_VOX_NORM_POS, 1);
+	glVertexAttribBinding(IN_VOX_NORM_POS, 1);
+
+	// VoxIds
+	glEnableVertexAttribArray(IN_VOX_IDS);
+	glVertexAttribIFormat(IN_VOX_IDS,
+						  2,
+						  GL_UNSIGNED_INT,
+						  0);
+	glVertexAttribDivisor(IN_VOX_IDS, 1);
+	glVertexAttribBinding(IN_VOX_IDS, 1);
 
 	// Vox Color 
-	glEnableVertexAttribArray(1);
-	glVertexAttribFormat(1,
+	glEnableVertexAttribArray(IN_VOX_COLOR);
+	glVertexAttribFormat(IN_VOX_COLOR,
 						 4,
 						 GL_UNSIGNED_BYTE,
 						 GL_TRUE,
 						 0);
-	glVertexAttribDivisor(1, 1);
-	glVertexAttribBinding(1, 2);
-
-	// Vox Normal
-	glEnableVertexAttribArray(3);
-	glVertexAttribFormat(3,
-						 3,
-						 GL_FLOAT,
-						 GL_FALSE,
-						 0);
-	glVertexAttribDivisor(3, 1);
-	glVertexAttribBinding(3, 2);
+	glVertexAttribDivisor(IN_VOX_COLOR, 1);
+	glVertexAttribBinding(IN_VOX_COLOR, 2);
 }
 
-VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
+VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 							 StructuredBuffer<uchar4>& voxRenderDataBuffer)
-							 : vaoId(0)
+	: vaoId(0)
 {
 	if(voxelCubeData.indexBuffer == 0 &&
 	   voxelCubeData.vertexBuffer == 0)
@@ -110,51 +114,43 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelData>& voxDataBuffer,
 	glBindVertexArray(vaoId);
 
 	GLuint buffers[] = {voxelCubeData.vertexBuffer,
-						voxDataBuffer.getGLBuffer(),
+						voxNormPosBuffer.getGLBuffer(),
 						voxRenderDataBuffer.getGLBuffer()};
 	GLintptr offsets[] = { 0, 0, 0 };
-	GLsizei strides[] = { sizeof(float) * 3, sizeof(VoxelData), sizeof(uchar4) };
+	GLsizei strides[] = { sizeof(float) * 3, 
+							sizeof(VoxelNormPos),
+							sizeof(uchar4) };
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
 
 	glBindVertexBuffers(0, 3, buffers, offsets, strides);
 	// Cube Pos
-	glEnableVertexAttribArray(0);
-	glVertexAttribFormat(0,
+	glEnableVertexAttribArray(IN_POS);
+	glVertexAttribFormat(IN_POS,
 						 3,
 						 GL_FLOAT,
 						 GL_FALSE,
 						 0);
-	glVertexAttribBinding(0, 0);
+	glVertexAttribBinding(IN_POS, 0);
 
-	// VoxData
-	glEnableVertexAttribArray(2);
-	glVertexAttribIFormat(2,
-						  4,
+	// VoxNormPos
+	glEnableVertexAttribArray(IN_VOX_NORM_POS);
+	glVertexAttribIFormat(IN_VOX_NORM_POS,
+						  2,
 						  GL_UNSIGNED_INT,
 						  0);
-	glVertexAttribDivisor(2, 1);
-	glVertexAttribBinding(2, 1);
+	glVertexAttribDivisor(IN_VOX_NORM_POS, 1);
+	glVertexAttribBinding(IN_VOX_NORM_POS, 1);
 
 	// Vox Color 
-	glEnableVertexAttribArray(1);
-	glVertexAttribFormat(1,
+	glEnableVertexAttribArray(IN_VOX_COLOR);
+	glVertexAttribFormat(IN_VOX_COLOR,
 						 4,
 						 GL_UNSIGNED_BYTE,
 						 GL_TRUE,
 						 0);
-	glVertexAttribDivisor(1, 1);
-	glVertexAttribBinding(1, 2);
-
-	// Vox Normal
-	glEnableVertexAttribArray(3);
-	glVertexAttribFormat(3,
-						 3,
-						 GL_FLOAT,
-						 GL_FALSE,
-						 0);
-	glVertexAttribDivisor(3, 1);
-	glVertexAttribBinding(3, 2);
+	glVertexAttribDivisor(IN_VOX_COLOR, 1);
+	glVertexAttribBinding(IN_VOX_COLOR, 2);
 }
 
 VoxelDebugVAO::VoxelDebugVAO(VoxelDebugVAO&& mv)

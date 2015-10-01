@@ -112,6 +112,7 @@ void main(void)
 			}
 		}
 	}
+
 	// Reset Color For next iteration
 	imageStore(voxelData, ivec3(voxId), uvec4(0xFFFF));
 }

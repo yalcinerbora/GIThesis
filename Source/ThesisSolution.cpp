@@ -191,9 +191,9 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	
 	// Render Objects to Voxel Grid
 	// Use MSAA to prevent missing small triangles on voxels
-	// (Instead of conservative rendering)
-	glEnable(GL_MULTISAMPLE);
-	//glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
+	// (teting conservative rendering on maxwell)
+	//glEnable(GL_MULTISAMPLE);
+	glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
 
 	// State
 	glDisable(GL_DEPTH_TEST);
@@ -285,7 +285,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		// Voxelization Done!
 	}
-	//glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
+	glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
 	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -445,22 +445,22 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	svoTime += svoTimeSegment;
 
 	// Cascade #2 Update
-	//voxelScene256.VoxelUpdate(ioTimeSegment,
-	//						  transformTimeSegment,
-	//						  svoTimeSegment,
-	//						  mainRenderCamera.pos);
-	//ioTime += ioTimeSegment;
-	//transformTime += transformTimeSegment;
-	//svoTime += svoTimeSegment;
+	voxelScene256.VoxelUpdate(ioTimeSegment,
+							  transformTimeSegment,
+							  svoTimeSegment,
+							  mainRenderCamera.pos);
+	ioTime += ioTimeSegment;
+	transformTime += transformTimeSegment;
+	svoTime += svoTimeSegment;
 
 	// Cascade #3 Update
-	//voxelScene128.VoxelUpdate(ioTimeSegment,
-	//						  transformTimeSegment,
-	//						  svoTimeSegment,
-	//						  mainRenderCamera.pos);
-	//ioTime += ioTimeSegment;
-	//transformTime += transformTimeSegment;
-	//svoTime += svoTimeSegment;
+	voxelScene128.VoxelUpdate(ioTimeSegment,
+							  transformTimeSegment,
+							  svoTimeSegment,
+							  mainRenderCamera.pos);
+	ioTime += ioTimeSegment;
+	transformTime += transformTimeSegment;
+	svoTime += svoTimeSegment;
 
 	GICudaVoxelScene::SyncVoxelUpdateBatch();
 
@@ -498,14 +498,14 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			DebugRenderVoxelPage(mainRenderCamera, vao128, voxGrid128, true,
 								 cache128.voxInfo.sceneVoxOctreeCount);
 
-			//glClear(GL_DEPTH_BUFFER_BIT);
+			glClear(GL_DEPTH_BUFFER_BIT);
 
 			CVoxelGrid voxGrid256;
 			VoxelDebugVAO vao256 = voxelScene256.VoxelDataForRendering(voxGrid256, debugVoxTransferTime, cache256.voxInfo.sceneVoxOctreeCount);
 			DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256, true,
 								 cache256.voxInfo.sceneVoxOctreeCount);
 
-			//glClear(GL_DEPTH_BUFFER_BIT);
+			glClear(GL_DEPTH_BUFFER_BIT);
 
 			CVoxelGrid voxGrid512;
 			VoxelDebugVAO vao512 = voxelScene512.VoxelDataForRendering(voxGrid512, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);

@@ -103,6 +103,7 @@
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50</CodeGeneration>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <FastMath>false</FastMath>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -120,10 +121,7 @@
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <FileType>Document</FileType>
     </ClInclude>
-    <CudaCompile Include="..\..\..\Source\CAxisAlignedBB.cu" />
     <CudaCompile Include="..\..\..\Source\CDebug.cu" />
-    <CudaCompile Include="..\..\..\Source\CHash.cu" />
-    <CudaCompile Include="..\..\..\Source\CMatrix.cu" />
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\GPUBuffer.cpp" />

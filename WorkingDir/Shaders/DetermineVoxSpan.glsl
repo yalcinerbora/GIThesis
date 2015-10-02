@@ -42,7 +42,7 @@ void main(void)
 	vec3 dim = objectAABBInfo[globalId].aabbMax.xyz - 
 				objectAABBInfo[globalId].aabbMin.xyz;
 
-	dim.xyz = dim.xyz / float(maxGridDim);
+	dim.xyz = floor(dim.xyz / float(maxGridDim)) + 1.0f;
 	float span = max(max(dim.x, dim.y), dim.z);
 	//span = max(span, minSpan);
 	float resultSpan = span;

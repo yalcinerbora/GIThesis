@@ -26,6 +26,9 @@
 
 int main()
 {
+	// Cuda Init
+	GICudaVoxelScene::InitCuda();
+
 	Camera mainRenderCamera =
 	{
 		75.0f,

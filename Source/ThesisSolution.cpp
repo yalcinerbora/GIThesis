@@ -201,8 +201,8 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	// Render Objects to Voxel Grid
 	// Use MSAA to prevent missing small triangles on voxels
 	// (teting conservative rendering on maxwell)
-	//glEnable(GL_MULTISAMPLE);
-	glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
+	glEnable(GL_MULTISAMPLE);
+	//glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
 
 	// State
 	glDisable(GL_DEPTH_TEST);
@@ -221,6 +221,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	for(unsigned int i = 0; i < currentScene->DrawCount(); i++)
 	{
 		// First Call Voxelize over 3D Texture
+		currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 		voxelRenderTexture.BindAsImage(I_VOX_WRITE, GL_WRITE_ONLY);
 		vertexVoxelizeObject.Bind();
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
@@ -254,11 +255,9 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
 		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
 		glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
-		//glDispatchCompute(VOXEL_GRID_SIZE / 8, VOXEL_GRID_SIZE / 8, VOXEL_GRID_SIZE / 8);
 
-		// Reflect Changes to Next Process
-		//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
+		// Reflect Voxel Size
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
 		// Before Last Call calcuate span ratio for this object
 		auto& transformBuffer = currentScene->getDrawBuffer().getModelTransformBuffer().CPUData();
@@ -291,11 +290,10 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		glUniform1ui(U_MAX_CACHE_SIZE, static_cast<GLuint>(cache.voxelNormPos.Capacity()));
 		glUniform1ui(U_SPAN_RATIO, static_cast<GLuint>(spanRatio));
 		glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
-		//glDispatchCompute(VOXEL_GRID_SIZE / 8, VOXEL_GRID_SIZE / 8, VOXEL_GRID_SIZE / 8);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		// Voxelization Done!
 	}
-	glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
+	//glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
 	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -460,24 +458,22 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	svoTime += svoTimeSegment;
 
 	// Cascade #2 Update
-	//voxelScene256.VoxelUpdate(ioTimeSegment,
-	//						  transformTimeSegment,
-	//						  svoTimeSegment,
-	//						  mainRenderCamera.pos);
-	//ioTime += ioTimeSegment;
-	//transformTime += transformTimeSegment;
-	//svoTime += svoTimeSegment;
+	voxelScene256.VoxelUpdate(ioTimeSegment,
+							  transformTimeSegment,
+							  svoTimeSegment,
+							  mainRenderCamera.pos);
+	ioTime += ioTimeSegment;
+	transformTime += transformTimeSegment;
+	svoTime += svoTimeSegment;
 
 	// Cascade #3 Update
-	//voxelScene128.VoxelUpdate(ioTimeSegment,
-	//						  transformTimeSegment,
-	//						  svoTimeSegment,
-	//						  mainRenderCamera.pos);
-	//ioTime += ioTimeSegment;
-	//transformTime += transformTimeSegment;
-	//svoTime += svoTimeSegment;
-
-	//GICudaVoxelScene::SyncVoxelUpdateBatch();
+	voxelScene128.VoxelUpdate(ioTimeSegment,
+							  transformTimeSegment,
+							  svoTimeSegment,
+							  mainRenderCamera.pos);
+	ioTime += ioTimeSegment;
+	transformTime += transformTimeSegment;
+	svoTime += svoTimeSegment;
 
 	// Voxel Count in Pages
 	cache512.voxInfo.sceneVoxOctreeCount = voxelScene512.VoxelCountInPage();
@@ -530,8 +526,6 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		}
 		case GI_VOXEL_CACHE512:
 		{
-			//Voxelize(cache512, 0.322f, 1);
-
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 			DebugRenderVoxelCache(mainRenderCamera, cache512);
 			break;

@@ -87,10 +87,8 @@ void main(void)
 
 	// interpolated object space pos
 	vec3 voxelCoord = floor((fPos - objectAABBInfo[objId].aabbMin.xyz) / objectGridInfo[objId].span);
-	ivec3 voxelCoordInt = ivec3(voxelCoord + 0.5f);
-	//voxelCoordInt = clamp(voxelCoordInt, ivec3(0), imageSize(voxelData) - 1);
-	
+
 	// TODO: Average the voxel results
 	// At the moment it is overwrite
-	imageStore(voxelData, voxelCoordInt, uvec4(PackNormal(fNormal.xyz), PackColor(color))); 
+	imageStore(voxelData, ivec3(voxelCoord), uvec4(PackNormal(fNormal.xyz), PackColor(color))); 
 }

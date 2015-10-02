@@ -101,16 +101,11 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	// Main Call Chain Called Every Frame
 	// Manages Voxel Pages
 	allocator.SetupDevicePointers();
-
-	CudaTimer timerSub(0);
-	timerSub.Start();
 	
 	CudaTimer timer(0);
 	timer.Start();
 	for(unsigned int i = 0; i < allocator.NumObjectBatches(); i++)
 	{
-		timerSub.Start();
-
 		// Call Logic Per Obj Segment
 		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK_SMALL - 1) /
 									GI_THREAD_PER_BLOCK_SMALL;
@@ -132,11 +127,6 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			 allocator.GetObjectAABBDevice(i),
 			 allocator.GetTransformsDevice(i));
 		CUDA_KERNEL_CHECK();
-
-		timerSub.Stop();
-		GI_LOG("Alloc Time %f", timerSub.ElapsedMilliS());
-		timerSub.Start();
-
 
 		// Call Logic Per Voxel
 		gridSize = (allocator.NumVoxels(i) + GI_THREAD_PER_BLOCK - 1) /
@@ -168,17 +158,13 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			 i);
 		CUDA_KERNEL_CHECK();
 
-		timerSub.Stop();
-		GI_LOG("Inc Time %f", timerSub.ElapsedMilliS());
-		
-
 		// Clear Write Signals
 		CUDA_CHECK(cudaMemset(allocator.GetWriteSignals(i), 0, sizeof(char) * allocator.NumObjects(i)));
 	}
 
 	for(unsigned int i = 0; i < allocator.NumObjectBatches(); i++)
 	{
-		timerSub.Start();
+		//timerSub.Start();
 
 		// Call Logic Per Obj Segment
 		unsigned int gridSize = (allocator.NumObjectSegments(i) + GI_THREAD_PER_BLOCK_SMALL - 1) /
@@ -200,12 +186,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			allocator.GetObjectAABBDevice(i),
 			allocator.GetTransformsDevice(i));
 		CUDA_KERNEL_CHECK();
-
-		timerSub.Stop();
-		GI_LOG("Dealloc Time %f", timerSub.ElapsedMilliS());
 	}
-
-	timerSub.Start();
 
 	// Call Logic Per Voxel in Page
 	unsigned int gridSize = (allocator.NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
@@ -215,10 +196,6 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	VoxelClearMarked<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice());
 	CUDA_KERNEL_CHECK();
 
-	timerSub.Stop();
-	GI_LOG("ClearMark Time %f", timerSub.ElapsedMilliS());
-	timerSub.Start();
-
 	// Call Logic Per Segment in Page
 	gridSize = (allocator.NumPages() * GI_SEGMENT_PER_PAGE + GI_THREAD_PER_BLOCK - 1) /
 				GI_THREAD_PER_BLOCK;
@@ -226,11 +203,6 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	// KC CLEAR SIGNAL
 	VoxelClearSignal<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice(),
 														allocator.NumPages());
-
-	timerSub.Stop();
-	GI_LOG("ClearSignal Time %f", timerSub.ElapsedMilliS());
-	GI_LOG("---------------------------------------------");
-
 	CUDA_KERNEL_CHECK();
 
 

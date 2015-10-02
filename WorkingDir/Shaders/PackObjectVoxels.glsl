@@ -2,9 +2,9 @@
 				
 // Definitions
 #define LU_VOXEL_NORM_POS layout(std430, binding = 0) restrict
-#define LU_VOXEL_IDS layout(std430, binding = 3) restrict
 #define LU_VOXEL_RENDER layout(std430, binding = 1) restrict 
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict readonly
+#define LU_VOXEL_IDS layout(std430, binding = 3) restrict
 #define LU_INDEX_CHECK layout(std430, binding = 4) restrict
 
 #define U_TOTAL_VOX_DIM layout(location = 3)
@@ -104,7 +104,7 @@ uvec2 PackVoxelIds(in uint objId,
 	result.y = renderDataLoc;
 	return result;
 }
-		
+
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {

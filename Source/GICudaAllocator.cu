@@ -231,8 +231,9 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	assert(transformLinks.size() == aabbLinks.size());
 	assert(aabbLinks.size() == transformLinks.size());
 	assert(aabbLinks.size() == objectInfoLinks.size());
-	assert(objectInfoLinks.size() == cacheLinks.size());
-	assert(cacheLinks.size() == cacheRenderLinks.size());
+	assert(objectInfoLinks.size() == cacheNormPosLinks.size());
+	assert(cacheNormPosLinks.size() == cacheIdsLinks.size());
+	assert(cacheIdsLinks.size() == cacheRenderLinks.size());
 	assert(cacheRenderLinks.size() == dVoxelStrides.size());
 	assert(dVoxelStrides.size() == dObjectAllocationIndexLookup.size());
 	assert(dObjectAllocationIndexLookup.size() == dWriteSignals.size());

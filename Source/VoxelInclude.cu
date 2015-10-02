@@ -7,7 +7,7 @@
 #include "CAxisAlignedBB.cuh"
 #include "COpenGLCommon.cuh"
 
-__device__ unsigned int AtomicAlloc(unsigned int* gStackSize)
+inline __device__ unsigned int AtomicAlloc(unsigned int* gStackSize)
 {
 	unsigned int assumed, old = *gStackSize;
 	do
@@ -20,7 +20,7 @@ __device__ unsigned int AtomicAlloc(unsigned int* gStackSize)
 	return old;
 }
 
-__device__ unsigned int AtomicDealloc(unsigned int* gStackSize)
+inline __device__ unsigned int AtomicDealloc(unsigned int* gStackSize)
 {
 	unsigned int assumed, old = *gStackSize;
 	do

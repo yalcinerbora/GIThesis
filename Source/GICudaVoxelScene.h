@@ -93,9 +93,5 @@ class GICudaVoxelScene
 		uint64_t			AllocatorMemoryUsage() const;
 		uint32_t			VoxelCountInPage();
 		VoxelDebugVAO		VoxelDataForRendering(CVoxelGrid&, double& timing, uint32_t voxCount);
-		
-		static void			SyncVoxelUpdateBatch() {cudaDeviceSynchronize();};
-
-
 };
 #endif //__GICUDAVOXELSCENE_H__

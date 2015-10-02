@@ -87,7 +87,7 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 						  GL_UNSIGNED_INT,
 						  0);
 	glVertexAttribDivisor(IN_VOX_IDS, 1);
-	glVertexAttribBinding(IN_VOX_IDS, 1);
+	glVertexAttribBinding(IN_VOX_IDS, 2);
 
 	// Vox Color 
 	glEnableVertexAttribArray(IN_VOX_COLOR);
@@ -97,7 +97,7 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 						 GL_TRUE,
 						 0);
 	glVertexAttribDivisor(IN_VOX_COLOR, 1);
-	glVertexAttribBinding(IN_VOX_COLOR, 2);
+	glVertexAttribBinding(IN_VOX_COLOR, 3);
 }
 
 VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
@@ -118,8 +118,8 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 						voxRenderDataBuffer.getGLBuffer()};
 	GLintptr offsets[] = { 0, 0, 0 };
 	GLsizei strides[] = { sizeof(float) * 3, 
-							sizeof(VoxelNormPos),
-							sizeof(uchar4) };
+						  sizeof(VoxelNormPos),
+						  sizeof(uchar4) };
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
 

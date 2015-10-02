@@ -37,21 +37,36 @@ LU_OBJECT_GRID_INFO buffer GridInfo
 	} objectGridInfo[];
 };
 
+// Shared Memory
+shared uint sLocalVoxCount;
+
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {
+	// Init smem
+	if(all(equal(gl_LocalInvocationID, uvec3(0)))) sLocalVoxCount = 0;
+	barrier();
+
 	uvec3 voxId = gl_GlobalInvocationID.xyz;
 	if(voxId.x >= (voxDim.x) || 
 		voxId.y >= (voxDim.y) ||
 		voxId.z >= (voxDim.z)) 
 		return;
-	
+
+	// Image Fetch
 	uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
 	// Empty Normal Means its vox is empty
 	if(voxData.x != 0xFFFF ||
 		voxData.y != 0xFFFF)
 	{
-		atomicAdd(objectGridInfo[objId].voxCount, 1);
+		atomicAdd(sLocalVoxCount, 1);
+	}
+	barrier();
+
+	// Leader of the block will write to global Atomic
+	if(all(equal(gl_LocalInvocationID, uvec3(0))))
+	{
+		atomicAdd(objectGridInfo[objId].voxCount, sLocalVoxCount);
 	}
 }

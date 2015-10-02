@@ -6,18 +6,17 @@
 #include "GICudaAllocator.h"
 #include "CHash.cuh"
 
-__device__ void LoadTransformData(// Shared Mem
-								  unsigned int* sHashIndex,
-								  CMatrix4x4* sTransformMatrices,
-								  CMatrix4x4* sRotationMatrices,
+inline __device__ void LoadTransformData(// Shared Mem
+										 unsigned int* sHashIndex,
+										 CMatrix4x4* sTransformMatrices,
+										 CMatrix4x4* sRotationMatrices,
 
-								  // Object Transform Matrix
-								  CObjectTransform** gObjTransforms,
+										 // Object Transform Matrix
+										 CObjectTransform** gObjTransforms,
 
-								  // Object Type that will be broadcasted
-								  const CVoxelObjectType& objType,
-								  const ushort2& objectId)
-
+										 // Object Type that will be broadcasted
+										 const CVoxelObjectType& objType,
+										 const ushort2& objectId)
 {
 	__shared__ CVoxelObjectType sObjType;
 	unsigned int blockLocalId = threadIdx.x;
@@ -181,11 +180,10 @@ __global__ void VoxelTransform(// Voxel Pages
 
 	// Generate World Position
 	// start with object space position
-	float4 worldPos;
+	float3 worldPos;
 	worldPos.x = objAABBMin.x + voxPos.x * objSpan;
 	worldPos.y = objAABBMin.y + voxPos.y * objSpan;
 	worldPos.z = objAABBMin.z + voxPos.z * objSpan;
-	worldPos.w = 1.0f;
 
 	// Transformations
 	switch(objType)

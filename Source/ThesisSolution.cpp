@@ -43,8 +43,8 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxelScene512(intialCamPos, 0.513f, 512)
 	, voxelScene256(intialCamPos, 0.513f * 2, 512)
 	, voxelScene128(intialCamPos, 0.513f * 4, 512)
-	//, renderScheme(GI_VOXEL_PAGE)
-	, renderScheme(GI_VOXEL_CACHE512)
+	, renderScheme(GI_VOXEL_PAGE)
+	//, renderScheme(GI_VOXEL_CACHE512)
 	, gridInfoBuffer(1)
 {
 

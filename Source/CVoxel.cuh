@@ -46,7 +46,7 @@ struct CVoxelRender
 #pragma pack(pop)
 
 //
-__device__ inline uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
+inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 {
 	uint3 result;
 	result.x = (packedVoxX & 0x000001FF);
@@ -55,7 +55,7 @@ __device__ inline uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 	return result;
 }
 
-__device__ inline float3 ExpandOnlyNormal(const unsigned int packedVoxY)
+inline __device__ float3 ExpandOnlyNormal(const unsigned int packedVoxY)
 {
 	float3 result;
 	result.x = (static_cast<float>(packedVoxY & 0x0000FFFF) / 0x0000FFFF) * 2.0f - 1.0f;
@@ -64,7 +64,7 @@ __device__ inline float3 ExpandOnlyNormal(const unsigned int packedVoxY)
 	return result;
 }
 
-__device__ inline void ExpandNormalPos(uint3& voxPos,
+inline __device__ void ExpandNormalPos(uint3& voxPos,
 									   float3& normal,
 									   unsigned int& voxelSpanRatio,
 									   const CVoxelNormPos& packedVoxNormalPos)
@@ -77,7 +77,7 @@ __device__ inline void ExpandNormalPos(uint3& voxPos,
 	normal = ExpandOnlyNormal(packedVoxNormalPos.y);
 }
 
-__device__ inline void ExpandVoxelIds(unsigned int& voxId,
+inline __device__ void ExpandVoxelIds(unsigned int& voxId,
 									  ushort2& objectId,
 									  CVoxelObjectType& objType,
 									  const CVoxelIds& packedVoxIds)
@@ -90,24 +90,10 @@ __device__ inline void ExpandVoxelIds(unsigned int& voxId,
 	voxId = packedVoxIds.y;
 }
 
-//
-//__device__ inline void ExpandVoxelData(uint3& voxPos,
-//									   float3& normal,
-//									   ushort2& objId,
-//									   CVoxelObjectType& objType,
-//									   unsigned int& voxelSpanRatio,
-//									   unsigned int& voxRenderPtr,
-//									   const CVoxelPacked& packedVoxData)
-//{
-//	ExpandNormalPos(voxPos, normal, voxelSpanRatio, uint2{packedVoxData.x, packedVoxData.y});
-//	ExpandVoxelIds(voxRenderPtr, objId, objType, uint2{packedVoxData.z, packedVoxData.w});
-//}
-
-
-__device__ inline void PackVoxelIds(CVoxelIds& packedVoxId,
-									 const ushort2& objId,
-									 const CVoxelObjectType& objType,
-									 const unsigned int voxRenderPtr)
+inline __device__ void PackVoxelIds(CVoxelIds& packedVoxId,
+									const ushort2& objId,
+									const CVoxelObjectType& objType,
+									const unsigned int voxRenderPtr)
 {
 	// 3rd word holds object id (14/16 bit each)
 	// 1st is batch id second is object id on that batch
@@ -121,10 +107,10 @@ __device__ inline void PackVoxelIds(CVoxelIds& packedVoxId,
 	packedVoxId.y = voxRenderPtr;
 }
 
-__device__ inline void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
-										 const uint3& voxPos,
-										 const float3& normal,
-										 const unsigned int voxelSpanRatio)
+inline __device__ void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
+										const uint3& voxPos,
+										const float3& normal,
+										const unsigned int voxelSpanRatio)
 {
 	// First word holds span ratio and voxel position (relative to AABB or Grid)
 	unsigned int value = 0;
@@ -142,59 +128,4 @@ __device__ inline void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
 	value |= static_cast<unsigned int>(normal.x * 0x0000FFFF);
 	packedVoxNormPos.y = value;
 }
-
-//__device__  inline void PackVoxelData(CVoxelPacked& packedVoxData,
-//									  const uint3& voxPos,
-//									  const float3& normal,
-//									  const ushort2& objId,
-//									  const CVoxelObjectType& objType,
-//									  const unsigned int voxelSpanRatio,
-//									  const unsigned int voxRenderPtr)
-//{
-//	// First word holds span ratio and voxel position (relative to AABB or Grid)
-//	unsigned int value = 0;
-//	value |= voxelSpanRatio << 27;
-//	value |= voxPos.z	<< 18;
-//	value |= voxPos.y	<< 9;
-//	value |= voxPos.x;
-//	packedVoxData.x = value;
-//
-//	// Second word holds normal 
-//	// (x,y components packed NORM int with 16/15 bit repectively, MSB is sign of z
-//	value = 0;
-//	value |= signbit(normal.z) << 31;
-//	value |= static_cast<unsigned int>(normal.y * 0x00007FFF) << 16;
-//	value |= static_cast<unsigned int>(normal.x * 0x0000FFFF);
-//	packedVoxData.y = value;
-//
-//	// 3rd word holds object id (16 bit each)
-//	// 1st is batch id second is object id on that batch
-//	value = 0;
-//	value |= static_cast<unsigned int>(objType) << 30;
-//	value |= static_cast<unsigned int>(objId.y) << 14;
-//	value |= static_cast<unsigned int>(objId.x);
-//	packedVoxData.z = value;
-//
-//	// Last component is voxel render index on that batch precalculated voxel batch
-//	packedVoxData.w = voxRenderPtr;
-//}
-
-// This one only stores two values since objid and ptr does not change with transform matrix
-//__device__  inline void PackVoxelData(CVoxelNormPos& voxNormPos,
-//									  const uint3& voxPos,
-//									  const float3& normal)
-//{
-//	unsigned int value = 0;
-//	value |= voxPos.z << 20;
-//	value |= voxPos.y << 10;
-//	value |= voxPos.x;
-//	voxNormPos.x = value;
-//
-//	value = 0;
-//	value |= signbit(normal.z) << 31;
-//	value |= static_cast<unsigned int>(normal.y * 0x00007FFF) << 16;
-//	value |= static_cast<unsigned int>(normal.x * 0x0000FFFF);
-//	voxNormPos.y = value;
-//}
-
 #endif //__CVOXEL_H__

@@ -32,7 +32,13 @@ GICudaVoxelScene::~GICudaVoxelScene()
 
 void GICudaVoxelScene::InitCuda()
 {
+	// Setting Device
 	cudaSetDevice(0);
+
+	// Cuda Check
+	cudaDeviceProp props;
+	CUDA_CHECK(cudaGetDeviceProperties(&props, 0));
+	if(props.major < 3) GI_LOG("UNSUPPORTED GPU, CUDA PORTION WILL NOT WORK. NEEDS ATLEAST SM_30 DEVICE");
 
 	// Shared Memory Prep
 	// 16 Kb memory is enough for our needs most of the time

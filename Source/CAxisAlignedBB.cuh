@@ -75,7 +75,6 @@ inline __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 		{ -FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f }
 	};
 
-	#pragma unroll
 	for(unsigned int i = 0; i < 8; i++)
 	{
 		float3 data;

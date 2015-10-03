@@ -38,6 +38,16 @@ void GICudaVoxelScene::InitCuda()
 	// Cuda Check
 	cudaDeviceProp props;
 	CUDA_CHECK(cudaGetDeviceProperties(&props, 0));
+
+	// Info Print
+	GI_LOG("Cuda Information...");
+	GI_LOG("GPU Name\t\t: %s", props.name);
+	GI_LOG("GPU Compute Capability\t: %d%d", props.major, props.minor);
+	GI_LOG("GPU Shared Memory(SM)\t: %dKB", props.sharedMemPerMultiprocessor / 1024);
+	GI_LOG("GPU Shared Memory(Block): %dKB", props.sharedMemPerBlock / 1024);
+	GI_LOG("");
+
+	// Minimum Required Compute Capability
 	if(props.major < 3)
 	{
 		GI_LOG("#######################################################################");

@@ -26,16 +26,19 @@ struct VoxelIds
 
 struct VoxelRenderData
 {
-	uint32_t color;
+	uint32_t color;				// Color
+	// That is it for transform dynamic options
+};
 
-	// For Moprh Targets
-	// uint3 parentVertexIndex
-	// float3 vertexWeights
+struct VoxelRenderSkelMorphData
+{
+	uchar4			color;		// Color
 
-	// For Skeleton Anim
-	// bone index (at most 4)
-	// bone weights (at most 4)
-
+	// Transform Related Data
+	// For Skeletal mesh these shows index of the transforms and weights
+	// For Morph target this shows the neigbouring vertices and their morph related index
+	uchar4			weightIndex;
+	uchar4			weight;
 };
 #pragma pack(pop)
 

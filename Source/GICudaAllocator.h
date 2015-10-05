@@ -41,6 +41,7 @@ class GICudaAllocator
 		std::vector<CVoxelPage>					hVoxelPages;
 		CudaVector<CVoxelPage>					dVoxelPages;
 		std::vector<CVoxelPageData>				hPageData;
+		size_t									reservedPageCount;
 
 		CVoxelGrid								hVoxelGridInfo;
 		CudaVector<CVoxelGrid>					dVoxelGridInfo;

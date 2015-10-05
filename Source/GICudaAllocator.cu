@@ -479,6 +479,8 @@ void GICudaAllocator::Reserve(uint32_t pageAmount)
 	{
 		AddVoxelPage(pageAmount - dVoxelPages.Size());
 	}
+
+	reservedPageCount = hVoxelPages.size();//pageAmount;
 }
 
 uint64_t GICudaAllocator::SystemTotalMemoryUsage() const
@@ -542,7 +544,7 @@ uint32_t GICudaAllocator::NumVoxels(uint32_t batchIndex) const
 
 uint32_t GICudaAllocator::NumPages() const
 {
-	return static_cast<uint32_t>(hVoxelPages.size());
+	return static_cast<uint32_t>(reservedPageCount);
 }
 
 CVoxelGrid* GICudaAllocator::GetVoxelGridDevice()

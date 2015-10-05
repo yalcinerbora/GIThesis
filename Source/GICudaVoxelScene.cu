@@ -53,6 +53,7 @@ void GICudaVoxelScene::InitCuda()
 		GI_LOG("#######################################################################");
 		GI_LOG("UNSUPPORTED GPU, CUDA PORTION WILL NOT WORK. NEEDS ATLEAST SM_30 DEVICE");
 		GI_LOG("#######################################################################");
+		GI_LOG("");
 	}
 
 	// Shared Memory Prep
@@ -225,7 +226,6 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	VoxelClearSignal<<<gridSize, GI_THREAD_PER_BLOCK>>>(allocator.GetVoxelPagesDevice(),
 														allocator.NumPages());
 	CUDA_KERNEL_CHECK();
-
 
 	////-----------------------------------------------
 	////DEBUG

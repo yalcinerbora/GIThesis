@@ -205,7 +205,6 @@
     <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelInclude.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">–maxrregcount=32 %(AdditionalOptions)</AdditionalOptions>
       <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">32</MaxRegCount>
       <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>
     </CudaCompile>

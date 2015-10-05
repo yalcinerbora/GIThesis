@@ -296,6 +296,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	//glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
 	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+	glFlush();
 
 	GLuint64 timeElapsed = 0;
 	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);

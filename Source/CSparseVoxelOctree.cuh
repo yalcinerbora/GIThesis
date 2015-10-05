@@ -12,18 +12,14 @@ Designed for fast reconstruction from its bottom
 #include <cuda.h>
 #include "CVoxel.cuh"
 
+
+#pragma pack(push, 1)
 struct CSVONode
 {
-	unsigned short	childId;					// Which Child Are you
-	unsigned short	childCount;					// How many childs you have
-	
-	
-	unsigned int ids; // at most 8
-
-	
-	CSVONode*		childPtr;					// Children (all children are adjacent)
+	unsigned short	index;
+	unsigned char	childMarkup;
 };
-
+#pragma pack(pop)
 
 // Returns the intersected voxelIndex if voxel is found
 // Else it returns -1 (0xFFFFFFFF)

@@ -92,9 +92,9 @@ inline __device__ float3 MultMatrix(const float3& v, const CMatrix4x4& m)
 {
 	return
 	{
-		m.column[0].x * v.x + m.column[1].x * v.y + m.column[2].x * v.z,		// X
-		m.column[0].y * v.x + m.column[1].y * v.y + m.column[2].y * v.z,		// Y
-		m.column[0].z * v.x + m.column[1].z * v.y + m.column[2].z * v.z,		// Z
+		m.column[0].x * v.x + m.column[1].x * v.y + m.column[2].x * v.z + m.column[3].x,	// X
+		m.column[0].y * v.x + m.column[1].y * v.y + m.column[2].y * v.z + m.column[3].y,	// Y
+		m.column[0].z * v.x + m.column[1].z * v.y + m.column[2].z * v.z + m.column[3].z,	// Z
 	};
 }
 

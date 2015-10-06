@@ -145,6 +145,7 @@
     <ClInclude Include="..\..\..\Source\GBuffer.h" />
     <ClInclude Include="..\..\..\Source\GICudaStructMatching.h" />
     <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h" />
+    <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h" />
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
@@ -201,6 +202,7 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu" />
+    <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu" />
     <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelInclude.cu" />

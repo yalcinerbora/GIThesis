@@ -59,9 +59,9 @@ enum ThesisRenderScheme
 	GI_DEFERRED,
 	GI_LIGHT_INTENSITY,
 	GI_VOXEL_PAGE,
+	GI_VOXEL_CACHE2048,
+	GI_VOXEL_CACHE1024,
 	GI_VOXEL_CACHE512,
-	GI_VOXEL_CACHE256,
-	GI_VOXEL_CACHE128
 };
 
 struct VoxelObjectCache
@@ -111,9 +111,9 @@ class ThesisSolution : public SolutionI
 		FrameTransformBuffer	cameraTransform;
 
 		// Voxel Cache for each cascade
+		VoxelObjectCache		cache2048;
+		VoxelObjectCache		cache1024;
 		VoxelObjectCache		cache512;
-		VoxelObjectCache		cache256;
-		VoxelObjectCache		cache128;
 		
 		// Utility Buffers
 		StructuredBuffer<VoxelGridInfoGL>	gridInfoBuffer;
@@ -145,18 +145,18 @@ class ThesisSolution : public SolutionI
 		void								LinkCacheWithVoxScene(GICudaVoxelScene&, VoxelObjectCache&);
 													 
 		// Cuda Segment
+		GICudaVoxelScene		voxelScene2048;
+		GICudaVoxelScene		voxelScene1024;
 		GICudaVoxelScene		voxelScene512;
-		GICudaVoxelScene		voxelScene256;
-		GICudaVoxelScene		voxelScene128;
 
 		static size_t			InitialObjectGridSize;
 		static size_t			InitialVoxelBufferSizes;
 
 		// Pre Allocating withput determining total size
 		// These are pre calculated
+		static size_t			MaxVoxelCacheSize2048;
+		static size_t			MaxVoxelCacheSize1024;
 		static size_t			MaxVoxelCacheSize512;
-		static size_t			MaxVoxelCacheSize256;
-		static size_t			MaxVoxelCacheSize128;
 
 	protected:
 		

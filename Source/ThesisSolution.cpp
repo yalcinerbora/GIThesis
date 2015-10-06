@@ -8,18 +8,18 @@
 #include "SceneLights.h"
 
 size_t ThesisSolution::InitialObjectGridSize = 256;
-size_t ThesisSolution::MaxVoxelCacheSize512 = static_cast<size_t>(1024 * 1024 * 3.5f);
-size_t ThesisSolution::MaxVoxelCacheSize256 = static_cast<size_t>(1024 * 1024 * 2.5f);
-size_t ThesisSolution::MaxVoxelCacheSize128 = static_cast<size_t>(1024 * 1024 * 1.5f);
+size_t ThesisSolution::MaxVoxelCacheSize2048 = static_cast<size_t>(1024 * 1024 * 1.5f);
+size_t ThesisSolution::MaxVoxelCacheSize1024 = static_cast<size_t>(1024 * 1024 * 1.5f);
+size_t ThesisSolution::MaxVoxelCacheSize512 = static_cast<size_t>(1024 * 1024 * 1.5f);
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
 	{ GI_DEFERRED, "Deferred" }, 
 	{ GI_LIGHT_INTENSITY, "LI Buffer Only"}, 
 	{ GI_VOXEL_PAGE, "Render Voxel Page" },
-	{ GI_VOXEL_CACHE512, "Render Voxel Cache 512" },
-	{ GI_VOXEL_CACHE256, "Render Voxel Cache 256" },
-	{ GI_VOXEL_CACHE128, "Render Voxel Cache 128" }
+	{ GI_VOXEL_CACHE2048, "Render Voxel Cache 2048" },
+	{ GI_VOXEL_CACHE1024, "Render Voxel Cache 1024" },
+	{ GI_VOXEL_CACHE512, "Render Voxel Cache 512" }
 };
 
 ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& intialCamPos)
@@ -36,37 +36,23 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, computeVoxelizeCount(ShaderType::COMPUTE, "Shaders/VoxelizeGeomCount.glsl")
 	, computePackObjectVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.glsl")
 	, computeDetermineVoxSpan(ShaderType::COMPUTE, "Shaders/DetermineVoxSpan.glsl")
+	, cache2048(InitialObjectGridSize, MaxVoxelCacheSize2048)
+	, cache1024(InitialObjectGridSize, MaxVoxelCacheSize1024)
 	, cache512(InitialObjectGridSize, MaxVoxelCacheSize512)
-	, cache256(InitialObjectGridSize, MaxVoxelCacheSize256)
-	, cache128(InitialObjectGridSize, MaxVoxelCacheSize128)
 	, bar(nullptr)
-	, voxelScene512(intialCamPos, 0.513f, 512)
-	, voxelScene256(intialCamPos, 0.513f * 2, 512)
-	, voxelScene128(intialCamPos, 0.513f * 4, 512)
+	, voxelScene2048(intialCamPos, 0.513f, 512)
+	, voxelScene1024(intialCamPos, 0.513f * 2, 512)
+	, voxelScene512(intialCamPos, 0.513f * 4, 512)
 	, renderScheme(GI_VOXEL_PAGE)
-	//, renderScheme(GI_VOXEL_CACHE512)
+	//, renderScheme(GI_VOXEL_CACHE2048)
 	, gridInfoBuffer(1)
 {
-
-	voxelScene512.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),
-											  dRenderer.GetGBuffer().getNormalGL(),
-											  dRenderer.GetLightIntensityBufferGL());
-	voxelScene256.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),
-											  dRenderer.GetGBuffer().getNormalGL(),
-											  dRenderer.GetLightIntensityBufferGL());
-	voxelScene128.LinkDeferredRendererBuffers(dRenderer.GetGBuffer().getDepthGLView(),
-											  dRenderer.GetGBuffer().getNormalGL(),
-											  dRenderer.GetLightIntensityBufferGL());
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, 6);
 	gridInfoBuffer.AddData({});
 }
 
 ThesisSolution::~ThesisSolution()
-{
-	voxelScene512.UnLinkDeferredRendererBuffers();
-	voxelScene256.UnLinkDeferredRendererBuffers();
-	voxelScene128.UnLinkDeferredRendererBuffers();
-}
+{}
 
 bool ThesisSolution::IsCurrentScene(SceneI& scene)
 {
@@ -76,9 +62,9 @@ bool ThesisSolution::IsCurrentScene(SceneI& scene)
 void ThesisSolution::Init(SceneI& s)
 {
 	// Reset GICudaScene
+	voxelScene1024.Reset();
+	voxelScene2048.Reset();
 	voxelScene512.Reset();
-	voxelScene256.Reset();
-	voxelScene128.Reset();
 
 	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 	currentScene = &s;
@@ -86,24 +72,23 @@ void ThesisSolution::Init(SceneI& s)
 	// Voxelization
 	// and Voxel Cache Creation
 	double voxelTotaltime = 0.0;
-	voxelTotaltime += Voxelize(cache512, 0.513f, 1);
-	voxelTotaltime += Voxelize(cache256, 0.513f * 2, 2);
-	voxelTotaltime += Voxelize(cache128, 0.513f * 4, 4);
+	voxelTotaltime += Voxelize(cache2048, 0.513f, 1);
+	voxelTotaltime += Voxelize(cache1024, 0.513f * 2, 2);
+	voxelTotaltime += Voxelize(cache512, 0.513f * 4, 4);
 	GI_LOG("Scene voxelization completed. Elapsed time %f ms", voxelTotaltime);
 
 	// Voxel Page System Linking
+	LinkCacheWithVoxScene(voxelScene2048, cache2048);
+	LinkCacheWithVoxScene(voxelScene1024, cache1024);
 	LinkCacheWithVoxScene(voxelScene512, cache512);
-	LinkCacheWithVoxScene(voxelScene256, cache256);
-	LinkCacheWithVoxScene(voxelScene128, cache128);
 	
 	// Memory Usage Total
 	GI_LOG("Voxel Sytem #1 Total Memory Usage %f MB", 
-		   static_cast<double>(voxelScene512.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
+		   static_cast<double>(voxelScene2048.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
 	GI_LOG("Voxel Sytem #2 Total Memory Usage %f MB",
-		   static_cast<double>(voxelScene256.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
+		   static_cast<double>(voxelScene1024.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
 	GI_LOG("Voxel Sytem #3 Total Memory Usage %f MB",
-		   static_cast<double>(voxelScene128.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
-
+		   static_cast<double>(voxelScene512.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
 
 	// Tw Bar Creation
 	bar = TwNewBar("ThesisGI");
@@ -119,30 +104,30 @@ void ThesisSolution::Init(SceneI& s)
 			   &giOn,
 			   " label='GI On' help='Cone Tracing GI On off' ");
 	TwAddSeparator(bar, NULL, NULL);
-	TwAddVarRO(bar, "voxCache512", TW_TYPE_UINT32, &cache512.voxInfo.sceneVoxCacheCount,
+	TwAddVarRO(bar, "voxCache512", TW_TYPE_UINT32, &cache2048.voxInfo.sceneVoxCacheCount,
 			   " label='Cascade#1 Count' group='Voxel Cache' help='Cache voxel count.' ");
-	TwAddVarRO(bar, "voxCacheSize512", TW_TYPE_DOUBLE, &cache512.voxInfo.sceneVoxCacheSize,
+	TwAddVarRO(bar, "voxCacheSize512", TW_TYPE_DOUBLE, &cache2048.voxInfo.sceneVoxCacheSize,
 			   " label='Cascade#1 Size(MB)' group='Voxel Cache' precision=2 help='Cache voxel total size in megabytes.' ");
-	TwAddVarRO(bar, "voxCache256", TW_TYPE_UINT32, &cache256.voxInfo.sceneVoxCacheCount,
+	TwAddVarRO(bar, "voxCache256", TW_TYPE_UINT32, &cache1024.voxInfo.sceneVoxCacheCount,
 			   " label='Cascade#2 Count' group='Voxel Cache' help='Cache voxel count.' ");
-	TwAddVarRO(bar, "voxCacheSize256", TW_TYPE_DOUBLE, &cache256.voxInfo.sceneVoxCacheSize,
+	TwAddVarRO(bar, "voxCacheSize256", TW_TYPE_DOUBLE, &cache1024.voxInfo.sceneVoxCacheSize,
 			   " label='Cascade#2 Size(MB)' group='Voxel Cache' precision=2 help='Cache voxel total size in megabytes.' ");
-	TwAddVarRO(bar, "voxCache128", TW_TYPE_UINT32, &cache128.voxInfo.sceneVoxCacheCount,
+	TwAddVarRO(bar, "voxCache128", TW_TYPE_UINT32, &cache512.voxInfo.sceneVoxCacheCount,
 			   " label='Cascade#3 Count' group='Voxel Cache' help='Cache voxel count.' ");
-	TwAddVarRO(bar, "voxCacheSize128", TW_TYPE_DOUBLE, &cache128.voxInfo.sceneVoxCacheSize,
+	TwAddVarRO(bar, "voxCacheSize128", TW_TYPE_DOUBLE, &cache512.voxInfo.sceneVoxCacheSize,
 			   " label='Cascade#3 Size(MB)' group='Voxel Cache' precision=2 help='Cache voxel total size in megabytes.' ");
 	TwAddSeparator(bar, NULL, NULL);
-	TwAddVarRO(bar, "voxUsed512", TW_TYPE_UINT32, &cache512.voxInfo.sceneVoxOctreeCount,
+	TwAddVarRO(bar, "voxUsed512", TW_TYPE_UINT32, &cache2048.voxInfo.sceneVoxOctreeCount,
 			   " label='Cascade#1 Count' group='Voxel Octree' help='Voxel count in octree.' ");
-	TwAddVarRO(bar, "voxUsedSize512", TW_TYPE_DOUBLE, &cache512.voxInfo.sceneVoxOctreeSize,
+	TwAddVarRO(bar, "voxUsedSize512", TW_TYPE_DOUBLE, &cache2048.voxInfo.sceneVoxOctreeSize,
 			   " label='Cascade#1 Size(MB)' group='Voxel Octree' precision=2 help='Octree Voxel total size in megabytes.' ");
-	TwAddVarRO(bar, "voxUsed256", TW_TYPE_UINT32, &cache256.voxInfo.sceneVoxOctreeCount,
+	TwAddVarRO(bar, "voxUsed256", TW_TYPE_UINT32, &cache1024.voxInfo.sceneVoxOctreeCount,
 			   " label='Cascade#2 Count' group='Voxel Octree' help='Voxel count in octree.' ");
-	TwAddVarRO(bar, "voxUsedSize256", TW_TYPE_DOUBLE, &cache256.voxInfo.sceneVoxOctreeSize,
+	TwAddVarRO(bar, "voxUsedSize256", TW_TYPE_DOUBLE, &cache1024.voxInfo.sceneVoxOctreeSize,
 			   " label='Cascade#2 Size(MB)' group='Voxel Octree' precision=2 help='Octree Voxel total size in megabytes.' ");
-	TwAddVarRO(bar, "voxUsed128", TW_TYPE_UINT32, &cache128.voxInfo.sceneVoxOctreeCount,
+	TwAddVarRO(bar, "voxUsed128", TW_TYPE_UINT32, &cache512.voxInfo.sceneVoxOctreeCount,
 			   " label='Cascade#3 Count' group='Voxel Octree' help='Voxel count in octree.' ");
-	TwAddVarRO(bar, "voxUsedSize128", TW_TYPE_DOUBLE, &cache128.voxInfo.sceneVoxOctreeSize,
+	TwAddVarRO(bar, "voxUsedSize128", TW_TYPE_DOUBLE, &cache512.voxInfo.sceneVoxOctreeSize,
 			   " label='Cascade#3 Size(MB)' group='Voxel Octree' precision=2 help='Octree Voxel total size in megabytes.' ");
 	TwAddSeparator(bar, NULL, NULL);
 	TwAddVarRO(bar, "ioTime", TW_TYPE_DOUBLE, &ioTime,
@@ -153,13 +138,14 @@ void ThesisSolution::Init(SceneI& s)
 			   " label='SVO Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
 	TwAddVarRO(bar, "transferTime", TW_TYPE_DOUBLE, &debugVoxTransferTime,
 			   " label='Dbg Transfer Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
-	TwDefine(" ThesisGI size='325 400' ");
+	TwDefine(" ThesisGI size='325 430' ");
 	TwDefine(" ThesisGI valueswidth=fit ");
 }
 
 void ThesisSolution::Release()
 {
 	if(bar) TwDeleteBar(bar);
+	bar = nullptr;
 }
 
 double ThesisSolution::Voxelize(VoxelObjectCache& cache,
@@ -200,7 +186,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	
 	// Render Objects to Voxel Grid
 	// Use MSAA to prevent missing small triangles on voxels
-	// (teting conservative rendering on maxwell)
+	// (testing conservative rendering on maxwell)
 	glEnable(GL_MULTISAMPLE);
 	//glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
 
@@ -220,6 +206,9 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	voxelRenderTexture.Clear();
 	for(unsigned int i = 0; i < currentScene->DrawCount(); i++)
 	{
+		if(cache.objectGridInfo.CPUData()[i].span != currentScene->MinSpan() * minSpanMultiplier)
+			continue;
+
 		// First Call Voxelize over 3D Texture
 		currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 		voxelRenderTexture.BindAsImage(I_VOX_WRITE, GL_WRITE_ONLY);
@@ -338,8 +327,6 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene, VoxelObjectC
 						  cache.voxelRenderData.getGLBuffer(),
 						  static_cast<uint32_t>(currentScene->DrawCount()),
 						  cache.voxInfo.sceneVoxCacheCount);
-	// Link ShadowMaps and GBuffer textures to cuda
-	scene.LinkSceneTextures(currentScene->getSceneLights().GetShadowMapArrayR32F());
 	// Allocate at least all of the scene voxel
 	scene.AllocateInitialPages(static_cast<uint32_t>(cache.voxInfo.sceneVoxCacheCount));
 }
@@ -449,7 +436,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	svoTime = 0;
 
 	// Cascade #1 Update
-	voxelScene512.VoxelUpdate(ioTimeSegment,
+	voxelScene2048.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
 							  svoTimeSegment,
 							  mainRenderCamera.pos);
@@ -458,7 +445,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	svoTime += svoTimeSegment;
 
 	// Cascade #2 Update
-	voxelScene256.VoxelUpdate(ioTimeSegment,
+	voxelScene1024.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
 							  svoTimeSegment,
 							  mainRenderCamera.pos);
@@ -467,7 +454,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	svoTime += svoTimeSegment;
 
 	// Cascade #3 Update
-	voxelScene128.VoxelUpdate(ioTimeSegment,
+	voxelScene512.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
 							  svoTimeSegment,
 							  mainRenderCamera.pos);
@@ -476,14 +463,14 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	svoTime += svoTimeSegment;
 
 	// Voxel Count in Pages
+	cache2048.voxInfo.sceneVoxOctreeCount = voxelScene2048.VoxelCountInPage();
+	cache2048.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache2048.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
+
+	cache1024.voxInfo.sceneVoxOctreeCount = voxelScene1024.VoxelCountInPage();
+	cache1024.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache1024.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
+
 	cache512.voxInfo.sceneVoxOctreeCount = voxelScene512.VoxelCountInPage();
 	cache512.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache512.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
-
-	cache256.voxInfo.sceneVoxOctreeCount = voxelScene256.VoxelCountInPage();
-	cache256.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache256.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
-
-	cache128.voxInfo.sceneVoxOctreeCount = voxelScene128.VoxelCountInPage();
-	cache128.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache128.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
 	
 	// Here check TW Bar if user wants to render voxels
 	switch(renderScheme)
@@ -504,42 +491,42 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			glClear(GL_COLOR_BUFFER_BIT |
 					GL_DEPTH_BUFFER_BIT);
 
-			CVoxelGrid voxGrid128;
-			VoxelDebugVAO vao128 = voxelScene128.VoxelDataForRendering(voxGrid128, debugVoxTransferTime, cache128.voxInfo.sceneVoxOctreeCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao128, voxGrid128, true,
-								 cache128.voxInfo.sceneVoxOctreeCount);
-
-			glClear(GL_DEPTH_BUFFER_BIT);
-
-			CVoxelGrid voxGrid256;
-			VoxelDebugVAO vao256 = voxelScene256.VoxelDataForRendering(voxGrid256, debugVoxTransferTime, cache256.voxInfo.sceneVoxOctreeCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao256, voxGrid256, true,
-								 cache256.voxInfo.sceneVoxOctreeCount);
-
-			glClear(GL_DEPTH_BUFFER_BIT);
-
 			CVoxelGrid voxGrid512;
 			VoxelDebugVAO vao512 = voxelScene512.VoxelDataForRendering(voxGrid512, debugVoxTransferTime, cache512.voxInfo.sceneVoxOctreeCount);
 			DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512, false,
 								 cache512.voxInfo.sceneVoxOctreeCount);
+
+			glClear(GL_DEPTH_BUFFER_BIT);
+
+			CVoxelGrid voxGrid1024;
+			VoxelDebugVAO vao1024 = voxelScene1024.VoxelDataForRendering(voxGrid1024, debugVoxTransferTime, cache1024.voxInfo.sceneVoxOctreeCount);
+			DebugRenderVoxelPage(mainRenderCamera, vao1024, voxGrid1024, false,
+								 cache1024.voxInfo.sceneVoxOctreeCount);
+
+			glClear(GL_DEPTH_BUFFER_BIT);
+
+			CVoxelGrid voxGrid2048;
+			VoxelDebugVAO vao2048 = voxelScene2048.VoxelDataForRendering(voxGrid2048, debugVoxTransferTime, cache2048.voxInfo.sceneVoxOctreeCount);
+			DebugRenderVoxelPage(mainRenderCamera, vao2048, voxGrid2048, false,
+								 cache2048.voxInfo.sceneVoxOctreeCount);
+			break;
+		}
+		case GI_VOXEL_CACHE2048:
+		{
+			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
+			DebugRenderVoxelCache(mainRenderCamera, cache2048);
+			break;
+		}
+		case GI_VOXEL_CACHE1024:
+		{
+			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
+			DebugRenderVoxelCache(mainRenderCamera, cache1024);
 			break;
 		}
 		case GI_VOXEL_CACHE512:
 		{
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 			DebugRenderVoxelCache(mainRenderCamera, cache512);
-			break;
-		}
-		case GI_VOXEL_CACHE256:
-		{
-			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			DebugRenderVoxelCache(mainRenderCamera, cache256);
-			break;
-		}
-		case GI_VOXEL_CACHE128:
-		{
-			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			DebugRenderVoxelCache(mainRenderCamera, cache128);
 			break;
 		}
 	}

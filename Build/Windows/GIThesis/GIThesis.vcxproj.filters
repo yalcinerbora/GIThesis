@@ -250,6 +250,9 @@
     <ClInclude Include="..\..\..\Source\CudaDefinitions.h">
       <Filter>Utility</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -307,6 +310,9 @@
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\CDebug.cu">
       <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu">
+      <Filter>GI\Thesis</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

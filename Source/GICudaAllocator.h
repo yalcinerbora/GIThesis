@@ -12,6 +12,7 @@ Memory Allocation
 #include <vector>
 #include "CVoxel.cuh"
 #include "COpenGLCommon.cuh"
+#include "CSparseVoxelOctree.cuh"
 #include "CudaVector.cuh"
 #include "GLHeader.h"
 #include "CVoxelPage.h"
@@ -37,6 +38,9 @@ class GICudaAllocator
 {
 	
 	private:
+		static const unsigned int				SVOTextureSize;
+		static const unsigned int				SVOTextureDepth;
+
 		// Grid Data
 		std::vector<CVoxelPage>					hVoxelPages;
 		CudaVector<CVoxelPage>					dVoxelPages;
@@ -108,9 +112,8 @@ class GICudaAllocator
 		std::vector<size_t>						objectCounts;
 		size_t									totalObjectCount;
 
-		//
+		// Voxel Page System memory Mangement
 		void					AddVoxelPage(size_t count);
-		//void					ShrinkVoxelPages(size_t pageCount);
 
 	protected:
 	public:
@@ -127,11 +130,6 @@ class GICudaAllocator
 												  GLuint voxelCacheRender,
 												  uint32_t objCount,
 												  uint32_t voxelCount);
-		void					LinkSceneShadowMapArray(GLuint shadowMapArray);
-		void					LinkSceneGBuffers(GLuint depthTex,
-												  GLuint normalTex,
-												  GLuint lightIntensityTex);
-		void					UnLinkGBuffers();
 
 		// Resetting Scene related data (called when scene changes)
 		void					ResetSceneData();

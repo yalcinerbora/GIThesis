@@ -17,7 +17,7 @@ struct CObjectTransform;
 struct CVoxelRender;
 struct CVoxelPage;
 struct CVoxelGrid;
-struct CSVONode;
+typedef unsigned int CSVONode;
 
 // Voxel Transform
 // Transforms existing voxels in order to cut voxel reconstruction each frame
@@ -114,7 +114,7 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 // Creates SVO tree top down manner
 // Implementation is opposite of parallel reduction
 // Call Logic "per svo node (varying)"
-extern  __global__ void SVOReconstruct(CSVONode* svo,
+extern  __global__ void SVOReconstruct(CSVONode** svo,
 									   const CVoxelPage* gVoxelData);
 
 #endif //__GIKERNELS_H__

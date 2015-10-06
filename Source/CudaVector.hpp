@@ -150,7 +150,7 @@ void CudaVector<T>::Reserve(size_t newSize)
 {
 	if(newSize > capacity)
 	{
-		size_t newCount = ((newSize + InitialCapacity - 1) / InitialCapacity) * InitialCapacity;
+		size_t newCount = ((newSize + CUDA_VEC_INITIAL_CAPACITY - 1) / CUDA_VEC_INITIAL_CAPACITY) * CUDA_VEC_INITIAL_CAPACITY;
 		T* d_newAlloc = nullptr;
 		cudaMalloc<T>(&d_newAlloc, sizeof(T) * newCount);
 		cudaMemcpy(d_newAlloc, d_data, sizeof(T)  * size, cudaMemcpyDeviceToDevice);

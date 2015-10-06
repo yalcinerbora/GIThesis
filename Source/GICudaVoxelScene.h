@@ -66,18 +66,13 @@ class GICudaVoxelScene
 
 		// Determines and Allocates the initial Page Size for the first frame
 		void				LinkOGL(GLuint aabbBuffer,
-									GLuint transformBufferID,									
+									GLuint transformBufferID,
 									GLuint infoBufferID,
 									GLuint voxelCacheNormPos,
 									GLuint voxelCacheIds,
 									GLuint voxelCacheRender,
 									uint32_t objCount,
 									uint32_t voxelCount);
-		void				LinkSceneTextures(GLuint shadowMapArray);
-		void				LinkDeferredRendererBuffers(GLuint depthBuffer,
-														GLuint normalGBuff,
-														GLuint lightIntensityTex);
-		void				UnLinkDeferredRendererBuffers();
 		void				AllocateInitialPages(uint32_t approxVoxCount);
 		void				Reset();
 

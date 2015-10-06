@@ -231,6 +231,7 @@ void EmptyGISolution::Release()
 {
 	// Release Tweakbar
 	if(bar) TwDeleteBar(bar);
+	bar = nullptr;
 }
 
 void EmptyGISolution::Frame(const Camera& mainRenderCamera)

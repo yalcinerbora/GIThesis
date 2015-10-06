@@ -79,33 +79,18 @@ void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 								objCount, voxelCount);
 }
 
-void GICudaVoxelScene::LinkSceneTextures(GLuint shadowMapArray)
-{
-	allocator.LinkSceneShadowMapArray(shadowMapArray);
-}
-
-void GICudaVoxelScene::UnLinkDeferredRendererBuffers()
-{
-	allocator.UnLinkGBuffers();
-}
-
-void GICudaVoxelScene::LinkDeferredRendererBuffers(GLuint depthBuffer,
-												   GLuint normalGBuff,
-												   GLuint lightIntensityTex)
-{
-	allocator.LinkSceneGBuffers(depthBuffer, normalGBuff, lightIntensityTex);
-}
-
 void GICudaVoxelScene::AllocateInitialPages(uint32_t approxVoxCount)
 {
 	// Hint Device that we will use already linked resources
 	uint32_t pageCount = (approxVoxCount + (GI_PAGE_SIZE - 1)) / GI_PAGE_SIZE;
 	allocator.Reserve(pageCount);
-	vaoNormPosData.Resize(approxVoxCount);
-	vaoColorData.Resize(approxVoxCount);
+	vaoNormPosData.Resize(pageCount * GI_PAGE_SIZE);
+	vaoColorData.Resize(pageCount * GI_PAGE_SIZE);
 
 	// WARNING
 	// Cuda Register	
+	if(vaoNormPosResource) CUDA_CHECK(cudaGraphicsUnregisterResource(vaoNormPosResource));
+	if(vaoRenderResource) CUDA_CHECK(cudaGraphicsUnregisterResource(vaoRenderResource));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&vaoNormPosResource, vaoNormPosData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&vaoRenderResource, vaoColorData.getGLBuffer(), cudaGraphicsMapFlagsWriteDiscard));
 }

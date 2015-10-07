@@ -126,9 +126,8 @@ void main(void)
 				voxelNormPos[index] = PackVoxelNormPos(voxId, voxData.xy, spanRatio);
 				voxelIds[index] = PackVoxelIds(objId, objType, index);
 			}
+			// Reset Color For next iteration
+			imageStore(voxelData, ivec3(voxId), uvec4(0xFFFF));
 		}
 	}
-
-	// Reset Color For next iteration
-	imageStore(voxelData, ivec3(voxId), uvec4(0xFFFF));
 }

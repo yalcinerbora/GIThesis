@@ -52,10 +52,10 @@ void StructuredBuffer<T>::SendData()
 	}
 
 	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
-	glBufferData(GL_COPY_WRITE_BUFFER, 
-				 dataGPUImage.size() * sizeof(T),
-				 dataGPUImage.data(),
-				 GL_DYNAMIC_DRAW);
+	glBufferSubData(GL_COPY_WRITE_BUFFER,
+					0,
+					dataGPUImage.size() * sizeof(T),
+					dataGPUImage.data());
 }
 
 template <class T>

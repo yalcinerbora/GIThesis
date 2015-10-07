@@ -15,7 +15,7 @@
 // 512 3D texture has some issues on the card (some deadlocks etc.)
 // prob there is some driver/card bug somwhere
 // 416 seems to be working tho so its k
-#define VOXEL_GRID_SIZE 416
+#define VOXEL_GRID_SIZE 512
 
 class VoxelRenderTexture
 {

@@ -405,7 +405,7 @@ void GICudaAllocator::ResetSceneData()
 void GICudaAllocator::Reserve(uint32_t pageAmount)
 {
 	//WARNING
-	pageAmount = static_cast<uint32_t>(pageAmount * 1.6f);
+	pageAmount = static_cast<uint32_t>(pageAmount * 5.6f);
 
 	if(dVoxelPages.Size() < pageAmount)
 	{

@@ -9,7 +9,7 @@
 
 size_t ThesisSolution::InitialObjectGridSize = 256;
 size_t ThesisSolution::MaxVoxelCacheSize2048 = static_cast<size_t>(1024 * 1024 * 1.5f);
-size_t ThesisSolution::MaxVoxelCacheSize1024 = static_cast<size_t>(1024 * 1024 * 1.5f);
+size_t ThesisSolution::MaxVoxelCacheSize1024 = static_cast<size_t>(1024 * 1024 * 2.0f);
 size_t ThesisSolution::MaxVoxelCacheSize512 = static_cast<size_t>(1024 * 1024 * 1.5f);
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 

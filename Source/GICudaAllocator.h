@@ -26,6 +26,7 @@ struct CVoxelPageData
 	CudaVector<unsigned char>		dEmptySegmentList;
 	CudaVector<SegmentOccupation>	dIsSegmentOccupied;
 
+	CVoxelPageData() {};
 	CVoxelPageData(size_t sizeOfPage, size_t sizeOfHelper)
 		: dVoxelPageNormPos(sizeOfPage)
 		, dVoxelPageIds(sizeOfPage)
@@ -110,10 +111,12 @@ class GICudaAllocator
 		// Size Data
 		std::vector<size_t>						voxelCounts;
 		std::vector<size_t>						objectCounts;
+		size_t									totalSegmentCount;
 		size_t									totalObjectCount;
 
 		// Voxel Page System memory Mangement
-		void					AddVoxelPage(size_t count);
+		void					AddVoxelPages(size_t count);
+		void					RemoveVoxelPages(size_t count);
 
 	protected:
 	public:
@@ -133,7 +136,7 @@ class GICudaAllocator
 
 		// Resetting Scene related data (called when scene changes)
 		void					ResetSceneData();
-		void					Reserve(uint32_t pageAmount);
+		void					ReserveForSegments(float coverageRatio);
 
 		void					SendNewVoxPosToDevice();
 
@@ -146,6 +149,7 @@ class GICudaAllocator
 		uint32_t				NumObjectSegments(uint32_t batchIndex) const;
 		uint32_t				NumVoxels(uint32_t batchIndex) const;
 		uint32_t				NumPages() const;
+		uint32_t				NumSegments() const;
 
 		CVoxelGrid*				GetVoxelGridDevice();
 		CVoxelGrid				GetVoxelGridHost();

@@ -110,6 +110,7 @@ const unsigned int GICudaAllocator::SVOTextureDepth = 7;
 
 GICudaAllocator::GICudaAllocator(const CVoxelGrid& gridInfo)
 	: totalObjectCount(0)
+	, totalSegmentCount(0)
 	, dVoxelGridInfo(1)
 	, hVoxelGridInfo(gridInfo)
 {
@@ -188,6 +189,7 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	dSegmentObjecId.emplace_back(hTotalCount);
 	dSegmentAllocLoc.emplace_back(hTotalCount);
 	dSegmentAllocLoc.back().Memset(0xFF, 0, dSegmentAllocLoc.back().Size());
+	totalSegmentCount += hTotalCount;
 
 	gridSize = static_cast<uint32_t>((objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK);
 	DetermineSegmentObjId<<<gridSize, GI_THREAD_PER_BLOCK>>>(dSegmentObjecId.back().Data(),
@@ -301,16 +303,6 @@ void GICudaAllocator::ClearDevicePointers()
 	hObjIdsCache.clear();
 	hObjRenderCache.clear();
 	
-	//CUDA_CHECK(cudaDestroySurfaceObject(lightIntensityBuffer));
-	//CUDA_CHECK(cudaDestroyTextureObject(normalBuffer));
-	//CUDA_CHECK(cudaDestroyTextureObject(depthBuffer));
-	//CUDA_CHECK(cudaDestroyTextureObject(shadowMaps));
-
-	//CUDA_CHECK(cudaGraphicsUnmapResources(1, &lightIntensityLink));
-	//CUDA_CHECK(cudaGraphicsUnmapResources(1, &normalBuffLink));
-	//CUDA_CHECK(cudaGraphicsUnmapResources(1, &depthBuffLink));
-	//CUDA_CHECK(cudaGraphicsUnmapResources(1, &sceneShadowMapLink));
-
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(transformLinks.size()), transformLinks.data()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data()));
@@ -320,7 +312,7 @@ void GICudaAllocator::ClearDevicePointers()
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data()));
 }
 
-void GICudaAllocator::AddVoxelPage(size_t count)
+void GICudaAllocator::AddVoxelPages(size_t count)
 {
 	hPageData.reserve(hPageData.size() + count);
 	for(unsigned int i = 0; i < count; i++)
@@ -354,6 +346,13 @@ void GICudaAllocator::AddVoxelPage(size_t count)
 	hPageData.front().dIsSegmentOccupied.DumpToFile("isSegmentOcuupListFirstPage");
 }
 
+void GICudaAllocator::RemoveVoxelPages(size_t count)
+{
+	hPageData.resize(hPageData.size() - count);
+	hVoxelPages.resize(hVoxelPages.size() - count);
+	dVoxelPages = hVoxelPages;
+}
+
 void GICudaAllocator::ResetSceneData()
 {
 	for(unsigned int i = 0; i < transformLinks.size(); i++)
@@ -366,9 +365,6 @@ void GICudaAllocator::ResetSceneData()
 		CUDA_CHECK(cudaGraphicsUnregisterResource(cacheIdsLinks[i]));
 		CUDA_CHECK(cudaGraphicsUnregisterResource(cacheRenderLinks[i]));
 	}	
-
-	if(sceneShadowMapLink)
-		CUDA_CHECK(cudaGraphicsUnregisterResource(sceneShadowMapLink));
 
 	transformLinks.clear();
 	aabbLinks.clear();
@@ -392,6 +388,7 @@ void GICudaAllocator::ResetSceneData()
 	voxelCounts.clear();
 
 	totalObjectCount = 0;
+	totalSegmentCount = 0;
 
 	if(NumPages() > 0)
 	{
@@ -402,17 +399,20 @@ void GICudaAllocator::ResetSceneData()
 	}
 }
 
-void GICudaAllocator::Reserve(uint32_t pageAmount)
+void GICudaAllocator::ReserveForSegments(float coverageRatio)
 {
-	//WARNING
-	pageAmount = static_cast<uint32_t>(pageAmount * 5.6f);
+	uint32_t requiredPages = static_cast<uint32_t>((totalSegmentCount + GI_SEGMENT_PER_PAGE - 1) / GI_SEGMENT_PER_PAGE);
+	requiredPages = static_cast<uint32_t>(requiredPages / coverageRatio);
 
-	if(dVoxelPages.Size() < pageAmount)
+	if(dVoxelPages.Size() < requiredPages)
 	{
-		AddVoxelPage(pageAmount - dVoxelPages.Size());
+		AddVoxelPages(requiredPages - dVoxelPages.Size());
 	}
-	// Only Use Reserved Count
-	reservedPageCount = pageAmount;
+	else if(dVoxelPages.Size() > requiredPages)
+	{
+		RemoveVoxelPages(dVoxelPages.Size() - requiredPages);
+	}
+	reservedPageCount = requiredPages;
 }
 
 uint64_t GICudaAllocator::SystemTotalMemoryUsage() const
@@ -476,6 +476,11 @@ uint32_t GICudaAllocator::NumVoxels(uint32_t batchIndex) const
 uint32_t GICudaAllocator::NumPages() const
 {
 	return static_cast<uint32_t>(reservedPageCount);
+}
+
+uint32_t GICudaAllocator::NumSegments() const
+{
+	return static_cast<uint32_t>(totalSegmentCount);
 }
 
 CVoxelGrid* GICudaAllocator::GetVoxelGridDevice()

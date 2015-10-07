@@ -142,7 +142,9 @@ class ThesisSolution : public SolutionI
 		 // Voxelizes the scene for a cache level
 		double								Voxelize(VoxelObjectCache&,
 													 float gridSpan, unsigned int minSpanMultiplier);
-		void								LinkCacheWithVoxScene(GICudaVoxelScene&, VoxelObjectCache&);
+		void								LinkCacheWithVoxScene(GICudaVoxelScene&, 
+																  VoxelObjectCache&,
+																  float coverageRatio);
 													 
 		// Cuda Segment
 		GICudaVoxelScene		voxelScene2048;

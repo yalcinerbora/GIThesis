@@ -78,9 +78,9 @@ void ThesisSolution::Init(SceneI& s)
 	GI_LOG("Scene voxelization completed. Elapsed time %f ms", voxelTotaltime);
 
 	// Voxel Page System Linking
-	LinkCacheWithVoxScene(voxelScene2048, cache2048);
-	LinkCacheWithVoxScene(voxelScene1024, cache1024);
-	LinkCacheWithVoxScene(voxelScene512, cache512);
+	LinkCacheWithVoxScene(voxelScene2048, cache2048, 1.0f);
+	LinkCacheWithVoxScene(voxelScene1024, cache1024, 1.0f);
+	LinkCacheWithVoxScene(voxelScene512, cache512, 1.0f);
 	
 	// Memory Usage Total
 	GI_LOG("Voxel Sytem #1 Total Memory Usage %f MB", 
@@ -169,7 +169,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(currentScene->DrawCount()));
-	glUniform1f(U_MIN_SPAN, currentScene->MinSpan() * minSpanMultiplier);
+	glUniform1f(U_MIN_SPAN, currentScene->MinSpan() );
 	glUniform1ui(U_MAX_GRID_DIM, VOXEL_GRID_SIZE);
 
 	size_t blockCount = (currentScene->DrawCount() / 128);
@@ -316,7 +316,9 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	return time;
 }
 
-void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene, VoxelObjectCache& cache)
+void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene, 
+										   VoxelObjectCache& cache,
+										   float coverageRatio)
 {
 	// Send it to CUDA
 	scene.LinkOGL(currentScene->getDrawBuffer().getAABBBuffer().getGLBuffer(),
@@ -328,7 +330,7 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene, VoxelObjectC
 						  static_cast<uint32_t>(currentScene->DrawCount()),
 						  cache.voxInfo.sceneVoxCacheCount);
 	// Allocate at least all of the scene voxel
-	scene.AllocateInitialPages(static_cast<uint32_t>(cache.voxInfo.sceneVoxCacheCount));
+	scene.AllocateWRTLinkedData(coverageRatio);
 }
 
 void ThesisSolution::DebugRenderVoxelCache(const Camera& camera, VoxelObjectCache& cache)
@@ -496,14 +498,14 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512, false,
 								 cache512.voxInfo.sceneVoxOctreeCount);
 
-			glClear(GL_DEPTH_BUFFER_BIT);
+			//glClear(GL_DEPTH_BUFFER_BIT);
 
 			CVoxelGrid voxGrid1024;
 			VoxelDebugVAO vao1024 = voxelScene1024.VoxelDataForRendering(voxGrid1024, debugVoxTransferTime, cache1024.voxInfo.sceneVoxOctreeCount);
 			DebugRenderVoxelPage(mainRenderCamera, vao1024, voxGrid1024, false,
 								 cache1024.voxInfo.sceneVoxOctreeCount);
 
-			glClear(GL_DEPTH_BUFFER_BIT);
+			//glClear(GL_DEPTH_BUFFER_BIT);
 
 			CVoxelGrid voxGrid2048;
 			VoxelDebugVAO vao2048 = voxelScene2048.VoxelDataForRendering(voxGrid2048, debugVoxTransferTime, cache2048.voxInfo.sceneVoxOctreeCount);

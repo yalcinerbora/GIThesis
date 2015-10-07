@@ -73,7 +73,7 @@ class GICudaVoxelScene
 									GLuint voxelCacheRender,
 									uint32_t objCount,
 									uint32_t voxelCount);
-		void				AllocateInitialPages(uint32_t approxVoxCount);
+		void				AllocateWRTLinkedData(float coverageRatio);
 		void				Reset();
 
 		// Voxelize this current frame

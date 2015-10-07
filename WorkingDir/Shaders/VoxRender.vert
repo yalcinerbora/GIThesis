@@ -16,7 +16,7 @@
 
 #define OUT_COLOR layout(location = 0)
 
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict readonly
+#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict
 #define LU_AABB layout(std430, binding = 3) restrict readonly
 #define LU_MTRANSFORM layout(std430, binding = 4) restrict readonly
 
@@ -88,7 +88,7 @@ void main(void)
 	float span = objectGridInfo[objId].span;
 	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + 
 					(span * vec3(voxIndex.xyz));
-	mat4 voxModel =	mat4( span,			0.0f,		0.0f,		0.0f,
+	mat4 voxModel =	mat4( span,		0.0f,		0.0f,		0.0f,
 						  0.0f,			span,		0.0f,		0.0f,
 						  0.0f,			0.0f,		span,		0.0f,
 						  deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);

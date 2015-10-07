@@ -92,16 +92,11 @@ static const TwStructMember lightMembers[] =
 #define LU_VOXEL_NORM_POS 0
 #define LU_VOXEL_RENDER 1
 #define LU_OBJECT_GRID_INFO 2
-#define LU_ATOMIC_COUNTER 9
-#define LU_VOXEL_IDS 4
+#define LU_VOXEL_IDS 3
 #define LU_AABB 3
 #define LU_MTRANSFORM 4
-#define LU_INDEX_CHECK 5
+#define LU_INDEX_CHECK 4
 #define LU_LIGHT 1
 #define LU_LIGHT_MATRIX 0
-#define LU_VOXEL_NORM_POS_OBJ 6
-#define LU_VOXEL_IDS_OBJ 7
-#define LU_VOXEL_RENDER_OBJ 8
-#define LU_SORT_INDICES 10
 
 #endif //__GLOBALS_H__

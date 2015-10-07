@@ -4,38 +4,27 @@
 #define LU_VOXEL_NORM_POS layout(std430, binding = 0) restrict
 #define LU_VOXEL_RENDER layout(std430, binding = 1) restrict 
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict readonly
-#define LU_VOXEL_IDS layout(std430, binding = 4) restrict
-#define LU_INDEX_CHECK layout(std430, binding = 5) restrict
-#define LU_VOXEL_NORM_POS_OBJ layout(std430, binding = 6) restrict readonly
-#define LU_VOXEL_IDS_OBJ layout(std430, binding = 7) restrict readonly
-#define LU_VOXEL_RENDER_OBJ layout(std430, binding = 8) restrict readonly
-#define LU_ATOMIC_COUNTER layout(std430, binding = 9) restrict 
-#define LU_SORT_INDICES layout(std430, binding = 10) restrict readonly
+#define LU_VOXEL_IDS layout(std430, binding = 3) restrict
+#define LU_INDEX_CHECK layout(std430, binding = 4) restrict
 
+#define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
 #define U_MAX_CACHE_SIZE layout(location = 5)
+#define U_OBJ_TYPE layout(location = 6)
+#define U_SPAN_RATIO layout(location = 7)
+
+#define I_VOX_READ layout(rgba16ui, binding = 2) restrict
 
 // I-O
-U_MAX_CACHE_SIZE uniform uint maxSize;
+U_OBJ_TYPE uniform uint objType;
 U_OBJ_ID uniform uint objId;
+U_SPAN_RATIO uniform uint spanRatio;
+U_TOTAL_VOX_DIM uniform uvec3 voxDim;
+U_MAX_CACHE_SIZE uniform uint maxSize;
 
 LU_INDEX_CHECK buffer CountArray
 {
 	uint writeIndex;
-};
-
-LU_ATOMIC_COUNTER buffer LocalSizeArray
-{
-	uint localSize;
-};
-
-LU_OBJECT_GRID_INFO buffer GridInfo
-{
-	struct
-	{
-		float span;
-		uint voxCount;
-	} objectGridInfo[];
 };
 
 LU_VOXEL_NORM_POS buffer VoxelNormPosArray
@@ -48,126 +37,98 @@ LU_VOXEL_IDS buffer VoxelIdsArray
 	uvec2 voxelIds[];
 };
 
-LU_SORT_INDICES buffer SortIndices
-{
-	unsigned int sortIndex[];
-};
-
 LU_VOXEL_RENDER buffer VoxelArrayRender
 {
-	uint voxelArrayRender[];
+	struct
+	{
+		uint color;
+	} voxelArrayRender[];
 };
 
-LU_VOXEL_NORM_POS_OBJ buffer NormPosObj
+LU_OBJECT_GRID_INFO buffer GridInfo
 {
-	uvec2 objNormPos[];
+	struct
+	{
+		float span;
+		uint voxCount;
+	} objectGridInfo[];
 };
 
-LU_VOXEL_IDS_OBJ buffer IdsObj
-{
-	uvec2 objIds[];
-};
+uniform I_VOX_READ uimage3D voxelData;
 
-LU_VOXEL_RENDER_OBJ buffer RenderObj
+uint MergeColor(uvec2 colorShort2)
 {
-	uint objRender[];
-};
-
-uvec2 InjectRenderIndex(in uvec2 objId, in uint voxId)
-{
-	return uvec2(objId.x, voxId);
+	uint result;
+	result = colorShort2.y << 16;
+	result |= colorShort2.x;
+	return result;
 }
 
-uvec2 InjectNormal(in uvec2 normPos, in vec3 normal)
+uvec2 PackVoxelNormPos(in uvec3 voxCoord,
+					   in uvec2 normal,
+					   in uint spanDepth)
+{
+	uvec2 result = uvec2(0);
+	
+	// Voxel Ids 9 Bit Each (last 5 bit is span depth)
+	unsigned int value = 0;
+	value |= spanDepth << 27;
+	value |= voxCoord.z << 18;
+	value |= voxCoord.y << 9;
+	value |= voxCoord.x;
+	result.x = value;
+
+	// Normal is Already Packed (X16Y15Z1 format)
+	value = 0;
+	value |= normal.y << 16;
+	value |= normal.x;
+	result.y = value;
+
+	return result;
+}
+
+uvec2 PackVoxelIds(in uint objId,
+				   in uint objType,
+				   in uint renderDataLoc)
 {
 	uvec2 result = uvec2(0);
 
-	// 1615 XY Format
-	// 32 bit format LS 16 bits are X
-	// MSB is the sign of Z
-	// Rest is Y
-	// both x and y is SNORM types
-	uvec2 value = uvec2(0.0f);
-	value.x = uint((normal.x * 0.5f + 0.5f) * 0xFFFF);
-	value.y = uint((normal.y * 0.5f + 0.5f) * 0x7FFF);
-	value.y |= (floatBitsToUint(normal.z) >> 16) & 0x00008000;
-	
-	result.y = value.y << 16;
-	result.y |= value.x;
+	// Object Id (13 bit batch id, 16 bit object id)
+	// Last 2 bits is for object type
+	unsigned int value = 0;
+	value |= objType << 30;
+	value |= 0 << 16;
+	value |= objId;
+	result.x = value;
 
-	result.x = normPos.x;
+	result.y = renderDataLoc;
 	return result;
 }
 
-vec3 ExpandNormal(in uint norm)
-{
-	vec3 result;
-	result.x = ((float(norm & 0x0000FFFF) / 0xFFFF) - 0.5f) * 2.0f;
-	result.y = ((float((norm & 0x7FFF0000) >> 16) / 0x7FFF) - 0.5f) * 2.0f;
-	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
-	result.z *= sign(int(norm & 0x80000000));
-	return result;
-}
-
-uvec3 ExpandColor(in uint color)
-{
-	uvec3 result = uvec3(0);
-
-	result.x = color &  0x000000FF;
-	result.y = (color & 0x0000FF00) >> 8;
-	result.z = (color & 0x00FF0000) >> 16;
-	return result;
-}
-
-uint PackColor(in uvec3 color)
-{
-	uint colorPacked = 0;
-	colorPacked = color.r & 0x000000FF;
-	colorPacked |= color.g & 0x000000FF << 8;
-	colorPacked |= color.b & 0x000000FF << 16;
-	return colorPacked;
-}
-
-layout (local_size_x = 512, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {
-	uint voxId = gl_GlobalInvocationID.x;
-	if(voxId >= objectGridInfo[objId].voxCount) return;
-	
-	//if(voxId == 0 ||
-	//	(voxId != 0 && objNormPos[voxId] != objNormPos[voxId - 1]))
-	//{
-		uint index = atomicAdd(writeIndex, 1);
-		if(index >= maxSize) return;
+	uvec3 voxId = gl_GlobalInvocationID.xyz;
+	if(voxId.x < (voxDim.x)  &&
+		voxId.y < (voxDim.y) &&
+		voxId.z < (voxDim.z))
+	{
+		uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
-		atomicAdd(localSize, 1);
+		// Empty Normal Means its vox is empty
+		if(voxData.x != 0xFFFF ||
+			voxData.y != 0xFFFF)
+		{
+			uint index = atomicAdd(writeIndex, 1);
+			if(index <= maxSize)
+			{
+				voxelArrayRender[index].color = MergeColor(voxData.zw);
+				voxelNormPos[index] = PackVoxelNormPos(voxId, voxData.xy, spanRatio);
+				voxelIds[index] = PackVoxelIds(objId, objType, index);
+			}
+		}
+	}
 
-		//// This hurts to write...
-		//// Branch divergence and global accessing for loop
-		//// Still its the easiest to implement
-		//// And here is not performance critical
-		//// Average Values
-		//uvec3 color = uvec3(0);
-		//vec3 normal = vec3(0);
-		//int i = -1;
-		//do
-		//{
-		//	i++;
-		//	normal += ExpandNormal(objNormPos[voxId + i].y);
-		//	color += ExpandColor(objRender[voxId + i]);
-		//	normalize(normal);		
-		//} while (voxId + i >= objectGridInfo[objId].voxCount || 
-		//		(voxId + i >= objectGridInfo[objId].voxCount &&
-		//		objNormPos[voxId + i + 1] != objNormPos[voxId + i + 2]));
-		//color /= i;
-
-		// Transfer to Object Batch
-		//voxelNormPos[index] = InjectNormal(objNormPos[voxId], normal);
-		//voxelIds[index] = InjectRenderIndex(objIds[voxId], index);
-		//voxelArrayRender[index] = PackColor(color);
-
-		voxelNormPos[index] = objNormPos[sortIndex[voxId]];
-		voxelIds[index] = objIds[sortIndex[voxId]];//InjectRenderIndex(objIds[voxId], index);
-		voxelArrayRender[index] = objRender[sortIndex[voxId]];
-	//}	
+	// Reset Color For next iteration
+	imageStore(voxelData, ivec3(voxId), uvec4(0xFFFF));
 }

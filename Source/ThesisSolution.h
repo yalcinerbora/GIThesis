@@ -104,7 +104,7 @@ class ThesisSolution : public SolutionI
 		Shader					vertexVoxelizeObject;
 		Shader					geomVoxelizeObject;
 		Shader					fragmentVoxelizeObject;
-		Shader					computeVoxelizeCount;
+		Shader					fragmentVoxelizeObjectCount;
 		Shader					computePackObjectVoxels;
 		Shader					computeDetermineVoxSpan;
 

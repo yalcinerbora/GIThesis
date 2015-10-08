@@ -117,16 +117,16 @@ template<class T>
 void CudaVector<T>::Assign(size_t index, const T& hostData)
 {
 	assert(index < size);
-	//CUDA_CHECK(cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice));
-	cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice);
+	CUDA_CHECK(cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice));
+	//cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice);
 }
 
 template<class T>
 void CudaVector<T>::Assign(size_t index, const T& hostData, cudaStream_t stream)
 {
 	assert(index < size);
-	//CUDA_CHECK(cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice));
-	cudaMemcpyAsync(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice, stream);
+	CUDA_CHECK(cudaMemcpy(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice));
+	//cudaMemcpyAsync(d_data + index, &hostData, sizeof(T), cudaMemcpyHostToDevice, stream);
 }
 
 
@@ -152,9 +152,9 @@ void CudaVector<T>::Reserve(size_t newSize)
 	{
 		size_t newCount = ((newSize + CUDA_VEC_INITIAL_CAPACITY - 1) / CUDA_VEC_INITIAL_CAPACITY) * CUDA_VEC_INITIAL_CAPACITY;
 		T* d_newAlloc = nullptr;
-		cudaMalloc<T>(&d_newAlloc, sizeof(T) * newCount);
-		cudaMemcpy(d_newAlloc, d_data, sizeof(T)  * size, cudaMemcpyDeviceToDevice);
-		cudaFree(d_data);
+		CUDA_CHECK((cudaMalloc<T>(&d_newAlloc, sizeof(T) * newCount)));
+		CUDA_CHECK((cudaMemcpy(d_newAlloc, d_data, sizeof(T)  * size, cudaMemcpyDeviceToDevice)));
+		CUDA_CHECK(cudaFree(d_data));
 		d_data = d_newAlloc;
 		capacity = newCount;
 	}

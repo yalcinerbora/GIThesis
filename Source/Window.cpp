@@ -251,10 +251,11 @@ Window::Window(InputManI& input,
 
 	glfwWindowHint(GLFW_CONTEXT_RELEASE_BEHAVIOR, GLFW_RELEASE_BEHAVIOR_NONE);
 
-	if(DEBUG)
+	#ifdef GI_DEBUG
 		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
-	else
+	#else
 		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_FALSE);
+	#endif
 
 	switch(properties.screenType)
 	{
@@ -311,8 +312,7 @@ Window::Window(InputManI& input,
 	GI_LOG("Device\t: %s", glGetString(GL_RENDERER));
 	GI_LOG("");
 
-	if(DEBUG)
-	{
+	#ifdef GI_DEBUG
 		// Add Callback
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		glDebugMessageCallback(Window::OGLCallbackRender, nullptr);
@@ -322,7 +322,7 @@ Window::Window(InputManI& input,
 							  0,
 							  nullptr,
 							  GL_TRUE);
-	}
+	#endif
 
 	// Get Some GPU Limitations
 	// DEBUG

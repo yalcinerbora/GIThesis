@@ -10,10 +10,8 @@ Preprocessor Stuff for ease of using
 
 // Debug
 #ifdef GI_DEBUG
-	static const bool DEBUG = true;
 	#define GI_DEBUG_LOG(string, ...) printf(string"\n", ## __VA_ARGS__ )
 #else
-	static const bool DEBUG = false;
 	#define GI_DEBUG_LOG(...)
 #endif
 

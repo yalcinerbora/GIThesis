@@ -57,8 +57,18 @@ inline __device__ void LoadTransformData(// Shared Mem
 			objIdShuffle |= static_cast<unsigned int>(objectId.x);
 
 			// Broadcast
-			objIdShuffle = __shfl(objIdShuffle, 0);
-			
+			#if __CUDA_ARCH__ >= 300
+				objIdShuffle = __shfl(objIdShuffle, 0);
+			#else
+				__shared__ unsigned int sObjId;
+				if(blockLocalId == 0)
+				{
+					sObjId = objIdShuffle;
+				}
+				__syncthreads();
+				objIdShuffle = sObjId;
+			#endif
+
 			// Unpack broadcasted objId to ushort2
 			ushort2 objIdAfterShuffle;
 			objIdAfterShuffle.x = (objIdShuffle & 0x0000FFFF);

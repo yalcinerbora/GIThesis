@@ -169,7 +169,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(currentScene->DrawCount()));
-	glUniform1f(U_MIN_SPAN, currentScene->MinSpan() );
+	glUniform1f(U_MIN_SPAN, currentScene->MinSpan() * minSpanMultiplier);
 	glUniform1ui(U_MAX_GRID_DIM, VOXEL_GRID_SIZE);
 
 	size_t blockCount = (currentScene->DrawCount() / 128);

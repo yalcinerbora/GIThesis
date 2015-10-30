@@ -35,7 +35,7 @@ typedef uint2 CVoxelIds;
 struct CVoxelRender
 {
 	//unsigned int	voxelTransformType;
-	uchar4			color;		// Color
+	unsigned int		color;		// Color
 
 	// Transform Related Data
 	// For Skeletal mesh these shows index of the transforms and weights
@@ -47,7 +47,7 @@ struct CVoxelRender
 struct CVoxelRenderSkelMorph
 {
 	//unsigned int	voxelTransformType;
-	uchar4			color;		// Color
+	unsigned int	color;		// Color
 
 	// Transform Related Data
 	// For Skeletal mesh these shows index of the transforms and weights

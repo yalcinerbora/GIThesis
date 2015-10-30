@@ -11,7 +11,7 @@ in page system
 #include "CMatrix.cuh"
 #include "CVoxelPage.h"
 
-// Using ahred memory on 16Kb config
+// Using shared memory on 16Kb config
 #define GI_CUDA_SHARED_MEM_SIZE (48 * 1024)
 
 // Max Worst case scenario for shared memory
@@ -21,7 +21,9 @@ in page system
 // Mapping and "Allocating" the objectId
 // Map functions manages memory conflicts internally thus can be called
 // from different threads at the same time
-__device__ unsigned int Map(const ushort2& objectId, unsigned int* sHashIndex);
+__device__ unsigned int Map(unsigned int* aHashTable,
+							unsigned int key,
+							unsigned int hashSize);
 
 // Nearest bigger prime of "power of twos"
 // This will be used when VS have full constexpr support
@@ -44,32 +46,22 @@ static_assert((GI_SEGMENT_PER_PAGE + 3) * (sizeof(CMatrix4x4) * 8 + sizeof(uint1
 static_assert(GI_MAX_SHARED_COUNT_PRIME - GI_MAX_SHARED_COUNT <= 3 &&
 			  GI_MAX_SHARED_COUNT_PRIME - GI_MAX_SHARED_COUNT > 0, "Shared count and its prime value does not seem to be related");
 
-// Helper Functions
-inline __device__ unsigned int MergeObjId(const ushort2& objectId)
+// Either Maps or Adds the key to the list and returns the index
+inline __device__ unsigned int Map(unsigned int* aHashTable,
+								   unsigned int key,
+								   unsigned int hashSize)
 {
-	unsigned int result = 0;
-	result |= static_cast<unsigned int>(objectId.y) << 16;
-	result |= static_cast<unsigned int>(objectId.x);
-	return result;
-}
-
-inline __device__ unsigned int Map(const ushort2& objectId, unsigned int* sHashIndex)
-{
-	unsigned int mergedObjId = MergeObjId(objectId);
-
-	// CAS Loop to atomically find location of the merged objId
+	// CAS Loop to atomically find location of the key
 	// Hash table resolves collisions linearly
 	// InitialIndex
-	unsigned int index = (mergedObjId % GI_SEGMENT_PER_PAGE) - 1;
+	unsigned int index = (key % hashSize);
 	unsigned int old = 0;
-	do
+	while(old != 0 && old != key);
 	{
+		old = atomicCAS(aHashTable + index, 0, key);
 		index++;
-		index %= GI_MAX_SHARED_COUNT_PRIME;
-		old = atomicCAS(sHashIndex + index, 0, mergedObjId);
 	}
-	while(old != 0 && old != mergedObjId);
-
+	
 	// Worst case there is GI_MAX_SHARED_COUNT_PRIME elements in the hash
 	// and our alloc is nearest prime which gurantees intex table has empty spaces
 	// Thus we dont need to check that the lookup goes to a infinite loop

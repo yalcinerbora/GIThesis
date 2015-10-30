@@ -93,7 +93,4 @@ inline __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 	}
 	return Intersects(gridAABB, transformedAABB);
 }
-
-
-
 #endif //__CAXISALIGNEDBB_H__

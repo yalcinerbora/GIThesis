@@ -12,11 +12,14 @@ Designed for fast reconstruction from its bottom
 #include <cuda.h>
 #include "CVoxel.cuh"
 
-// Last two segments of the svo
-// uses this typedef
+// first int has
 // first 24 bit is children index
 // last 8 bit used to determine which children is avail
+// --
+// last 4 byte is used for color
 typedef unsigned int CSVONode;
+typedef unsigned int CSVOColor;
+//typedef float4 CSVOColor;
 
 inline __device__ void UnpackNode(unsigned int& childrenIndex,
 								  unsigned char& childrenBit,
@@ -26,51 +29,36 @@ inline __device__ void UnpackNode(unsigned int& childrenIndex,
 	childrenBit = node >> 24;
 }
 
-inline __device__ void PackNode(CSVONode& node,
-								const unsigned int& childrenIndex,
-								const unsigned char& childrenBit)
+inline __device__ CSVONode PackNode(const unsigned int& childrenIndex,
+									const unsigned char& childrenBit)
 {
+	CSVONode node;
 	node = childrenBit << 24;
 	node |= childrenIndex;
+	return node;
+}
+
+inline __device__ float4 UnpackSVOColor(const CSVOColor& node)
+{
+	float4 color;
+	color.x = static_cast<float>((node & 0x000000FF) >> 0) / 255.0f;
+	color.y = static_cast<float>((node & 0x0000FF00) >> 8) / 255.0f;
+	color.z = static_cast<float>((node & 0x00FF0000) >> 16) / 255.0f;
+	color.w = static_cast<float>((node & 0xFF000000) >> 24);
+	return color;
+}
+
+inline __device__ CSVOColor PackSVOColor(const float4& color)
+{
+	CSVOColor colorPacked;
+	colorPacked = static_cast<unsigned int>(color.w) << 24;
+	colorPacked |= static_cast<unsigned int>(color.z * 255.0f) << 16;
+	colorPacked |= static_cast<unsigned int>(color.y * 255.0f) << 8;
+	colorPacked |= static_cast<unsigned int>(color.x * 255.0f) << 0;
+	return colorPacked;
 }
 
 // Returns the intersected voxelIndex if voxel is found
 // Else it returns -1 (0xFFFFFFFF)
-inline __device__ unsigned int FindIntersection(const CVoxelGrid& gGridInfo,
-												const CSVONode* root,
-												const float3& worldPos)
-{
-	return 0;
-	//unsigned int depth = 1;
-	//unsigned int voxelIndex = 0;
-
-	//const CSVONode* currentNode = root;
-	//while(currentNode != nullptr || depth <= gGridInfo.depth)
-	//{
-	//	float3 childPos;
-	//	float invDepth = gGridInfo.span * 2 * depth;
-	//	childPos.x = worldPos.x - gGridInfo.dimension.x * invDepth;
-	//	childPos.y = worldPos.y - gGridInfo.dimension.y * invDepth;
-	//	childPos.z = worldPos.z - gGridInfo.dimension.z * invDepth;
-
-	//	// Determine the next child
-	//	unsigned int nextChildId = 0;
-	//	nextChildId |= 0x00000001 && worldPos.x > childPos.x;
-	//	nextChildId |= 0x00000002 && worldPos.y > childPos.y;
-	//	nextChildId |= 0x00000004 && worldPos.z > childPos.z;
-
-	//	// Find Child
-	//	// We cant directly hop to the next data since tree is sparse
-	//	// Iterate child array
-	//	for(unsigned int i = 0; i < currentNode->childCount; i++)
-	//	{
-	//		if(currentNode->childPtr[i].childId == nextChildId)
-	//		{
-	//			currentNode = &currentNode->childPtr[i];
-	//			depth++;
-	//		}
-	//	}
-	//}
-	//return (currentNode == nullptr) ? reinterpret_cast<unsigned int>(currentNode) : -1;
-}
+inline __device__ unsigned int ConeTrace() {}
 #endif //__CSPARSEVOXELOCTREE_H__

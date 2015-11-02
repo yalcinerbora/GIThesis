@@ -448,7 +448,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	debugVoxTransferTime = 0;
 
 	// VoxelSceneUpdate
-	double ioTimeSegment, transformTimeSegment, svoTimeSegment;
+	double ioTimeSegment, transformTimeSegment;
 	ioTime = 0;
 	transformTime = 0;
 	svoTime = 0;

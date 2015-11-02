@@ -57,16 +57,17 @@ inline __device__ unsigned int Map(unsigned int* aHashTable,
 	// CAS Loop to atomically find location of the key
 	// Hash table resolves collisions linearly
 	// InitialIndex
-	unsigned int index = (key % hashSize);
+	unsigned int index = (key % hashSize) - 1;
 	unsigned int old = 0;
-	while(old != 0 && old != key);
+	do
 	{
-		old = atomicCAS(aHashTable + index, 0, key);
-		index++;
+		index = (index + 1) % hashSize;
+		old = atomicCAS(aHashTable + index, 0xFFFFFFFF, key);
 	}
+	while(!(old == 0xFFFFFFFF || old == key));
 	
-	// Worst case there is GI_MAX_SHARED_COUNT_PRIME elements in the hash
-	// and our alloc is nearest prime which gurantees intex table has empty spaces
-	// Thus we dont need to check that the lookup goes to a infinite loop
+	// This shouldnt go infinite loop since we use pow of two tables
+	// and pow of two number cant be prime, thus prime table will always have
+	// some space to terminate this loop
 	return index;
 }

@@ -7,7 +7,8 @@
 GISparseVoxelOctree::GISparseVoxelOctree(GLuint lightIntensityTex)
 	: dSVO()
 	, lightIntensityTexLink(nullptr)
-	, dSVOCurrentLevelAtomic(1)
+	, dSVONodeCountAtomic(1)
+	, dSVOConstants(1)
 {
 	
 
@@ -55,7 +56,18 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 	dSVOLevelStartIndices.Resize(allocatorGrids[0].depth + allocatorSize - 1);
 	dSVOLevelStartIndices.Memset(0x00, 0, dSVOLevelStartIndices.Size());
 
-	totalLevel = static_cast<unsigned int>(allocatorGrids[0].depth + allocatorSize - 1);
+	unsigned int totalLevel = static_cast<unsigned int>(allocatorGrids[0].depth + allocatorSize - 1);
+
+	hSVOConstants.denseDepth = GI_DENSE_LEVEL;
+	hSVOConstants.denseDim = GI_DENSE_SIZE;
+	hSVOConstants.totalDepth = totalLevel;
+	hSVOConstants.numCascades = static_cast<unsigned int>(allocatorSize);
+
+	// Copy to device
+	CUDA_CHECK(cudaMemcpy(dSVOConstants.Data(), 
+						  &hSVOConstants, 
+						  sizeof(CSVOConstants), 
+						  cudaMemcpyHostToDevice));
 }
 
 void GISparseVoxelOctree::ConstructDense()
@@ -67,9 +79,9 @@ void GISparseVoxelOctree::ConstructDense()
 	(
 		dSVODense,
 		allocators[0]->GetVoxelPagesDevice(),
-		GI_DENSE_SIZE,
-		GI_DENSE_LEVEL,
-		totalLevel
+		
+		0u,
+		*dSVOConstants.Data()
 	);
 	CUDA_KERNEL_CHECK();
 
@@ -77,21 +89,22 @@ void GISparseVoxelOctree::ConstructDense()
 				GI_THREAD_PER_BLOCK;
 	SVOReconstructAllocateNext<<<gridSize, GI_THREAD_PER_BLOCK>>>
 	(
-		dSVOSparse,
-		*dSVOCurrentLevelAtomic.Data(),
+		dSVO.Data(),
+		*dSVONodeCountAtomic.Data(),
 		*dSVOLevelStartIndices.Data(),
-		GI_DENSE_SIZE
+		GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE
 	);
 	CUDA_KERNEL_CHECK();
 
 	// Copy Level Start Location to array
 	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + 1,
-						  dSVOCurrentLevelAtomic.Data(),
+						  dSVONodeCountAtomic.Data(),
 						  sizeof(unsigned int), cudaMemcpyDeviceToDevice));
 }
 
 void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
-										 unsigned int allocatorIndex)
+										 unsigned int allocatorIndex,
+										 unsigned int cascadeNo)
 {
 	// ChildBitSet your Level
 	// Allocate next level
@@ -109,33 +122,33 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 		dSVODense,
 		allocators[allocatorIndex]->GetVoxelPagesDevice(),
 		dSVOLevelStartIndices.Data(),
+
+		cascadeNo,
 		currentLevel,
-		GI_DENSE_LEVEL,
-		totalLevel,
-		GI_DENSE_SIZE
+		*dSVOConstants.Data()
 	);
 	CUDA_KERNEL_CHECK();
 
 	// Call count is on GPU
 	uint32_t levelNodeCount, levelNodeStarts[2];
 	CUDA_CHECK(cudaMemcpy(levelNodeStarts, 
-							dSVOLevelStartIndices.Data() + currentLevelIndex - 1, 
-							sizeof(unsigned int) * 2,
-							cudaMemcpyDeviceToHost));
+						  dSVOLevelStartIndices.Data() + currentLevelIndex - 1, 
+						  sizeof(unsigned int) * 2,
+						  cudaMemcpyDeviceToHost));
 	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
 
 	gridSize = ((levelNodeCount) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 	SVOReconstructAllocateNext<<<gridSize, GI_THREAD_PER_BLOCK>>>
 	(
-		dSVOSparse,
-		*dSVOCurrentLevelAtomic.Data(),
+		dSVO.Data(),
+		*dSVONodeCountAtomic.Data(),
 		*(dSVOLevelStartIndices.Data() + currentLevelIndex),
 		levelNodeCount
 	);
 	CUDA_KERNEL_CHECK();
 
 	// Copy Level Start Location to array
-	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + currentLevelIndex, dSVOCurrentLevelAtomic.Data(),
+	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + currentLevelIndex, dSVONodeCountAtomic.Data(),
 						  sizeof(unsigned int), cudaMemcpyDeviceToDevice));
 }
 
@@ -145,22 +158,28 @@ double GISparseVoxelOctree::UpdateSVO()
 	timer.Start();
 
 	// Reset Atomic Counter since we reconstruct every frame
-	dSVOCurrentLevelAtomic.Memset(0x00, 0, 1);
+	unsigned int usedNodeCount;
+	CUDA_CHECK(cudaMemcpy(&usedNodeCount, dSVONodeCountAtomic.Data(), sizeof(unsigned int),
+						  cudaMemcpyDeviceToHost));
+	dSVO.Memset(0x00, 0, usedNodeCount + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+	dSVONodeCountAtomic.Memset(0x00, 0, 1);
+	dSVOLevelStartIndices.Memset(0x00, 0, dSVOLevelStartIndices.Size());
 
+	// Start with constructing dense
 	ConstructDense();
 	
 	// Construct Levels
 	for(unsigned int i = GI_DENSE_LEVEL + 1; i < allocatorGrids[0].depth; i++)
 	{
-		ConstructLevel(i, 0);
+		ConstructLevel(i, 0, 0);
 	}
 
-	// Now adding cascade levels
-	for(unsigned int i = 1; i < allocators.size(); i++)
-	{
-		unsigned int currentLevel = allocatorGrids[0].depth + i;
-		ConstructLevel(currentLevel, i);
-	}
+	//// Now adding cascade levels
+	//for(unsigned int i = 1; i < allocators.size(); i++)
+	//{
+	//	unsigned int currentLevel = allocatorGrids[0].depth + i;
+	//	ConstructLevel(currentLevel, i, i);
+	//}
 
 	timer.Stop();
 	return timer.ElapsedMilliS();

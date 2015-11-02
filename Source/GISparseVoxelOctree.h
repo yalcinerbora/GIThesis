@@ -23,7 +23,9 @@ class GISparseVoxelOctree
 	private:
 		std::vector<GICudaAllocator*>			allocators;			// Page Allocators
 		std::vector<CVoxelGrid>					allocatorGrids;		// Allocator's Responsible Grids
-		unsigned int							totalLevel;
+
+		CSVOConstants							hSVOConstants;
+		CudaVector<CSVOConstants>				dSVOConstants;
 
 		// SVO Data
 		CudaVector<CSVONode>					dSVO;				// Entire SVO
@@ -33,7 +35,7 @@ class GISparseVoxelOctree
 		CSVONode*								dSVODense;
 		CSVONode*								dSVOSparse;
 		CudaVector<unsigned int>				dSVOLevelStartIndices;
-		CudaVector<unsigned int>				dSVOCurrentLevelAtomic;
+		CudaVector<unsigned int>				dSVONodeCountAtomic;
 
 		// Inital Rays buffer
 		GLuint									initalRayLink;
@@ -46,7 +48,8 @@ class GISparseVoxelOctree
 		
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
-															   unsigned int allocatorIndex);
+															   unsigned int allocatorIndex,
+															   unsigned int cascadeNo);
 
 	protected:
 

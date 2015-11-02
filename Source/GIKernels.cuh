@@ -17,6 +17,7 @@ struct CObjectTransform;
 struct CVoxelRender;
 struct CVoxelPage;
 struct CVoxelGrid;
+struct CSVOConstants;
 typedef unsigned int CSVONode;
 
 // Voxel Transform
@@ -119,9 +120,9 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 // Finds Dense Depth Parent and sets in on the dense 3D Array
 extern __global__ void SVOReconstructChildSet(CSVONode* gSVODense,
 											  const CVoxelPage* gVoxelData,
-											  const unsigned int denseDim,
-											  const unsigned int denseDepth,
-											  const unsigned int totalDepth);
+
+											  const unsigned int cascadeNo,
+											  const CSVOConstants& svoConstants);
 
 // Sparse version of the child set
 // Finds the current level parent and traverses partially constructed tree
@@ -130,13 +131,13 @@ extern __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 											  const CSVONode* gSVODense,
 											  const CVoxelPage* gVoxelData,
 											  const unsigned int* gLevelLookupTable,
+
+											  const unsigned int cascadeNo,
 											  const unsigned int levelDepth,
-											  const unsigned int denseDepth,
-											  const unsigned int totalDepth,
-											  const unsigned int denseDim);
+											  const CSVOConstants& svoConstants);
 
 // Allocate next alloates the next level of the tree
-extern __global__ void SVOReconstructAllocateNext(CSVONode* gSVOLevel,
+extern __global__ void SVOReconstructAllocateNext(CSVONode* gSVO,
 												  unsigned int& gSVOLevelNodeCount,
 												  const unsigned int& gSVOLevelStart,
 												  const unsigned int levelDim);

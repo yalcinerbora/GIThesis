@@ -1,4 +1,194 @@
 #include "GISparseVoxelOctree.h"
+#include <cuda_gl_interop.h>
+#include "GICudaAllocator.h"
+#include "GIKernels.cuh"
+#include "CudaTimer.h"
+
+GISparseVoxelOctree::GISparseVoxelOctree(GLuint lightIntensityTex)
+	: dSVO()
+	, lightIntensityTexLink(nullptr)
+	, dSVOCurrentLevelAtomic(1)
+{
+	
+
+	CUDA_CHECK(cudaGraphicsGLRegisterImage(&lightIntensityTexLink, lightIntensityTex,
+											GL_TEXTURE_2D,
+											cudaGraphicsMapFlagsWriteDiscard));
+
+}
+
+GISparseVoxelOctree::~GISparseVoxelOctree()
+{
+	if(lightIntensityTexLink) CUDA_CHECK(cudaGraphicsUnregisterResource(lightIntensityTexLink));
+	if(lightBufferLink) CUDA_CHECK(cudaGraphicsUnregisterResource(lightBufferLink));
+	if(shadowMapArrayTexLink) CUDA_CHECK(cudaGraphicsUnregisterResource(shadowMapArrayTexLink));
+}
+
+void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
+										 size_t allocatorSize)
+{
+	allocatorGrids.clear();
+	allocators.resize(allocatorSize);
+	allocatorGrids.resize(allocatorSize);
+
+	assert(allocatorSize > 0);
+	assert(newAllocators != nullptr);
+
+	std::copy(newAllocators, newAllocators + allocatorSize, allocators.data());
+	for(unsigned int i = 0; i < allocatorSize; i++)
+		allocatorGrids[i] = newAllocators[i]->GetVoxelGridHost();
+
+	// TODO: More Dynamic Allocation Scheme
+	size_t totalAlloc = GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE;
+	for(unsigned int i = 0; i < allocatorSize; i++)
+	{
+		uint32_t depthMultiplier = 1;
+		if(i == 0) depthMultiplier = (allocatorGrids[i].depth - GI_DENSE_LEVEL);
+		totalAlloc += allocators[i]->NumPages() * GI_PAGE_SIZE * depthMultiplier;
+	}
+	dSVO.Resize(totalAlloc);
+	dSVOColor.Resize(totalAlloc);
+
+	dSVODense = dSVO.Data();
+	dSVOSparse = dSVO.Data() + (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+
+	dSVOLevelStartIndices.Resize(allocatorGrids[0].depth + allocatorSize - 1);
+	dSVOLevelStartIndices.Memset(0x00, 0, dSVOLevelStartIndices.Size());
+
+	totalLevel = static_cast<unsigned int>(allocatorGrids[0].depth + allocatorSize - 1);
+}
+
+void GISparseVoxelOctree::ConstructDense()
+{
+	// Level 0 is special it constructs the upper levels in addition to its level
+	uint32_t gridSize = ((allocators[0]->NumPages() * GI_PAGE_SIZE) + GI_THREAD_PER_BLOCK - 1) /
+						 GI_THREAD_PER_BLOCK;
+	SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	(
+		dSVODense,
+		allocators[0]->GetVoxelPagesDevice(),
+		GI_DENSE_SIZE,
+		GI_DENSE_LEVEL,
+		totalLevel
+	);
+	CUDA_KERNEL_CHECK();
+
+	gridSize = ((GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE) + GI_THREAD_PER_BLOCK - 1) /
+				GI_THREAD_PER_BLOCK;
+	SVOReconstructAllocateNext<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	(
+		dSVOSparse,
+		*dSVOCurrentLevelAtomic.Data(),
+		*dSVOLevelStartIndices.Data(),
+		GI_DENSE_SIZE
+	);
+	CUDA_KERNEL_CHECK();
+
+	// Copy Level Start Location to array
+	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + 1,
+						  dSVOCurrentLevelAtomic.Data(),
+						  sizeof(unsigned int), cudaMemcpyDeviceToDevice));
+}
+
+void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
+										 unsigned int allocatorIndex)
+{
+	// ChildBitSet your Level
+	// Allocate next level
+	// Memcopy next level start location to array
+	// Only ChildBitSet Upper Level
+	// Then Allocate your level
+	// Average Color to the level
+	unsigned int currentLevelIndex = currentLevel - GI_DENSE_LEVEL;
+	uint32_t gridSize = ((allocators[allocatorIndex]->NumPages() * GI_PAGE_SIZE) + GI_THREAD_PER_BLOCK - 1) /
+						 GI_THREAD_PER_BLOCK;
+
+	SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	(
+		dSVOSparse,
+		dSVODense,
+		allocators[allocatorIndex]->GetVoxelPagesDevice(),
+		dSVOLevelStartIndices.Data(),
+		currentLevel,
+		GI_DENSE_LEVEL,
+		totalLevel,
+		GI_DENSE_SIZE
+	);
+	CUDA_KERNEL_CHECK();
+
+	// Call count is on GPU
+	uint32_t levelNodeCount, levelNodeStarts[2];
+	CUDA_CHECK(cudaMemcpy(levelNodeStarts, 
+							dSVOLevelStartIndices.Data() + currentLevelIndex - 1, 
+							sizeof(unsigned int) * 2,
+							cudaMemcpyDeviceToHost));
+	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
+
+	gridSize = ((levelNodeCount) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+	SVOReconstructAllocateNext<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	(
+		dSVOSparse,
+		*dSVOCurrentLevelAtomic.Data(),
+		*(dSVOLevelStartIndices.Data() + currentLevelIndex),
+		levelNodeCount
+	);
+	CUDA_KERNEL_CHECK();
+
+	// Copy Level Start Location to array
+	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + currentLevelIndex, dSVOCurrentLevelAtomic.Data(),
+						  sizeof(unsigned int), cudaMemcpyDeviceToDevice));
+}
+
+double GISparseVoxelOctree::UpdateSVO()
+{
+	CudaTimer timer;
+	timer.Start();
+
+	// Reset Atomic Counter since we reconstruct every frame
+	dSVOCurrentLevelAtomic.Memset(0x00, 0, 1);
+
+	ConstructDense();
+	
+	// Construct Levels
+	for(unsigned int i = GI_DENSE_LEVEL + 1; i < allocatorGrids[0].depth; i++)
+	{
+		ConstructLevel(i, 0);
+	}
+
+	// Now adding cascade levels
+	for(unsigned int i = 1; i < allocators.size(); i++)
+	{
+		unsigned int currentLevel = allocatorGrids[0].depth + i;
+		ConstructLevel(currentLevel, i);
+	}
+
+	timer.Stop();
+	return timer.ElapsedMilliS();
+}
+
+double GISparseVoxelOctree::ConeTrace(GLuint depthBuffer,
+									  GLuint normalBuffer,
+									  GLuint colorBuffer,
+									  const Camera& camera)
+{
+	return 0.0;
+}
+
+void GISparseVoxelOctree::LinkScene(GLuint lightBuffer,
+									GLuint shadowMapArrayTexture)
+{
+
+}
+
+uint64_t GISparseVoxelOctree::MemoryUsage() const
+{
+	uint64_t totalBytes = 0;
+	totalBytes += dSVO.Size() * sizeof(CSVONode);
+	totalBytes += dSVOColor.Size() * sizeof(CSVOColor);
+	totalBytes += dSVOLevelStartIndices.Size() * sizeof(unsigned int);
+	totalBytes += sizeof(unsigned int);
+	return totalBytes;
+}
 
 //void GICudaAllocator::LinkSceneShadowMapArray(GLuint shadowMapArray)
 //{
@@ -69,3 +259,4 @@
 //CUDA_CHECK(cudaGraphicsSubResourceGetMappedArray(&texArray, lightIntensityLink, 0, 0));
 //resDesc.res.array.array = texArray;
 //CUDA_CHECK(cudaCreateSurfaceObject(&lightIntensityBuffer, &resDesc));
+

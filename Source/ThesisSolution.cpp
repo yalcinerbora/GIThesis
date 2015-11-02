@@ -46,6 +46,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, renderScheme(GI_VOXEL_PAGE)
 	//, renderScheme(GI_VOXEL_CACHE2048)
 	, gridInfoBuffer(1)
+	, voxelOctree(dRenderer.GetLightIntensityBufferGL())
 {
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, 6);
 	gridInfoBuffer.AddData({});
@@ -81,7 +82,20 @@ void ThesisSolution::Init(SceneI& s)
 	LinkCacheWithVoxScene(voxelScene2048, cache2048, 1.0f);
 	LinkCacheWithVoxScene(voxelScene1024, cache1024, 1.0f);
 	LinkCacheWithVoxScene(voxelScene512, cache512, 1.0f);
-	
+
+	// Allocators Link
+	GICudaAllocator* allocators[] = 
+	{
+		voxelScene512.Allocator(),
+		voxelScene1024.Allocator(),
+		voxelScene2048.Allocator(),
+	};
+	voxelOctree.LinkAllocators(allocators, 3);
+
+	// Scene Link
+	voxelOctree.LinkScene(currentScene->getSceneLights().GetLightBufferGL(),
+						  currentScene->getSceneLights().GetShadowMapArrayR32F());
+
 	// Memory Usage Total
 	GI_LOG("Voxel Sytem #1 Total Memory Usage %f MB", 
 		   static_cast<double>(voxelScene2048.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
@@ -89,6 +103,8 @@ void ThesisSolution::Init(SceneI& s)
 		   static_cast<double>(voxelScene1024.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
 	GI_LOG("Voxel Sytem #3 Total Memory Usage %f MB",
 		   static_cast<double>(voxelScene512.AllocatorMemoryUsage()) / 1024.0 / 1024.0);
+	GI_LOG("Voxel Octree Sytem Total Memory Usage %f MB",
+		   static_cast<double>(voxelOctree.MemoryUsage()) / 1024.0 / 1024.0);
 
 	// Tw Bar Creation
 	bar = TwNewBar("ThesisGI");
@@ -440,29 +456,26 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	// Cascade #1 Update
 	voxelScene2048.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
-							  svoTimeSegment,
 							  mainRenderCamera.pos);
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
-	svoTime += svoTimeSegment;
 
 	// Cascade #2 Update
 	voxelScene1024.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
-							  svoTimeSegment,
 							  mainRenderCamera.pos);
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
-	svoTime += svoTimeSegment;
 
 	// Cascade #3 Update
 	voxelScene512.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
-							  svoTimeSegment,
 							  mainRenderCamera.pos);
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
-	svoTime += svoTimeSegment;
+	
+	// Octree Update
+	svoTime = voxelOctree.UpdateSVO();
 
 	// Voxel Count in Pages
 	cache2048.voxInfo.sceneVoxOctreeCount = voxelScene2048.VoxelCountInPage();

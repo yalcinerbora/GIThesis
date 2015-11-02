@@ -12,42 +12,54 @@
 #include "CSparseVoxelOctree.cuh"
 #include "SceneLights.h"
 
+#define GI_DENSE_LEVEL 6
+#define GI_DENSE_SIZE 64
+
 class GICudaAllocator;
-class Camera;
+struct Camera;
 
 class GISparseVoxelOctree
 {
 	private:
-		GICudaAllocator*						allocator;		// Page Allocators
-		size_t									allocatorSize;	// Page
-
-		CVoxelGrid								hVoxelGrid;
-		CudaVector<CVoxelGrid>					dVoxelGrid;
+		std::vector<GICudaAllocator*>			allocators;			// Page Allocators
+		std::vector<CVoxelGrid>					allocatorGrids;		// Allocator's Responsible Grids
+		unsigned int							totalLevel;
 
 		// SVO Data
-		cudaTextureObject_t						dSVOUpper;	// Up to lvl 64 (64 included)
-		std::vector<CudaVector<CSVONode>>		dSVOLower;	// Rest is sparse
-		CudaVector<CSVONode*>					dSVOLower2D;
+		CudaVector<CSVONode>					dSVO;				// Entire SVO
+		CudaVector<CSVOColor>					dSVOColor;			// Entire SVO
+
+		// SVO Ptrs
+		CSVONode*								dSVODense;
+		CSVONode*								dSVOSparse;
+		CudaVector<unsigned int>				dSVOLevelStartIndices;
+		CudaVector<unsigned int>				dSVOCurrentLevelAtomic;
 
 		// Inital Rays buffer
 		GLuint									initalRayLink;
 		cudaGraphicsResource_t					rayLinks;
 
 		// Interop Data
-		cudaGraphicsResource_t					shadowMapArrayLink;
+		cudaGraphicsResource_t					shadowMapArrayTexLink;
 		cudaGraphicsResource_t					lightBufferLink;
-		cudaGraphicsResource_t					lightIntensityLink;
+		cudaGraphicsResource_t					lightIntensityTexLink;
 		
+		void									ConstructDense();
+		void									ConstructLevel(unsigned int levelIndex,
+															   unsigned int allocatorIndex);
+
 	protected:
 
 	public:
 		// Constructors & Destructor
-												GISparseVoxelOctree(GICudaAllocator* allocator, 
-																	size_t allocatorSize,
-																	GLuint lightIntensityBuffer);
+												GISparseVoxelOctree(GLuint lightIntensityTex);
 												GISparseVoxelOctree(const GISparseVoxelOctree&) = delete;
 		GISparseVoxelOctree&					operator=(const GISparseVoxelOctree&) = delete;
 												~GISparseVoxelOctree();
+
+		// Link Allocators and Adjust Size of the System
+		void									 LinkAllocators(GICudaAllocator** newAllocators,
+																size_t allocatorSize);
 
 		// Updates SVO Tree depending on the changes of the allocators
 		double									UpdateSVO();
@@ -64,29 +76,7 @@ class GISparseVoxelOctree
 		void									LinkScene(GLuint lightBuffer,
 														  GLuint shadowMapArrayTexture);
 
+		uint64_t								MemoryUsage() const;
 };
-
-//// SVO Lower
-//for(auto& svoLevel : dSVOLower)
-//{
-//	memory += svoLevel.Size() * sizeof(CSVONode);
-//}
-//
-//// SVO Upper
-//memory += SVOTextureSize *
-//SVOTextureSize *
-//SVOTextureSize *
-//sizeof(unsigned int);
-
-
-
-//// Allocate SVO
-//std::vector<CSVONode*> hSVOLower2D;
-//for(auto& svoLevel : dSVOLower)
-//{
-//	svoLevel.Resize(pageAmount * GI_PAGE_SIZE);
-//	hSVOLower2D.push_back(svoLevel.Data());
-//}
-//dSVOLower2D = hSVOLower2D;
 
 #endif //__GICUDASPARSEVOXELOCTREE_H__

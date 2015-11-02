@@ -20,10 +20,10 @@ enum class CVoxelObjectType
 // Global Voxel Data
 struct CVoxelGrid
 {
-	float3 position;	// World Position of the voxel grid
-	float span;
-	uint3 dimension;	// Voxel Grid Dimentions, last component is depth of the SVO
-	unsigned int depth;
+	float3			position;	// World Position of the voxel grid
+	float			span;
+	uint3			dimension;	// Voxel Grid Dimentions
+	unsigned int	depth;
 };
 
 // Seperated Voxel Data
@@ -35,19 +35,19 @@ typedef uint2 CVoxelIds;
 struct CVoxelRender
 {
 	//unsigned int	voxelTransformType;
-	unsigned int		color;		// Color
+	uchar4			color;		// Color
 
 	// Transform Related Data
 	// For Skeletal mesh these shows index of the transforms and weights
 	// For Morph target this shows the neigbouring vertices and their morph related index
-	//uchar4			weightIndex;
-	//uchar4			weight;
+	//uchar4		weightIndex;
+	//uchar4		weight;
 };
 
 struct CVoxelRenderSkelMorph
 {
 	//unsigned int	voxelTransformType;
-	unsigned int	color;		// Color
+	uchar4			color;		// Color
 
 	// Transform Related Data
 	// For Skeletal mesh these shows index of the transforms and weights

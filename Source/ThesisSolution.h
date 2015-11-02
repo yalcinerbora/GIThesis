@@ -19,6 +19,7 @@ Solution implementtion
 #include "VoxelRenderTexture.h"
 #include "VoxelDebugVAO.h"
 #include "DrawBuffer.h"
+#include "GISparseVoxelOctree.h"
 
 class DeferredRenderer;
 
@@ -151,6 +152,7 @@ class ThesisSolution : public SolutionI
 		GICudaVoxelScene		voxelScene2048;
 		GICudaVoxelScene		voxelScene1024;
 		GICudaVoxelScene		voxelScene512;
+		GISparseVoxelOctree		voxelOctree;
 
 		static size_t			InitialObjectGridSize;
 		static size_t			InitialVoxelBufferSizes;

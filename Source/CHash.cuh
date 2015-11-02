@@ -11,20 +11,6 @@ in page system
 #include "CMatrix.cuh"
 #include "CVoxelPage.h"
 
-// Using shared memory on 16Kb config
-#define GI_CUDA_SHARED_MEM_SIZE (48 * 1024)
-
-// Max Worst case scenario for shared memory
-#define GI_MAX_SHARED_COUNT 64
-#define GI_MAX_SHARED_COUNT_PRIME 67
-
-// Mapping and "Allocating" the objectId
-// Map functions manages memory conflicts internally thus can be called
-// from different threads at the same time
-__device__ unsigned int Map(unsigned int* aHashTable,
-							unsigned int key,
-							unsigned int hashSize);
-
 // Nearest bigger prime of "power of twos"
 // This will be used when VS have full constexpr support
 // Then we'll lookup this determine hash size in compile time
@@ -41,10 +27,27 @@ __device__ unsigned int Map(unsigned int* aHashTable,
 //	257		// 256,
 //};
 
-// Assertion Check
-static_assert((GI_SEGMENT_PER_PAGE + 3) * (sizeof(CMatrix4x4) * 8 + sizeof(uint1)) <= GI_CUDA_SHARED_MEM_SIZE, "Not Enough Shared Mem to Store Hashed Transforms");
-static_assert(GI_MAX_SHARED_COUNT_PRIME - GI_MAX_SHARED_COUNT <= 3 &&
-			  GI_MAX_SHARED_COUNT_PRIME - GI_MAX_SHARED_COUNT > 0, "Shared count and its prime value does not seem to be related");
+// Using shared memory on 16Kb config
+#define GI_CUDA_SHARED_MEM_SIZE (16 * 1024)
+
+// Max Worst case scenario for shared memory
+#define GI_MAX_SHARED_COUNT 64
+#define GI_MAX_SHARED_COUNT_PRIME 67
+
+#define GI_THREAD_PER_BLOCK_PRIME 521
+
+// Assertion Checks
+static_assert((GI_MAX_SHARED_COUNT_PRIME) * (sizeof(CMatrix4x4) + sizeof(uint1)) <= GI_CUDA_SHARED_MEM_SIZE, "Not Enough Shared Mem to Store Hashed Transforms");
+static_assert(GI_MAX_SHARED_COUNT_PRIME - GI_MAX_SHARED_COUNT == 3, "SharedCount and its prime does not seem to be related");
+static_assert((GI_THREAD_PER_BLOCK_PRIME) * (2 * sizeof(uint1)) <= GI_CUDA_SHARED_MEM_SIZE, "Not Enough Shared Mem to Store Hashed Transforms");
+static_assert(GI_THREAD_PER_BLOCK_PRIME - GI_THREAD_PER_BLOCK == 9, "ThreadPerBlock and its prime does not seem to be related");
+
+// Mapping and "Allocating" the objectId
+// Map functions manages memory conflicts internally thus can be called
+// from different threads at the same time
+__device__ unsigned int Map(unsigned int* aHashTable,
+							unsigned int key,
+							unsigned int hashSize);
 
 // Either Maps or Adds the key to the list and returns the index
 inline __device__ unsigned int Map(unsigned int* aHashTable,

@@ -42,17 +42,21 @@ __global__ void DebugCheckSegmentAlloc(const CVoxelGrid& gGridInfo,
 	unsigned int objectId = gSegmentObjectId[globalId];
 	bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId].transform);
 	ushort2 myAllocLoc = gObjectAllocLocations[globalId];
+	
+	if(intersects &&
+	   (myAllocLoc.x == 0xFFFF ||
+	   myAllocLoc.y == 0xFFFF))
+	{
+		assert(false);
+	}
 
-	if(intersects)
+	if((!intersects) &&
+	   (myAllocLoc.x != 0xFFFF ||
+	   myAllocLoc.y != 0xFFFF))
 	{
-		assert(myAllocLoc.x != 0xFFFF &&
-			   myAllocLoc.y != 0xFFFF);
+		assert(false);
 	}
-	else
-	{
-		assert(myAllocLoc.x == 0xFFFF &&
-			   myAllocLoc.y == 0xFFFF);
-	}
+
 }
 
 

@@ -222,9 +222,14 @@ uint32_t SceneLights::Count() const
 	return static_cast<uint32_t>(lightShadowCast.size());
 }
 
-GLuint SceneLights::GetShadowMapArrayR32F() const
+GLuint SceneLights::GetShadowMapArrayR32F()
 {
 	return shadowMapR32FCopy;
+}
+
+GLuint SceneLights::GetLightBufferGL()
+{
+	return lightsGPU.getGLBuffer();
 }
 
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)
@@ -235,13 +240,6 @@ void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)
 	l.position.setZ(position.getZ());
 	lightsGPU.ChangeData(index, l);
 }
-
-//void SceneLights::ChangeLightType(uint32_t index, LightType type)
-//{
-//	Light l = lightsGPU.GetData(index);
-//	l.position.setW(static_cast<float>(type));
-//	lightsGPU.ChangeData(index, l);
-//}
 
 void SceneLights::ChangeLightDir(uint32_t index, IEVector3 direction)
 {

@@ -85,10 +85,10 @@ class SceneLights
 									~SceneLights();
 
 		uint32_t					Count() const;
-		GLuint						GetShadowMapArrayR32F() const;
-
+		GLuint						GetShadowMapArrayR32F();
+		GLuint						GetLightBufferGL();
+		
 		void						ChangeLightPos(uint32_t index, IEVector3 position);
-		//void						ChangeLightType(uint32_t index, LightType);
 		void						ChangeLightDir(uint32_t index, IEVector3 direction);
 		void						ChangeLightColor(uint32_t index, IEVector3 color);
 		void						ChangeLightRadius(uint32_t index, float radius);

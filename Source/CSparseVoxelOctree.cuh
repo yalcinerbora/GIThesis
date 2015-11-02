@@ -19,7 +19,6 @@ Designed for fast reconstruction from its bottom
 // last 4 byte is used for color
 typedef unsigned int CSVONode;
 typedef unsigned int CSVOColor;
-//typedef float4 CSVOColor;
 
 inline __device__ void UnpackNode(unsigned int& childrenIndex,
 								  unsigned char& childrenBit,
@@ -60,5 +59,5 @@ inline __device__ CSVOColor PackSVOColor(const float4& color)
 
 // Returns the intersected voxelIndex if voxel is found
 // Else it returns -1 (0xFFFFFFFF)
-inline __device__ unsigned int ConeTrace() {}
+inline __device__ unsigned int ConeTrace() {return 0;}
 #endif //__CSPARSEVOXELOCTREE_H__

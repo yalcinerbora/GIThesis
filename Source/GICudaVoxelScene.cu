@@ -100,7 +100,6 @@ void GICudaVoxelScene::Reset()
 
 void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 								   double& updateTiming,
-								   double& svoReconTiming,
 								   const IEVector3& playerPos)
 {
 	// Pass if there is not any linked objects
@@ -267,11 +266,6 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	timer.Stop();
 	updateTiming = timer.ElapsedMilliS();
 
-	// Then Call SVO Reconstruct
-	timer.Start();
-	timer.Stop();
-	svoReconTiming = timer.ElapsedMilliS();
-
 	// Done
 	allocator.ClearDevicePointers();
 }
@@ -374,4 +368,9 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, d
 		voxGridData = allocator.GetVoxelGridHost();
 	}
 	return VoxelDebugVAO(vaoNormPosData, vaoColorData);
+}
+
+GICudaAllocator* GICudaVoxelScene::Allocator()
+{
+	return &allocator;
 }

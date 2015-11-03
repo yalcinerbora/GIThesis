@@ -8,9 +8,9 @@ Designed for fast reconstruction from its bottom
 #ifndef __CSPARSEVOXELOCTREE_H__
 #define __CSPARSEVOXELOCTREE_H__
 
-#include <cuda_runtime.h>
 #include <cuda.h>
 #include "CVoxel.cuh"
+#include <cassert>
 
 // first int has
 // first 24 bit is children index
@@ -65,21 +65,6 @@ inline __device__ CSVOColor PackSVOColor(const float4& color)
 	return colorPacked;
 }
 
-inline __device__ unsigned int CalculateChildIndex(const unsigned char childrenBits,
-												   const unsigned char childBit)
-{
-	unsigned int childrenCount = __popc(childrenBits);
-	unsigned int bit = childrenBits, totalBitCount = 0;
-	for(unsigned int i = 0; i < childrenCount; i++)
-	{
-		totalBitCount += __ffs(bit);
-		if((0x00000001 << totalBitCount) == childBit)
-			return i;
-		bit = bit >> (__ffs(bit) + 1);
-		totalBitCount++;
-	}
-}
-
 inline __device__ unsigned char CalculateLevelChildBit(const uint3& voxelPos,
 													   const unsigned int levelDepth,
 													   const unsigned int totalDepth)
@@ -120,7 +105,6 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 }
 
 inline __device__ uint3 UnpackLevelVoxId(const unsigned int packedVoxel,
-										 const unsigned int levelDepth,
 										 const unsigned int cascadeNo,
 										 const unsigned int numCascades)
 {

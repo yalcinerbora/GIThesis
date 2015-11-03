@@ -140,9 +140,9 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	gridSize = ((levelNodeCount) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 	SVOReconstructAllocateNext<<<gridSize, GI_THREAD_PER_BLOCK>>>
 	(
-		dSVO.Data(),
+		dSVOSparse,
 		*dSVONodeCountAtomic.Data(),
-		*(dSVOLevelStartIndices.Data() + currentLevelIndex),
+		*(dSVOLevelStartIndices.Data() + currentLevelIndex - 1),
 		levelNodeCount
 	);
 	CUDA_KERNEL_CHECK();

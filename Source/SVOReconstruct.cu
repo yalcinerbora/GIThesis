@@ -2,6 +2,26 @@
 #include "CSparseVoxelOctree.cuh"
 #include "CHash.cuh"
 
+inline __device__ unsigned int CalculateChildIndex(const unsigned char childrenBits,
+												   const unsigned char childBit)
+{
+	unsigned int childrenCount = __popc(childrenBits);
+	unsigned int bit = childrenBits, totalBitCount = 0;
+	for(unsigned int i = 0; i < childrenCount; i++)
+	{
+		totalBitCount += __ffs(bit);
+		if((0x00000001 << totalBitCount - 1) == childBit)
+			return i;
+		bit = bit >> __ffs(bit);
+		//totalBitCount++;
+	}
+	//assert(false);
+	unsigned int asd123 = childrenBits + childBit;
+	printf("Assert childbit 0x%X, allbits 0x%X", childrenBits, childBit);
+	assert(false);
+	return asd123;
+}
+
 inline __device__ CSVOColor AtomicColorAvg(CSVOColor* aColor, CSVOColor color)
 {
 	float4 colorAdd = UnpackSVOColor(color);
@@ -167,7 +187,6 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 	// Thread logic changes
 	// Traverse the partially constructed tree and put the child
 	uint3 levelVoxelId = UnpackLevelVoxId(sLocationHash[threadIdx.x], 
-										  levelDepth, 
 										  cascadeNo,
 										  svoConstants.numCascades);
 	uint3 denseIndex = CalculateLevelVoxId(levelVoxelId, svoConstants.denseDepth,
@@ -183,17 +202,18 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 	unsigned int nodeIndex = 0;
 	for(unsigned int i = svoConstants.denseDepth + 1; i <= levelDepth; i++)
 	{
-		unsigned int levelBase = gLevelLookupTable[i - svoConstants.denseDepth];
+		unsigned int levelBase = gLevelLookupTable[i - svoConstants.denseDepth - 1];
 		
 		unsigned char childBits;
-		unsigned int childIndex;
-		UnpackNode(childIndex, childBits, currentNode);
+		unsigned int childrenStart;
+		UnpackNode(childrenStart, childBits, currentNode);
 
 		// Jump to Next Node
 		unsigned char childIndex = CalculateChildIndex(childBits,
-													   CalculateLevelChildBit(levelVoxelId, i,
-																			  svoConstants.totalDepth));
-		nodeIndex = levelBase + childIndex + childIndex;
+													   CalculateLevelChildBit(levelVoxelId, 
+																			  i,
+																			  levelDepth));
+		nodeIndex = levelBase + childrenStart + childIndex;
 
 		// Last gmem read unnecessary
 		if(i < levelDepth) currentNode = gSVOSparse[nodeIndex];

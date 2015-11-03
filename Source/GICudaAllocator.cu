@@ -203,23 +203,23 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 
 	///DEBUG
-	dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
-	dVoxelStrides.back().DumpToFile("voxelStrides");
-	dSegmentObjecId.back().DumpToFile("segmentObjId");
-	dSegmentAllocLoc.back().DumpToFile("segmentAllocLoc");
+	//dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
+	//dVoxelStrides.back().DumpToFile("voxelStrides");
+	//dSegmentObjecId.back().DumpToFile("segmentObjId");
+	//dSegmentAllocLoc.back().DumpToFile("segmentAllocLoc");
 
-	std::vector<CObjectVoxelInfo> objInfoArray;
-	objInfoArray.resize(objCount);
-	cudaMemcpy(objInfoArray.data(), dVoxelInfo, objCount * sizeof(CObjectVoxelInfo), cudaMemcpyDeviceToHost);
+	//std::vector<CObjectVoxelInfo> objInfoArray;
+	//objInfoArray.resize(objCount);
+	//cudaMemcpy(objInfoArray.data(), dVoxelInfo, objCount * sizeof(CObjectVoxelInfo), cudaMemcpyDeviceToHost);
 
-	std::ofstream fOut;
-	fOut.open("objVoxelInfo");
+	//std::ofstream fOut;
+	//fOut.open("objVoxelInfo");
 
-	for(const CObjectVoxelInfo& data : objInfoArray)
-	{
-		fOut << "{" << data.span << ", " << data.voxelCount << "}" << std::endl;
-	}
-	fOut.close();
+	//for(const CObjectVoxelInfo& data : objInfoArray)
+	//{
+	//	fOut << "{" << data.span << ", " << data.voxelCount << "}" << std::endl;
+	//}
+	//fOut.close();
 	///DEBUG END
 
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &objectInfoLinks.back()));
@@ -342,8 +342,8 @@ void GICudaAllocator::AddVoxelPages(size_t count)
 	dVoxelPages = hVoxelPages;
 
 	///DEBUG
-	hPageData.front().dEmptySegmentList.DumpToFile("emptySegmentListFirstPage");
-	hPageData.front().dIsSegmentOccupied.DumpToFile("isSegmentOcuupListFirstPage");
+	//hPageData.front().dEmptySegmentList.DumpToFile("emptySegmentListFirstPage");
+	//hPageData.front().dIsSegmentOccupied.DumpToFile("isSegmentOcuupListFirstPage");
 }
 
 void GICudaAllocator::RemoveVoxelPages(size_t count)

@@ -39,6 +39,7 @@ in page system
 // Assertion Checks
 static_assert((GI_MAX_SHARED_COUNT_PRIME) * (sizeof(CMatrix4x4) + sizeof(uint1)) <= GI_CUDA_SHARED_MEM_SIZE, "Not Enough Shared Mem to Store Hashed Transforms");
 static_assert(GI_MAX_SHARED_COUNT_PRIME - GI_MAX_SHARED_COUNT == 3, "SharedCount and its prime does not seem to be related");
+
 static_assert((GI_THREAD_PER_BLOCK_PRIME) * (2 * sizeof(uint1)) <= GI_CUDA_SHARED_MEM_SIZE, "Not Enough Shared Mem to Store Hashed Transforms");
 static_assert(GI_THREAD_PER_BLOCK_PRIME - GI_THREAD_PER_BLOCK == 9, "ThreadPerBlock and its prime does not seem to be related");
 

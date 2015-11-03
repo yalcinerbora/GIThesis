@@ -120,8 +120,8 @@ inline __device__ void PackVoxelIds(CVoxelIds& packedVoxId,
 	packedVoxId.y = voxRenderPtr;
 }
 
-inline __device__ unsigned int PackOnlyPos(const uint3& voxPos,
-										   const unsigned int voxelSpanRatio)
+inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
+											  const unsigned int voxelSpanRatio)
 {
 	unsigned int packed = 0;
 	packed |= (voxelSpanRatio & 0x0000001F) << 27;
@@ -137,7 +137,7 @@ inline __device__ void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
 										const unsigned int voxelSpanRatio)
 {
 	// First word holds span ratio and voxel position (relative to AABB or Grid)
-	packedVoxNormPos.x = PackOnlyPos(voxPos, voxelSpanRatio);
+	packedVoxNormPos.x = PackOnlyVoxPos(voxPos, voxelSpanRatio);
 
 	// Second word holds normal 
 	// (x,y components packed NORM int with 16/15 bit repectively, MSB is sign of z

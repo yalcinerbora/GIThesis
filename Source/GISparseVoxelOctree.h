@@ -12,8 +12,8 @@
 #include "CSparseVoxelOctree.cuh"
 #include "SceneLights.h"
 
-#define GI_DENSE_LEVEL 6
-#define GI_DENSE_SIZE 64
+#define GI_DENSE_LEVEL 1
+#define GI_DENSE_SIZE 2
 
 class GICudaAllocator;
 struct Camera;
@@ -21,6 +21,8 @@ struct Camera;
 class GISparseVoxelOctree
 {
 	private:
+		static const unsigned int				TPBWithHelperWarp;
+
 		std::vector<GICudaAllocator*>			allocators;			// Page Allocators
 		std::vector<CVoxelGrid>					allocatorGrids;		// Allocator's Responsible Grids
 

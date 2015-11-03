@@ -73,7 +73,7 @@ inline __device__ unsigned char CalculateLevelChildBit(const uint3& voxelPos,
 	bitSet |= ((voxelPos.z >> (totalDepth - levelDepth)) & 0x000000001) << 2;
 	bitSet |= ((voxelPos.y >> (totalDepth - levelDepth)) & 0x000000001) << 1;
 	bitSet |= ((voxelPos.x >> (totalDepth - levelDepth)) & 0x000000001) << 0;
-	return (0x01 << static_cast<unsigned int>(bitSet));
+	return (0x01 << (bitSet));
 }
 
 inline __device__ uint3 CalculateLevelVoxId(const uint3& voxelPos,
@@ -104,10 +104,17 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 	return expandedVoxId;
 }
 
-inline __device__ uint3 UnpackLevelVoxId(const unsigned int packedVoxel,
-										 const unsigned int cascadeNo,
-										 const unsigned int numCascades)
+inline __device__ unsigned int PosToKey(const uint3& levelVoxPos)
 {
+	// TODO: better hash that occupies mor warps
+	return PackOnlyVoxPos(levelVoxPos, 0);
+}
+
+inline __device__ uint3 KeyToPos(const unsigned int packedVoxel,
+								 const unsigned int cascadeNo,
+								 const unsigned int numCascades)
+{
+	// TODO: better hash that occupies mor warps
 	uint3 levelVoxelId = ExpandOnlyVoxPos(packedVoxel);
 	if(cascadeNo > 0)
 		return ExpandToSVODepth(levelVoxelId, cascadeNo, numCascades);

@@ -4,6 +4,8 @@
 #include "GIKernels.cuh"
 #include "CudaTimer.h"
 
+const unsigned int GISparseVoxelOctree::TPBWithHelperWarp = GI_THREAD_PER_BLOCK_PRIME + (32 - (GI_THREAD_PER_BLOCK_PRIME % 32));
+
 GISparseVoxelOctree::GISparseVoxelOctree(GLuint lightIntensityTex)
 	: dSVO()
 	, lightIntensityTexLink(nullptr)
@@ -73,9 +75,9 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 void GISparseVoxelOctree::ConstructDense()
 {
 	// Level 0 is special it constructs the upper levels in addition to its level
-	uint32_t gridSize = ((allocators[0]->NumPages() * GI_PAGE_SIZE) + GI_THREAD_PER_BLOCK - 1) /
-						 GI_THREAD_PER_BLOCK;
-	SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	uint32_t gridSize = ((allocators[0]->NumPages() * GI_PAGE_SIZE) + TPBWithHelperWarp - 1) /
+						 TPBWithHelperWarp;
+	SVOReconstructChildSet<<<gridSize, TPBWithHelperWarp>>>
 	(
 		dSVODense,
 		allocators[0]->GetVoxelPagesDevice(),
@@ -113,10 +115,10 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	// Then Allocate your level
 	// Average Color to the level
 	unsigned int currentLevelIndex = currentLevel - GI_DENSE_LEVEL;
-	uint32_t gridSize = ((allocators[allocatorIndex]->NumPages() * GI_PAGE_SIZE) + GI_THREAD_PER_BLOCK - 1) /
-						 GI_THREAD_PER_BLOCK;
+	uint32_t gridSize = ((allocators[allocatorIndex]->NumPages() * GI_PAGE_SIZE) + TPBWithHelperWarp - 1) /
+						 TPBWithHelperWarp;
 
-	SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	SVOReconstructChildSet<<<gridSize, TPBWithHelperWarp>>>
 	(
 		dSVOSparse,
 		dSVODense,
@@ -148,7 +150,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	CUDA_KERNEL_CHECK();
 
 	// Copy Level Start Location to array
-	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + currentLevelIndex, dSVONodeCountAtomic.Data(),
+	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + currentLevelIndex + 1, dSVONodeCountAtomic.Data(),
 						  sizeof(unsigned int), cudaMemcpyDeviceToDevice));
 }
 
@@ -168,10 +170,18 @@ double GISparseVoxelOctree::UpdateSVO()
 	// Start with constructing dense
 	ConstructDense();
 	
+	//DEBUG
+	dSVO.DumpToFile("svoDump", 0, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+	dSVOLevelStartIndices.DumpToFile("startIndices");
+
 	// Construct Levels
 	for(unsigned int i = GI_DENSE_LEVEL + 1; i < allocatorGrids[0].depth; i++)
 	{
 		ConstructLevel(i, 0, 0);
+
+		//DEBUG
+		dSVOLevelStartIndices.DumpToFile("startIndices");
+		dSVO.DumpToFile("svoDump", 0, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE * 2);
 	}
 
 	//// Now adding cascade levels

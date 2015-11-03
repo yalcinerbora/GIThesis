@@ -60,6 +60,9 @@ class CudaVector
 
 		// Debug
 		void			DumpToFile(const char* fName) const;
+		void			DumpToFile(const char* fName, 
+								   size_t offset,
+								   size_t count) const;
 };
 #include "CudaVector.hpp"
 #endif //__CUDAVECTOR_H__

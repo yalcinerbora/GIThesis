@@ -12,7 +12,6 @@ Memory Allocation
 #include <vector>
 #include "CVoxel.cuh"
 #include "COpenGLCommon.cuh"
-#include "CSparseVoxelOctree.cuh"
 #include "CudaVector.cuh"
 #include "GLHeader.h"
 #include "CVoxelPage.h"

@@ -214,24 +214,33 @@ static std::ostream& operator<< (std::ostream& ostr, const SegmentOccupation& se
 template<class T>
 void CudaVector<T>::DumpToFile(const char* fName) const
 {
+	DumpToFile(fName, 0, size);
+}
+
+template<class T>
+void CudaVector<T>::DumpToFile(const char* fName,
+							   size_t offset,
+							   size_t count) const
+{
 	std::vector<T> cpuData;
-	cpuData.resize(size);
-	CUDA_CHECK(cudaMemcpy(cpuData.data(), d_data, size * sizeof(T), cudaMemcpyDeviceToHost));
+	cpuData.resize(count);
+	CUDA_CHECK(cudaMemcpy(cpuData.data(), d_data + offset, count * sizeof(T), cudaMemcpyDeviceToHost));
 
 	std::ofstream fOut;
 	fOut.open(fName);
-	
+
 	for(const T& data : cpuData)
 		fOut << data << std::endl;
 }
 
-//template<class unsigned char>
-inline void CudaVector<unsigned char>::DumpToFile(const char* fName) const
+inline void CudaVector<unsigned char>::DumpToFile(const char* fName,
+												  size_t offset,
+												  size_t count) const
 {
 	std::vector<unsigned char> cpuData;
-	cpuData.resize(size);
-	CUDA_CHECK(cudaMemcpy(cpuData.data(), d_data, size * sizeof(unsigned char), cudaMemcpyDeviceToHost));
-
+	cpuData.resize(count);
+	CUDA_CHECK(cudaMemcpy(cpuData.data(), d_data + offset, count * sizeof(unsigned char), cudaMemcpyDeviceToHost));
+	
 	std::ofstream fOut;
 	fOut.open(fName);
 

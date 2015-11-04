@@ -128,7 +128,8 @@ extern __global__ void SVOReconstructChildSet(CSVONode* gSVODense,
 // Finds the current level parent and traverses partially constructed tree
 // sets the child bit of the appropirate voxel
 extern __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
-											  const CSVONode* gSVODense,
+											  cudaTextureObject_t tSVODense,
+											  //const CSVONode* gSVODense,
 											  const CVoxelPage* gVoxelData,
 											  const unsigned int* gLevelLookupTable,
 
@@ -139,6 +140,7 @@ extern __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 // Allocate next alloates the next level of the tree
 extern __global__ void SVOReconstructAllocateNext(CSVONode* gSVO,
 												  unsigned int& gSVOLevelNodeCount,
-												  const unsigned int& gSVOLevelStart,
+												  const unsigned int& gSVOLevelOffset,
+												  const unsigned int& gSVONextLevelOffset,
 												  const unsigned int levelDim);
 #endif //__GIKERNELS_H__

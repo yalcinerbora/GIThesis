@@ -16,6 +16,9 @@ inline __device__ unsigned int CalculateChildIndex(volatile const unsigned char 
 		//totalBitCount++;
 	}
 	//assert(false);
+	//return 0;
+
+	
 	unsigned int asd123 = childrenBits + childBit;
 	printf("Assert childbit 0x%X, allbits 0x%X\n", childrenBits, childBit);
 	assert(false);
@@ -66,6 +69,7 @@ inline __device__ void HashStoreLevel(CSVONode* sNode,
 		uint3 levelVoxId = CalculateLevelVoxId(voxelPos,
 											   level,
 											   svoConstants.totalDepth);
+
 		unsigned int packedVoxLevel = PosToKey(levelVoxId);
 
 		// Atomic Hash Location find and write
@@ -141,21 +145,22 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVODense,
 				 sNode[threadIdx.x]);
 	}
 
-	//DEBUG
-	if(blockIdx.x == 0)
-	{
-		for(unsigned int wid = 0; wid < blockDim.x / 32; wid++)
-		{
-			if(threadIdx.x / 32 == wid &&
-			   threadIdx.x < GI_THREAD_PER_BLOCK_PRIME)
-				printf("#%d{0x%X, 0x%X}\n", threadIdx.x, sNode[threadIdx.x], sLocationHash[threadIdx.x]);
-			__syncthreads();
-		}
-	}
+	////DEBUG
+	//if(blockIdx.x == 0)
+	//{
+	//	for(unsigned int wid = 0; wid < blockDim.x / 32; wid++)
+	//	{
+	//		if(threadIdx.x / 32 == wid &&
+	//		   threadIdx.x < GI_THREAD_PER_BLOCK_PRIME)
+	//			printf("#%d{0x%X, 0x%X}\n", threadIdx.x, sNode[threadIdx.x], sLocationHash[threadIdx.x]);
+	//		__syncthreads();
+	//	}
+	//}
 }
 
 __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
-									   const CSVONode* gSVODense,
+									   cudaTextureObject_t tSVODense,
+									   //const CSVONode* gSVODense,
 									   const CVoxelPage* gVoxelData,
 									   const unsigned int* gLevelLookupTable,
 
@@ -217,45 +222,52 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 			   denseIndex.y < svoConstants.denseDim &&
 			   denseIndex.z < svoConstants.denseDim);
 
-		CSVONode currentNode = gSVODense[svoConstants.denseDim * svoConstants.denseDim * denseIndex.z +
+		/*CSVONode currentNode = gSVODense[svoConstants.denseDim * svoConstants.denseDim * denseIndex.z +
 										 svoConstants.denseDim * denseIndex.y +
-										 denseIndex.x];
+										 denseIndex.x];*/
+
+		CSVONode currentNode = tex3D<unsigned int>(tSVODense, denseIndex.x,
+												   denseIndex.y, denseIndex.z);
+
+
 		unsigned int nodeIndex = 0;
 		for(unsigned int i = svoConstants.denseDepth + 1; i <= levelDepth; i++)
 		{
-			unsigned int levelBase = gLevelLookupTable[i - svoConstants.denseDepth - 1];
+			volatile unsigned int levelBase = gLevelLookupTable[i - svoConstants.denseDepth - 1];
 
 			unsigned char childBits;
 			unsigned int childrenStart;
 			UnpackNode(childrenStart, childBits, currentNode);
 			
 			// Jump to Next Node
-			unsigned char childIndex = CalculateChildIndex(childBits,
+			volatile unsigned char childIndex = CalculateChildIndex(childBits,
 														   CalculateLevelChildBit(levelVoxelId,
 														   i,
 														   levelDepth));
+			
 			nodeIndex = levelBase + childrenStart + childIndex;
 
 
-			if(levelDepth == 3 &&
-			   levelVoxelId.x == 0x010 &&
-			   levelVoxelId.y == 0x010 && 
-			   levelVoxelId.z == 0x010)
+	/*		if(i == 3 &&
+			   levelDepth == 3 &&
+			   levelVoxelId.x == 0x02 &&
+			   levelVoxelId.y == 0x02 &&
+			   levelVoxelId.z == 0x02)
 			{
 				assert(false);
 			}
 			if(nodeIndex == 12)
 			{
 				assert(false);
-			}
+			}*/
 
 			// Last gMem read unnecessary
 			if(i < levelDepth) currentNode = gSVOSparse[nodeIndex];
 
-			if(currentNode == 0)
+			/*if(currentNode == 0)
 			{
 				assert(currentNode != 0);
-			}				
+			}		*/		
 		}
 
 		// Finally Write
@@ -265,14 +277,14 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 
 __global__ void SVOReconstructAllocateNext(CSVONode* gSVO,
 										   unsigned int& gSVOLevelNodeCount,
-										   const unsigned int& gSVOLevelStart,
+										   const unsigned int& gSVOLevelOffset,
+										   const unsigned int& gSVONextLevelOffset,
 										   const unsigned levelSize)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= levelSize) return;
 
-	CSVONode node = gSVO[globalId + gSVOLevelStart];
-	assert(node != 0);
+	CSVONode node = gSVO[globalId + gSVOLevelOffset];
 	if(node == 0x00000000) return;
 
 	unsigned int childCount;
@@ -282,8 +294,8 @@ __global__ void SVOReconstructAllocateNext(CSVONode* gSVO,
 	
 	// Allocation
 	unsigned int location = atomicAdd(&gSVOLevelNodeCount, childCount);
-	unsigned int localLocation = location - gSVOLevelStart;
+	unsigned int localLocation = location - gSVONextLevelOffset;
 	assert(localLocation <= 0x00FFFFFF);
 
-	gSVO[globalId + gSVOLevelStart] = PackNode(localLocation, childBits);
+	gSVO[globalId + gSVOLevelOffset] = PackNode(localLocation, childBits);
 }						   

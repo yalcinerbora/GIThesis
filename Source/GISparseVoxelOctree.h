@@ -12,8 +12,8 @@
 #include "CSparseVoxelOctree.cuh"
 #include "SceneLights.h"
 
-#define GI_DENSE_LEVEL 1
-#define GI_DENSE_SIZE 2
+#define GI_DENSE_LEVEL 2
+#define GI_DENSE_SIZE 4
 
 class GICudaAllocator;
 struct Camera;
@@ -28,6 +28,9 @@ class GISparseVoxelOctree
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
+
+		//
+		cudaTextureObject_t						tSVODense;
 
 		// SVO Data
 		CudaVector<CSVONode>					dSVO;				// Entire SVO

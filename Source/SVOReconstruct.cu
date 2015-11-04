@@ -228,7 +228,7 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 			unsigned char childBits;
 			unsigned int childrenStart;
 			UnpackNode(childrenStart, childBits, currentNode);
-
+			
 			// Jump to Next Node
 			unsigned char childIndex = CalculateChildIndex(childBits,
 														   CalculateLevelChildBit(levelVoxelId,
@@ -236,8 +236,26 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 														   levelDepth));
 			nodeIndex = levelBase + childrenStart + childIndex;
 
+
+			if(levelDepth == 3 &&
+			   levelVoxelId.x == 0x010 &&
+			   levelVoxelId.y == 0x010 && 
+			   levelVoxelId.z == 0x010)
+			{
+				assert(false);
+			}
+			if(nodeIndex == 12)
+			{
+				assert(false);
+			}
+
 			// Last gMem read unnecessary
 			if(i < levelDepth) currentNode = gSVOSparse[nodeIndex];
+
+			if(currentNode == 0)
+			{
+				assert(currentNode != 0);
+			}				
 		}
 
 		// Finally Write
@@ -254,13 +272,14 @@ __global__ void SVOReconstructAllocateNext(CSVONode* gSVO,
 	if(globalId >= levelSize) return;
 
 	CSVONode node = gSVO[globalId + gSVOLevelStart];
+	assert(node != 0);
 	if(node == 0x00000000) return;
 
 	unsigned int childCount;
 	unsigned char childBits;
 	UnpackNode(childCount, childBits, node);	
 	childCount = __popc(childBits);
-
+	
 	// Allocation
 	unsigned int location = atomicAdd(&gSVOLevelNodeCount, childCount);
 	unsigned int localLocation = location - gSVOLevelStart;

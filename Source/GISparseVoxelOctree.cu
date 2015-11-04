@@ -87,6 +87,8 @@ void GISparseVoxelOctree::ConstructDense()
 	);
 	CUDA_KERNEL_CHECK();
 
+	dSVO.DumpToFile("svoDump", 0, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+
 	gridSize = ((GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE) + GI_THREAD_PER_BLOCK - 1) /
 				GI_THREAD_PER_BLOCK;
 	SVOReconstructAllocateNext<<<gridSize, GI_THREAD_PER_BLOCK>>>
@@ -102,6 +104,8 @@ void GISparseVoxelOctree::ConstructDense()
 	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + 1,
 						  dSVONodeCountAtomic.Data(),
 						  sizeof(unsigned int), cudaMemcpyDeviceToDevice));
+
+	dSVO.DumpToFile("svoDump", 0, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 }
 
 void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
@@ -139,6 +143,11 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 						  cudaMemcpyDeviceToHost));
 	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
 
+
+	dSVO.DumpToFile("svoDump", 0, levelNodeStarts[1] +
+					GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+
+
 	gridSize = ((levelNodeCount) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 	SVOReconstructAllocateNext<<<gridSize, GI_THREAD_PER_BLOCK>>>
 	(
@@ -148,6 +157,9 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 		levelNodeCount
 	);
 	CUDA_KERNEL_CHECK();
+
+	dSVO.DumpToFile("svoDump", 0, levelNodeStarts[1] + 
+					GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 
 	// Copy Level Start Location to array
 	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + currentLevelIndex + 1, dSVONodeCountAtomic.Data(),
@@ -181,7 +193,6 @@ double GISparseVoxelOctree::UpdateSVO()
 
 		//DEBUG
 		dSVOLevelStartIndices.DumpToFile("startIndices");
-		dSVO.DumpToFile("svoDump", 0, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE * 2);
 	}
 
 	//// Now adding cascade levels

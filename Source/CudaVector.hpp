@@ -230,7 +230,7 @@ void CudaVector<T>::DumpToFile(const char* fName,
 	fOut.open(fName);
 
 	for(const T& data : cpuData)
-		fOut << data << std::endl;
+		fOut << "0x" << std::hex << data << std::endl;
 }
 
 inline void CudaVector<unsigned char>::DumpToFile(const char* fName,

@@ -3,26 +3,17 @@
 #include "CHash.cuh"
 
 inline __device__ unsigned int CalculateChildIndex(volatile const unsigned char childrenBits,
-												   volatile const unsigned char childBit)
+												   volatile const unsigned char childBit,
+												   int level)
 {
-	unsigned int childrenCount = __popc(childrenBits);
-	unsigned int bit = childrenBits, totalBitCount = 0;
-	for(unsigned int i = 0; i < childrenCount; i++)
+	//assert((childrenBits & childBit) == 0);	
+	if((childrenBits & childBit) == 0)
 	{
-		totalBitCount += __ffs(bit);
-		if((0x00000001 << totalBitCount - 1) == childBit)
-			return i;
-		bit = bit >> __ffs(bit);
-		//totalBitCount++;
+		printf("#%d Assert childbit 0x%X, allbits 0x%X\n", level, childBit, childrenBits);
+		//assert((childrenBits & childBit) == 0);
+		return 0;
 	}
-	//assert(false);
-	//return 0;
-
-	
-	unsigned int asd123 = childrenBits + childBit;
-	printf("Assert childbit 0x%X, allbits 0x%X\n", childrenBits, childBit);
-	assert(false);
-	return asd123;
+	return __popc(childrenBits & (childBit - 1));
 }
 
 inline __device__ CSVOColor AtomicColorAvg(CSVOColor* aColor, CSVOColor color)
@@ -63,14 +54,14 @@ inline __device__ void HashStoreLevel(CSVONode* sNode,
 		uint3 voxelPos = ExpandToSVODepth(ExpandOnlyVoxPos(voxelNormPos.x),
 										  cascadeNo,
 										  svoConstants.numCascades);
-		unsigned char childBit = CalculateLevelChildBit(voxelPos,
-														level + 1,
-														svoConstants.totalDepth);
+		volatile unsigned char childBit = CalculateLevelChildBit(voxelPos,
+																 level + 1,
+																 svoConstants.totalDepth);
 		uint3 levelVoxId = CalculateLevelVoxId(voxelPos,
 											   level,
 											   svoConstants.totalDepth);
 
-		unsigned int packedVoxLevel = PosToKey(levelVoxId);
+		volatile unsigned int packedVoxLevel = PosToKey(levelVoxId);
 
 		// Atomic Hash Location find and write
 		unsigned int  location = Map(sLocationHash, packedVoxLevel, GI_THREAD_PER_BLOCK_PRIME);
@@ -160,7 +151,6 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVODense,
 
 __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 									   cudaTextureObject_t tSVODense,
-									   //const CSVONode* gSVODense,
 									   const CVoxelPage* gVoxelData,
 									   const unsigned int* gLevelLookupTable,
 
@@ -222,12 +212,18 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 			   denseIndex.y < svoConstants.denseDim &&
 			   denseIndex.z < svoConstants.denseDim);
 
-		/*CSVONode currentNode = gSVODense[svoConstants.denseDim * svoConstants.denseDim * denseIndex.z +
-										 svoConstants.denseDim * denseIndex.y +
-										 denseIndex.x];*/
-
-		CSVONode currentNode = tex3D<unsigned int>(tSVODense, denseIndex.x,
-												   denseIndex.y, denseIndex.z);
+		CSVONode currentNode = tex3D<unsigned int>(tSVODense, 
+												   denseIndex.x,
+												   denseIndex.y, 
+												   denseIndex.z);
+	//	assert(currentNode != 0);
+		if(currentNode == 0)
+		{
+			printf("Assert DenseMissXYZ 0x%X, 0x%X, 0x%X\n", 
+				   denseIndex.x, 
+				   denseIndex.y,
+				   denseIndex.z);
+		}
 
 
 		unsigned int nodeIndex = 0;
@@ -238,36 +234,16 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 			unsigned char childBits;
 			unsigned int childrenStart;
 			UnpackNode(childrenStart, childBits, currentNode);
-			
+			//assert(childbits != 0);
+		
 			// Jump to Next Node
-			volatile unsigned char childIndex = CalculateChildIndex(childBits,
-														   CalculateLevelChildBit(levelVoxelId,
-														   i,
-														   levelDepth));
+			volatile unsigned char requestedChild = CalculateLevelChildBit(levelVoxelId, i, levelDepth);
+			volatile unsigned char childIndex = CalculateChildIndex(childBits, requestedChild, i);
 			
 			nodeIndex = levelBase + childrenStart + childIndex;
 
-
-	/*		if(i == 3 &&
-			   levelDepth == 3 &&
-			   levelVoxelId.x == 0x02 &&
-			   levelVoxelId.y == 0x02 &&
-			   levelVoxelId.z == 0x02)
-			{
-				assert(false);
-			}
-			if(nodeIndex == 12)
-			{
-				assert(false);
-			}*/
-
 			// Last gMem read unnecessary
 			if(i < levelDepth) currentNode = gSVOSparse[nodeIndex];
-
-			/*if(currentNode == 0)
-			{
-				assert(currentNode != 0);
-			}		*/		
 		}
 
 		// Finally Write

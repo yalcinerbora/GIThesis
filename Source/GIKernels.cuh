@@ -129,7 +129,6 @@ extern __global__ void SVOReconstructChildSet(CSVONode* gSVODense,
 // sets the child bit of the appropirate voxel
 extern __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 											  cudaTextureObject_t tSVODense,
-											  //const CSVONode* gSVODense,
 											  const CVoxelPage* gVoxelData,
 											  const unsigned int* gLevelLookupTable,
 

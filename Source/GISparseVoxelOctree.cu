@@ -28,19 +28,49 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 	if(lightBufferLink) CUDA_CHECK(cudaGraphicsUnregisterResource(lightBufferLink));
 	if(shadowMapArrayTexLink) CUDA_CHECK(cudaGraphicsUnregisterResource(shadowMapArrayTexLink));
 	if(tSVODense) CUDA_CHECK(cudaDestroyTextureObject(tSVODense));
+	if(denseArray) CUDA_CHECK(cudaFreeArray(denseArray));
+}
+
+__global__ void fastreadkernel3D(cudaTextureObject_t texture,
+							   unsigned int* gOut)
+{
+	uint3 globalId;
+	globalId.x = threadIdx.x + blockIdx.x * blockDim.x;
+	globalId.y = threadIdx.y + blockIdx.y * blockDim.y;
+	globalId.z = threadIdx.z + blockIdx.z * blockDim.z;
+
+	float3 texUV;
+	texUV.x = static_cast<float>(globalId.x);
+	texUV.y = static_cast<float>(globalId.y);
+	texUV.z = static_cast<float>(globalId.z);
+
+	unsigned int currentNode = tex3D<unsigned int>(texture, texUV.x, texUV.y, texUV.z);
+	gOut[globalId.z * GI_DENSE_SIZE * GI_DENSE_SIZE +
+		 globalId.y	* GI_DENSE_SIZE + 
+		 globalId.x] = currentNode;
 }
 
 __global__ void fastreadkernel(cudaTextureObject_t texture,
-							   unsigned int* gOut)
+								 unsigned int* gOut)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	
+	float3 texUV;
+	texUV.x = static_cast<float>(globalId % GI_DENSE_SIZE);
+	texUV.y = static_cast<float>((globalId / GI_DENSE_SIZE) % GI_DENSE_SIZE);
+	texUV.z = static_cast<float>(globalId / GI_DENSE_SIZE / GI_DENSE_SIZE);
 
-	uint3 texUV;
-	texUV.x = globalId % GI_DENSE_SIZE;
-	texUV.y = globalId / GI_DENSE_SIZE;
-	texUV.z = globalId / (GI_DENSE_SIZE * GI_DENSE_SIZE);
+	/*x = idx % (max_x)
+		idx /= (max_x)
+		y = idx % (max_y)
+		idx /= (max_y)
+		z = idx
+		return (x, y, z)*/
+
 
 	unsigned int currentNode = tex3D<unsigned int>(texture, texUV.x, texUV.y, texUV.z);
+	printf("%d TexCoordXYZ %f, %f, %f\n", globalId, texUV.x, texUV.y, texUV.z);
+
 	gOut[globalId] = currentNode;
 }
 
@@ -88,15 +118,20 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 						  sizeof(CSVOConstants), 
 						  cudaMemcpyHostToDevice));
 
+
+	cudaChannelFormatDesc fd = cudaCreateChannelDesc<unsigned int>();
+	if(denseArray) CUDA_CHECK(cudaFreeArray(denseArray));
+	CUDA_CHECK(cudaMalloc3DArray(&denseArray,
+								 &fd,
+								 {GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE},
+								 cudaArrayDefault));
+
 	// Texture of SVO Dense
 	cudaResourceDesc resDesc = {};
 	cudaTextureDesc texDesc = {};
-
-	resDesc.resType = cudaResourceTypeLinear;
-	resDesc.res.linear.devPtr = dSVODense;
-	resDesc.res.linear.desc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
-	resDesc.res.linear.sizeInBytes = sizeof(unsigned int) * GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE;
-
+	resDesc.resType = cudaResourceTypeArray;
+	resDesc.res.array.array = denseArray;
+	
 	texDesc.addressMode[0] = cudaAddressModeWrap;
 	texDesc.addressMode[1] = cudaAddressModeWrap;
 	texDesc.addressMode[2] = cudaAddressModeWrap;
@@ -168,13 +203,23 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	//CudaTimer timer;
 	//timer.Start();
 
-	// ChildBitSet your Level
+	// Early Bail check 
+	unsigned int currentLevelIndex = currentLevel - GI_DENSE_LEVEL;
+	uint32_t levelNodeCount, levelNodeStarts[2];
+	CUDA_CHECK(cudaMemcpy(levelNodeStarts,
+						  dSVOLevelStartIndices.Data() + currentLevelIndex - 1,
+						  sizeof(unsigned int) * 2,
+						  cudaMemcpyDeviceToHost));
+	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
+
+	if(levelNodeCount == 0) return;
+
+	// ChildBitSet your Level (with next level's child)
 	// Allocate next level
 	// Memcopy next level start location to array
 	// Only ChildBitSet Upper Level
 	// Then Allocate your level
 	// Average Color to the level
-	unsigned int currentLevelIndex = currentLevel - GI_DENSE_LEVEL;
 	uint32_t gridSize = ((allocators[allocatorIndex]->NumPages() * GI_PAGE_SIZE) + 
 						 TPBWithHelperWarp - 1) /
 						 TPBWithHelperWarp;
@@ -183,7 +228,6 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	(
 		dSVOSparse,
 		tSVODense,
-		//dSVODense,
 		allocators[allocatorIndex]->GetVoxelPagesDevice(),
 		dSVOLevelStartIndices.Data(),
 
@@ -192,18 +236,6 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 		*dSVOConstants.Data()
 	);
 	CUDA_KERNEL_CHECK();
-
-	//timer.Stop();
-	//childSet = timer.ElapsedMilliS();
-	//timer.Start();
-
-	// Call count is on GPU
-	uint32_t levelNodeCount, levelNodeStarts[2];
-	CUDA_CHECK(cudaMemcpy(levelNodeStarts, 
-						  dSVOLevelStartIndices.Data() + currentLevelIndex - 1, 
-						  sizeof(unsigned int) * 2,
-						  cudaMemcpyDeviceToHost));
-	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
 
 	//timer.Stop();
 	//memCopy = timer.ElapsedMilliS();
@@ -228,7 +260,6 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + currentLevelIndex + 1, dSVONodeCountAtomic.Data(),
 						  sizeof(unsigned int), cudaMemcpyDeviceToDevice));
 
-
 //	dSVO.DumpToFile("svoDump", 0, levelNodeStarts[1] + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 //	dSVOLevelStartIndices.DumpToFile("lvlDump");
 
@@ -241,8 +272,6 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 
 double GISparseVoxelOctree::UpdateSVO()
 {
-	CUDA_CHECK(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
-
 	CudaTimer timer;
 	timer.Start();
 
@@ -257,38 +286,38 @@ double GISparseVoxelOctree::UpdateSVO()
 	// Start with constructing dense
 	ConstructDense();
 	
-	cudaDeviceSynchronize();
+	// Copy to dense
+	cudaMemcpy3DParms params = {0};
+	params.dstArray = denseArray;
+	params.srcPtr = 
+	{
+		dSVODense, 
+		GI_DENSE_SIZE * sizeof(unsigned int), 
+		GI_DENSE_SIZE, 
+		GI_DENSE_SIZE
+	};
+	params.extent = {GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE};
+	params.kind = cudaMemcpyDeviceToDevice;
+	CUDA_CHECK(cudaMemcpy3D(&params));
+		
+	//CudaVector<unsigned int> texRead;
+	//texRead.Resize(GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+	//
+	////dim3 blockSize(GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
+	////fastreadkernel3d<<<1, blockSize>>>
+	////(
+	////	tSVODense,
+	////	texRead.Data()
+	////);
 
-	// Texture of SVO Dense
-	cudaResourceDesc resDesc = {};
-	cudaTextureDesc texDesc = {};
+	//fastreadkernel<<<1, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE>>>
+	//(
+	//	tSVODense,
+	//	texRead.Data()
+	//);
 
-	resDesc.resType = cudaResourceTypeLinear;
-	resDesc.res.linear.devPtr = dSVODense;
-	resDesc.res.linear.desc = cudaCreateChannelDesc<unsigned int>();
-	resDesc.res.linear.sizeInBytes = sizeof(unsigned int) * GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE;
-
-	texDesc.addressMode[0] = cudaAddressModeWrap;
-	texDesc.addressMode[1] = cudaAddressModeWrap;
-	texDesc.addressMode[2] = cudaAddressModeWrap;
-	texDesc.filterMode = cudaFilterModePoint;
-	texDesc.readMode = cudaReadModeElementType;
-	texDesc.normalizedCoords = 0;
-
-	if(tSVODense != 0) CUDA_CHECK(cudaDestroyTextureObject(tSVODense));
-	CUDA_CHECK(cudaCreateTextureObject(&tSVODense, &resDesc, &texDesc, nullptr));
-
-
-	CudaVector<unsigned int> texRead;
-	texRead.Resize(GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-	fastreadkernel<<<GI_DENSE_SIZE * GI_DENSE_SIZE, GI_DENSE_SIZE>>>
-	(
-		tSVODense,
-		texRead.Data()
-	);
-
-	texRead.DumpToFile("texDump");
-	dSVO.DumpToFile("svoDump", 0, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+//	texRead.DumpToFile("texDump");
+//	dSVO.DumpToFile("svoDump", 0, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 //	dSVOLevelStartIndices.DumpToFile("lvlDump");
 
 	// Construct Levels
@@ -305,19 +334,19 @@ double GISparseVoxelOctree::UpdateSVO()
 	//}
 
 	//DEBUG
-	//std::vector<unsigned int> nodeCounts;
-	//nodeCounts.resize(dSVOLevelStartIndices.Size());
-	//CUDA_CHECK(cudaMemcpy(nodeCounts.data(), dSVOLevelStartIndices.Data(),
-	//	sizeof(unsigned int) * dSVOLevelStartIndices.Size(), cudaMemcpyDeviceToHost));
+	std::vector<unsigned int> nodeCounts;
+	nodeCounts.resize(dSVOLevelStartIndices.Size());
+	CUDA_CHECK(cudaMemcpy(nodeCounts.data(), dSVOLevelStartIndices.Data(),
+		sizeof(unsigned int) * dSVOLevelStartIndices.Size(), cudaMemcpyDeviceToHost));
 
-	//GI_LOG("-------------------------------------------");
-	//GI_LOG("Tree Node Data");
-	//for(unsigned int i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL; i++)
-	//{
-	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, nodeCounts[i] - nodeCounts[i - 1]);
-	//}
-	//GI_LOG("-------------------------------------------");
+	GI_LOG("-------------------------------------------");
+	GI_LOG("Tree Node Data");
+	for(unsigned int i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL; i++)
+	{
+		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, nodeCounts[i] - nodeCounts[i - 1]);
+	}
+	GI_LOG("-------------------------------------------");
 
 	timer.Stop();
 	return timer.ElapsedMilliS();
@@ -334,6 +363,39 @@ double GISparseVoxelOctree::ConeTrace(GLuint depthBuffer,
 void GISparseVoxelOctree::LinkScene(GLuint lightBuffer,
 									GLuint shadowMapArrayTexture)
 {
+
+}
+
+VoxelDebugVAO GISparseVoxelOctree::VoxelDataForRendering(double& transferTime,
+														 unsigned int& voxelCount,
+														 unsigned int level)
+{
+	// Find Node count
+	unsigned int currentLevelIndex = level - GI_DENSE_LEVEL;
+	uint32_t levelNodeCount, levelNodeStarts[2];
+	CUDA_CHECK(cudaMemcpy(levelNodeStarts,
+						  dSVOLevelStartIndices.Data() + currentLevelIndex - 1,
+						  sizeof(unsigned int) * 2,
+						  cudaMemcpyDeviceToHost));
+	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
+
+	//
+	vaoNormPosData.Resize(levelNodeCount);
+	vaoColorData.Resize(levelNodeCount);
+
+	// Cuda stuff;
+
+	//
+	uint32_t gridSize = ((levelNodeCount) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+	SVOVoxelFetch<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	(
+		dSVOSparse,
+		*dSVONodeCountAtomic.Data(),
+		*(dSVOLevelStartIndices.Data() + currentLevelIndex - 1),
+		*(dSVOLevelStartIndices.Data() + currentLevelIndex),
+		levelNodeCount
+	);
+	CUDA_KERNEL_CHECK();
 
 }
 

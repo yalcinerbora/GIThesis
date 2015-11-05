@@ -11,9 +11,10 @@
 #include "CudaVector.cuh"
 #include "CSparseVoxelOctree.cuh"
 #include "SceneLights.h"
+#include "VoxelDebugVAO.h"
 
-#define GI_DENSE_LEVEL 2
-#define GI_DENSE_SIZE 4
+#define GI_DENSE_LEVEL 0
+#define GI_DENSE_SIZE 1
 
 class GICudaAllocator;
 struct Camera;
@@ -29,8 +30,13 @@ class GISparseVoxelOctree
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
 
-		//
+		// Debug Stuff
+		StructuredBuffer<VoxelNormPos>			vaoNormPosData;
+		StructuredBuffer<uchar4>				vaoColorData;
+
+		// Texture copied from dSVO dense every frame
 		cudaTextureObject_t						tSVODense;
+		cudaArray_t								denseArray;
 
 		// SVO Data
 		CudaVector<CSVONode>					dSVO;				// Entire SVO
@@ -83,6 +89,10 @@ class GISparseVoxelOctree
 		// Set current scene light positions
 		void									LinkScene(GLuint lightBuffer,
 														  GLuint shadowMapArrayTexture);
+
+		VoxelDebugVAO							VoxelDataForRendering(double& transferTime,
+																	  unsigned int& voxelCount,
+																	  unsigned int level);
 
 		uint64_t								MemoryUsage() const;
 };

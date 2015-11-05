@@ -41,7 +41,7 @@ static_assert((GI_MAX_SHARED_COUNT_PRIME) * (sizeof(CMatrix4x4) + sizeof(uint1))
 static_assert(GI_MAX_SHARED_COUNT_PRIME - GI_MAX_SHARED_COUNT == 3, "SharedCount and its prime does not seem to be related");
 
 static_assert((GI_THREAD_PER_BLOCK_PRIME) * (2 * sizeof(uint1)) <= GI_CUDA_SHARED_MEM_SIZE, "Not Enough Shared Mem to Store Hashed Transforms");
-static_assert(GI_THREAD_PER_BLOCK_PRIME - GI_THREAD_PER_BLOCK == 9, "ThreadPerBlock and its prime does not seem to be related");
+//static_assert(GI_THREAD_PER_BLOCK_PRIME - GI_THREAD_PER_BLOCK == 9, "ThreadPerBlock and its prime does not seem to be related");
 
 // Mapping and "Allocating" the objectId
 // Map functions manages memory conflicts internally thus can be called
@@ -63,7 +63,10 @@ inline __device__ unsigned int Map(unsigned int* aHashTable,
 	do
 	{
 		index = (index + 1) % hashSize;
-		old = atomicCAS(aHashTable + index, 0xFFFFFFFF, key);
+		
+		// since atomic cas is costly on 660 ti (SM30) pre check if its 0xff
+		if(aHashTable[index] == 0xFFFFFFFF)
+			old = atomicCAS(aHashTable + index, 0xFFFFFFFF, key);
 	}
 	while(!(old == 0xFFFFFFFF || old == key));
 	

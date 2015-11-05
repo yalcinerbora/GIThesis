@@ -61,6 +61,23 @@ void GICudaVoxelScene::InitCuda()
 	CUDA_CHECK(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
 
 	// Voxel Transform Function needs 48kb memory
+	// SVO Child Set
+	auto SVOChildSetDense = static_cast<void(*)(CSVONode*,
+												cudaTextureObject_t,
+												const CVoxelPage*,
+												const unsigned int*,
+
+												const unsigned int,
+												const unsigned int,
+												const CSVOConstants&)>(&SVOReconstructChildSet);
+
+	auto SVOChildSetSparse = static_cast<void(*)(CSVONode*,
+												 const CVoxelPage*,
+												 const unsigned int,
+												 const CSVOConstants&)>(&SVOReconstructChildSet);
+
+	CUDA_CHECK(cudaFuncSetCacheConfig(SVOChildSetDense, cudaFuncCachePreferEqual));
+	CUDA_CHECK(cudaFuncSetCacheConfig(SVOChildSetSparse, cudaFuncCachePreferEqual));
 	CUDA_CHECK(cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferShared));
 
 }

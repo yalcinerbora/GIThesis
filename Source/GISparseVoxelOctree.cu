@@ -5,21 +5,18 @@
 #include "CudaTimer.h"
 #include "Macros.h"
 
-const unsigned int GISparseVoxelOctree::TPBWithHelperWarp = GI_THREAD_PER_BLOCK_PRIME + (32 - (GI_THREAD_PER_BLOCK_PRIME % 32));
-
 GISparseVoxelOctree::GISparseVoxelOctree(GLuint lightIntensityTex)
 	: dSVO()
 	, lightIntensityTexLink(nullptr)
 	, dSVONodeCountAtomic(1)
 	, dSVOConstants(1)
 	, tSVODense(0)
+	, vaoNormPosData(512)
+	, vaoColorData(512)
 {
-	
-
 	CUDA_CHECK(cudaGraphicsGLRegisterImage(&lightIntensityTexLink, lightIntensityTex,
 											GL_TEXTURE_2D,
 											cudaGraphicsMapFlagsWriteDiscard));
-
 }
 
 GISparseVoxelOctree::~GISparseVoxelOctree()
@@ -151,9 +148,9 @@ void GISparseVoxelOctree::ConstructDense()
 
 	// Level 0 is special it constructs the upper levels in addition to its level
 	uint32_t gridSize = ((allocators[0]->NumPages() * GI_PAGE_SIZE) + 
-						 TPBWithHelperWarp - 1) /
-						 TPBWithHelperWarp;
-	SVOReconstructChildSet<<<gridSize, TPBWithHelperWarp>>>
+						 GI_THREAD_PER_BLOCK - 1) /
+						 GI_THREAD_PER_BLOCK;
+	SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK>>>
 	(
 		dSVODense,
 		allocators[0]->GetVoxelPagesDevice(),
@@ -221,10 +218,10 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	// Then Allocate your level
 	// Average Color to the level
 	uint32_t gridSize = ((allocators[allocatorIndex]->NumPages() * GI_PAGE_SIZE) + 
-						 TPBWithHelperWarp - 1) /
-						 TPBWithHelperWarp;
+						 GI_THREAD_PER_BLOCK - 1) /
+						 GI_THREAD_PER_BLOCK;
 
-	SVOReconstructChildSet<<<gridSize, TPBWithHelperWarp>>>
+	SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK>>>
 	(
 		dSVOSparse,
 		tSVODense,
@@ -366,38 +363,38 @@ void GISparseVoxelOctree::LinkScene(GLuint lightBuffer,
 
 }
 
-VoxelDebugVAO GISparseVoxelOctree::VoxelDataForRendering(double& transferTime,
-														 unsigned int& voxelCount,
-														 unsigned int level)
-{
-	// Find Node count
-	unsigned int currentLevelIndex = level - GI_DENSE_LEVEL;
-	uint32_t levelNodeCount, levelNodeStarts[2];
-	CUDA_CHECK(cudaMemcpy(levelNodeStarts,
-						  dSVOLevelStartIndices.Data() + currentLevelIndex - 1,
-						  sizeof(unsigned int) * 2,
-						  cudaMemcpyDeviceToHost));
-	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
-
-	//
-	vaoNormPosData.Resize(levelNodeCount);
-	vaoColorData.Resize(levelNodeCount);
-
-	// Cuda stuff;
-
-	//
-	uint32_t gridSize = ((levelNodeCount) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
-	SVOVoxelFetch<<<gridSize, GI_THREAD_PER_BLOCK>>>
-	(
-		dSVOSparse,
-		*dSVONodeCountAtomic.Data(),
-		*(dSVOLevelStartIndices.Data() + currentLevelIndex - 1),
-		*(dSVOLevelStartIndices.Data() + currentLevelIndex),
-		levelNodeCount
-	);
-	CUDA_KERNEL_CHECK();
-
-}
+//VoxelDebugVAO GISparseVoxelOctree::VoxelDataForRendering(double& transferTime,
+//														 unsigned int& voxelCount,
+//														 unsigned int level)
+//{
+//	// Find Node count
+//	unsigned int currentLevelIndex = level - GI_DENSE_LEVEL;
+//	uint32_t levelNodeCount, levelNodeStarts[2];
+//	CUDA_CHECK(cudaMemcpy(levelNodeStarts,
+//						  dSVOLevelStartIndices.Data() + currentLevelIndex - 1,
+//						  sizeof(unsigned int) * 2,
+//						  cudaMemcpyDeviceToHost));
+//	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
+//
+//	//
+//	vaoNormPosData.Resize(levelNodeCount);
+//	vaoColorData.Resize(levelNodeCount);
+//
+//	//// Cuda stuff;
+//
+//	////
+//	//uint32_t gridSize = ((levelNodeCount) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+//	//SVOVoxelFetch<<<gridSize, GI_THREAD_PER_BLOCK>>>
+//	//(
+//	//	dSVOSparse,
+//	//	*dSVONodeCountAtomic.Data(),
+//	//	*(dSVOLevelStartIndices.Data() + currentLevelIndex - 1),
+//	//	*(dSVOLevelStartIndices.Data() + currentLevelIndex),
+//	//	levelNodeCount
+//	//);
+//	//CUDA_KERNEL_CHECK();
+//	
+//}
 
 uint64_t GISparseVoxelOctree::MemoryUsage() const
 {

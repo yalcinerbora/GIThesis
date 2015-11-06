@@ -10,23 +10,8 @@ Designed for fast reconstruction from its bottom
 
 #include <cuda.h>
 #include "CVoxel.cuh"
+#include "CSVOTypes.cuh"
 #include <cassert>
-
-// first int has
-// first 24 bit is children index
-// last 8 bit used to determine which children is avail
-// --
-// last 4 byte is used for color
-typedef unsigned int CSVONode;
-typedef unsigned int CSVOColor;
-
-struct CSVOConstants
-{
-	unsigned int denseDim;
-	unsigned int denseDepth;
-	unsigned int totalDepth;
-	unsigned int numCascades;
-};
 
 inline __device__ void UnpackNode(unsigned int& childrenIndex,
 								  unsigned char& childrenBit,
@@ -104,19 +89,51 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 	return expandedVoxId;
 }
 
-inline __device__ unsigned int PosToKey(const uint3& levelVoxPos)
+inline __device__ unsigned int CalculateChildIndex(/*volatile*/ const unsigned char childrenBits,
+												   /*volatile*/ const unsigned char childBit,
+												   int level)
 {
-	// TODO: better hash that occupies mor warps
-	return PackOnlyVoxPos(levelVoxPos, 0);
+	assert((childrenBits & childBit) != 0);	
+	//if((childrenBits & childBit) == 0)
+	//{
+	//	printf("#%d Assert childbit 0x%X, allbits 0x%X\n", level, childBit, childrenBits);
+	//	//assert((childrenBits & childBit) == 0);
+	//	return 0;
+	//}
+	return __popc(childrenBits & (childBit - 1));
+}
+
+inline __device__ unsigned int PosToKey(const uint3& levelVoxPos,
+										const unsigned int level)
+{
+	unsigned int packedId = 0x00000000;
+	unsigned int bitMask = 0x00000001;
+	for(unsigned int i = 0; i < umax(level, 9u); i++)
+	{
+		packedId |= (levelVoxPos.x & (bitMask << i)) << (i * 2 + 0);
+		packedId |= (levelVoxPos.y & (bitMask << i)) << (i * 2 + 1);
+		packedId |= (levelVoxPos.z & (bitMask << i)) << (i * 2 + 2);
+	}
+	return packedId;
+
+	//// TODO: better hash that occupies more warps
+	//return PackOnlyVoxPos(levelVoxPos, 0);
 }
 
 inline __device__ uint3 KeyToPos(const unsigned int packedVoxel,
+								 const unsigned int level,
 								 const unsigned int cascadeNo,
 								 const unsigned int numCascades)
 {
-	// TODO: better hash that occupies mor warps
-	uint3 levelVoxelId = ExpandOnlyVoxPos(packedVoxel);
-	if(cascadeNo > 0)
+	uint3 levelVoxelId = { 0, 0, 0 };
+	unsigned int bitMask = 0x00000001;
+	for(unsigned int i = 0; i < umax(level, 9u); i++)
+	{
+		levelVoxelId.x |= (packedVoxel >> (i * 2 + 0)) & (bitMask << i);
+		levelVoxelId.y |= (packedVoxel >> (i * 2 + 1)) & (bitMask << i);
+		levelVoxelId.z |= (packedVoxel >> (i * 2 + 2)) & (bitMask << i);
+	}
+	if(level > 9)
 		return ExpandToSVODepth(levelVoxelId, cascadeNo, numCascades);
 	return levelVoxelId;
 }

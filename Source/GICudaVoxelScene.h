@@ -89,7 +89,7 @@ class GICudaVoxelScene
 		// Access for voxel data for rendering voxels
 		uint64_t			AllocatorMemoryUsage() const;
 		uint32_t			VoxelCountInPage();
-		VoxelDebugVAO		VoxelDataForRendering(CVoxelGrid&, double& timing, uint32_t voxCount);
+		VoxelDebugVAO		VoxelDataForRendering(CVoxelGrid&, double& timing, uint32_t& voxCount, bool isOuterCascade);
 		GICudaAllocator*	Allocator();
 };
 #endif //__GICUDAVOXELSCENE_H__

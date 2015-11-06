@@ -62,10 +62,13 @@ inline __device__ unsigned int Map(unsigned int* aHashTable,
 	unsigned int old = 0;
 	do
 	{
-		index = (index + 1) % hashSize;
-		
-		// since atomic cas is costly on 660 ti (SM30) pre check if its 0xff
-		if(aHashTable[index] == 0xFFFFFFFF)
+		index = (index + 1) % hashSize;		
+		// Atomic CAS is costly
+		// Read value if its key return
+		// Try to write only if read value is 0xFF
+		if(aHashTable[index] == key) 
+			return index;
+		else if(aHashTable[index] == 0xFFFFFFFF)
 			old = atomicCAS(aHashTable + index, 0xFFFFFFFF, key);
 	}
 	while(!(old == 0xFFFFFFFF || old == key));

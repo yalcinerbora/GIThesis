@@ -18,8 +18,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxelRelated", "VoxelRelate
 		..\..\WorkingDir\Shaders\VoxRender.frag = ..\..\WorkingDir\Shaders\VoxRender.frag
 		..\..\WorkingDir\Shaders\VoxRender.vert = ..\..\WorkingDir\Shaders\VoxRender.vert
 		..\..\WorkingDir\Shaders\VoxRenderWorld.vert = ..\..\WorkingDir\Shaders\VoxRenderWorld.vert
-		..\..\WorkingDir\Shaders\VoxRenderWorldCascaded.frag = ..\..\WorkingDir\Shaders\VoxRenderWorldCascaded.frag
-		..\..\WorkingDir\Shaders\VoxRenderWorldCascaded.vert = ..\..\WorkingDir\Shaders\VoxRenderWorldCascaded.vert
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42F0F4B2-2641-411B-8938-15FBF14395FA}"

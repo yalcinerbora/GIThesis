@@ -320,8 +320,13 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 }
 
 
-VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, double& time, uint32_t voxCount)
+VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, 
+													  double& time, 
+													  uint32_t& culledVoxCount,
+													  bool isOuterCascade)
 {
+	uint32_t maxVoxCount = culledVoxCount;
+
 	// Pass if there is not any linked objects
 	if(allocator.NumSegments() > 0)
 	{
@@ -335,6 +340,7 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, d
 		size_t size = 0;
 
 		allocator.SetupDevicePointers();
+		
 
 		unsigned int zero = 0;
 		glBindBuffer(GL_COPY_WRITE_BUFFER, vaoNormPosData.getGLBuffer());
@@ -356,7 +362,7 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, d
 			vBufferNormPosPtr,
 			vBufferRenderPackedPtr,
 			*d_atomicCounter,
-			voxCount,
+			maxVoxCount,
 
 			// Per Obj Segment
 			allocator.GetSegmentAllocLoc2D(),
@@ -370,8 +376,15 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, d
 			// Page
 			allocator.GetVoxelPagesDevice(),
 			allocator.NumPages(),
-			*allocator.GetVoxelGridDevice());
+			*allocator.GetVoxelGridDevice(),
+			
+			// Misc
+			isOuterCascade);
 		CUDA_KERNEL_CHECK();
+
+		// Copy Actual Vox Count
+		CUDA_CHECK(cudaMemcpy(&culledVoxCount, d_atomicCounter, 
+					sizeof(unsigned int), cudaMemcpyDeviceToHost));
 
 		// Unmap
 		cudaGraphicsUnmapResources(1, &vaoNormPosResource);

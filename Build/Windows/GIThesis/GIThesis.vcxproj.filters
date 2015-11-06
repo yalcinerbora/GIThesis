@@ -253,6 +253,9 @@
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVOTypes.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

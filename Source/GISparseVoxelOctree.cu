@@ -142,7 +142,7 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 
 void GISparseVoxelOctree::ConstructDense()
 {
-	//double childSet, alloc;
+	//double childSet, alloc, allocDev;
 	//CudaTimer timer;
 	//timer.Start();
 
@@ -185,10 +185,15 @@ void GISparseVoxelOctree::ConstructDense()
 						  dSVONodeCountAtomic.Data(),
 						  sizeof(unsigned int), cudaMemcpyDeviceToDevice));
 
+	//timer.Stop();
+	//allocDev = timer.ElapsedMilliS();
+	//timer.Start();
+
 	//GI_LOG("---------------------------------------");
 	//GI_LOG("Level %d", GI_DENSE_LEVEL);
 	//GI_LOG("Child %f ms", childSet);
 	//GI_LOG("Alloc %f ms", alloc);
+	//GI_LOG("AllocD %f ms", allocDev);
 	//GI_LOG("");
 }
 
@@ -196,7 +201,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 										 unsigned int allocatorIndex,
 										 unsigned int cascadeNo)
 {
-	//double childSet, memCopy, alloc;
+	//double childSet, memCopy, alloc, allocDev;
 	//CudaTimer timer;
 	//timer.Start();
 
@@ -208,8 +213,11 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 						  sizeof(unsigned int) * 2,
 						  cudaMemcpyDeviceToHost));
 	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
-
 	if(levelNodeCount == 0) return;
+
+	//timer.Stop();
+	//memCopy = timer.ElapsedMilliS();
+	//timer.Start();
 
 	// ChildBitSet your Level (with next level's child)
 	// Allocate next level
@@ -235,7 +243,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	CUDA_KERNEL_CHECK();
 
 	//timer.Stop();
-	//memCopy = timer.ElapsedMilliS();
+	//childSet = timer.ElapsedMilliS();
 	//timer.Start();
 
 	gridSize = ((levelNodeCount) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
@@ -257,6 +265,10 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	CUDA_CHECK(cudaMemcpy(dSVOLevelStartIndices.Data() + currentLevelIndex + 1, dSVONodeCountAtomic.Data(),
 						  sizeof(unsigned int), cudaMemcpyDeviceToDevice));
 
+	//timer.Stop();
+	//allocDev = timer.ElapsedMilliS();
+	//timer.Start();
+
 //	dSVO.DumpToFile("svoDump", 0, levelNodeStarts[1] + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 //	dSVOLevelStartIndices.DumpToFile("lvlDump");
 
@@ -264,6 +276,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	//GI_LOG("Child %f ms", childSet);
 	//GI_LOG("Alloc %f ms", alloc);
 	//GI_LOG("Memcpy %f ms", memCopy);
+	//GI_LOG("AllocD %f ms", allocDev);
 	//GI_LOG("");
 }
 
@@ -283,6 +296,9 @@ double GISparseVoxelOctree::UpdateSVO()
 	// Start with constructing dense
 	ConstructDense();
 	
+	//CudaTimer t;
+	//t.Start();
+
 	// Copy to dense
 	cudaMemcpy3DParms params = {0};
 	params.dstArray = denseArray;
@@ -295,8 +311,11 @@ double GISparseVoxelOctree::UpdateSVO()
 	};
 	params.extent = {GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE};
 	params.kind = cudaMemcpyDeviceToDevice;
-	CUDA_CHECK(cudaMemcpy3D(&params));
-		
+	CUDA_CHECK(cudaMemcpy3D(&params));		
+
+	//t.Stop();
+	//GI_LOG("------------------");
+	//GI_LOG("Memcpy to tex %fms", t.ElapsedMilliS());
 	//CudaVector<unsigned int> texRead;
 	//texRead.Resize(GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 	//
@@ -331,19 +350,19 @@ double GISparseVoxelOctree::UpdateSVO()
 	//}
 
 	//DEBUG
-	std::vector<unsigned int> nodeCounts;
-	nodeCounts.resize(dSVOLevelStartIndices.Size());
-	CUDA_CHECK(cudaMemcpy(nodeCounts.data(), dSVOLevelStartIndices.Data(),
-		sizeof(unsigned int) * dSVOLevelStartIndices.Size(), cudaMemcpyDeviceToHost));
+	//std::vector<unsigned int> nodeCounts;
+	//nodeCounts.resize(dSVOLevelStartIndices.Size());
+	//CUDA_CHECK(cudaMemcpy(nodeCounts.data(), dSVOLevelStartIndices.Data(),
+	//	sizeof(unsigned int) * dSVOLevelStartIndices.Size(), cudaMemcpyDeviceToHost));
 
-	GI_LOG("-------------------------------------------");
-	GI_LOG("Tree Node Data");
-	for(unsigned int i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL; i++)
-	{
-		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, nodeCounts[i] - nodeCounts[i - 1]);
-	}
-	GI_LOG("-------------------------------------------");
+	//GI_LOG("-------------------------------------------");
+	//GI_LOG("Tree Node Data");
+	//for(unsigned int i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL; i++)
+	//{
+	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, nodeCounts[i] - nodeCounts[i - 1]);
+	//}
+	//GI_LOG("-------------------------------------------");
 
 	timer.Stop();
 	return timer.ElapsedMilliS();

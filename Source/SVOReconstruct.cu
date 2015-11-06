@@ -2,20 +2,6 @@
 #include "CSparseVoxelOctree.cuh"
 #include "CHash.cuh"
 
-inline __device__ unsigned int CalculateChildIndex(/*volatile*/ const unsigned char childrenBits,
-												   /*volatile*/ const unsigned char childBit,
-												   int level)
-{
-	//assert((childrenBits & childBit) == 0);	
-	if((childrenBits & childBit) == 0)
-	{
-//		printf("#%d Assert childbit 0x%X, allbits 0x%X\n", level, childBit, childrenBits);
-		//assert((childrenBits & childBit) == 0);
-		return 0;
-	}
-	return __popc(childrenBits & (childBit - 1));
-}
-
 inline __device__ CSVOColor AtomicColorAvg(CSVOColor* aColor, CSVOColor color)
 {
 	float4 colorAdd = UnpackSVOColor(color);
@@ -56,6 +42,7 @@ inline __device__ void StoreDense(CSVONode* gSVODense,
 	// Global write to denseVoxel Array
 	uint3 levelIndex = KeyToPos(sLocationHash[sharedLoc],
 								cascadeNo,
+								svoConstants.denseDepth,
 								svoConstants.numCascades);
 
 	assert(levelIndex.x < svoConstants.denseDim &&
@@ -89,6 +76,7 @@ inline __device__ void StoreSparse(CSVONode* gSVOSparse,
 	// Traverse the partially constructed tree and put the child
 	uint3 levelVoxelId = KeyToPos(sLocationHash[sharedLoc],
 								  cascadeNo,
+								  levelDepth,
 								  svoConstants.numCascades);
 	uint3 denseIndex = CalculateLevelVoxId(levelVoxelId, svoConstants.denseDepth,
 										   levelDepth);
@@ -101,14 +89,14 @@ inline __device__ void StoreSparse(CSVONode* gSVOSparse,
 											   denseIndex.x,
 											   denseIndex.y,
 											   denseIndex.z);
-	//	assert(currentNode != 0);
-	if(currentNode == 0)
-	{
-		/*printf("Assert DenseMissXYZ 0x%X, 0x%X, 0x%X\n",
-		denseIndex.x,
-		denseIndex.y,
-		denseIndex.z);*/
-	}
+	assert(currentNode != 0);
+	//if(currentNode == 0)
+	//{
+	//	printf("Assert DenseMissXYZ 0x%X, 0x%X, 0x%X\n",
+	//	denseIndex.x,
+	//	denseIndex.y,
+	//	denseIndex.z);
+	//}
 
 
 	unsigned int nodeIndex = 0;
@@ -119,7 +107,7 @@ inline __device__ void StoreSparse(CSVONode* gSVOSparse,
 		unsigned char childBits;
 		unsigned int childrenStart;
 		UnpackNode(childrenStart, childBits, currentNode);
-		//assert(childbits != 0);
+		assert(childBits != 0);
 
 		// Jump to Next Node
 		/*volatile*/ unsigned char requestedChild = CalculateLevelChildBit(levelVoxelId, i, levelDepth);
@@ -156,7 +144,7 @@ inline __device__ void HashStoreLevel(CSVONode* sNode,
 											   level,
 											   svoConstants.totalDepth);
 
-		/*volatile*/ unsigned int packedVoxLevel = PosToKey(levelVoxId);
+		/*volatile*/ unsigned int packedVoxLevel = PosToKey(levelVoxId, level);
 
 		// Atomic Hash Location find and write
 		//unsigned int location = packedVoxLevel % GI_THREAD_PER_BLOCK_PRIME;

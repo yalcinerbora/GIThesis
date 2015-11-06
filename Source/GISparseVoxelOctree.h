@@ -9,10 +9,10 @@
 
 #include <cuda.h>
 #include "CudaVector.cuh"
-#include "CSparseVoxelOctree.cuh"
 #include "SceneLights.h"
 #include "VoxelDebugVAO.h"
 #include "GICudaVoxelScene.h"
+#include "CSVOTypes.cuh"
 
 #define GI_DENSE_LEVEL 6
 #define GI_DENSE_SIZE 64

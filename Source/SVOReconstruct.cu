@@ -123,50 +123,12 @@ inline __device__ void StoreSparse(CSVONode* gSVOSparse,
 	atomicOr(gSVOSparse + nodeIndex, sNode[sharedLoc]);
 }
 
-inline __device__ void HashStoreLevel(CSVONode* sNode,
-									  unsigned int* sLocationHash,
-									  const CVoxelNormPos& voxelNormPos,
-									  const unsigned int level,
-									  const unsigned int cascadeNo,
-									  const CSVOConstants& svoConstants)
-{
-	// Skip voxel if invalid
-	if(voxelNormPos.y != 0xFFFFFFFF)
-	{
-		// Local Voxel pos and expand it if its one of the inner cascades
-		uint3 voxelPos = ExpandToSVODepth(ExpandOnlyVoxPos(voxelNormPos.x),
-										  cascadeNo,
-										  svoConstants.numCascades);
-		/*volatile*/ unsigned char childBit = CalculateLevelChildBit(voxelPos,
-																 level + 1,
-																 svoConstants.totalDepth);
-		uint3 levelVoxId = CalculateLevelVoxId(voxelPos,
-											   level,
-											   svoConstants.totalDepth);
-
-		/*volatile*/ unsigned int packedVoxLevel = PosToKey(levelVoxId, level);
-
-		// Atomic Hash Location find and write
-		//unsigned int location = packedVoxLevel % GI_THREAD_PER_BLOCK_PRIME;
-		//sLocationHash[location] = packedVoxLevel;
-
-		//unsigned int old = atomicCAS(&sLocationHash[location], 0xFFFFFFFF, packedVoxLevel);
-		//sLocationHash[location] = packedVoxLevel;
-
-		unsigned int  location = Map(sLocationHash, packedVoxLevel, GI_THREAD_PER_BLOCK_PRIME);
-		atomicOr(sNode + location, PackNode(0, static_cast<unsigned char>(childBit)));
-	}
-}
-
 __global__ void SVOReconstructChildSet(CSVONode* gSVODense,
 									   const CVoxelPage* gVoxelData,
 
 									   const unsigned int cascadeNo,
 									   const CSVOConstants& svoConstants)
 {
-	__shared__ unsigned int sLocationHash[GI_THREAD_PER_BLOCK_PRIME];
-	__shared__ CSVONode sNode[GI_THREAD_PER_BLOCK_PRIME];
-
 	unsigned int globalId = threadIdx.x + blockIdx.x * GI_THREAD_PER_BLOCK;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
@@ -176,55 +138,32 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVODense,
 	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
 	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
 
-	// Init Hashtable
-	sLocationHash[threadIdx.x] = 0xFFFFFFFF;
-	sNode[threadIdx.x] = 0;
-	if(threadIdx.x < (GI_THREAD_PER_BLOCK_PRIME - GI_THREAD_PER_BLOCK))
-	{
-		sLocationHash[threadIdx.x + GI_THREAD_PER_BLOCK] = 0xFFFFFFFF;
-		sNode[threadIdx.x + GI_THREAD_PER_BLOCK] = 0;
-	}
-	__syncthreads();
-
 	// Fetch voxel
 	CVoxelNormPos voxelNormPos = gVoxelData[pageId].dGridVoxNormPos[pageLocalId];
-	HashStoreLevel(sNode,
-					sLocationHash,
-					voxelNormPos,
-					svoConstants.denseDepth,
-					cascadeNo,
-					svoConstants);
+	if(voxelNormPos.y == 0xFFFFFFFF) return;
 
-	// Wait everything to be written
-	__syncthreads();
+	// Local Voxel pos and expand it if its one of the inner cascades
+	uint3 voxelPos = ExpandToSVODepth(ExpandOnlyVoxPos(voxelNormPos.x),
+									  cascadeNo,
+									  svoConstants.numCascades);
+	unsigned char childBit = CalculateLevelChildBit(voxelPos,
+													svoConstants.denseDepth + 1,
+													svoConstants.totalDepth);
+	uint3 levelVoxId = CalculateLevelVoxId(voxelPos,
+										   svoConstants.denseDepth,
+										   svoConstants.totalDepth);
+	
+	assert(levelVoxId.x < svoConstants.denseDim &&
+		   levelVoxId.y < svoConstants.denseDim &&
+		   levelVoxId.z < svoConstants.denseDim);
 
-	StoreDense(gSVODense,
-			   sLocationHash,
-			   sNode,
-			   threadIdx.x,
-			   cascadeNo,
-			   svoConstants);
-	if(threadIdx.x < (GI_THREAD_PER_BLOCK_PRIME - GI_THREAD_PER_BLOCK))
-	{
-		StoreDense(gSVODense,
-				   sLocationHash,
-				   sNode,
-				   threadIdx.x + GI_THREAD_PER_BLOCK,
-				   cascadeNo,
-				   svoConstants);
-	}
+	// Actual child bit set
+	atomicOr(gSVODense +
+			 svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+			 svoConstants.denseDim * levelVoxId.y +
+			 levelVoxId.x,
+			 PackNode(0, static_cast<unsigned char>(childBit)));
 
-	////DEBUG
-	//if(blockIdx.x == 0)
-	//{
-	//	for(unsigned int wid = 0; wid < blockDim.x / 32; wid++)
-	//	{
-	//		if(threadIdx.x / 32 == wid &&
-	//		   threadIdx.x < GI_THREAD_PER_BLOCK_PRIME)
-	//			printf("#%d{0x%X, 0x%X}\n", threadIdx.x, sNode[threadIdx.x], sLocationHash[threadIdx.x]);
-	//		__syncthreads();
-	//	}
-	//}
 }
 
 __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
@@ -237,9 +176,6 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 									   const unsigned int levelDepth,
 									   const CSVOConstants& svoConstants)
 {
-	__shared__ unsigned int sLocationHash[GI_THREAD_PER_BLOCK_PRIME];
-	__shared__ CSVONode sNode[GI_THREAD_PER_BLOCK_PRIME];
-
 	unsigned int globalId = threadIdx.x + blockIdx.x * GI_THREAD_PER_BLOCK;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
@@ -249,41 +185,66 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
 	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
 
-	// Init Hashtable
-	sLocationHash[threadIdx.x] = 0xFFFFFFFF;
-	sNode[threadIdx.x] = 0;
-	if(threadIdx.x < (GI_THREAD_PER_BLOCK_PRIME - GI_THREAD_PER_BLOCK))
-	{
-		sLocationHash[threadIdx.x + GI_THREAD_PER_BLOCK] = 0xFFFFFFFF;
-		sNode[threadIdx.x + GI_THREAD_PER_BLOCK] = 0;
-	}
-	__syncthreads();
-
 	// Fetch voxel
 	CVoxelNormPos voxelNormPos = gVoxelData[pageId].dGridVoxNormPos[pageLocalId];
-	HashStoreLevel(sNode,
-					sLocationHash,
-					voxelNormPos,
-					levelDepth,
-					cascadeNo,
-					svoConstants);
 
-	// Wait everything to be written
-	__syncthreads();
+	if(voxelNormPos.y == 0xFFFFFFFF) return;
 
-	StoreSparse(gSVOSparse, gLevelLookupTable,
-				sLocationHash, sNode,
-				tSVODense, threadIdx.x,
-				cascadeNo, levelDepth,
-				svoConstants);
-	if(threadIdx.x < (GI_THREAD_PER_BLOCK_PRIME - GI_THREAD_PER_BLOCK))
+	// Local Voxel pos and expand it if its one of the inner cascades
+	uint3 voxelPos = ExpandToSVODepth(ExpandOnlyVoxPos(voxelNormPos.x),
+									  cascadeNo,
+									  svoConstants.numCascades);
+	unsigned char childBit = CalculateLevelChildBit(voxelPos,
+													levelDepth + 1,
+													svoConstants.totalDepth);
+	uint3 levelVoxelId = CalculateLevelVoxId(voxelPos,
+											 levelDepth,
+											 svoConstants.totalDepth);
+
+
+	uint3 denseIndex = CalculateLevelVoxId(levelVoxelId, svoConstants.denseDepth,
+										   levelDepth);
+
+	assert(denseIndex.x < svoConstants.denseDim &&
+		   denseIndex.y < svoConstants.denseDim &&
+		   denseIndex.z < svoConstants.denseDim);
+
+	CSVONode currentNode = tex3D<unsigned int>(tSVODense,
+											   denseIndex.x,
+											   denseIndex.y,
+											   denseIndex.z);
+	
+	//if(currentNode == 0)
+	//{
+	//	printf("Assert DenseMissXYZ 0x%X, 0x%X, 0x%X\n",
+	//	denseIndex.x,
+	//	denseIndex.y,
+	//	denseIndex.z);
+	//}
+
+	assert(currentNode != 0);
+	unsigned int nodeIndex = 0;
+	for(unsigned int i = svoConstants.denseDepth + 1; i <= levelDepth; i++)
 	{
-		StoreSparse(gSVOSparse, gLevelLookupTable,
-					sLocationHash, sNode,
-					tSVODense, threadIdx.x + GI_THREAD_PER_BLOCK,
-					cascadeNo, levelDepth,
-					svoConstants);
+		unsigned int levelBase = gLevelLookupTable[i - svoConstants.denseDepth - 1];
+
+		unsigned char childBits;
+		unsigned int childrenStart;
+		UnpackNode(childrenStart, childBits, currentNode);
+		assert(childBits != 0);
+
+		// Jump to Next Node
+		unsigned char requestedChild = CalculateLevelChildBit(levelVoxelId, i, levelDepth);
+		unsigned char childIndex = CalculateChildIndex(childBits, requestedChild, i);
+
+		nodeIndex = levelBase + childrenStart + childIndex;
+
+		// Last gMem read unnecessary
+		if(i < levelDepth) currentNode = gSVOSparse[nodeIndex];
 	}
+
+	// Finally Write
+	atomicOr(gSVOSparse + nodeIndex, PackNode(0, static_cast<unsigned char>(childBit)));
 }
 
 __global__ void SVOReconstructAllocateNext(CSVONode* gSVO,

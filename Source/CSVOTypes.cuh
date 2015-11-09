@@ -19,7 +19,7 @@ struct CSVOMaterial
 {
 	unsigned int color;		
 	unsigned int normal;	
-	unsigned int props;
+	//unsigned int props;
 
 
 

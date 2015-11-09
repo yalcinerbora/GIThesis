@@ -82,9 +82,9 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 	expandedVoxId.z = expandedVoxId.z << (numCascades - cascadeNo - 1);
 	for(unsigned int i = 0; i < cascadeNo; i++)
 	{
-		expandedVoxId.x = (~(expandedVoxId.x >> (8 + i)) << (8 + i + 1)) | expandedVoxId.x;
-		expandedVoxId.y = (~(expandedVoxId.y >> (8 + i)) << (8 + i + 1)) | expandedVoxId.y;
-		expandedVoxId.z = (~(expandedVoxId.z >> (8 + i)) << (8 + i + 1)) | expandedVoxId.z;
+		expandedVoxId.x = ((~(expandedVoxId.x >> (9 + i)) & 0x01) << (9 + i + 1)) | expandedVoxId.x;
+		expandedVoxId.y = ((~(expandedVoxId.y >> (9 + i)) & 0x01) << (9 + i + 1)) | expandedVoxId.y;
+		expandedVoxId.z = ((~(expandedVoxId.z >> (9 + i)) & 0x01) << (9 + i + 1)) | expandedVoxId.z;
 	}
 	return expandedVoxId;
 }

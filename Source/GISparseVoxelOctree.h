@@ -39,13 +39,16 @@ class GISparseVoxelOctree
 
 		// SVO Data
 		CudaVector<CSVONode>					dSVO;				// Entire SVO
-		CudaVector<CSVOColor>					dSVOColor;			// Entire SVO
+		CudaVector<CSVOMaterial>				dSVOMaterial;			// Entire SVO
 
 		// SVO Ptrs
 		CSVONode*								dSVODense;
 		CSVONode*								dSVOSparse;
-		CudaVector<unsigned int>				dSVOLevelStartIndices;
+
+		// Atomic counter and svo level start locations
 		CudaVector<unsigned int>				dSVONodeCountAtomic;
+		CudaVector<unsigned int>				dSVOLevelStartIndices;
+		std::vector<unsigned int>				hSVOLevelStartIndices;
 
 		// Inital Rays buffer
 		GLuint									initalRayLink;

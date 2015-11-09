@@ -96,13 +96,17 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 		totalAlloc += static_cast<unsigned int>(allocators[i]->NumPages() * GI_PAGE_SIZE * depthMultiplier);
 	}
 	dSVO.Resize(totalAlloc);
-	dSVOColor.Resize(totalAlloc);
 
+	totalAlloc += static_cast<unsigned int>((1.0 - std::pow(8.0f, GI_DENSE_LEVEL)) / (1.0f - 8.0f));
+	dSVOMaterial.Resize(totalAlloc);
+	
 	dSVODense = dSVO.Data();
 	dSVOSparse = dSVO.Data() + (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 
+	hSVOLevelStartIndices.resize(allocatorGrids[0].depth + allocatorSize);
 	dSVOLevelStartIndices.Resize(allocatorGrids[0].depth + allocatorSize);
 	dSVOLevelStartIndices.Memset(0x00, 0, dSVOLevelStartIndices.Size());
+	std::fill(hSVOLevelStartIndices.begin(), hSVOLevelStartIndices.end(), 0);
 
 	unsigned int totalLevel = static_cast<unsigned int>(allocatorGrids[0].depth + allocatorSize - 1);
 
@@ -209,12 +213,13 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 
 	// Early Bail check 
 	unsigned int currentLevelIndex = currentLevel - GI_DENSE_LEVEL;
-	uint32_t levelNodeCount, levelNodeStarts[2];
-	CUDA_CHECK(cudaMemcpy(levelNodeStarts,
-						  dSVOLevelStartIndices.Data() + currentLevelIndex - 1,
-						  sizeof(unsigned int) * 2,
+	uint32_t levelNodeCount;
+	CUDA_CHECK(cudaMemcpy(hSVOLevelStartIndices.data() + currentLevelIndex,
+						  dSVOLevelStartIndices.Data() + currentLevelIndex,
+						  sizeof(unsigned int),
 						  cudaMemcpyDeviceToHost));
-	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
+	levelNodeCount = hSVOLevelStartIndices[currentLevelIndex] -
+					 hSVOLevelStartIndices[currentLevelIndex - 1];
 	if(levelNodeCount == 0) return;
 
 	//timer.Stop();
@@ -294,6 +299,7 @@ double GISparseVoxelOctree::UpdateSVO()
 	dSVO.Memset(0x00, 0, usedNodeCount + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 	dSVONodeCountAtomic.Memset(0x00, 0, 1);
 	dSVOLevelStartIndices.Memset(0x00, 0, dSVOLevelStartIndices.Size());
+	std::fill(hSVOLevelStartIndices.begin(), hSVOLevelStartIndices.end(), 0);
 
 	// Start with constructing dense
 	ConstructDense();
@@ -344,28 +350,23 @@ double GISparseVoxelOctree::UpdateSVO()
 		ConstructLevel(i, 0, 0);
 	}
 
-	//// Now adding cascade levels
-	//for(unsigned int i = 1; i < allocators.size(); i++)
-	//{
-	//	unsigned int currentLevel = allocatorGrids[0].depth + i;
-	//	ConstructLevel(currentLevel, i, i);
-	//}
+	// Now adding cascade levels
+	for(unsigned int i = 1; i < allocators.size(); i++)
+	{
+		unsigned int currentLevel = allocatorGrids[0].depth + i - 1;
+		ConstructLevel(currentLevel, i, i);
+	}
 
 	////DEBUG
-	std::vector<unsigned int> nodeCounts;
-	nodeCounts.resize(dSVOLevelStartIndices.Size());
-	CUDA_CHECK(cudaMemcpy(nodeCounts.data(), dSVOLevelStartIndices.Data(),
-		sizeof(unsigned int) * dSVOLevelStartIndices.Size(), cudaMemcpyDeviceToHost));
-
 	GI_LOG("-------------------------------------------");
 	GI_LOG("Tree Node Data");
 	unsigned int i;
 	for(i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL; i++)
 	{
 		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, nodeCounts[i] - nodeCounts[i - 1]);
+		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelStartIndices[i] - hSVOLevelStartIndices[i - 1]);
 	}
-	GI_LOG("Total : %d", nodeCounts[i - 1]);
+	GI_LOG("Total : %d", hSVOLevelStartIndices[i - 1]);
 	GI_LOG("-------------------------------------------");
 
 	timer.Stop();
@@ -423,7 +424,7 @@ uint64_t GISparseVoxelOctree::MemoryUsage() const
 {
 	uint64_t totalBytes = 0;
 	totalBytes += dSVO.Size() * sizeof(CSVONode);
-	totalBytes += dSVOColor.Size() * sizeof(CSVOColor);
+	totalBytes += dSVOMaterial.Size() * sizeof(CSVOMaterial);
 	totalBytes += dSVOLevelStartIndices.Size() * sizeof(unsigned int);
 	totalBytes += sizeof(unsigned int);
 	return totalBytes;

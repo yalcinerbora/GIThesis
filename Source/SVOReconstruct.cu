@@ -205,6 +205,8 @@ __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
 	uint3 denseIndex = CalculateLevelVoxId(levelVoxelId, svoConstants.denseDepth,
 										   levelDepth);
 
+	//if(levelDepth == 9)
+
 	assert(denseIndex.x < svoConstants.denseDim &&
 		   denseIndex.y < svoConstants.denseDim &&
 		   denseIndex.z < svoConstants.denseDim);
@@ -270,4 +272,12 @@ __global__ void SVOReconstructAllocateNext(CSVONode* gSVO,
 	assert(localLocation <= 0x00FFFFFF);
 
 	gSVO[globalId + gSVOLevelOffset] = PackNode(localLocation, childBits);
-}						   
+}
+
+__global__ void SVOReconstructAverageNode(cudaTextureObject_t tSVODense,
+										  const CVoxelPage* gVoxelData,
+										  CSVOMaterial* material
+										  )
+{
+
+}

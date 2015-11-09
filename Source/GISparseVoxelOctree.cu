@@ -87,11 +87,13 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 
 	// TODO: More Dynamic Allocation Scheme
 	size_t totalAlloc = GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE;
+	float multiplier = static_cast<float>(1.0 - std::pow(0.220f, (allocatorGrids[0].depth - GI_DENSE_LEVEL))) / (1.0f - 0.220f);
+	
 	for(unsigned int i = 0; i < allocatorSize; i++)
 	{
-		uint32_t depthMultiplier = 1;
-		if(i == 0) depthMultiplier = (allocatorGrids[i].depth - GI_DENSE_LEVEL);
-		totalAlloc += allocators[i]->NumPages() * GI_PAGE_SIZE * depthMultiplier;
+		float depthMultiplier = 1;
+		if(i == 0) depthMultiplier = multiplier;
+		totalAlloc += static_cast<unsigned int>(allocators[i]->NumPages() * GI_PAGE_SIZE * depthMultiplier);
 	}
 	dSVO.Resize(totalAlloc);
 	dSVOColor.Resize(totalAlloc);
@@ -349,20 +351,22 @@ double GISparseVoxelOctree::UpdateSVO()
 	//	ConstructLevel(currentLevel, i, i);
 	//}
 
-	//DEBUG
-	//std::vector<unsigned int> nodeCounts;
-	//nodeCounts.resize(dSVOLevelStartIndices.Size());
-	//CUDA_CHECK(cudaMemcpy(nodeCounts.data(), dSVOLevelStartIndices.Data(),
-	//	sizeof(unsigned int) * dSVOLevelStartIndices.Size(), cudaMemcpyDeviceToHost));
+	////DEBUG
+	std::vector<unsigned int> nodeCounts;
+	nodeCounts.resize(dSVOLevelStartIndices.Size());
+	CUDA_CHECK(cudaMemcpy(nodeCounts.data(), dSVOLevelStartIndices.Data(),
+		sizeof(unsigned int) * dSVOLevelStartIndices.Size(), cudaMemcpyDeviceToHost));
 
-	//GI_LOG("-------------------------------------------");
-	//GI_LOG("Tree Node Data");
-	//for(unsigned int i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL; i++)
-	//{
-	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, nodeCounts[i] - nodeCounts[i - 1]);
-	//}
-	//GI_LOG("-------------------------------------------");
+	GI_LOG("-------------------------------------------");
+	GI_LOG("Tree Node Data");
+	unsigned int i;
+	for(i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL; i++)
+	{
+		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, nodeCounts[i] - nodeCounts[i - 1]);
+	}
+	GI_LOG("Total : %d", nodeCounts[i - 1]);
+	GI_LOG("-------------------------------------------");
 
 	timer.Stop();
 	return timer.ElapsedMilliS();

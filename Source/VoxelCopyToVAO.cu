@@ -38,10 +38,7 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 							   // Page
 							   const CVoxelPage* gVoxPages,
 							   uint32_t pageCount,
-							   const CVoxelGrid& gGridInfo,
-							   
-							   // Misc
-							   bool isOuterCascade)
+							   const CVoxelGrid& gGridInfo)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = blockIdx.x / GI_BLOCK_PER_PAGE;
@@ -55,22 +52,7 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 	
 	// All one normal means invalid voxel
 	if(voxelNormalPos.y != 0xFFFFFFFF)
-	{
-		if(isOuterCascade)
-		{
-			uint3 voxPos = ExpandOnlyVoxPos(voxelNormalPos.x);
-			bool inInnerSegment = ((voxPos.x > (gGridInfo.dimension.x / 4)) &&
-								   (voxPos.x < 3 * (gGridInfo.dimension.x / 4))) &&
-
-								   ((voxPos.y >(gGridInfo.dimension.y / 4)) &&
-								   (voxPos.y < 3 * (gGridInfo.dimension.y / 4))) &&
-
-								   ((voxPos.z >(gGridInfo.dimension.z / 4)) &&
-								   (voxPos.z < 3 * (gGridInfo.dimension.z / 4)));
-		
-			if(inInnerSegment) return;
-		}
-		
+	{	
 		unsigned int index = atomicInc(&atomicIndex, 0xFFFFFFFF);
 		assert(index < maxBufferSize);
 

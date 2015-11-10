@@ -11,14 +11,14 @@
 #define U_OBJ_ID layout(location = 4)
 #define U_MAX_CACHE_SIZE layout(location = 5)
 #define U_OBJ_TYPE layout(location = 6)
-#define U_SPAN_RATIO layout(location = 7)
+#define U_IS_MIP layout(location = 7)
 
 #define I_VOX_READ layout(rgba16ui, binding = 2) restrict
 
 // I-O
 U_OBJ_TYPE uniform uint objType;
 U_OBJ_ID uniform uint objId;
-U_SPAN_RATIO uniform uint spanRatio;
+U_IS_MIP uniform uint isMip;
 U_TOTAL_VOX_DIM uniform uvec3 voxDim;
 U_MAX_CACHE_SIZE uniform uint maxSize;
 
@@ -66,13 +66,13 @@ uint MergeColor(uvec2 colorShort2)
 
 uvec2 PackVoxelNormPos(in uvec3 voxCoord,
 					   in uvec2 normal,
-					   in uint spanDepth)
+					   in uint isMip)
 {
 	uvec2 result = uvec2(0);
 	
 	// Voxel Ids 9 Bit Each (last 5 bit is span depth)
 	unsigned int value = 0;
-	value |= spanDepth << 27;
+	value |= isMip << 27;
 	value |= voxCoord.z << 18;
 	value |= voxCoord.y << 9;
 	value |= voxCoord.x;
@@ -123,7 +123,7 @@ void main(void)
 			if(index <= maxSize)
 			{
 				voxelArrayRender[index].color = MergeColor(voxData.zw);
-				voxelNormPos[index] = PackVoxelNormPos(voxId, voxData.xy, spanRatio);
+				voxelNormPos[index] = PackVoxelNormPos(voxId, voxData.xy, isMip);
 				voxelIds[index] = PackVoxelIds(objId, objType, index);
 			}
 			// Reset Color For next iteration

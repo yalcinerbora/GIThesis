@@ -26,10 +26,6 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 	if(shadowMapArrayTexLink) CUDA_CHECK(cudaGraphicsUnregisterResource(shadowMapArrayTexLink));
 	if(tSVODense) CUDA_CHECK(cudaDestroyTextureObject(tSVODense));
 	if(denseArray) CUDA_CHECK(cudaFreeArray(denseArray));
-	for(const cudaStream_t stream : cudaStreams)
-	{
-		if(stream) CUDA_CHECK(cudaStreamDestroy(stream));
-	}
 }
 
 __global__ void fastreadkernel3D(cudaTextureObject_t texture,
@@ -148,17 +144,6 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 
 	if(tSVODense != 0) CUDA_CHECK(cudaDestroyTextureObject(tSVODense));
 	CUDA_CHECK(cudaCreateTextureObject(&tSVODense, &resDesc, &texDesc, nullptr));
-
-	// Create Additional Streams if current streams no enough
-	unsigned int size = static_cast<unsigned int>(cudaStreams.size());
-	if(size < allocatorSize)
-	{
-		cudaStreams.resize(allocatorSize);
-		for(unsigned int i = size; i < allocatorSize; i++)
-		{
-			CUDA_CHECK(cudaStreamCreate(&cudaStreams[i]));
-		}
-	}
 }
 
 void GISparseVoxelOctree::ConstructDense()
@@ -174,7 +159,7 @@ void GISparseVoxelOctree::ConstructDense()
 		uint32_t gridSize = ((allocators[i]->NumPages() * GI_PAGE_SIZE) + 
 						 GI_THREAD_PER_BLOCK - 1) /
 						 GI_THREAD_PER_BLOCK;
-		SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK, 0, cudaStreams[i]>>>
+		SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(
 			dSVODense,
 			allocators[i]->GetVoxelPagesDevice(),
@@ -184,8 +169,6 @@ void GISparseVoxelOctree::ConstructDense()
 		);
 		CUDA_KERNEL_CHECK();
 	}
-	for(unsigned int i = 0; i < allocators.size(); i++)
-		CUDA_CHECK(cudaStreamSynchronize(cudaStreams[i]));
 	
 	//timer.Stop();
 	//childSet = timer.ElapsedMilliS();
@@ -258,7 +241,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 							 GI_THREAD_PER_BLOCK - 1) /
 							 GI_THREAD_PER_BLOCK;
 
-		SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK, 0, cudaStreams[i]>>>
+		SVOReconstructChildSet<<<gridSize, GI_THREAD_PER_BLOCK/*, 0, cudaStreams[i]*/>>>
 		(
 			dSVOSparse,
 			tSVODense,
@@ -271,8 +254,8 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 		);
 		CUDA_KERNEL_CHECK();
 	}
-	for(unsigned int i = 0; i < allocators.size(); i++)
-		CUDA_CHECK(cudaStreamSynchronize(cudaStreams[i]));
+	//for(unsigned int i = 0; i < allocators.size(); i++)
+	//	CUDA_CHECK(cudaStreamSynchronize(cudaStreams[i]));
 
 	//timer.Stop();
 	//childSet = timer.ElapsedMilliS();

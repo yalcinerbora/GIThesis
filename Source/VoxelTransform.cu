@@ -181,8 +181,8 @@ __global__ void VoxelTransform(// Voxel Pages
 	// Fetch NormalPos from cache
 	uint3 voxPos;
 	float3 normal;
-	unsigned int voxelSpanRatio;
-	ExpandNormalPos(voxPos, normal, voxelSpanRatio, gVoxNormPosCacheData[objectId.y][renderLoc]);
+	bool isMip;
+	ExpandNormalPos(voxPos, normal, isMip, gVoxNormPosCacheData[objectId.y][renderLoc]);
 
 	// Fetch AABB min, transform and span
 	float4 objAABBMin = gObjectAABB[objectId.y][objectId.x].min;
@@ -239,6 +239,19 @@ __global__ void VoxelTransform(// Voxel Pages
 	outOfBounds |= (worldPos.y < 0.0f) || (worldPos.y >= gGridInfo.dimension.y * gGridInfo.span);
 	outOfBounds |= (worldPos.z < 0.0f) || (worldPos.z >= gGridInfo.dimension.z * gGridInfo.span);
 
+	// If its mip dont update inner cascade
+	bool inInnerCascade = false;
+	if(isMip)
+	{
+		inInnerCascade = (worldPos.x > gGridInfo.dimension.x * gGridInfo.span * 0.25f) &&
+						 (worldPos.x < gGridInfo.dimension.x * gGridInfo.span * 0.75f);
+		inInnerCascade &= (worldPos.y > gGridInfo.dimension.y * gGridInfo.span * 0.25f) &&
+						  (worldPos.y < gGridInfo.dimension.y * gGridInfo.span * 0.75f);
+		inInnerCascade &= (worldPos.z > gGridInfo.dimension.z * gGridInfo.span * 0.25f) &&
+						  (worldPos.z < gGridInfo.dimension.z * gGridInfo.span * 0.75f);
+	}
+	outOfBounds |= inInnerCascade;
+
 	// Now Write
 	// Discard the out of bound voxels
 	if(!outOfBounds)
@@ -249,7 +262,7 @@ __global__ void VoxelTransform(// Voxel Pages
 		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan);
 
 		// Write to page
-		PackVoxelNormPos(gVoxelData[pageId].dGridVoxNormPos[pageLocalId], voxPos, normal, voxelSpanRatio);
+		PackVoxelNormPos(gVoxelData[pageId].dGridVoxNormPos[pageLocalId], voxPos, normal, isMip);
 	}
 	else
 	{

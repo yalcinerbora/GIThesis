@@ -183,7 +183,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(currentScene->DrawCount()));
-	glUniform1f(U_MIN_SPAN, currentScene->MinSpan() * minSpanMultiplier);
+	glUniform1f(U_MIN_SPAN, currentScene->MinSpan());
 	glUniform1ui(U_MAX_GRID_DIM, VOXEL_GRID_SIZE);
 
 	size_t blockCount = (currentScene->DrawCount() / 128);
@@ -216,12 +216,29 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	cache.voxelCacheUsageSize.CPUData()[0] = 0;
 	cache.voxelCacheUsageSize.SendData();
 
+	// isMip
+	std::vector<GLuint> isMip(currentScene->DrawCount(), 0);
+	for(unsigned int i = 0; i < isMip.size(); i++)
+	{
+		if(cache.objectGridInfo.CPUData()[i].span < currentScene->MinSpan() * minSpanMultiplier)
+		{
+			isMip[i] = 1;
+			cache.objectGridInfo.CPUData()[i].span = currentScene->MinSpan() * minSpanMultiplier;
+		}
+			
+	}
+	cache.objectGridInfo.SendData();
+
 	// For Each Object
 	voxelRenderTexture.Clear();
 	for(unsigned int i = 0; i < currentScene->DrawCount(); i++)
 	{
+		// Skip objects that cant fit
 		if(cache.objectGridInfo.CPUData()[i].span != currentScene->MinSpan() * minSpanMultiplier)
 			continue;
+
+		//
+		//unsigned int isMip = 
 
 		// First Call Voxelize over 3D Texture
 		currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
@@ -262,23 +279,6 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		// Reflect Voxel Size
 		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-		// Before Last Call calcuate span ratio for this object
-		auto& transformBuffer = currentScene->getDrawBuffer().getModelTransformBuffer().CPUData();
-		auto& objGridInfoBuffer = cache.objectGridInfo.CPUData();
-		// Extract scale 
-		IEVector3 scale = IEMatrix4x4::ExtractScaleInfo(transformBuffer[i].model);
-		assert(fabs(scale.getX() - scale.getY()) < 0.0001f);
-		assert(fabs(scale.getY() - scale.getZ()) < 0.0001f);
-		GLuint spanRatio = static_cast<unsigned int>((objGridInfoBuffer[i].span * scale.getX() + 0.1f) / gridSpan);
-		// Fast nearest pow of two
-		spanRatio--;
-		spanRatio |= spanRatio >> 1;
-		spanRatio |= spanRatio >> 2;
-		spanRatio |= spanRatio >> 4;
-		spanRatio |= spanRatio >> 8;
-		spanRatio |= spanRatio >> 16;
-		spanRatio++;
-
 		// Create sparse voxel array according to the size of voxel count
 		// Last Call: Pack Draw Calls to the buffer
 		computePackObjectVoxels.Bind();
@@ -291,7 +291,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
 		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
 		glUniform1ui(U_MAX_CACHE_SIZE, static_cast<GLuint>(cache.voxelNormPos.Capacity()));
-		glUniform1ui(U_SPAN_RATIO, static_cast<GLuint>(spanRatio));
+		glUniform1ui(U_IS_MIP, static_cast<GLuint>(isMip[i]));
 		glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		// Voxelization Done!
@@ -499,28 +499,21 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			voxelCount = cache512.voxInfo.sceneVoxOctreeCount;
 			VoxelDebugVAO vao512 = voxelScene512.VoxelDataForRendering(voxGrid512, 
 																	   debugVoxTransferTime, 
-																	   voxelCount,
-																	   false);
+																	   voxelCount);
 			DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512, voxelCount);
-
-			//glClear(GL_DEPTH_BUFFER_BIT);
 
 			CVoxelGrid voxGrid1024;
 			voxelCount = cache1024.voxInfo.sceneVoxOctreeCount;
 			VoxelDebugVAO vao1024 = voxelScene1024.VoxelDataForRendering(voxGrid1024,
 																		 debugVoxTransferTime,
-																		 voxelCount,
-																		 false);
+																		 voxelCount);
 			DebugRenderVoxelPage(mainRenderCamera, vao1024, voxGrid1024, voxelCount);
-
-			//glClear(GL_DEPTH_BUFFER_BIT);
 
 			CVoxelGrid voxGrid2048;
 			voxelCount = cache2048.voxInfo.sceneVoxOctreeCount;
 			VoxelDebugVAO vao2048 = voxelScene2048.VoxelDataForRendering(voxGrid2048,
 																		 debugVoxTransferTime,
-																		 voxelCount,
-																		 false);
+																		 voxelCount);
 			DebugRenderVoxelPage(mainRenderCamera, vao2048, voxGrid2048, voxelCount);
 			break;
 		}

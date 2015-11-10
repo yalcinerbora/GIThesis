@@ -322,8 +322,7 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 
 VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData, 
 													  double& time, 
-													  uint32_t& culledVoxCount,
-													  bool isOuterCascade)
+													  uint32_t& culledVoxCount)
 {
 	uint32_t maxVoxCount = culledVoxCount;
 
@@ -376,10 +375,7 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData,
 			// Page
 			allocator.GetVoxelPagesDevice(),
 			allocator.NumPages(),
-			*allocator.GetVoxelGridDevice(),
-			
-			// Misc
-			isOuterCascade);
+			*allocator.GetVoxelGridDevice());
 		CUDA_KERNEL_CHECK();
 
 		// Copy Actual Vox Count

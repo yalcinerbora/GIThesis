@@ -79,13 +79,13 @@ inline __device__ float3 ExpandOnlyNormal(const unsigned int packedVoxY)
 
 inline __device__ void ExpandNormalPos(uint3& voxPos,
 									   float3& normal,
-									   unsigned int& voxelSpanRatio,
+									   bool& isMip,
 									   const CVoxelNormPos& packedVoxNormalPos)
 {
 	voxPos.x = (packedVoxNormalPos.x & 0x000001FF);
 	voxPos.y = (packedVoxNormalPos.x & 0x0003FE00) >> 9;
 	voxPos.z = (packedVoxNormalPos.x & 0x07FC0000) >> 18;
-	voxelSpanRatio = (packedVoxNormalPos.x & 0xF8000000) >> 27;
+	isMip = ((packedVoxNormalPos.x & 0xF8000000) >> 27) != 0;
 
 	normal = ExpandOnlyNormal(packedVoxNormalPos.y);
 }
@@ -121,10 +121,11 @@ inline __device__ void PackVoxelIds(CVoxelIds& packedVoxId,
 }
 
 inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
-											  const unsigned int voxelSpanRatio)
+											  const bool isMip)
 {
 	unsigned int packed = 0;
-	packed |= (voxelSpanRatio & 0x0000001F) << 27;
+	unsigned int uintMip = (isMip) ? 1 : 0;
+	packed |= (uintMip & 0x0000001F) << 27;
 	packed |= (voxPos.z & 0x000001FF) << 18;
 	packed |= (voxPos.y & 0x000001FF) << 9;
 	packed |= (voxPos.x & 0x000001FF);
@@ -134,10 +135,10 @@ inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
 inline __device__ void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
 										const uint3& voxPos,
 										const float3& normal,
-										const unsigned int voxelSpanRatio)
+										const bool isMip)
 {
 	// First word holds span ratio and voxel position (relative to AABB or Grid)
-	packedVoxNormPos.x = PackOnlyVoxPos(voxPos, voxelSpanRatio);
+	packedVoxNormPos.x = PackOnlyVoxPos(voxPos, isMip);
 
 	// Second word holds normal 
 	// (x,y components packed NORM int with 16/15 bit repectively, MSB is sign of z

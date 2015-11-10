@@ -46,9 +46,6 @@ extern __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxe
 									  // Page
 									  const CVoxelPage* gVoxPages,
 									  uint32_t pageCount,
-									  const CVoxelGrid& gGridInfo,
-									  
-									  // Misc
-									  bool isOuterCascade);
+									  const CVoxelGrid& gGridInfo);
 
 #endif //__THESISSOLUTION_H__

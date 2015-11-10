@@ -28,7 +28,6 @@ class GISparseVoxelOctree
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
-		std::vector<cudaStream_t>				cudaStreams;
 
 		// Debug Stuff
 		StructuredBuffer<VoxelNormPos>			vaoNormPosData;

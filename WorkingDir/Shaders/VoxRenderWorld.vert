@@ -60,7 +60,7 @@ void main(void)
 	// Voxels are in world space
 	// Need to determine the scale and relative position wrt the grid
 	uvec4 voxIndex = UnpackVoxelDataAndSpan(voxNormPos.x);
-	float span = position.w * voxIndex.w;
+	float span = position.w;
 	vec3 deltaPos = position.xyz + position.w * vec3(voxIndex.xyz);
 	mat4 voxModel =	mat4( span,			0.0f,		0.0f,		0.0f,
 						  0.0f,			span,		0.0f,		0.0f,

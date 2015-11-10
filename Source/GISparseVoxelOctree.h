@@ -28,6 +28,7 @@ class GISparseVoxelOctree
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
+		std::vector<cudaStream_t>				cudaStreams;
 
 		// Debug Stuff
 		StructuredBuffer<VoxelNormPos>			vaoNormPosData;
@@ -61,8 +62,7 @@ class GISparseVoxelOctree
 		
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
-															   unsigned int allocatorIndex,
-															   unsigned int cascadeNo);
+															   unsigned int allocatorIndex);
 
 	protected:
 

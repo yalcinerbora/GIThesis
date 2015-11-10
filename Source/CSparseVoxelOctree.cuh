@@ -80,26 +80,39 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 	expandedVoxId.x = expandedVoxId.x << (numCascades - cascadeNo - 1);
 	expandedVoxId.y = expandedVoxId.y << (numCascades - cascadeNo - 1);
 	expandedVoxId.z = expandedVoxId.z << (numCascades - cascadeNo - 1);
+
 	for(unsigned int i = 0; i < cascadeNo; i++)
 	{
-		expandedVoxId.x = ((~(expandedVoxId.x >> (9 + i)) & 0x01) << (9 + i + 1)) | expandedVoxId.x;
-		expandedVoxId.y = ((~(expandedVoxId.y >> (9 + i)) & 0x01) << (9 + i + 1)) | expandedVoxId.y;
-		expandedVoxId.z = ((~(expandedVoxId.z >> (9 + i)) & 0x01) << (9 + i + 1)) | expandedVoxId.z;
+		// Bit expansion of inner cascades
+		// if MSB is 1 it becomes 10
+		// if MSB is 0 it becomes 01
+		volatile unsigned int bitLoc = 9 + numCascades - cascadeNo - 1;
+		volatile unsigned int rightBitMask = (0x01 << (bitLoc - 1)) - 1;
+		volatile unsigned int componentBit;
+		volatile unsigned int component;
+
+		componentBit = expandedVoxId.x >> (bitLoc - 1);
+		component = (1 - componentBit) * 0x01 + componentBit * 0x02;
+		expandedVoxId.x = (component << (bitLoc - 1)) | 
+							(expandedVoxId.x & rightBitMask);
+
+		componentBit = expandedVoxId.y >> (bitLoc - 1);
+		component = (1 - componentBit) * 0x01 + componentBit * 0x02;
+		expandedVoxId.y = (component << (bitLoc - 1)) | 
+							(expandedVoxId.y & rightBitMask);
+
+		componentBit = expandedVoxId.z >> (bitLoc - 1);
+		component = (1 - componentBit) * 0x01 + componentBit * 0x02;
+		expandedVoxId.z = (component << (bitLoc - 1)) | 
+							(expandedVoxId.z & rightBitMask);
 	}
 	return expandedVoxId;
 }
 
-inline __device__ unsigned int CalculateChildIndex(/*volatile*/ const unsigned char childrenBits,
-												   /*volatile*/ const unsigned char childBit,
-												   int level)
+inline __device__ unsigned int CalculateChildIndex(const unsigned char childrenBits,
+												   const unsigned char childBit)
 {
 	assert((childrenBits & childBit) != 0);	
-	//if((childrenBits & childBit) == 0)
-	//{
-	//	printf("#%d Assert childbit 0x%X, allbits 0x%X\n", level, childBit, childrenBits);
-	//	//assert((childrenBits & childBit) == 0);
-	//	return 0;
-	//}
 	return __popc(childrenBits & (childBit - 1));
 }
 

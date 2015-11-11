@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "DeferredRenderer.h"
 #include "SceneLights.h"
+#include <cuda_gl_interop.h>
 
 size_t ThesisSolution::InitialObjectGridSize = 256;
 size_t ThesisSolution::MaxVoxelCacheSize2048 = static_cast<size_t>(1024 * 1024 * 1.5f);
@@ -44,6 +45,8 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, renderScheme(GI_VOXEL_PAGE)
 	//, renderScheme(GI_VOXEL_CACHE2048)
 	, gridInfoBuffer(1)
+	, voxelNormPosBuffer(512)
+	, voxelColorBuffer(512)
 	, voxelOctree(dRenderer.GetLightIntensityBufferGL())
 {
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, 6);
@@ -390,6 +393,7 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera, VoxelObjectCach
 void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, 
 										  VoxelDebugVAO& pageVoxels,
 										  const CVoxelGrid& voxGrid,
+										  uint32_t offset,
 										  uint32_t voxCount)
 {
 	//DEBUG VOXEL RENDER
@@ -427,7 +431,7 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 	gridInfoBuffer.BindAsUniformBuffer(U_VOXEL_GRID_INFO);
 
 	pageVoxels.Bind();
-	pageVoxels.Draw(voxCount, 0);
+	pageVoxels.Draw(voxCount, offset);
 }
 
 void ThesisSolution::Frame(const Camera& mainRenderCamera)
@@ -469,7 +473,6 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	// Octree Update
 	svoTime = voxelOctree.UpdateSVO();
 
-	// 
 	voxelScene2048.UnmapGLPointers();
 	voxelScene1024.UnmapGLPointers();
 	voxelScene512.UnmapGLPointers();
@@ -499,32 +502,92 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		}		
 		case GI_VOXEL_PAGE:
 		{
-			// Clear the frame since each function will overwrite eachother
+			unsigned int totalVoxCount = cache2048.voxInfo.sceneVoxOctreeCount +
+										 cache1024.voxInfo.sceneVoxOctreeCount +
+										 cache512.voxInfo.sceneVoxOctreeCount;
+			voxelNormPosBuffer.Resize(totalVoxCount);
+			voxelColorBuffer.Resize(totalVoxCount);
+
+			// Cuda Register	
+			CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&vaoNormPosResource, 
+												    voxelNormPosBuffer.getGLBuffer(), 
+													cudaGraphicsMapFlagsWriteDiscard));
+			CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&vaoRenderResource, 
+													voxelColorBuffer.getGLBuffer(), 
+													cudaGraphicsMapFlagsWriteDiscard));
+
+			CVoxelNormPos* dVoxNormPos = nullptr;
+			uchar4* dVoxColor = nullptr;
+			size_t bufferSize;
+			
+			CUDA_CHECK(cudaGraphicsMapResources(1, &vaoNormPosResource));
+			CUDA_CHECK(cudaGraphicsMapResources(1, &vaoRenderResource));
+			CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dVoxNormPos), 
+															&bufferSize,
+															vaoNormPosResource));
+			CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dVoxColor),
+															&bufferSize,
+															vaoRenderResource));
+
+			std::vector<uint32_t> offsets;
+			std::vector<uint32_t> counts;
+
+			// Create VAO after resize since buffer id can change
+			VoxelDebugVAO vao(voxelNormPosBuffer, voxelColorBuffer);
+
+
+			// Start Render
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT |
 					GL_DEPTH_BUFFER_BIT);
-			unsigned int voxelCount = 0;
-
+			
+			
+			uint32_t voxelCount = 0, voxelOffset = 0;
 			CVoxelGrid voxGrid512;
-			voxelCount = cache512.voxInfo.sceneVoxOctreeCount;
-			VoxelDebugVAO vao512 = voxelScene512.VoxelDataForRendering(voxGrid512, 
-																	   debugVoxTransferTime, 
-																	   voxelCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao512, voxGrid512, voxelCount);
-
 			CVoxelGrid voxGrid1024;
-			voxelCount = cache1024.voxInfo.sceneVoxOctreeCount;
-			VoxelDebugVAO vao1024 = voxelScene1024.VoxelDataForRendering(voxGrid1024,
-																		 debugVoxTransferTime,
-																		 voxelCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao1024, voxGrid1024, voxelCount);
-
 			CVoxelGrid voxGrid2048;
-			voxelCount = cache2048.voxInfo.sceneVoxOctreeCount;
-			VoxelDebugVAO vao2048 = voxelScene2048.VoxelDataForRendering(voxGrid2048,
-																		 debugVoxTransferTime,
-																		 voxelCount);
-			DebugRenderVoxelPage(mainRenderCamera, vao2048, voxGrid2048, voxelCount);
+
+			debugVoxTransferTime = 0;
+			// 512
+			offsets.push_back(voxelOffset);
+			debugVoxTransferTime += voxelScene512.VoxDataToGL(dVoxNormPos + voxelOffset,
+															  dVoxColor + voxelOffset,
+															  voxGrid512,
+															  voxelCount,
+															  cache512.voxInfo.sceneVoxOctreeCount);
+			voxelOffset += voxelCount;
+			counts.push_back(voxelCount);
+
+			// 1024
+			offsets.push_back(voxelOffset);
+			debugVoxTransferTime += voxelScene1024.VoxDataToGL(dVoxNormPos + voxelOffset,
+															   dVoxColor + voxelOffset,
+															   voxGrid1024,
+															   voxelCount,
+															   cache1024.voxInfo.sceneVoxOctreeCount);
+			voxelOffset += voxelCount;
+			counts.push_back(voxelCount);
+
+			// 2048
+			offsets.push_back(voxelOffset);
+			debugVoxTransferTime += voxelScene2048.VoxDataToGL(dVoxNormPos + voxelOffset,
+															   dVoxColor + voxelOffset,
+															   voxGrid2048,
+															   voxelCount,
+															   cache2048.voxInfo.sceneVoxOctreeCount);
+			voxelOffset += voxelCount;
+			counts.push_back(voxelCount);
+
+			// All written unmap
+			CUDA_CHECK(cudaGraphicsUnmapResources(1, &vaoNormPosResource));
+			CUDA_CHECK(cudaGraphicsUnmapResources(1, &vaoRenderResource));
+			CUDA_CHECK(cudaGraphicsUnregisterResource(vaoNormPosResource));
+			CUDA_CHECK(cudaGraphicsUnregisterResource(vaoRenderResource));
+
+			// Render
+			DebugRenderVoxelPage(mainRenderCamera, vao, voxGrid512, offsets[0], counts[0]);
+			DebugRenderVoxelPage(mainRenderCamera, vao, voxGrid1024, offsets[1], counts[1]);
+			DebugRenderVoxelPage(mainRenderCamera, vao, voxGrid2048, offsets[2], counts[2]);	
 			break;
 		}
 		case GI_VOXEL_CACHE2048:

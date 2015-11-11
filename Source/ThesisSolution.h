@@ -114,9 +114,15 @@ class ThesisSolution : public SolutionI
 		VoxelObjectCache		cache1024;
 		VoxelObjectCache		cache512;
 		
-		// Utility Buffers
+		// Utility(Debug) Buffers
 		StructuredBuffer<VoxelGridInfoGL>	gridInfoBuffer;
-											
+		StructuredBuffer<VoxelNormPos>		voxelNormPosBuffer;
+		StructuredBuffer<uchar4>			voxelColorBuffer;
+
+		//
+		cudaGraphicsResource_t				vaoNormPosResource;
+		cudaGraphicsResource_t				vaoRenderResource;
+
 		// GUI								
 		TwBar*								bar;
 		bool								giOn;
@@ -135,6 +141,7 @@ class ThesisSolution : public SolutionI
 		void								DebugRenderVoxelPage(const Camera& camera,
 																 VoxelDebugVAO& pageVoxels,
 																 const CVoxelGrid& voxGrid,
+																 uint32_t offset,
 																 uint32_t voxCount);
 
 		 // Voxelizes the scene for a cache level

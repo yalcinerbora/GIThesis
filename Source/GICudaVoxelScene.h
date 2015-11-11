@@ -47,11 +47,7 @@ class GICudaVoxelScene
 	private:
 		GICudaAllocator						allocator;
 
-		StructuredBuffer<VoxelNormPos>		vaoNormPosData;
-		StructuredBuffer<uchar4>			vaoColorData;
-		cudaGraphicsResource_t				vaoNormPosResource;
-		cudaGraphicsResource_t				vaoRenderResource;
-		cudaStream_t						stream;
+//		cudaStream_t						stream;
 
 	protected:
 
@@ -93,7 +89,12 @@ class GICudaVoxelScene
 		// Access for voxel data for rendering voxels
 		uint64_t			AllocatorMemoryUsage() const;
 		uint32_t			VoxelCountInPage();
-		VoxelDebugVAO		VoxelDataForRendering(CVoxelGrid&, double& timing, uint32_t& voxCount);
+		double				VoxDataToGL(CVoxelNormPos* dVAONormPosData,
+										uchar4* dVAOColorData,
+
+										CVoxelGrid& voxGridData,
+										uint32_t& voxCount,
+										uint32_t maxVoxelCount);
 		GICudaAllocator*	Allocator();
 };
 #endif //__GICUDAVOXELSCENE_H__

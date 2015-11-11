@@ -297,7 +297,6 @@ double GISparseVoxelOctree::UpdateSVO()
 	CUDA_CHECK(cudaMemcpy(&usedNodeCount, dSVONodeCountAtomic.Data(), sizeof(unsigned int),
 						  cudaMemcpyDeviceToHost));
 	dSVO.Memset(0x00, 0, usedNodeCount + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-	dSVOMaterial.Memset(0x00, 0, matSparseOffset + usedNodeCount);
 	dSVONodeCountAtomic.Memset(0x00, 0, 1);
 	dSVOLevelStartIndices.Memset(0x00, 0, dSVOLevelStartIndices.Size());
 	std::fill(hSVOLevelStartIndices.begin(), hSVOLevelStartIndices.end(), 0);
@@ -367,15 +366,13 @@ double GISparseVoxelOctree::UpdateSVO()
 	
 
 	// Now Allocate for Color
-	uint32_t matAlloc = hSVOLevelStartIndices[currentLevelIndex];
-	matAlloc += static_cast<unsigned int>((1.0 - std::pow(8.0f, GI_DENSE_LEVEL + 1)) / (1.0f - 8.0f));
-	dSVOMaterial.Resize(matAlloc);
+	dSVOMaterial.Resize(hSVOLevelStartIndices[currentLevelIndex] + matSparseOffset);
+	dSVOMaterial.Memset(0x00, 0, dSVOMaterial.Size());
 	GI_LOG("-------------------------------------------");
 	GI_LOG("Memory %f", MemoryUsage() / 1024.0 / 1024.0);
-
-
+	
 	// WARNING
-	for(unsigned int i = 0; i < 1/*allocators.size()*/; i++)
+	for(unsigned int i = 0; i < allocators.size(); i++)
 	{
 		assert(allocators[i]->IsGLMapped() == true);
 		uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE +  GI_THREAD_PER_BLOCK - 1) / 
@@ -395,6 +392,7 @@ double GISparseVoxelOctree::UpdateSVO()
 			hSVOConstants.totalDepth - (hSVOConstants.numCascades - i),
 			*dSVOConstants.Data()
 		);
+		CUDA_KERNEL_CHECK();
 	}
 
 	// Now use leaf nodes to average upper nodes

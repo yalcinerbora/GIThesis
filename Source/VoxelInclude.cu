@@ -6,32 +6,7 @@
 #include "CVoxel.cuh"
 #include "CAxisAlignedBB.cuh"
 #include "COpenGLCommon.cuh"
-
-inline __device__ unsigned int AtomicAlloc(unsigned int* gStackSize)
-{
-	unsigned int assumed, old = *gStackSize;
-	do
-	{
-		assumed = old;
-		unsigned int result = (assumed == 0) ? 0 : (assumed - 1);
-		old = atomicCAS(gStackSize, assumed, result);
-	}
-	while(assumed != old);
-	return old;
-}
-
-inline __device__ unsigned int AtomicDealloc(unsigned int* gStackSize)
-{
-	unsigned int assumed, old = *gStackSize;
-	do
-	{
-		assumed = old;
-		unsigned int result = (assumed == GI_SEGMENT_PER_PAGE) ? GI_SEGMENT_PER_PAGE : (assumed + 1);
-		old = atomicCAS(gStackSize, assumed, result);
-	}
-	while(assumed != old);
-	return old;
-}
+#include "CAtomicAlloc.cuh"
 
 __global__ void VoxelObjectDealloc(// Voxel System
 								   CVoxelPage* gVoxelData,
@@ -79,7 +54,7 @@ __global__ void VoxelObjectDealloc(// Voxel System
 		//gObjectAllocLocations[globalId] = ushort2{0xFFFF, 0xFFFF};
 
 		// "Dealocate"
-		unsigned int size = AtomicDealloc(&(gVoxelData[objAlloc.x].dEmptySegmentStackSize));
+		unsigned int size = AtomicDealloc(&(gVoxelData[objAlloc.x].dEmptySegmentStackSize), GI_SEGMENT_PER_PAGE);
 		assert(size != GI_SEGMENT_PER_PAGE);
 		if(size != GI_SEGMENT_PER_PAGE)
 		{

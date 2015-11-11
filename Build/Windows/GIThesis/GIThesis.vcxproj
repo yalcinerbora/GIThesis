@@ -115,6 +115,7 @@
     <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
+    <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
     <ClInclude Include="..\..\..\Source\CHash.cuh" />
     <ClInclude Include="..\..\..\Source\CSVOTypes.cuh" />

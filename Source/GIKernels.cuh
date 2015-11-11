@@ -112,34 +112,18 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 
 
 // Reconstruct SVO
-// Creates SVO tree top down manner
-// For Each Level of the tree
-// First "ChildSet" then "AllocateNext" should be called
+extern __global__ void SVOReconstruct(CSVONode* gSVOSparse,
+									  CSVONode* gSVODense,
+									  unsigned int* gSVOLock,
 
-// Dense version of the child set
-// Finds Dense Depth Parent and sets in on the dense 3D Array
-extern __global__ void SVOReconstructChildSet(CSVONode* gSVODense,
-											  const CVoxelPage* gVoxelData,
+									  // SVO Alloc Location Holding Data
+									  unsigned int* gSVOEmptyLoc,
+									  unsigned int& gSVOLocIndex,
+									  const unsigned int maxSVOCount,
 
-											  const unsigned int cascadeNo,
-											  const CSVOConstants& svoConstants);
+									  // Voxel Page Data
+									  const CVoxelPage* gVoxelData,
 
-// Sparse version of the child set
-// Finds the current level parent and traverses partially constructed tree
-// sets the child bit of the appropirate voxel
-extern __global__ void SVOReconstructChildSet(CSVONode* gSVOSparse,
-											  cudaTextureObject_t tSVODense,
-											  const CVoxelPage* gVoxelData,
-											  const unsigned int* gLevelLookupTable,
-
-											  const unsigned int cascadeNo,
-											  const unsigned int levelDepth,
-											  const CSVOConstants& svoConstants);
-
-// Allocate next alloates the next level of the tree
-extern __global__ void SVOReconstructAllocateNext(CSVONode* gSVO,
-												  unsigned int& gSVOLevelNodeCount,
-												  const unsigned int& gSVOLevelOffset,
-												  const unsigned int& gSVONextLevelOffset,
-												  const unsigned int levelDim);
+									  const unsigned int cascadeNo,
+									  const CSVOConstants& svoConstants);
 #endif //__GIKERNELS_H__

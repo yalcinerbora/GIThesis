@@ -14,8 +14,8 @@
 #include "GICudaVoxelScene.h"
 #include "CSVOTypes.cuh"
 
-#define GI_DENSE_LEVEL 6
-#define GI_DENSE_SIZE 64
+#define GI_DENSE_LEVEL 0
+#define GI_DENSE_SIZE 1
 
 class GICudaAllocator;
 struct Camera;
@@ -39,17 +39,18 @@ class GISparseVoxelOctree
 
 		// SVO Data
 		CudaVector<CSVONode>					dSVO;				// Entire SVO
-		CudaVector<CSVOMaterial>				dSVOMaterial;			// Entire SVO
+		CudaVector<CSVOMaterial>				dSVOMaterial;		
+		CudaVector<unsigned int>				dSVOLock;
 
 		// SVO Ptrs
 		CSVONode*								dSVODense;
 		CSVONode*								dSVOSparse;
+		
 
-		// Atomic counter and svo level start locations
-		CudaVector<unsigned int>				dSVONodeCountAtomic;
-		CudaVector<unsigned int>				dSVOLevelStartIndices;
-		std::vector<unsigned int>				hSVOLevelStartIndices;
-
+		CudaVector<unsigned int>				dSVOEmptyLoc;		// Stores Empty Locations
+		CudaVector<unsigned int>				dSVOLocIndex;
+		uint32_t								totalEightNodes;
+		
 		// Inital Rays buffer
 		GLuint									initalRayLink;
 		cudaGraphicsResource_t					rayLinks;
@@ -58,10 +59,6 @@ class GISparseVoxelOctree
 		cudaGraphicsResource_t					shadowMapArrayTexLink;
 		cudaGraphicsResource_t					lightBufferLink;
 		cudaGraphicsResource_t					lightIntensityTexLink;
-		
-		void									ConstructDense();
-		void									ConstructLevel(unsigned int levelIndex,
-															   unsigned int allocatorIndex);
 
 	protected:
 

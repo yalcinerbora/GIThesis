@@ -50,6 +50,17 @@ inline __device__ CSVOColor PackSVOColor(const float4& color)
 	return colorPacked;
 }
 
+inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
+													 const unsigned int levelDepth,
+													 const unsigned int totalDepth)
+{
+	unsigned int bitSet = 0;
+	bitSet |= ((voxelPos.z >> (totalDepth - levelDepth)) & 0x000000001) << 2;
+	bitSet |= ((voxelPos.y >> (totalDepth - levelDepth)) & 0x000000001) << 1;
+	bitSet |= ((voxelPos.x >> (totalDepth - levelDepth)) & 0x000000001) << 0;
+	return bitSet;
+}
+
 inline __device__ unsigned char CalculateLevelChildBit(const uint3& voxelPos,
 													   const unsigned int levelDepth,
 													   const unsigned int totalDepth)

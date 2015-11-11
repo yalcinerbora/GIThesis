@@ -30,6 +30,10 @@ struct CVoxelGrid
 typedef uint2 CVoxelNormPos;
 typedef uint2 CVoxelIds;
 
+// Further Seperated Voxel Data
+typedef unsigned int CVoxelPos;
+typedef unsigned int CVoxelNorm;
+
 // Voxel Rendering Data
 #pragma pack(push, 1)
 struct CVoxelRender
@@ -132,6 +136,16 @@ inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
 	return packed;
 }
 
+inline __device__ unsigned int PackOnlyVoxNorm(const float3& normal)
+{
+	// (x,y components packed NORM int with 16/15 bit repectively, MSB is sign of z
+	unsigned int value = 0;
+	value |= signbit(normal.z) << 31;
+	value |= static_cast<unsigned int>(normal.y * 0x00007FFF) << 16;
+	value |= static_cast<unsigned int>(normal.x * 0x0000FFFF);
+	return value;
+}
+
 inline __device__ void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
 										const uint3& voxPos,
 										const float3& normal,
@@ -141,11 +155,6 @@ inline __device__ void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
 	packedVoxNormPos.x = PackOnlyVoxPos(voxPos, isMip);
 
 	// Second word holds normal 
-	// (x,y components packed NORM int with 16/15 bit repectively, MSB is sign of z
-	unsigned int value = 0;
-	value |= signbit(normal.z) << 31;
-	value |= static_cast<unsigned int>(normal.y * 0x00007FFF) << 16;
-	value |= static_cast<unsigned int>(normal.x * 0x0000FFFF);
-	packedVoxNormPos.y = value;
+	packedVoxNormPos.y = PackOnlyVoxNorm(normal);
 }
 #endif //__CVOXEL_H__

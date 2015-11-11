@@ -20,14 +20,16 @@ Memory Allocation
 
 struct CVoxelPageData
 {
-	CudaVector<CVoxelNormPos>		dVoxelPageNormPos;
+	CudaVector<CVoxelPos>			dVoxelPagePos;
+	CudaVector<CVoxelNorm>			dVoxelPageNorm;
 	CudaVector<CVoxelIds>			dVoxelPageIds;
 	CudaVector<unsigned char>		dEmptySegmentList;
 	CudaVector<SegmentOccupation>	dIsSegmentOccupied;
 
 	CVoxelPageData() {};
 	CVoxelPageData(size_t sizeOfPage, size_t sizeOfHelper)
-		: dVoxelPageNormPos(sizeOfPage)
+		: dVoxelPagePos(sizeOfPage)
+		, dVoxelPageNorm(sizeOfPage)
 		, dVoxelPageIds(sizeOfPage)
 		, dEmptySegmentList(sizeOfHelper)
 		, dIsSegmentOccupied(sizeOfHelper)
@@ -113,6 +115,8 @@ class GICudaAllocator
 		size_t									totalSegmentCount;
 		size_t									totalObjectCount;
 
+		bool									pointersSet;
+
 		// Voxel Page System memory Mangement
 		void					AddVoxelPages(size_t count);
 		void					RemoveVoxelPages(size_t count);
@@ -189,5 +193,7 @@ class GICudaAllocator
 		unsigned int**			GetObjectAllocationIndexLookup2D();
 		unsigned int**			GetObjectVoxStrides2D();
 		ushort2**				GetSegmentAllocLoc2D();
+
+		bool					IsGLMapped();
 };
 #endif //__GICUDAALLOCATOR_H_

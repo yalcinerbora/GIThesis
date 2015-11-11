@@ -19,33 +19,47 @@ struct CObjectVoxelInfo;
 struct CVoxelGrid;
 struct CObjectTransform;
 
+typedef unsigned int CSVONode;
+typedef uint64_t CSVOMaterial;
+
 // Determine Vox count in pages
 // Call Logic per page segment
-extern __global__ void DetermineTotalVoxCount(int& totalVox,
+extern __global__ void VoxCountPage(int& totalVox,
+									const CVoxelPage* gVoxPages,
+									const CVoxelGrid& gGridInfo,
+									const uint32_t pageCount);
 
-											  const CVoxelPage* gVoxPages,
-											  const CVoxelGrid& gGridInfo,
-											  const uint32_t pageCount);
+extern __global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
+								  CVoxelNormPos* voxelData,
+								  uchar4* voxelColorData,
+								  unsigned int& atomicIndex,
+								  const unsigned int maxBufferSize,
 
+								  // Per Obj Segment
+								  ushort2** gObjectAllocLocations,
 
-extern __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
-									  CVoxelNormPos* voxelData,
-									  uchar4* voxelColorData,
-									  unsigned int& atomicIndex,
-									  const unsigned int maxBufferSize,
+								  // Per obj
+								  unsigned int** gObjectAllocIndexLookup,
 
-									  // Per Obj Segment
-									  ushort2** gObjectAllocLocations,
+								  // Per vox
+								  CVoxelRender** gVoxelRenderData,
 
-									  // Per obj
-									  unsigned int** gObjectAllocIndexLookup,
+								  // Page
+								  const CVoxelPage* gVoxPages,
+								  uint32_t pageCount,
+								  const CVoxelGrid& gGridInfo);
 
-									  // Per vox
-									  CVoxelRender** gVoxelRenderData,
+extern __global__ void VoxCpySVO(// Two ogl Buffers for rendering used voxels
+								 CVoxelNormPos* voxelNormPosData,
+								 uchar4* voxelColorData,
+								 unsigned int& atomicIndex,
+								 const unsigned int maxBufferSize,
 
-									  // Page
-									  const CVoxelPage* gVoxPages,
-									  uint32_t pageCount,
-									  const CVoxelGrid& gGridInfo);
+								 const CSVONode* gSVODense,
+								 const CSVONode* gSVOSparse,
+								 const CSVOMaterial* gSVOMat,
+
+								 const unsigned int matSparseOffset,
+								 const unsigned int level);
 
 #endif //__THESISSOLUTION_H__

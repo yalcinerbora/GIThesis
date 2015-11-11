@@ -85,6 +85,10 @@ class GICudaVoxelScene
 										double& updateTiming,
 										const IEVector3& playerPos);
 
+		// OGL Buffer Mapping
+		void				MapGLPointers();
+		void				UnmapGLPointers();
+
 		// Debug Related Functions
 		// Access for voxel data for rendering voxels
 		uint64_t			AllocatorMemoryUsage() const;

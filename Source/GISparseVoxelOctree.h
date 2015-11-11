@@ -45,6 +45,10 @@ class GISparseVoxelOctree
 		CSVONode*								dSVODense;
 		CSVONode*								dSVOSparse;
 
+		// SVO Mat indices
+		uint32_t								matSparseOffset;
+
+
 		// Atomic counter and svo level start locations
 		CudaVector<unsigned int>				dSVONodeCountAtomic;
 		CudaVector<unsigned int>				dSVOLevelStartIndices;

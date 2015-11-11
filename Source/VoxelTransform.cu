@@ -262,10 +262,14 @@ __global__ void VoxelTransform(// Voxel Pages
 		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan);
 
 		// Write to page
-		PackVoxelNormPos(gVoxelData[pageId].dGridVoxNormPos[pageLocalId], voxPos, normal, isMip);
+		uint2 packedVoxNormPos;
+		PackVoxelNormPos(packedVoxNormPos, voxPos, normal, isMip);
+		gVoxelData[pageId].dGridVoxPos[pageLocalId] = packedVoxNormPos.x;
+		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = packedVoxNormPos.y;
 	}
 	else
 	{
-		gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2{0xFFFFFFFF, 0xFFFFFFFF};
+		gVoxelData[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
+		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
 	}
 }

@@ -1,44 +1,45 @@
 #include "VoxelCopyToVAO.cuh"
 #include "COpenGLCommon.cuh"
 #include "CVoxel.cuh"
+#include "CSVOTypes.cuh"
 #include "CVoxelPage.h"
 #include <cstdio>
 #include <cassert>
 
-__global__ void DetermineTotalVoxCount(int& totalVox,
+__global__ void VoxCountPage(int& totalVox,
 
-									   const CVoxelPage* gVoxPages,
-									   const CVoxelGrid& gGridInfo,
-									   const uint32_t pageCount)
+							 const CVoxelPage* gVoxPages,
+							 const CVoxelGrid& gGridInfo,
+							 const uint32_t pageCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = (globalId - pageId * GI_PAGE_SIZE);
 
 	// All one normal means invalid voxel
-	if(gVoxPages[pageId].dGridVoxNormPos[pageLocalId].y != 0xFFFFFFFF)
+	if(gVoxPages[pageId].dGridVoxPos[pageLocalId] != 0xFFFFFFFF)
 	   atomicAdd(&totalVox, 1);
 }
 
-__global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
-							   CVoxelNormPos* voxelNormPosData,
-							   uchar4* voxelColorData,
-							   unsigned int& atomicIndex,
-							   const unsigned int maxBufferSize,
+__global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
+						   CVoxelNormPos* voxelNormPosData,
+						   uchar4* voxelColorData,
+						   unsigned int& atomicIndex,
+						   const unsigned int maxBufferSize,
 
-							   // Per Obj Segment
-							   ushort2** gObjectAllocLocations,
+						   // Per Obj Segment
+						   ushort2** gObjectAllocLocations,
 
-							   // Per obj
-							   unsigned int** gObjectAllocIndexLookup,
+						   // Per obj
+						   unsigned int** gObjectAllocIndexLookup,
 
-							   // Per vox
-							   CVoxelRender** gVoxelRenderData,
+						   // Per vox
+						   CVoxelRender** gVoxelRenderData,
 
-							   // Page
-							   const CVoxelPage* gVoxPages,
-							   uint32_t pageCount,
-							   const CVoxelGrid& gGridInfo)
+						   // Page
+						   const CVoxelPage* gVoxPages,
+						   uint32_t pageCount,
+						   const CVoxelGrid& gGridInfo)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = blockIdx.x / GI_BLOCK_PER_PAGE;
@@ -48,11 +49,13 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 	if(gVoxPages[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
 
 	// Data Read
-	CVoxelNormPos voxelNormalPos = gVoxPages[pageId].dGridVoxNormPos[pageLocalId];
+	CVoxelPos voxPosPacked = gVoxPages[pageId].dGridVoxPos[pageLocalId];
 	
 	// All one normal means invalid voxel
-	if(voxelNormalPos.y != 0xFFFFFFFF)
+	if(voxPosPacked != 0xFFFFFFFF)
 	{	
+		CVoxelPos voxNormpacked = gVoxPages[pageId].dGridVoxPos[pageLocalId];
+
 		unsigned int index = atomicInc(&atomicIndex, 0xFFFFFFFF);
 		assert(index < maxBufferSize);
 
@@ -62,7 +65,8 @@ __global__ void VoxelCopyToVAO(// Two ogl Buffers for rendering used voxels
 		unsigned int voxelId;
 		ExpandVoxelIds(voxelId, objectId, objType, gVoxPages[pageId].dGridVoxIds[pageLocalId]);
 
-		voxelNormPosData[index] = voxelNormalPos;
+		voxelNormPosData[index] = uint2{voxPosPacked, voxNormpacked};
 		voxelColorData[index] = gVoxelRenderData[objectId.y][voxelId].color;
 	}
 }
+

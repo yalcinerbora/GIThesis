@@ -441,6 +441,10 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	transformTime = 0;
 	svoTime = 0;
 
+	voxelScene2048.MapGLPointers();
+	voxelScene1024.MapGLPointers();
+	voxelScene512.MapGLPointers();
+
 	// Cascade #1 Update
 	voxelScene2048.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
@@ -464,6 +468,12 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	
 	// Octree Update
 	svoTime = voxelOctree.UpdateSVO();
+
+	// 
+	voxelScene2048.UnmapGLPointers();
+	voxelScene1024.UnmapGLPointers();
+	voxelScene512.UnmapGLPointers();
+
 
 	// Voxel Count in Pages
 	cache2048.voxInfo.sceneVoxOctreeCount = voxelScene2048.VoxelCountInPage();

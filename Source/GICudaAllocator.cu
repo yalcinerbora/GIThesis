@@ -17,7 +17,8 @@ __global__ void PurgePages(CVoxelPage* gVoxelData)
 		gVoxelData[pageId].dIsSegmentOccupied[pageLocalId] = SegmentOccupation::EMPTY;
 		gVoxelData[pageId].dEmptySegmentPos[pageLocalId] = GI_SEGMENT_PER_PAGE - globalId - 1;
 	}
-	gVoxelData[pageId].dGridVoxNormPos[pageLocalId] = uint2 { 0xFFFFFFFF, 0xFFFFFFFF };
+	gVoxelData[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
+	gVoxelData[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
 	gVoxelData[pageId].dGridVoxIds[pageLocalId] = uint2 { 0xFFFFFFFF, 0xFFFFFFFF };
 }
 
@@ -113,6 +114,7 @@ GICudaAllocator::GICudaAllocator(const CVoxelGrid& gridInfo)
 	, totalSegmentCount(0)
 	, dVoxelGridInfo(1)
 	, hVoxelGridInfo(gridInfo)
+	, pointersSet(false)
 {
 	dVoxelGridInfo.Assign(0, hVoxelGridInfo);
 }
@@ -247,6 +249,8 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 
 void GICudaAllocator::SetupDevicePointers()
 {
+	assert(pointersSet == false);
+
 	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(transformLinks.size()), transformLinks.data()));
 	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data()));
 	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data()));
@@ -283,10 +287,12 @@ void GICudaAllocator::SetupDevicePointers()
 	dObjNormPosCache = hObjNormPosCache;
 	dObjIdsCache = hObjIdsCache;
 	dObjRenderCache = hObjRenderCache;
+	pointersSet = true;
 }
 
 void GICudaAllocator::ClearDevicePointers()
 {
+	assert(pointersSet == true);
 	dTransforms.Clear();
 	dObjectAABB.Clear();
 	dObjectInfo.Clear();
@@ -310,6 +316,7 @@ void GICudaAllocator::ClearDevicePointers()
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheNormPosLinks.size()), cacheNormPosLinks.data()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheIdsLinks.size()), cacheIdsLinks.data()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(cacheRenderLinks.size()), cacheRenderLinks.data()));
+	pointersSet = false;
 }
 
 void GICudaAllocator::AddVoxelPages(size_t count)
@@ -325,12 +332,14 @@ void GICudaAllocator::AddVoxelPages(size_t count)
 		);
 		CUDA_KERNEL_CHECK();
 		hPageData.back().dIsSegmentOccupied.Memset(0, 0, hPageData.back().dIsSegmentOccupied.Size());
-		hPageData.back().dVoxelPageNormPos.Memset(0xFF, 0, hPageData.back().dVoxelPageNormPos.Size());
+		hPageData.back().dVoxelPageNorm.Memset(0xFF, 0, hPageData.back().dVoxelPageNorm.Size());
+		hPageData.back().dVoxelPagePos.Memset(0xFF, 0, hPageData.back().dVoxelPagePos.Size());
 		hPageData.back().dVoxelPageIds.Memset(0xFF, 0, hPageData.back().dVoxelPageIds.Size());
 		
 		CVoxelPage voxData =
 		{
-			hPageData.back().dVoxelPageNormPos.Data(),
+			hPageData.back().dVoxelPagePos.Data(),
+			hPageData.back().dVoxelPageNorm.Data(),
 			hPageData.back().dVoxelPageIds.Data(),
 			hPageData.back().dEmptySegmentList.Data(),
 			hPageData.back().dIsSegmentOccupied.Data(),
@@ -621,4 +630,9 @@ unsigned int** GICudaAllocator::GetObjectVoxStrides2D()
 ushort2** GICudaAllocator::GetSegmentAllocLoc2D()
 {
 	return dSegmentAllocLoc2D.Data();
+}
+
+bool GICudaAllocator::IsGLMapped()
+{
+	return pointersSet;
 }

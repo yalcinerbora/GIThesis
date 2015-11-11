@@ -18,7 +18,9 @@ struct CVoxelRender;
 struct CVoxelPage;
 struct CVoxelGrid;
 struct CSVOConstants;
+
 typedef unsigned int CSVONode;
+typedef uint64_t CSVOMaterial;
 
 // Voxel Transform
 // Transforms existing voxels in order to cut voxel reconstruction each frame
@@ -142,4 +144,28 @@ extern __global__ void SVOReconstructAllocateNext(CSVONode* gSVO,
 												  const unsigned int& gSVOLevelOffset,
 												  const unsigned int& gSVONextLevelOffset,
 												  const unsigned int levelDim);
+
+extern __global__ void SVOReconstructAverageLeaf(CSVOMaterial* gSVOMat,
+
+												 // Const SVO Data
+												 const CSVONode* gSVOSparse,
+												 cudaTextureObject_t tSVODense,
+												 const CVoxelPage* gVoxelData,
+												 const unsigned int* gLevelLookupTable,
+
+												 // For Color Lookup
+												 CVoxelRender** gVoxelRenderData,
+
+												 // Constants
+												 const unsigned int matSparseOffset,
+												 const unsigned int cascadeNo,
+												 const unsigned int levelDepth,
+												 const CSVOConstants& svoConstants);
+
+extern __global__ void SVOReconstructAverageNode(CSVOMaterial* parentMats,
+												 const CSVOMaterial* childrenMats,
+												 const CSVONode* gSVONode,
+												 const unsigned int parentLevel, 
+												 const unsigned int matSparseOffset,
+												 const CSVOConstants& svoConstants);
 #endif //__GIKERNELS_H__

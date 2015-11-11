@@ -18,7 +18,8 @@
 static_assert(GI_PAGE_SIZE % GI_THREAD_PER_BLOCK == 0, "Page size must be divisible by thread per block");
 static_assert(GI_BLOCK_PER_SEGMENT != 0, "Segment should be bigger(or equal) than block");
 
-typedef uint2 CVoxelNormPos;
+typedef unsigned int CVoxelPos;
+typedef unsigned int CVoxelNorm;
 typedef uint2 CVoxelIds;
 
 enum class SegmentOccupation : unsigned char
@@ -30,7 +31,8 @@ enum class SegmentOccupation : unsigned char
 
 struct CVoxelPage
 {
-	CVoxelNormPos*		dGridVoxNormPos;
+	CVoxelPos*			dGridVoxPos;
+	CVoxelNorm*			dGridVoxNorm;
 	CVoxelIds*			dGridVoxIds;
 	unsigned char*		dEmptySegmentPos;
 	SegmentOccupation*	dIsSegmentOccupied;

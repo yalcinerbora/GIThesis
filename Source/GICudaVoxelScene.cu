@@ -58,26 +58,27 @@ void GICudaVoxelScene::InitCuda()
 
 	// Shared Memory Prep
 	// 16 Kb memory is enough for our needs most of the time
+	// or 8kb (for %100 occupancy)
 	CUDA_CHECK(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
 
 	// Voxel Transform Function needs 48kb memory
 	// SVO Child Set
-	auto SVOChildSetDense = static_cast<void(*)(CSVONode*,
-												cudaTextureObject_t,
-												const CVoxelPage*,
-												const unsigned int*,
+	//auto SVOChildSetDense = static_cast<void(*)(CSVONode*,
+	//											cudaTextureObject_t,
+	//											const CVoxelPage*,
+	//											const unsigned int*,
 
-												const unsigned int,
-												const unsigned int,
-												const CSVOConstants&)>(&SVOReconstructChildSet);
+	//											const unsigned int,
+	//											const unsigned int,
+	//											const CSVOConstants&)>(&SVOReconstructChildSet);
 
-	auto SVOChildSetSparse = static_cast<void(*)(CSVONode*,
-												 const CVoxelPage*,
-												 const unsigned int,
-												 const CSVOConstants&)>(&SVOReconstructChildSet);
+	//auto SVOChildSetSparse = static_cast<void(*)(CSVONode*,
+	//											 const CVoxelPage*,
+	//											 const unsigned int,
+	//											 const CSVOConstants&)>(&SVOReconstructChildSet);
 
-	CUDA_CHECK(cudaFuncSetCacheConfig(SVOChildSetDense, cudaFuncCachePreferEqual));
-	CUDA_CHECK(cudaFuncSetCacheConfig(SVOChildSetSparse, cudaFuncCachePreferEqual));
+	//CUDA_CHECK(cudaFuncSetCacheConfig(SVOChildSetDense, cudaFuncCachePreferEqual));
+	//CUDA_CHECK(cudaFuncSetCacheConfig(SVOChildSetSparse, cudaFuncCachePreferEqual));
 	CUDA_CHECK(cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferShared));
 
 }
@@ -122,10 +123,10 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	// Pass if there is not any linked objects
 	if(allocator.NumSegments() == 0) return;
 
-	// Main Call Chain Called Every Frame
 	// Manages Voxel Pages
-	allocator.SetupDevicePointers();
+	assert(allocator.IsGLMapped() == true);
 	
+	// Main Call Chain Called Every Frame
 	CudaTimer timer(0);
 	timer.Start();
 	for(unsigned int i = 0; i < allocator.NumObjectBatches(); i++)
@@ -282,9 +283,6 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	
 	timer.Stop();
 	updateTiming = timer.ElapsedMilliS();
-
-	// Done
-	allocator.ClearDevicePointers();
 }
 
 uint64_t GICudaVoxelScene::AllocatorMemoryUsage() const
@@ -306,7 +304,7 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 	uint32_t gridSize = ((allocator.NumPages() * GI_PAGE_SIZE) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 
 	// KC VOXEL COUNT DETERMINE FROM VOXELS
-	DetermineTotalVoxCount<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	VoxCountPage<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(*d_VoxCount,
 		 // Page Related
 		 allocator.GetVoxelPagesDevice(),
@@ -338,8 +336,7 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData,
 		uchar4* vBufferRenderPackedPtr = nullptr;
 		size_t size = 0;
 
-		allocator.SetupDevicePointers();
-		
+		allocator.SetupDevicePointers();		
 
 		unsigned int zero = 0;
 		glBindBuffer(GL_COPY_WRITE_BUFFER, vaoNormPosData.getGLBuffer());
@@ -356,7 +353,7 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData,
 		// Copy
 		// All Pages
 		uint32_t gridSize = (allocator.NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
-		VoxelCopyToVAO<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		VoxCpyPage<<<gridSize, GI_THREAD_PER_BLOCK>>>
 			(// Two ogl Buffers for rendering used voxels
 			vBufferNormPosPtr,
 			vBufferRenderPackedPtr,
@@ -399,4 +396,14 @@ VoxelDebugVAO GICudaVoxelScene::VoxelDataForRendering(CVoxelGrid& voxGridData,
 GICudaAllocator* GICudaVoxelScene::Allocator()
 {
 	return &allocator;
+}
+
+void GICudaVoxelScene::MapGLPointers()
+{
+	allocator.SetupDevicePointers();
+}
+
+void GICudaVoxelScene::UnmapGLPointers()
+{
+	allocator.ClearDevicePointers();
 }

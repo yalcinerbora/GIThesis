@@ -57,14 +57,6 @@ __global__ void fastreadkernel(cudaTextureObject_t texture,
 	texUV.y = static_cast<float>((globalId / GI_DENSE_SIZE) % GI_DENSE_SIZE);
 	texUV.z = static_cast<float>(globalId / GI_DENSE_SIZE / GI_DENSE_SIZE);
 
-	/*x = idx % (max_x)
-		idx /= (max_x)
-		y = idx % (max_y)
-		idx /= (max_y)
-		z = idx
-		return (x, y, z)*/
-
-
 	unsigned int currentNode = tex3D<unsigned int>(texture, texUV.x, texUV.y, texUV.z);
 	printf("%d TexCoordXYZ %f, %f, %f\n", globalId, texUV.x, texUV.y, texUV.z);
 
@@ -96,12 +88,12 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 		totalAlloc += static_cast<unsigned int>(allocators[i]->NumPages() * GI_PAGE_SIZE * depthMultiplier);
 	}
 	dSVO.Resize(totalAlloc);
-
-	totalAlloc += static_cast<unsigned int>((1.0 - std::pow(8.0f, GI_DENSE_LEVEL)) / (1.0f - 8.0f));
-	dSVOMaterial.Resize(totalAlloc);
 	
 	dSVODense = dSVO.Data();
 	dSVOSparse = dSVO.Data() + (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+
+	// Mat Tree holds up to level 0
+	matSparseOffset = static_cast<unsigned int>((1.0 - std::pow(8.0f, GI_DENSE_LEVEL + 1)) / (1.0f - 8.0f));
 
 	hSVOLevelStartIndices.resize(allocatorGrids[0].depth + allocatorSize);
 	dSVOLevelStartIndices.Resize(allocatorGrids[0].depth + allocatorSize);
@@ -305,6 +297,7 @@ double GISparseVoxelOctree::UpdateSVO()
 	CUDA_CHECK(cudaMemcpy(&usedNodeCount, dSVONodeCountAtomic.Data(), sizeof(unsigned int),
 						  cudaMemcpyDeviceToHost));
 	dSVO.Memset(0x00, 0, usedNodeCount + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+	dSVOMaterial.Memset(0x00, 0, matSparseOffset + usedNodeCount);
 	dSVONodeCountAtomic.Memset(0x00, 0, 1);
 	dSVOLevelStartIndices.Memset(0x00, 0, dSVOLevelStartIndices.Size());
 	std::fill(hSVOLevelStartIndices.begin(), hSVOLevelStartIndices.end(), 0);
@@ -371,6 +364,45 @@ double GISparseVoxelOctree::UpdateSVO()
 						  dSVOLevelStartIndices.Data() + currentLevelIndex,
 						  sizeof(unsigned int),
 						  cudaMemcpyDeviceToHost));
+	
+
+	// Now Allocate for Color
+	uint32_t matAlloc = hSVOLevelStartIndices[currentLevelIndex];
+	matAlloc += static_cast<unsigned int>((1.0 - std::pow(8.0f, GI_DENSE_LEVEL + 1)) / (1.0f - 8.0f));
+	dSVOMaterial.Resize(matAlloc);
+	GI_LOG("-------------------------------------------");
+	GI_LOG("Memory %f", MemoryUsage() / 1024.0 / 1024.0);
+
+
+	// WARNING
+	for(unsigned int i = 0; i < 1/*allocators.size()*/; i++)
+	{
+		assert(allocators[i]->IsGLMapped() == true);
+		uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE +  GI_THREAD_PER_BLOCK - 1) / 
+							GI_THREAD_PER_BLOCK;
+				
+		// Average Leaf Node
+		SVOReconstructAverageLeaf<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		(
+			dSVOMaterial.Data(),
+			dSVOSparse,
+			tSVODense,
+			allocators[i]->GetVoxelPagesDevice(),
+			dSVOLevelStartIndices.Data(),
+			allocators[i]->GetObjRenderCacheDevice(),
+			matSparseOffset,
+			i,
+			hSVOConstants.totalDepth - (hSVOConstants.numCascades - i),
+			*dSVOConstants.Data()
+		);
+	}
+
+	// Now use leaf nodes to average upper nodes
+
+	// Start bottom up (dont average until inner averages itself
+	// TODO
+
+
 	
 	//DEBUG
 	GI_LOG("-------------------------------------------");

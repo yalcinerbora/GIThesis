@@ -50,6 +50,23 @@ inline __device__ CSVOColor PackSVOColor(const float4& color)
 	return colorPacked;
 }
 
+inline __device__ CSVOMaterial PackSVOMaterial(const CSVOColor& color,
+											   const CVoxelNorm& normal)
+{
+	CSVOMaterial mat = 0;
+	mat |= static_cast<CSVOMaterial>(normal) << 32;
+	mat |= color;
+	return mat;
+}
+
+inline __device__ void UnpackSVOMaterial(CSVOColor& color,
+										 CVoxelNorm& normal,
+										 const CSVOMaterial& mat)
+{
+	color = static_cast<CVoxelNorm>(mat & 0xFFFFFFFF);
+	normal = static_cast<CVoxelNorm>(mat >> 32);
+}
+
 inline __device__ unsigned char CalculateLevelChildBit(const uint3& voxelPos,
 													   const unsigned int levelDepth,
 													   const unsigned int totalDepth)

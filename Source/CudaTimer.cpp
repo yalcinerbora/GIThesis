@@ -1,7 +1,7 @@
 #include <cassert>
 #include <cstdio>
 #include "CudaTimer.h"
-#include "CudaDefinitions.h"
+#include "CudaInit.h"
 
 CudaTimer::CudaTimer(cudaStream_t stream)
 	: start(nullptr)

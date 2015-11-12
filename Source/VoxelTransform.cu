@@ -65,7 +65,6 @@ inline __device__ void LoadTransformData(// Shared Mem
 				{
 					sObjId = objIdShuffle;
 				}
-				__syncthreads();
 				objIdShuffle = sObjId;
 			#endif
 

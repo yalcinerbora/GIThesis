@@ -18,6 +18,7 @@
 #include "Camera.h"
 #include "Scene.h"
 #include "Macros.h"
+#include "CudaInit.h"
 
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
@@ -27,7 +28,7 @@
 int main()
 {
 	// Cuda Init
-	GICudaVoxelScene::InitCuda();
+	CudaInit::InitCuda();
 
 	Camera mainRenderCamera =
 	{

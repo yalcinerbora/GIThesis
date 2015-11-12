@@ -47,8 +47,6 @@ class GICudaVoxelScene
 	private:
 		GICudaAllocator						allocator;
 
-//		cudaStream_t						stream;
-
 	protected:
 
 	public:
@@ -57,8 +55,6 @@ class GICudaVoxelScene
 							GICudaVoxelScene(const GICudaVoxelScene&) = delete;
 		GICudaVoxelScene&	operator=(const GICudaVoxelScene&) = delete;
 							~GICudaVoxelScene();
-
-		static void			InitCuda();
 
 		// Determines and Allocates the initial Page Size for the first frame
 		void				LinkOGL(GLuint aabbBuffer,

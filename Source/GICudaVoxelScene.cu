@@ -25,59 +25,6 @@ GICudaVoxelScene::GICudaVoxelScene(const IEVector3& intialCenterPos, float span,
 GICudaVoxelScene::~GICudaVoxelScene()
 {}
 
-void GICudaVoxelScene::InitCuda()
-{
-	// Setting Device
-	cudaSetDevice(0);
-
-	// Cuda Check
-	cudaDeviceProp props;
-	CUDA_CHECK(cudaGetDeviceProperties(&props, 0));
-
-	// Info Print
-	GI_LOG("Cuda Information...");
-	GI_LOG("GPU Name\t\t: %s", props.name);
-	GI_LOG("GPU Compute Capability\t: %d%d", props.major, props.minor);
-	GI_LOG("GPU Shared Memory(SM)\t: %dKB", props.sharedMemPerMultiprocessor / 1024);
-	GI_LOG("GPU Shared Memory(Block): %dKB", props.sharedMemPerBlock / 1024);
-	GI_LOG("");
-
-	// Minimum Required Compute Capability
-	if(props.major < 3)
-	{
-		GI_LOG("#######################################################################");
-		GI_LOG("UNSUPPORTED GPU, CUDA PORTION WILL NOT WORK. NEEDS ATLEAST SM_30 DEVICE");
-		GI_LOG("#######################################################################");
-		GI_LOG("");
-	}
-
-	// Shared Memory Prep
-	// 16 Kb memory is enough for our needs most of the time
-	// or 8kb (for %100 occupancy)
-	CUDA_CHECK(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
-
-	// Voxel Transform Function needs 48kb memory
-	// SVO Child Set
-	//auto SVOChildSetDense = static_cast<void(*)(CSVONode*,
-	//											cudaTextureObject_t,
-	//											const CVoxelPage*,
-	//											const unsigned int*,
-
-	//											const unsigned int,
-	//											const unsigned int,
-	//											const CSVOConstants&)>(&SVOReconstructChildSet);
-
-	//auto SVOChildSetSparse = static_cast<void(*)(CSVONode*,
-	//											 const CVoxelPage*,
-	//											 const unsigned int,
-	//											 const CSVOConstants&)>(&SVOReconstructChildSet);
-
-	//CUDA_CHECK(cudaFuncSetCacheConfig(SVOChildSetDense, cudaFuncCachePreferEqual));
-	//CUDA_CHECK(cudaFuncSetCacheConfig(SVOChildSetSparse, cudaFuncCachePreferEqual));
-	CUDA_CHECK(cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferShared));
-
-}
-
 void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 							   GLuint transformBufferID,
 							   GLuint infoBufferID,

@@ -80,6 +80,9 @@
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp">
       <Filter>Utility</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\CudaInit.cpp">
+      <Filter>Utility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -247,9 +250,6 @@
     <ClInclude Include="..\..\..\Source\CHash.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CudaDefinitions.h">
-      <Filter>Utility</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
@@ -258,6 +258,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CudaInit.h">
+      <Filter>Utility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1,12 +1,16 @@
 /**
 
-Cuda Definitions
+Cuda Init Class
+
+Determines shared memory modes etc.
+
 
 */
 
+#ifndef __CUDAINIT_H__
+#define __CUDAINIT_H__
 
-#ifndef __CUDADEFINITIONS_H__
-#define __CUDADEFINITIONS_H__
+#include <cuda_runtime.h>
 
 #ifdef GI_DEBUG
 	#define CUDA_CHECK(func) \
@@ -26,5 +30,16 @@ Cuda Definitions
 	#define CUDA_KERNEL_CHECK()
 #endif
 
+class CudaInit
+{
+	private:
+		static cudaDeviceProp	props;
+		static bool				init;
 
-#endif
+	public:
+		static void				InitCuda();
+		static unsigned int		CapabilityMajor();
+		static unsigned int		CapabilityMinor();
+
+};
+#endif //__CUDAINIT_H__

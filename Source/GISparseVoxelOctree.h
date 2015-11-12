@@ -67,6 +67,9 @@ class GISparseVoxelOctree
 		void									ConstructLevel(unsigned int levelIndex,
 															   unsigned int allocatorIndex);
 
+		void									ConstructFullAtomic();
+		void									ConstructLevelByLevel();
+
 	protected:
 
 	public:

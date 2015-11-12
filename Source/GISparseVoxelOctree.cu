@@ -238,6 +238,84 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 						  cudaMemcpyDeviceToHost));
 }
 
+void GISparseVoxelOctree::ConstructFullAtomic()
+{
+	// Fully Atomic Version
+	for(unsigned int i = 0; i < allocators.size(); i++)
+	{
+		uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
+							GI_THREAD_PER_BLOCK;
+		SVOReconstruct<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		(
+			dSVOSparse,
+			dSVODense,
+			dSVOLevelSizes.Data(),
+			*dSVONodeAllocator.Data(),
+
+			allocators[i]->GetVoxelPagesDevice(),
+
+			static_cast<unsigned int>(dSVO.Size() - (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)),
+			i,
+			*dSVOConstants.Data()
+		);
+		CUDA_KERNEL_CHECK();
+	}
+
+	// Copy Dense to Texture
+	cudaMemcpy3DParms params = { 0 };
+	params.dstArray = denseArray;
+	params.srcPtr =
+	{
+		dSVODense,
+		GI_DENSE_SIZE * sizeof(unsigned int),
+		GI_DENSE_SIZE,
+		GI_DENSE_SIZE
+	};
+	params.extent = { GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE };
+	params.kind = cudaMemcpyDeviceToDevice;
+	CUDA_CHECK(cudaMemcpy3D(&params));
+
+}
+
+void GISparseVoxelOctree::ConstructLevelByLevel()
+{
+	// Start with constructing dense
+	ConstructDense();
+
+	// Copy Dense to Texture
+	cudaMemcpy3DParms params = { 0 };
+	params.dstArray = denseArray;
+	params.srcPtr =
+	{
+		dSVODense,
+		GI_DENSE_SIZE * sizeof(unsigned int),
+		GI_DENSE_SIZE,
+		GI_DENSE_SIZE
+	};
+	params.extent = { GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE };
+	params.kind = cudaMemcpyDeviceToDevice;
+	CUDA_CHECK(cudaMemcpy3D(&params));
+
+	// Construct Levels
+	for(unsigned int i = GI_DENSE_LEVEL + 1; i < allocatorGrids[0].depth; i++)
+	{
+		ConstructLevel(i, 0);
+	}
+
+	// Now adding cascade levels
+	for(unsigned int i = 1; i < allocators.size(); i++)
+	{
+		unsigned int currentLevel = allocatorGrids[0].depth + i - 1;
+		ConstructLevel(currentLevel, i);
+	}
+
+	// Last memcpy of the leaf cascade size
+	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data() + (allocatorGrids[0].depth - GI_DENSE_LEVEL),
+		dSVOLevelSizes.Data() + (allocatorGrids[0].depth - GI_DENSE_LEVEL),
+		sizeof(unsigned int),
+		cudaMemcpyDeviceToHost));
+}
+
 double GISparseVoxelOctree::UpdateSVO()
 {
 	CudaTimer timer;
@@ -253,62 +331,12 @@ double GISparseVoxelOctree::UpdateSVO()
 	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
 	std::fill(hSVOLevelOffsets.begin(), hSVOLevelOffsets.end(), 0);
 
-	// Start with constructing dense
-	ConstructDense();
-
-	// Copy to dense
-	cudaMemcpy3DParms params = {0};
-	params.dstArray = denseArray;
-	params.srcPtr = 
-	{
-		dSVODense, 
-		GI_DENSE_SIZE * sizeof(unsigned int), 
-		GI_DENSE_SIZE, 
-		GI_DENSE_SIZE
-	};
-	params.extent = {GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE};
-	params.kind = cudaMemcpyDeviceToDevice;
-	CUDA_CHECK(cudaMemcpy3D(&params));		
-
-	// Construct Levels
-	for(unsigned int i = GI_DENSE_LEVEL + 1; i < allocatorGrids[0].depth ; i++)
-	{
-		ConstructLevel(i, 0);
-	}
-
-	// Now adding cascade levels
-	for(unsigned int i = 1; i < allocators.size(); i++)
-	{
-		unsigned int currentLevel = allocatorGrids[0].depth + i - 1;
-		ConstructLevel(currentLevel, i);
-	}
-
-	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data() + (allocatorGrids[0].depth - GI_DENSE_LEVEL),
-						  dSVOLevelSizes.Data() + (allocatorGrids[0].depth - GI_DENSE_LEVEL),
-						  sizeof(unsigned int),
-						  cudaMemcpyDeviceToHost));
-
-
-	//// Fully Atomic Version
-	//for(unsigned int i = 0; i < allocators.size(); i++)
-	//{
-	//	uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
-	//						GI_THREAD_PER_BLOCK;
-	//	SVOReconstruct<<<gridSize, GI_THREAD_PER_BLOCK>>>
-	//	(
-	//		dSVOSparse,
-	//		dSVODense,
-	//		dSVOLevelSizes.Data(),
-	//		*dSVONodeAllocator.Data(),
-
-	//		allocators[i]->GetVoxelPagesDevice(),
-
-	//		static_cast<unsigned int>(dSVO.Size() - (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)),
-	//		i,
-	//		*dSVOConstants.Data()
-	//	);
-	//	CUDA_KERNEL_CHECK();
-	//}
+	// Maxwell is faster with fully atomic code (CAS Locks etc.)
+	// However kepler sucks (100ms compared to 5ms) 
+	if(CudaInit::CapabilityMajor() >= 5)
+		ConstructFullAtomic();
+	else
+		ConstructLevelByLevel();
 
 	// Now Allocate for Color
 	//dSVOMaterial.Resize(hSVOLevelStartIndices[currentLevelIndex] + matSparseOffset);
@@ -343,24 +371,24 @@ double GISparseVoxelOctree::UpdateSVO()
 	// Start bottom up (dont average until inner averages itself
 	// TODO
 	
-	//DEBUG
-	GI_LOG("-------------------------------------------");
-	GI_LOG("Tree Node Data");
-	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data(),
-						  dSVOLevelSizes.Data(),
-						  dSVOLevelSizes.Size() * sizeof(unsigned int),
-						  cudaMemcpyDeviceToHost));
-	unsigned int i;
-	for(i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
-	{
-		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
-	}
-	unsigned int total;
-	CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
-						  cudaMemcpyDeviceToHost));
-	GI_LOG("Total : %d", total);
-	GI_LOG("-------------------------------------------");
+	////DEBUG
+	//GI_LOG("-------------------------------------------");
+	//GI_LOG("Tree Node Data");
+	//CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data(),
+	//					  dSVOLevelSizes.Data(),
+	//					  dSVOLevelSizes.Size() * sizeof(unsigned int),
+	//					  cudaMemcpyDeviceToHost));
+	//unsigned int i;
+	//for(i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
+	//{
+	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
+	//}
+	//unsigned int total;
+	//CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
+	//					  cudaMemcpyDeviceToHost));
+	//GI_LOG("Total : %d", total);
+	//GI_LOG("-------------------------------------------");
 
 	timer.Stop();
 	return timer.ElapsedMilliS();

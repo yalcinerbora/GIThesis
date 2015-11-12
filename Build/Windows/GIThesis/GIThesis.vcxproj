@@ -107,6 +107,7 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\Source\CudaInit.cpp" />
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
     <ClCompile Include="..\..\..\Source\DeferredRenderer.cpp" />
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp" />
@@ -119,7 +120,7 @@
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
     <ClInclude Include="..\..\..\Source\CHash.cuh" />
     <ClInclude Include="..\..\..\Source\CSVOTypes.cuh" />
-    <ClInclude Include="..\..\..\Source\CudaDefinitions.h" />
+    <ClInclude Include="..\..\..\Source\CudaInit.h" />
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <FileType>Document</FileType>
     </ClInclude>

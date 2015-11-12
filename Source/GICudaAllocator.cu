@@ -3,7 +3,7 @@
 #include <cuda_gl_interop.h>
 #include "CudaTimer.h"
 #include "Macros.h"
-#include "CudaDefinitions.h"
+#include "CudaInit.h"
 
 __global__ void PurgePages(CVoxelPage* gVoxelData)
 {

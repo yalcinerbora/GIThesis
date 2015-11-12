@@ -3,7 +3,7 @@
 #include <cuda_runtime.h>
 #include <cassert>
 #include <algorithm>
-#include "CudaDefinitions.h"
+#include "CudaInit.h"
 
 template<class T>
 void CudaVector<T>::ExtendStorage()

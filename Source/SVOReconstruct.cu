@@ -281,3 +281,104 @@ extern __global__ void SVOReconstructAverageNode(CSVOMaterial* parentMats,
 {
 
 }
+
+
+inline __device__ unsigned int AA(CSVONode* gNode,
+								  unsigned int& gSVOAllocLocation,
+								  unsigned int* gLevelNodeCounts,
+								  const unsigned int levelIndex,
+								  const unsigned int svoMaxSize)
+{
+	// Release Configuration Optimization fucks up the code
+	// Prob changes some memory i-o ordering
+	// Its fixed but comment is here for future
+	// Problem here was cople threads on the same warp waits eachother and
+	// after some memory ordering changes by compiler responsible thread waits
+	// other threads execution to be done
+	// Code becomes something like this after compiler changes some memory orderings
+	//
+	//	while(old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE) == 0xFFFFFFFE); <-- notice semicolon
+	//	 if(old == 0xFFFFFF)
+	//		location = allocate();
+	//	location = old;
+	//	return location;
+	//
+	// first allocating thread will never return from that loop since 
+	// its warp threads are on infinite loop (so deadlock)
+
+	// much cooler version can be warp level exchange intrinsics
+	// which slightly reduces atomic pressure on the single node (on lower tree levels atleast)
+	
+	CSVONode old = 0xFFFFFFFE;
+	while(old == 0xFFFFFFFE)
+	{
+		old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE);
+		if(old == 0xFFFFFFFF)
+		{
+			// Allocate
+			unsigned int location = atomicAdd(&gSVOAllocLocation, 8); assert(location < svoMaxSize);
+			atomicAdd(&gLevelNodeCounts[levelIndex], 8);
+			atomicExch(gNode, location);
+			old = location;
+		}
+		__threadfence();
+	}
+	return old;
+}
+
+__global__ void SVOReconstruct(CSVONode* gSVOSparse,
+							   CSVONode* gSVODense,
+							   unsigned int* gLevelNodeCounts,
+							   unsigned int& gSVOAllocLocation,
+
+							   const CVoxelPage* gVoxelData,
+
+							   const unsigned int svoTotalSize,
+							   const unsigned int cascadeNo,
+							   const CSVOConstants& svoConstants)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * GI_THREAD_PER_BLOCK;
+	unsigned int pageId = globalId / GI_PAGE_SIZE;
+	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
+	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
+
+	// Skip Whole segment if necessary
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
+
+	// Fetch voxel
+	CVoxelPos voxelPosPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
+	if(voxelPosPacked == 0xFFFFFFFF) return;
+
+	// Local Voxel pos and expand it if its one of the inner cascades
+	uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);
+	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked,
+									  cascadeNo,
+									  svoConstants.numCascades);
+
+	unsigned int location;
+	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
+	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
+	{
+		unsigned int childId = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
+		
+		CSVONode* node = nullptr;
+		if(i == svoConstants.denseDepth)
+		{
+			uint3 levelVoxId = CalculateLevelVoxId(voxelPos, i, svoConstants.totalDepth);
+			node = gSVODense + svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+								svoConstants.denseDim * levelVoxId.y +
+								levelVoxId.x;
+		}
+		else
+		{
+			node = gSVOSparse + location;
+		}
+
+		// Allocate (or acquire) next location
+		unsigned int levelIndex = i + 1 - svoConstants.denseDepth;
+		location = AA(node, gSVOAllocLocation, gLevelNodeCounts,
+					  levelIndex, svoTotalSize);
+		location += childId;
+	}
+}

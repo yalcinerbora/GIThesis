@@ -67,7 +67,7 @@ inline __device__ void UnpackSVOMaterial(CSVOColor& color,
 	normal = static_cast<CVoxelNorm>(mat >> 32);
 }
 
-inline __device__ unsigned char CalculateLevelChildBit(const uint3& voxelPos,
+inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
 													   const unsigned int levelDepth,
 													   const unsigned int totalDepth)
 {
@@ -75,7 +75,14 @@ inline __device__ unsigned char CalculateLevelChildBit(const uint3& voxelPos,
 	bitSet |= ((voxelPos.z >> (totalDepth - levelDepth)) & 0x000000001) << 2;
 	bitSet |= ((voxelPos.y >> (totalDepth - levelDepth)) & 0x000000001) << 1;
 	bitSet |= ((voxelPos.x >> (totalDepth - levelDepth)) & 0x000000001) << 0;
-	return (0x01 << (bitSet));
+	return bitSet;
+}
+
+inline __device__ unsigned char CalculateLevelChildBit(const uint3& voxelPos,
+													   const unsigned int levelDepth,
+													   const unsigned int totalDepth)
+{
+	return 0x01 << CalculateLevelChildId(voxelPos, levelDepth, totalDepth);
 }
 
 inline __device__ uint3 CalculateLevelVoxId(const uint3& voxelPos,

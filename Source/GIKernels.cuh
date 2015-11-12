@@ -168,4 +168,17 @@ extern __global__ void SVOReconstructAverageNode(CSVOMaterial* parentMats,
 												 const unsigned int parentLevel, 
 												 const unsigned int matSparseOffset,
 												 const CSVOConstants& svoConstants);
+
+extern __global__ void SVOReconstruct(CSVONode* gSVOSparse,
+									  CSVONode* gSVODense,
+									  unsigned int* gLevelNodeCounts,
+									  unsigned int& gSVOAllocLocation,
+									  
+									  const CVoxelPage* gVoxelData,
+									  
+									  const unsigned int svoTotalSize,
+									  const unsigned int cascadeNo,
+									  const CSVOConstants& svoConstants);
+
+
 #endif //__GIKERNELS_H__

@@ -7,7 +7,6 @@
 #include "CHash.cuh"
 
 inline __device__ void LoadTransformData(// Shared Mem
-										 unsigned int* sHashIndex,
 										 CMatrix4x4* sTransformMatrices,
 										 CMatrix4x4* sRotationMatrices,
 
@@ -28,15 +27,6 @@ inline __device__ void LoadTransformData(// Shared Mem
 	}
 	__syncthreads();
 	
-	// Init Index Cache if this object type is morph dynamic or skeleton dynamic
-	if((sObjType != CVoxelObjectType::STATIC || 
-		sObjType != CVoxelObjectType::DYNAMIC) &&
-		blockLocalId < GI_MAX_SHARED_COUNT_PRIME)
-	{
-		sHashIndex[blockLocalId] = 0;
-	}
-	__syncthreads();
-
 	// Each Voxel Type Has Different Deformation(Animation)
 	switch(sObjType)
 	{
@@ -141,9 +131,8 @@ __global__ void VoxelTransform(// Voxel Pages
 {
 	// CacheLoading
 	// Shared Memory which used for transform rendering
-	__shared__ unsigned int sHashIndex[GI_MAX_SHARED_COUNT_PRIME];
-	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_SHARED_COUNT_PRIME];
-	__shared__ CMatrix4x4 sRotationMatrices[GI_MAX_SHARED_COUNT_PRIME];
+	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_SHARED_COUNT];
+	__shared__ CMatrix4x4 sRotationMatrices[GI_MAX_SHARED_COUNT];
 
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
@@ -163,7 +152,6 @@ __global__ void VoxelTransform(// Voxel Pages
 
 	// Segment is occupied so load matrices before culling unused warps
 	LoadTransformData(// Shared Mem
-					  sHashIndex,
 					  sTransformMatrices,
 					  sRotationMatrices,
 

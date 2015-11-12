@@ -1,5 +1,6 @@
 #include "CudaInit.h"
 #include "Macros.h"
+#include "GIKernels.cuh"
 
 cudaDeviceProp CudaInit::props = {};
 bool CudaInit::init = false;
@@ -10,7 +11,6 @@ void CudaInit::InitCuda()
 	cudaSetDevice(0);
 
 	// Cuda Check
-	cudaDeviceProp props;
 	CUDA_CHECK(cudaGetDeviceProperties(&props, 0));
 
 	// Info Print
@@ -35,9 +35,10 @@ void CudaInit::InitCuda()
 	// or 8kb (for %100 occupancy)
 	CUDA_CHECK(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
 
-	// Add if you need other config for functions
+	// Kernel Specifics
+	CUDA_CHECK(cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferEqual));
 
-
+	// All done!
 	init = true;
 }
 

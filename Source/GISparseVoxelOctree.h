@@ -48,11 +48,11 @@ class GISparseVoxelOctree
 		// SVO Mat indices
 		uint32_t								matSparseOffset;
 
-
 		// Atomic counter and svo level start locations
-		CudaVector<unsigned int>				dSVONodeCountAtomic;
-		CudaVector<unsigned int>				dSVOLevelStartIndices;
-		std::vector<unsigned int>				hSVOLevelStartIndices;
+		CudaVector<unsigned int>				dSVONodeAllocator;
+		CudaVector<unsigned int>				dSVOLevelSizes;
+		std::vector<unsigned int>				hSVOLevelSizes;
+		std::vector<unsigned int>				hSVOLevelOffsets;
 
 		// Inital Rays buffer
 		GLuint									initalRayLink;

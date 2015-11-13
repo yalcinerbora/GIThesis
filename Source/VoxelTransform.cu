@@ -8,7 +8,7 @@
 
 inline __device__ void LoadTransformData(// Shared Mem
 										 CMatrix4x4* sTransformMatrices,
-										 CMatrix4x4* sRotationMatrices,
+										 CMatrix3x3* sRotationMatrices,
 
 										 // Object Transform Matrix
 										 CObjectTransform** gObjTransforms,
@@ -69,11 +69,11 @@ inline __device__ void LoadTransformData(// Shared Mem
 				reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
 					reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
 			}
-			else if(blockLocalId < 32)
+			else if(blockLocalId < 28)
 			{
 				blockLocalId -= 16;
-				reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
-					reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId / 4])[blockLocalId % 4];
+				reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 3])[blockLocalId % 3] =
+					reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId / 3])[blockLocalId % 3];
 			}
 			break;
 		}
@@ -132,7 +132,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	// CacheLoading
 	// Shared Memory which used for transform rendering
 	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_SHARED_COUNT];
-	__shared__ CMatrix4x4 sRotationMatrices[GI_MAX_SHARED_COUNT];
+	__shared__ CMatrix3x3 sRotationMatrices[GI_MAX_SHARED_COUNT];
 
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;

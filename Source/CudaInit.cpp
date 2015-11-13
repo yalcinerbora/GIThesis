@@ -36,7 +36,7 @@ void CudaInit::InitCuda()
 	CUDA_CHECK(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
 
 	// Kernel Specifics
-	CUDA_CHECK(cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferShared));
+	CUDA_CHECK(cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferEqual));
 
 	// All done!
 	init = true;

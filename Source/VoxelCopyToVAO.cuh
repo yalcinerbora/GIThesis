@@ -10,6 +10,7 @@ Copying voxels to VAO
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cstdint>
+#include "CSVOTypes.cuh"
 
 struct CVoxelPage;
 struct CVoxelRender;
@@ -18,9 +19,6 @@ struct CVoxelGrid;
 struct CObjectVoxelInfo;
 struct CVoxelGrid;
 struct CObjectTransform;
-
-typedef unsigned int CSVONode;
-typedef uint64_t CSVOMaterial;
 
 // Determine Vox count in pages
 // Call Logic per page segment

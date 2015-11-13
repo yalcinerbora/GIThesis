@@ -86,12 +86,17 @@ inline __device__ void ExpandNormalPos(uint3& voxPos,
 									   bool& isMip,
 									   const CVoxelNormPos& packedVoxNormalPos)
 {
-	voxPos.x = (packedVoxNormalPos.x & 0x000001FF);
-	voxPos.y = (packedVoxNormalPos.x & 0x0003FE00) >> 9;
-	voxPos.z = (packedVoxNormalPos.x & 0x07FC0000) >> 18;
+	voxPos = ExpandOnlyVoxPos(packedVoxNormalPos.x);
 	isMip = ((packedVoxNormalPos.x & 0xF8000000) >> 27) != 0;
-
 	normal = ExpandOnlyNormal(packedVoxNormalPos.y);
+}
+
+inline  __device__ ushort2 ExpandOnlyObjId(const unsigned int packVoxIdX)
+{
+	ushort2 result;
+	result.x = (packVoxIdX & 0x0000FFFF);
+	result.y = (packVoxIdX & 0x3FFF0000) >> 16;
+	return result;
 }
 
 inline __device__ void ExpandVoxelIds(unsigned int& voxId,
@@ -99,11 +104,8 @@ inline __device__ void ExpandVoxelIds(unsigned int& voxId,
 									  CVoxelObjectType& objType,
 									  const CVoxelIds& packedVoxIds)
 {
-	objectId.x = (packedVoxIds.x & 0x0000FFFF);
-	objectId.y = (packedVoxIds.x & 0x3FFF0000) >> 16;
-
-	objType = static_cast<CVoxelObjectType>((packedVoxIds.y & 0xC0000000) >> 30);
-
+	objectId = ExpandOnlyObjId(packedVoxIds.x);
+	objType = static_cast<CVoxelObjectType>((packedVoxIds.x & 0xC0000000) >> 30);
 	voxId = packedVoxIds.y;
 }
 

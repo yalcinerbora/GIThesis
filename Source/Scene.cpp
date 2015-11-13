@@ -11,11 +11,13 @@ const char* Scene::movingObjectsFileName = "mvObj1.gfg";
 
 Scene::Scene(const char* sceneFileName,
 			 const Array32<Light>& lights,
-			 float minSpan)
+			 float minSpan,
+			 float svoMultiplier)
 	: sceneVertex({element, 3})
 	, drawParams()
 	, sceneLights(lights)
 	, minSpan(minSpan)
+	, svoMultiplier(svoMultiplier)
 {
 	IETimer timer;
 	timer.Start();
@@ -77,4 +79,9 @@ size_t Scene::DrawCount() const
 float Scene::MinSpan() const
 {
 	return minSpan;
+}
+
+float Scene::SVOMultiplier() const
+{
+	return svoMultiplier;
 }

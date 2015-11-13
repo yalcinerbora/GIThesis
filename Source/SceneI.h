@@ -27,6 +27,7 @@ class SceneI
 		virtual size_t			PolyCount() const = 0;
 
 		virtual float			MinSpan() const = 0; // Minimum voxel span used in vox generation
+		virtual float			SVOMultiplier() const = 0; // SVOMultipler for memory alloc
 };
 
 #endif //__SCENEI_H__

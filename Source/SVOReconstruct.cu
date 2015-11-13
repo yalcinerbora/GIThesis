@@ -45,6 +45,49 @@ inline __device__ CSVOColor AtomicColorNormalAvg(CSVOMaterial* gMaterial,
 	return old;
 }
 
+inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode,
+												  unsigned int& gSVOAllocLocation,
+												  unsigned int* gLevelNodeCounts,
+												  const unsigned int levelIndex,
+												  const unsigned int svoTotalSize)
+{
+	// Release Configuration Optimization fucks up the code
+	// Prob changes some memory i-o ordering
+	// Its fixed but comment is here for future
+	// Problem here was cople threads on the same warp waits eachother and
+	// after some memory ordering changes by compiler responsible thread waits
+	// other threads execution to be done
+	// Code becomes something like this after compiler changes some memory orderings
+	//
+	//	while(old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE) == 0xFFFFFFFE); <-- notice semicolon
+	//	 if(old == 0xFFFFFF)
+	//		location = allocate();
+	//	location = old;
+	//	return location;
+	//
+	// first allocating thread will never return from that loop since 
+	// its warp threads are on infinite loop (so deadlock)
+
+	// much cooler version can be warp level exchange intrinsics
+	// which slightly reduces atomic pressure on the single node (on lower tree levels atleast)
+
+	CSVONode old = 0xFFFFFFFE;
+	while(old == 0xFFFFFFFE)
+	{
+		old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE);
+		if(old == 0xFFFFFFFF)
+		{
+			// Allocate
+			unsigned int location = atomicAdd(&gSVOAllocLocation, 8); assert(location < svoTotalSize);
+			atomicAdd(&gLevelNodeCounts[levelIndex], 8);
+			atomicExch(gNode, location);
+			old = location;
+		}
+		__threadfence();
+	}
+	return old;
+}
+
 __global__ void SVOReconstructDetermineNode(CSVONode* gSVODense,
 											const CVoxelPage* gVoxelData,
 
@@ -109,27 +152,35 @@ __global__ void SVOReconstructDetermineNode(CSVONode* gSVOSparse,
 	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked, cascadeNo,
 									  svoConstants.numCascades);
 
-	uint3 denseIndex = CalculateLevelVoxId(voxelPos, svoConstants.denseDepth,
-										   svoConstants.totalDepth);
-
-	assert(denseIndex.x < svoConstants.denseDim &&
-		   denseIndex.y < svoConstants.denseDim &&
-		   denseIndex.z < svoConstants.denseDim);
-
-	CSVONode currentNode = tex3D<unsigned int>(tSVODense,
-											   denseIndex.x,
-											   denseIndex.y,
-											   denseIndex.z);
+	
 	assert(currentNode != 0xFFFFFFFF);
 	unsigned int nodeIndex = 0;
-	for(unsigned int i = svoConstants.denseDepth + 1; i <= levelDepth; i++)
+	for(unsigned int i = svoConstants.denseDepth; i < levelDepth; i++)
 	{		
-		// Offset according to children
-		unsigned int childIndex = CalculateLevelChildId(voxelPos, i, svoConstants.totalDepth);
-		nodeIndex = currentNode + childIndex;
+		CSVONode currentNode;
+		if(i == svoConstants.denseDepth)
+		{
+			uint3 denseIndex = CalculateLevelVoxId(voxelPos, svoConstants.denseDepth,
+												   svoConstants.totalDepth);
 
-		if(i < levelDepth) currentNode = gSVOSparse[nodeIndex];
+			assert(denseIndex.x < svoConstants.denseDim &&
+				   denseIndex.y < svoConstants.denseDim &&
+				   denseIndex.z < svoConstants.denseDim);
+
+			currentNode = tex3D<unsigned int>(tSVODense,
+											  denseIndex.x,
+											  denseIndex.y,
+											  denseIndex.z);
+		}
+		else
+		{
+			currentNode = gSVOSparse[nodeIndex];
+		}
+
+		// Offset according to children
 		assert(currentNode != 0xFFFFFFFF);
+		unsigned int childIndex = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
+		nodeIndex = currentNode + childIndex;
 	}
 
 	// Finally Write
@@ -158,22 +209,23 @@ __global__ void SVOReconstructAllocateLevel(CSVONode* gSVO,
 	gSVO[globalId + svoLevelOffset] = location;
 }
 
-__global__ void SVOReconstructAverageLeaf(CSVOMaterial* gSVOMat,
-										  
-										  // Const SVO Data
-										  const CSVONode* gSVOSparse,
-										  cudaTextureObject_t tSVODense,
-										  const CVoxelPage* gVoxelData,
-										  const unsigned int* gLevelLookupTable,
+__global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 
-										  // For Color Lookup
-										  CVoxelRender** gVoxelRenderData,
+										   // Const SVO Data
+										   const CSVONode* gSVOSparse,
+										   cudaTextureObject_t tSVODense,
+										   const CVoxelPage* gVoxelData,
+										   const unsigned int* gLevelLookupTable,
 
-										  // Constants
-										  const unsigned int matSparseOffset,
-										  const unsigned int cascadeNo,
-										  const unsigned int levelDepth,
-										  const CSVOConstants& svoConstants)
+										   // For Color Lookup
+										   CVoxelRender** gVoxelRenderData,
+
+										   // Constants
+										   const unsigned int matSparseOffset,
+										   const unsigned int cascadeNo,
+										   const unsigned int levelDepth,
+										   const bool average,
+										   const CSVOConstants& svoConstants)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * GI_THREAD_PER_BLOCK;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
@@ -243,70 +295,39 @@ __global__ void SVOReconstructAverageLeaf(CSVOMaterial* gSVOMat,
 	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
 	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
 
-	// Actual Atomic Average
-	AtomicColorNormalAvg(gSVOMat + nodeIndex + matSparseOffset, voxelColorPacked, voxelNormPacked);
-}
-
-extern __global__ void SVOReconstructAverageNode(CSVOMaterial* parentMats,
-												 const CSVOMaterial* childrenMats,
-												 const CSVONode* gSVONode,
-												 const unsigned int parentLevel,
-												 const CSVOConstants& svoConstants)
-{
-
-}
-
-
-inline __device__ unsigned int AA(CSVONode* gNode,
-								  unsigned int& gSVOAllocLocation,
-								  unsigned int* gLevelNodeCounts,
-								  const unsigned int levelIndex,
-								  const unsigned int svoTotalSize)
-{
-	// Release Configuration Optimization fucks up the code
-	// Prob changes some memory i-o ordering
-	// Its fixed but comment is here for future
-	// Problem here was cople threads on the same warp waits eachother and
-	// after some memory ordering changes by compiler responsible thread waits
-	// other threads execution to be done
-	// Code becomes something like this after compiler changes some memory orderings
-	//
-	//	while(old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE) == 0xFFFFFFFE); <-- notice semicolon
-	//	 if(old == 0xFFFFFF)
-	//		location = allocate();
-	//	location = old;
-	//	return location;
-	//
-	// first allocating thread will never return from that loop since 
-	// its warp threads are on infinite loop (so deadlock)
-
-	// much cooler version can be warp level exchange intrinsics
-	// which slightly reduces atomic pressure on the single node (on lower tree levels atleast)
-	
-	CSVONode old = 0xFFFFFFFE;
-	while(old == 0xFFFFFFFE)
+	if(average)
 	{
-		old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE);
-		if(old == 0xFFFFFFFF)
-		{
-			// Allocate
-			unsigned int location = atomicAdd(&gSVOAllocLocation, 8); assert(location < svoTotalSize);
-			atomicAdd(&gLevelNodeCounts[levelIndex], 8);
-			atomicExch(gNode, location);
-			old = location;
-		}
-		__threadfence();
+		// Actual Atomic Average
+		AtomicColorNormalAvg(gSVOMat + nodeIndex + matSparseOffset,
+							 voxelColorPacked, 
+							 voxelNormPacked);
 	}
-	return old;
+	else
+	{
+		gSVOMat[nodeIndex + matSparseOffset] = PackSVOMaterial(voxelColorPacked, voxelNormPacked);
+	}
 }
 
-__global__ void SVOReconstruct(CSVONode* gSVOSparse,
+__global__ void SVOReconstructAverageNode(CSVOMaterial* parentMats,
+										  const CSVOMaterial* childrenMats,
+										  const CSVONode* gSVONode,
+										  const unsigned int parentLevel,
+										  const CSVOConstants& svoConstants)
+{
+
+}
+
+__global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
+							   CSVONode* gSVOSparse,
 							   CSVONode* gSVODense,
 							   unsigned int* gLevelNodeCounts,
 							   unsigned int& gSVOAllocLocation,
 
+							   // For Color Lookup
 							   const CVoxelPage* gVoxelData,
+							   CVoxelRender** gVoxelRenderData,
 
+							   const unsigned int matSparseOffset,
 							   const unsigned int svoTotalSize,
 							   const unsigned int cascadeNo,
 							   const CSVOConstants& svoConstants)
@@ -351,8 +372,20 @@ __global__ void SVOReconstruct(CSVONode* gSVOSparse,
 
 		// Allocate (or acquire) next location
 		unsigned int levelIndex = i + 1 - svoConstants.denseDepth;
-		location = AA(node, gSVOAllocLocation, gLevelNodeCounts,
-					  levelIndex, svoTotalSize);
+		location = AtomicAllocateNode(node, gSVOAllocLocation, gLevelNodeCounts,
+									  levelIndex, svoTotalSize);
 		location += childId;
 	}
+
+	// We are at bottom of the location can write colors (---)
+	ushort2 objectId;
+	CVoxelObjectType objType;
+	unsigned int voxelId;
+	ExpandVoxelIds(voxelId, objectId, objType, gVoxelData[pageId].dGridVoxIds[pageLocalId]);
+
+	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
+	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
+	AtomicColorNormalAvg(gSVOMat + matSparseOffset + location,
+						 voxelColorPacked,
+						 voxelNormPacked);
 }

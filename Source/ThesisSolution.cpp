@@ -74,9 +74,9 @@ void ThesisSolution::Init(SceneI& s)
 	// Voxelization
 	// and Voxel Cache Creation
 	double voxelTotaltime = 0.0;
-	voxelTotaltime += Voxelize(cache2048, 0.513f, 1);
-	voxelTotaltime += Voxelize(cache1024, 0.513f * 2, 2);
-	voxelTotaltime += Voxelize(cache512, 0.513f * 4, 4);
+	voxelTotaltime += Voxelize(cache2048, 0.513f, 1, true);
+	voxelTotaltime += Voxelize(cache1024, 0.513f * 2, 2, false);
+	voxelTotaltime += Voxelize(cache512, 0.513f * 4, 4, false);
 	GI_LOG("Scene voxelization completed. Elapsed time %f ms", voxelTotaltime);
 
 	// Voxel Page System Linking
@@ -91,7 +91,7 @@ void ThesisSolution::Init(SceneI& s)
 		voxelScene1024.Allocator(),
 		voxelScene2048.Allocator(),
 	};
-	voxelOctree.LinkAllocators(allocators, 3);
+	voxelOctree.LinkAllocators(allocators, 3, currentScene->SVOMultiplier());
 
 	// Scene Link
 	voxelOctree.LinkScene(currentScene->getSceneLights().GetLightBufferGL(),
@@ -166,7 +166,8 @@ void ThesisSolution::Release()
 }
 
 double ThesisSolution::Voxelize(VoxelObjectCache& cache,
-								float gridSpan, unsigned int minSpanMultiplier)
+								float gridSpan, unsigned int minSpanMultiplier,
+								bool isInnerCascade)
 {
 	cache.objectGridInfo.Resize(currentScene->DrawCount());
 
@@ -225,7 +226,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	{
 		if(cache.objectGridInfo.CPUData()[i].span < currentScene->MinSpan() * minSpanMultiplier)
 		{
-			isMip[i] = 1;
+			isMip[i] = (isInnerCascade) ? 0 : 1;
 			cache.objectGridInfo.CPUData()[i].span = currentScene->MinSpan() * minSpanMultiplier;
 		}
 			

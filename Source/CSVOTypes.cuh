@@ -17,6 +17,12 @@ typedef unsigned int CSVOColor;
 
 typedef uint64_t CSVOMaterial;
 
+struct CSVOMaterial2
+{
+	uint64_t colorNormal;
+	unsigned int asd;
+};
+
 //struct CSVOMaterial
 //{
 //	unsigned int color;		

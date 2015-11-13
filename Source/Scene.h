@@ -34,13 +34,15 @@ class Scene : public SceneI
 		size_t					totalPolygons;
 
 		float					minSpan;
+		float					svoMultiplier;
 
 	protected:
 	public:
 		// Constructors & Destructor
 								Scene(const char* sceneFileName,
 									  const Array32<Light>& light,
-									  float minSpan);
+									  float minSpan,
+									  float svoMultipler);
 								~Scene() = default;
 
 		// Static Files
@@ -58,6 +60,7 @@ class Scene : public SceneI
 		size_t					DrawCount() const override;
 
 		float					MinSpan() const override;
+		float					SVOMultiplier() const override;
 };
 
 #endif //__SCENE_H__

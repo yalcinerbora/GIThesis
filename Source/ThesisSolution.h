@@ -147,7 +147,8 @@ class ThesisSolution : public SolutionI
 		 // Voxelizes the scene for a cache level
 		double								Voxelize(VoxelObjectCache&,
 													 float gridSpan, 
-													 unsigned int minSpanMultiplier);
+													 unsigned int minSpanMultiplier,
+													 bool isInnerCascade);
 		void								LinkCacheWithVoxScene(GICudaVoxelScene&, 
 																  VoxelObjectCache&,
 																  float coverageRatio);

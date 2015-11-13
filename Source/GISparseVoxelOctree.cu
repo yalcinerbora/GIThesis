@@ -64,7 +64,8 @@ __global__ void fastreadkernel(cudaTextureObject_t texture,
 }
 
 void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
-										 size_t allocatorSize)
+										 size_t allocatorSize,
+										 float sceneMultiplier)
 {
 	allocatorGrids.clear();
 	allocators.resize(allocatorSize);
@@ -78,26 +79,30 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 		allocatorGrids[i] = newAllocators[i]->GetVoxelGridHost();
 
 	// TODO: More Dynamic Allocation Scheme
-	size_t totalAlloc = GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE;
-	float multiplier = static_cast<float>(1.0 - std::pow(0.420f, (allocatorGrids[0].depth - GI_DENSE_LEVEL))) / (1.0f - 0.420f);
-	
-	for(unsigned int i = 0; i < allocatorSize; i++)
-	{
-		float depthMultiplier = 1;
-		if(i == 0) depthMultiplier = multiplier;
-		totalAlloc += static_cast<unsigned int>(allocators[i]->NumPages() * GI_PAGE_SIZE * depthMultiplier);
-	}
-	dSVO.Resize(totalAlloc);
-	
+	size_t totalAlloc = static_cast<size_t>(sceneMultiplier * 1024.0f * 1024.0f);
+	dSVO.Resize(totalAlloc + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+
 	dSVODense = dSVO.Data();
 	dSVOSparse = dSVO.Data() + (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 
 	// Mat Tree holds up to level 0
 	matSparseOffset = static_cast<unsigned int>((1.0 - std::pow(8.0f, GI_DENSE_LEVEL + 1)) / (1.0f - 8.0f));
+	dSVOMaterial.Resize(totalAlloc + matSparseOffset);
 
-	hSVOLevelOffsets.resize(allocatorGrids[0].depth + allocatorSize + 2);
-	hSVOLevelSizes.resize(allocatorGrids[0].depth + allocatorSize);
-	dSVOLevelSizes.Resize(allocatorGrids[0].depth + allocatorSize);
+	hSVOLevelOffsets.resize(allocatorGrids[0].depth + allocatorSize - GI_DENSE_LEVEL + 2);
+	hSVOLevelSizes.resize(allocatorGrids[0].depth + allocatorSize - GI_DENSE_LEVEL);
+	dSVOLevelSizes.Resize(allocatorGrids[0].depth + allocatorSize - GI_DENSE_LEVEL);
+	
+	dSVONodeId.resize(allocatorGrids[0].depth + allocatorSize - GI_DENSE_LEVEL - 2);
+	//dSVONodeId
+
+	// Clear All Data
+	dSVO.Memset(0xFF, 0, dSVO.Size());
+	dSVOMaterial.Memset(0x00, 0, dSVOMaterial.Size());
+	dSVONodeAllocator.Memset(0x00, 0, 1);
+	dSVOLevelSizes.Memset(0x00, 0, dSVOLevelSizes.Size());
+	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
+	std::fill(hSVOLevelOffsets.begin(), hSVOLevelOffsets.end(), 0);
 	
 	unsigned int totalLevel = static_cast<unsigned int>(allocatorGrids[0].depth + allocatorSize - 1);
 
@@ -247,13 +252,16 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 							GI_THREAD_PER_BLOCK;
 		SVOReconstruct<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(
+			dSVOMaterial.Data(),
 			dSVOSparse,
 			dSVODense,
 			dSVOLevelSizes.Data(),
 			*dSVONodeAllocator.Data(),
 
 			allocators[i]->GetVoxelPagesDevice(),
+			allocators[i]->GetObjRenderCacheDevice(),
 
+			matSparseOffset,
 			static_cast<unsigned int>(dSVO.Size() - (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)),
 			i,
 			*dSVOConstants.Data()
@@ -261,6 +269,12 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 		CUDA_KERNEL_CHECK();
 	}
 
+	// Reduce Colors to lower levels
+	// TODO:
+	
+
+
+	
 	// Copy Dense to Texture
 	cudaMemcpy3DParms params = { 0 };
 	params.dstArray = denseArray;
@@ -274,7 +288,6 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 	params.extent = { GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE };
 	params.kind = cudaMemcpyDeviceToDevice;
 	CUDA_CHECK(cudaMemcpy3D(&params));
-
 }
 
 void GISparseVoxelOctree::ConstructLevelByLevel()
@@ -316,34 +329,9 @@ void GISparseVoxelOctree::ConstructLevelByLevel()
 		cudaMemcpyDeviceToHost));
 }
 
-double GISparseVoxelOctree::UpdateSVO()
+void GISparseVoxelOctree::AverageNodes(bool orderedNodes)
 {
-	CudaTimer timer;
-	timer.Start();
-
-	// Reset Atomic Counter since we reconstruct every frame
-	unsigned int usedNodeCount;
-	CUDA_CHECK(cudaMemcpy(&usedNodeCount, dSVONodeAllocator.Data(), sizeof(unsigned int),
-						  cudaMemcpyDeviceToHost));
-	dSVO.Memset(0xFF, 0, usedNodeCount + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-	dSVONodeAllocator.Memset(0x00, 0, 1);
-	dSVOLevelSizes.Memset(0x00, 0, dSVOLevelSizes.Size());
-	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
-	std::fill(hSVOLevelOffsets.begin(), hSVOLevelOffsets.end(), 0);
-
-	// Maxwell is faster with fully atomic code (CAS Locks etc.)
-	// However kepler sucks (100ms compared to 5ms) 
-	if(CudaInit::CapabilityMajor() >= 5)
-		ConstructFullAtomic();
-	else
-		ConstructLevelByLevel();
-
-	// Now Allocate for Color
-	//dSVOMaterial.Resize(hSVOLevelStartIndices[currentLevelIndex] + matSparseOffset);
-	//dSVOMaterial.Memset(0x00, 0, dSVOMaterial.Size());
-	//GI_LOG("-------------------------------------------");
-	//GI_LOG("Memory %f", MemoryUsage() / 1024.0 / 1024.0);
-	
+	// First Average Leafs atomically	
 	//for(unsigned int i = 0; i < allocators.size(); i++)
 	//{
 	//	assert(allocators[i]->IsGLMapped() == true);
@@ -370,25 +358,60 @@ double GISparseVoxelOctree::UpdateSVO()
 	// Now use leaf nodes to average upper nodes
 	// Start bottom up (dont average until inner averages itself
 	// TODO
-	
-	////DEBUG
-	//GI_LOG("-------------------------------------------");
-	//GI_LOG("Tree Node Data");
-	//CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data(),
-	//					  dSVOLevelSizes.Data(),
-	//					  dSVOLevelSizes.Size() * sizeof(unsigned int),
-	//					  cudaMemcpyDeviceToHost));
-	//unsigned int i;
-	//for(i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
-	//{
-	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
-	//}
-	//unsigned int total;
-	//CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
-	//					  cudaMemcpyDeviceToHost));
-	//GI_LOG("Total : %d", total);
-	//GI_LOG("-------------------------------------------");
+}
+
+double GISparseVoxelOctree::UpdateSVO()
+{
+	CudaTimer timer;
+	timer.Start();
+
+	// Reset Atomic Counter since we reconstruct every frame
+	unsigned int usedNodeCount;
+	CUDA_CHECK(cudaMemcpy(&usedNodeCount, dSVONodeAllocator.Data(), sizeof(unsigned int),
+						  cudaMemcpyDeviceToHost));
+	dSVO.Memset(0xFF, 0, usedNodeCount + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+	dSVOMaterial.Memset(0x00, matSparseOffset, usedNodeCount);
+	dSVO.Memset(0xFF, 0, dSVO.Size());
+	dSVOMaterial.Memset(0x00, 0, dSVOMaterial.Size());
+	dSVONodeAllocator.Memset(0x00, 0, 1);
+	dSVOLevelSizes.Memset(0x00, 0, dSVOLevelSizes.Size());
+	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
+	std::fill(hSVOLevelOffsets.begin(), hSVOLevelOffsets.end(), 0);
+
+	// Maxwell is faster with fully atomic code (CAS Locks etc.)
+	// However kepler sucks (100ms compared to 5ms) 
+	if(CudaInit::CapabilityMajor() >= 6)
+	{
+		// Since fully atomic construction does not 
+		// create level nodes in ordered manner
+		// for each level we need to traverse node
+		ConstructFullAtomic();
+		AverageNodes(false);
+	}
+	else
+	{
+		ConstructLevelByLevel();
+		AverageNodes(true);
+	}
+
+	// DEBUG
+	GI_LOG("-------------------------------------------");
+	GI_LOG("Tree Node Data");
+	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data(),
+						  dSVOLevelSizes.Data(),
+						  dSVOLevelSizes.Size() * sizeof(unsigned int),
+						  cudaMemcpyDeviceToHost));
+	unsigned int i;
+	for(i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
+	{
+		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
+	}
+	unsigned int total;
+	CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
+						  cudaMemcpyDeviceToHost));
+	GI_LOG("Total : %d", total);
+	GI_LOG("-------------------------------------------");
 
 	timer.Stop();
 	return timer.ElapsedMilliS();
@@ -408,38 +431,26 @@ void GISparseVoxelOctree::LinkScene(GLuint lightBuffer,
 
 }
 
-//VoxelDebugVAO GISparseVoxelOctree::VoxelDataForRendering(double& transferTime,
-//														 unsigned int& voxelCount,
-//														 unsigned int level)
-//{
-//	// Find Node count
-//	unsigned int currentLevelIndex = level - GI_DENSE_LEVEL;
-//	uint32_t levelNodeCount, levelNodeStarts[2];
-//	CUDA_CHECK(cudaMemcpy(levelNodeStarts,
-//						  dSVOLevelStartIndices.Data() + currentLevelIndex - 1,
-//						  sizeof(unsigned int) * 2,
-//						  cudaMemcpyDeviceToHost));
-//	levelNodeCount = levelNodeStarts[1] - levelNodeStarts[0];
-//
-//	//
-//	vaoNormPosData.Resize(levelNodeCount);
-//	vaoColorData.Resize(levelNodeCount);
-//
-//	//// Cuda stuff;
-//
-//	////
-//	//uint32_t gridSize = ((levelNodeCount) + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
-//	//SVOVoxelFetch<<<gridSize, GI_THREAD_PER_BLOCK>>>
-//	//(
-//	//	dSVOSparse,
-//	//	*dSVONodeCountAtomic.Data(),
-//	//	*(dSVOLevelStartIndices.Data() + currentLevelIndex - 1),
-//	//	*(dSVOLevelStartIndices.Data() + currentLevelIndex),
-//	//	levelNodeCount
-//	//);
-//	//CUDA_KERNEL_CHECK();
-//	
-//}
+double GISparseVoxelOctree::SVODataToGL(// GL buffer ptrs
+										CVoxelNormPos* dVAONormPosData,
+										uint32_t* dVAOColorData,
+
+										CVoxelGrid& voxGridData,
+										uint32_t& voxCount,
+										uint32_t level,
+										uint32_t maxVoxelCount)
+{
+	// This version is for fully atomic level fetch
+	// used for debugging
+
+	// Since we do not know where specific level starts and ends on the voxel system
+	// we ill launch entire node system
+
+
+
+
+	return 0.0;
+}
 
 uint64_t GISparseVoxelOctree::MemoryUsage() const
 {

@@ -399,13 +399,21 @@ void GICudaAllocator::ResetSceneData()
 	totalObjectCount = 0;
 	totalSegmentCount = 0;
 
-	if(NumPages() > 0)
-	{
-		unsigned int gridSize = (NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
-								 GI_THREAD_PER_BLOCK;
-		PurgePages<<<gridSize, GI_THREAD_PER_BLOCK>>>(GetVoxelPagesDevice());
-		CUDA_KERNEL_CHECK();
-	}
+	// Clear all voxel pages (normally resetting values should suffice but there is a bug)
+	// And couldnt figure out where it is
+	dVoxelPages.Clear();
+	hVoxelPages.clear();
+	hPageData.clear();
+	reservedPageCount = 0;
+
+	//// Reset Voxel Values
+	//if(dVoxelPages.Size() > 0)
+	//{
+	//	unsigned int gridSize = (dVoxelPages.Size() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
+	//							 GI_THREAD_PER_BLOCK;
+	//	PurgePages<<<gridSize, GI_THREAD_PER_BLOCK>>>(GetVoxelPagesDevice());
+	//	CUDA_KERNEL_CHECK();
+	//}
 }
 
 void GICudaAllocator::ReserveForSegments(float coverageRatio)

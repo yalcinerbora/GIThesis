@@ -8,6 +8,7 @@ Global Illumination Kernels
 #define __GIKERNELS_H__
 
 #include "GICudaAllocator.h"
+#include "CSVOTypes.cuh"
 
 struct CAABB;
 typedef CAABB CObjectAABB;
@@ -18,9 +19,6 @@ struct CVoxelRender;
 struct CVoxelPage;
 struct CVoxelGrid;
 struct CSVOConstants;
-
-typedef unsigned int CSVONode;
-typedef uint64_t CSVOMaterial;
 
 // Voxel Transform
 // Transforms existing voxels in order to cut voxel reconstruction each frame
@@ -173,13 +171,17 @@ extern __global__ void SVOReconstructAverageNode(CSVOMaterial* parentMats,
 												 const unsigned int matSparseOffset,
 												 const CSVOConstants& svoConstants);
 
-extern __global__ void SVOReconstruct(CSVONode* gSVOSparse,
+extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
+									  CSVONode* gSVOSparse,
 									  CSVONode* gSVODense,
 									  unsigned int* gLevelNodeCounts,
 									  unsigned int& gSVOAllocLocation,
-									  
+
+									  // For Color Lookup
 									  const CVoxelPage* gVoxelData,
-									  
+									  CVoxelRender** gVoxelRenderData,
+
+									  const unsigned int matSparseOffset,
 									  const unsigned int svoTotalSize,
 									  const unsigned int cascadeNo,
 									  const CSVOConstants& svoConstants);

@@ -41,6 +41,9 @@ class GISparseVoxelOctree
 		CudaVector<CSVONode>					dSVO;				// Entire SVO
 		CudaVector<CSVOMaterial>				dSVOMaterial;			// Entire SVO
 
+		StructuredBuffer<CSVONode>				svoNodeBuffer;
+		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
+
 		// SVO Ptrs
 		CSVONode*								dSVODense;
 		CSVONode*								dSVOSparse;

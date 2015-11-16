@@ -46,6 +46,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TODO List", "TODO List", "{
 		..\..\TodoList.txt = ..\..\TodoList.txt
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CopyCuda", "CopyCuda", "{69EC0B9E-47A0-4B24-9AD2-F6B1BE2B199F}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\GBufferDepthToR32F.glsl = ..\..\WorkingDir\Shaders\GBufferDepthToR32F.glsl
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -64,5 +69,6 @@ Global
 		{E1A6E462-843D-4491-90A8-8137B528F211} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{42F0F4B2-2641-411B-8938-15FBF14395FA} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{CEC68846-BCA8-4FEC-9016-2B716037C75A} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
+		{69EC0B9E-47A0-4B24-9AD2-F6B1BE2B199F} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 	EndGlobalSection
 EndGlobal

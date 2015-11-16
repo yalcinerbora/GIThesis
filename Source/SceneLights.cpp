@@ -66,7 +66,7 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	lightViewProjMatrices.RecieveData(6 * lights.length);
 	glGenTextures(1, &lightShadowMaps);
 	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, lightShadowMaps);
-	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT32, shadowMapWH, shadowMapWH, 6 * lights.length);
+	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT32F, shadowMapWH, shadowMapWH, 6 * lights.length);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 	
@@ -78,7 +78,7 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	// Interpret CubemapTexture Array as 2D Texture
 	// Used for Directional Lights (each cube side is a cascade)
 	glGenTextures(1, &shadowMapArrayView);
-	glTextureView(shadowMapArrayView, GL_TEXTURE_2D_ARRAY, lightShadowMaps, GL_DEPTH_COMPONENT32,
+	glTextureView(shadowMapArrayView, GL_TEXTURE_2D_ARRAY, lightShadowMaps, GL_DEPTH_COMPONENT32F,
 				  0, 1, 0, 6 * lights.length);
 
 	glGenTextures(1, &shadowMapR32FCopy);
@@ -90,7 +90,7 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 		lightsGPU.AddData(lights.arr[i]);
 		lightShadowCast.push_back(true);
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBOs[i]);
-		glTextureView(shadowMapViews[i], GL_TEXTURE_CUBE_MAP, lightShadowMaps, GL_DEPTH_COMPONENT32,
+		glTextureView(shadowMapViews[i], GL_TEXTURE_CUBE_MAP, lightShadowMaps, GL_DEPTH_COMPONENT32F,
 					  0, 1, 6 * i, 6);
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMapViews[i], 0);
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);

@@ -63,6 +63,8 @@ class DeferredRenderer
 		Shader					geomPointShadowMap;
 		Shader					geomDirShadowMap;
 
+		Shader					computeDepthCopyR32F;
+
 		GBuffer					gBuffer;
 		FrameTransformBuffer	cameraTransform;
 		InvFrameTransformBuffer invFrameTransform;

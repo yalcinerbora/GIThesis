@@ -331,6 +331,13 @@ void GISparseVoxelOctree::ConstructLevelByLevel()
 
 void GISparseVoxelOctree::AverageNodes(bool orderedNodes)
 {
+	// Leaf Nodes Already ordered
+
+
+	// Google
+
+
+	
 	// First Average Leafs atomically	
 	//for(unsigned int i = 0; i < allocators.size(); i++)
 	//{
@@ -380,7 +387,7 @@ double GISparseVoxelOctree::UpdateSVO()
 
 	// Maxwell is faster with fully atomic code (CAS Locks etc.)
 	// However kepler sucks (100ms compared to 5ms) 
-	if(CudaInit::CapabilityMajor() >= 6)
+	if(CudaInit::CapabilityMajor() >= 5)
 	{
 		// Since fully atomic construction does not 
 		// create level nodes in ordered manner

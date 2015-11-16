@@ -8,9 +8,6 @@
 #define U_MIN_SPAN layout(location = 5)
 #define U_MAX_GRID_DIM layout(location = 6)
 
-//#define MAX_GRID_DIM 512.0f
-//#define MIN_SPAN 1.5f
-
 U_TOTAL_OBJ_COUNT uniform uint objCount;
 U_MIN_SPAN uniform float minSpan;
 U_MAX_GRID_DIM uniform uint maxGridDim;

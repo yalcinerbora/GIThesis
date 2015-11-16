@@ -152,8 +152,6 @@ __global__ void SVOReconstructDetermineNode(CSVONode* gSVOSparse,
 	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked, cascadeNo,
 									  svoConstants.numCascades);
 
-	
-	assert(currentNode != 0xFFFFFFFF);
 	unsigned int nodeIndex = 0;
 	for(unsigned int i = svoConstants.denseDepth; i < levelDepth; i++)
 	{		

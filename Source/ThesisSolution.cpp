@@ -47,7 +47,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, gridInfoBuffer(1)
 	, voxelNormPosBuffer(512)
 	, voxelColorBuffer(512)
-	, voxelOctree(dRenderer.GetLightIntensityBufferGL())
+	, voxelOctree()
 {
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, 6);
 	gridInfoBuffer.AddData({});
@@ -92,10 +92,6 @@ void ThesisSolution::Init(SceneI& s)
 		voxelScene2048.Allocator(),
 	};
 	voxelOctree.LinkAllocators(allocators, 3, currentScene->SVOMultiplier());
-
-	// Scene Link
-	voxelOctree.LinkScene(currentScene->getSceneLights().GetLightBufferGL(),
-						  currentScene->getSceneLights().GetShadowMapArrayR32F());
 
 	// Memory Usage Total
 	GI_LOG("Voxel Sytem #1 Total Memory Usage %f MB", 

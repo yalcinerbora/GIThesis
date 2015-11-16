@@ -13,6 +13,7 @@
 #include "VoxelDebugVAO.h"
 #include "GICudaVoxelScene.h"
 #include "CSVOTypes.cuh"
+#include "Shader.h"
 
 #define GI_DENSE_LEVEL 6
 #define GI_DENSE_SIZE 64
@@ -38,13 +39,11 @@ class GISparseVoxelOctree
 		cudaArray_t								denseArray;
 
 		// SVO Data
-		CudaVector<CSVONode>					dSVO;				// Entire SVO
-		CudaVector<CSVOMaterial>				dSVOMaterial;			// Entire SVO
-
 		StructuredBuffer<CSVONode>				svoNodeBuffer;
 		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
 
 		// SVO Ptrs
+		CSVOMaterial*							dSVOMaterial;
 		CSVONode*								dSVODense;
 		CSVONode*								dSVOSparse;
 
@@ -52,21 +51,18 @@ class GISparseVoxelOctree
 		uint32_t								matSparseOffset;
 
 		// Atomic counter and svo level start locations
-		std::vector<CudaVector<uint32_t>>		dSVONodeId;
 		CudaVector<unsigned int>				dSVONodeAllocator;
 		CudaVector<unsigned int>				dSVOLevelSizes;
 		std::vector<unsigned int>				hSVOLevelSizes;
 		std::vector<unsigned int>				hSVOLevelOffsets;
 
-		// Inital Rays buffer
-		GLuint									initalRayLink;
-		cudaGraphicsResource_t					rayLinks;
-
 		// Interop Data
-		cudaGraphicsResource_t					shadowMapArrayTexLink;
-		cudaGraphicsResource_t					lightBufferLink;
-		cudaGraphicsResource_t					lightIntensityTexLink;
+		cudaGraphicsResource_t					svoNodeResource;
+		cudaGraphicsResource_t					svoMaterialResource;
 		
+		// Trace Shaders
+		Shader									computeVoxTraceWorld;
+
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
 															   unsigned int allocatorIndex);
@@ -78,7 +74,7 @@ class GISparseVoxelOctree
 
 	public:
 		// Constructors & Destructor
-												GISparseVoxelOctree(GLuint lightIntensityTex);
+												GISparseVoxelOctree();
 												GISparseVoxelOctree(const GISparseVoxelOctree&) = delete;
 		GISparseVoxelOctree&					operator=(const GISparseVoxelOctree&) = delete;
 												~GISparseVoxelOctree();
@@ -98,10 +94,6 @@ class GISparseVoxelOctree
 														  GLuint normalBuffer,
 														  GLuint colorBuffer,
 														  const Camera& camera);
-
-		// Set current scene light positions
-		void									LinkScene(GLuint lightBuffer,
-														  GLuint shadowMapArrayTexture);
 
 		double									SVODataToGL(// GL buffer ptrs
 															CVoxelNormPos* dVAONormPosData,

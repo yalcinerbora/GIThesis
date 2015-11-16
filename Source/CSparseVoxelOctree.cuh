@@ -110,10 +110,10 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 		// Bit expansion of inner cascades
 		// if MSB is 1 it becomes 10
 		// if MSB is 0 it becomes 01
-		volatile unsigned int bitLoc = 9 + numCascades - cascadeNo - 1;
-		volatile unsigned int rightBitMask = (0x01 << (bitLoc - 1)) - 1;
-		volatile unsigned int componentBit;
-		volatile unsigned int component;
+		unsigned int bitLoc = 9 + numCascades - cascadeNo - 1;
+		unsigned int rightBitMask = (0x01 << (bitLoc - 1)) - 1;
+		unsigned int componentBit;
+		unsigned int component;
 
 		componentBit = expandedVoxId.x >> (bitLoc - 1);
 		component = (1 - componentBit) * 0x01 + componentBit * 0x02;

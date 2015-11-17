@@ -7,7 +7,6 @@ GBuffer::GBuffer(GLuint w, GLuint h)
  , fboTexSampler(0)
  , width(w)
  , height(h)
- , depthR32FCopy(0)
 {
 	// Generate Textures
 	glGenTextures(3, rtTextures);
@@ -22,11 +21,6 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 	
 	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)]);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, width, height);
-
-	//depthR32FView (Cuda compatiblity)
-	glGenTextures(1, &depthR32FCopy);
-	glBindTexture(GL_TEXTURE_2D, depthR32FCopy);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32F, width, height);
 
 	// Sampler
 	glGenSamplers(1, &fboTexSampler);
@@ -56,7 +50,6 @@ GBuffer::~GBuffer()
 	glDeleteFramebuffers(1, &fbo);
 	glDeleteSamplers(1, &fboTexSampler);
 	glDeleteTextures(3, rtTextures);
-	glDeleteTextures(1, &depthR32FCopy);
 }
 
 void GBuffer::BindAsTexture(GLuint texTarget,
@@ -77,6 +70,12 @@ void GBuffer::AlignViewport()
 	glViewport(0, 0, width, height);
 }
 
+
+GLuint GBuffer::getColorGL()
+{
+	return rtTextures[static_cast<int>(RenderTargetLocation::COLOR)];
+}
+
 GLuint GBuffer::getDepthGL()
 {
 	return rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)];
@@ -85,11 +84,6 @@ GLuint GBuffer::getDepthGL()
 GLuint GBuffer::getNormalGL()
 {
 	return rtTextures[static_cast<int>(RenderTargetLocation::NORMAL)];
-}
-
-GLuint GBuffer::getDepthGLView()
-{
-	return depthR32FCopy;
 }
 
 void GBuffer::BindDefaultFBO()

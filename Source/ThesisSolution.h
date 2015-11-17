@@ -119,7 +119,6 @@ class ThesisSolution : public SolutionI
 		StructuredBuffer<VoxelNormPos>		voxelNormPosBuffer;
 		StructuredBuffer<uchar4>			voxelColorBuffer;
 
-		//
 		cudaGraphicsResource_t				vaoNormPosResource;
 		cudaGraphicsResource_t				vaoRenderResource;
 
@@ -143,6 +142,7 @@ class ThesisSolution : public SolutionI
 																 const CVoxelGrid& voxGrid,
 																 uint32_t offset,
 																 uint32_t voxCount);
+		double								DebugRenderSVO(const Camera& camera);
 
 		 // Voxelizes the scene for a cache level
 		double								Voxelize(VoxelObjectCache&,

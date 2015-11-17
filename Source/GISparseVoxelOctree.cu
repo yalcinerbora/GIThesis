@@ -4,6 +4,8 @@
 #include "GIKernels.cuh"
 #include "CudaTimer.h"
 #include "Macros.h"
+#include "Camera.h"
+#include "Globals.h"
 
 GISparseVoxelOctree::GISparseVoxelOctree()
 	: svoNodeBuffer(512)
@@ -14,7 +16,12 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, vaoNormPosData(512)
 	, vaoColorData(512)
 	, computeVoxTraceWorld(ShaderType::COMPUTE, "Shaders/VoxTraceWorld.glsl")
-{}
+	, svoTraceData(1)
+	, camTraceData(1)
+{
+	svoTraceData.AddData({});
+	camTraceData.AddData({});
+}
 
 GISparseVoxelOctree::~GISparseVoxelOctree()
 {
@@ -244,8 +251,6 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	);
 	CUDA_KERNEL_CHECK();
 
-	
-
 	// Copy Level Start Location to array
 	CUDA_CHECK(cudaMemcpy(hSVOLevelOffsets.data() + ((currentLevel - GI_DENSE_LEVEL) + 2),
 						  dSVONodeAllocator.Data(),
@@ -279,9 +284,12 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 		CUDA_KERNEL_CHECK();
 	}
 
+	// Leafs have averaged colors
 	// Reduce Colors to lower levels
+	// This is tricky since we do not know which depth is where
 	// TODO:
 	
+
 
 
 	
@@ -449,25 +457,64 @@ double GISparseVoxelOctree::ConeTrace(GLuint depthBuffer,
 	return 0.0;
 }
 
-double GISparseVoxelOctree::SVODataToGL(// GL buffer ptrs
-										CVoxelNormPos* dVAONormPosData,
-										uint32_t* dVAOColorData,
-
-										CVoxelGrid& voxGridData,
-										uint32_t& voxCount,
-										uint32_t level,
-										uint32_t maxVoxelCount)
+double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
+										  const Camera& cam,
+										  const uint2 & imgDim)
 {
-	// This version is for fully atomic level fetch
-	// used for debugging
+	// Timing Voxelization Process
+	GLuint queryID;
+	glGenQueries(1, &queryID);
+	glBeginQuery(GL_TIME_ELAPSED, queryID);
 
-	// Since we do not know where specific level starts and ends on the voxel system
-	// we ill launch entire node system
+	// Set Cascade Trace Data
+	float3 pos = allocatorGrids[0].position;
+	uint32_t dim = allocatorGrids[0].dimension.x * (0x1 << (allocators.size() - 1));
+	uint32_t depth = allocatorGrids[0].depth + static_cast<uint32_t>(allocators.size()) - 1;
+	svoTraceData.CPUData()[0] = 
+	{
+		{pos.x, pos.y, pos.z, allocatorGrids.back().span},
+		{dim, depth, GI_DENSE_SIZE, GI_DENSE_LEVEL},
+		{
+			static_cast<unsigned int>(allocators.size()), 
+			GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE,
+			matSparseOffset,
+			0
+		}
+	};
+	svoTraceData.SendData();
+	
+	// Camera
+	IEVector3 camDir = (cam.centerOfInterest - cam.pos).NormalizeSelf();
+	camTraceData.CPUData()[0] =
+	{
+		{cam.pos.getX(), cam.pos.getX(), cam.pos.getX(), 0.0f},
+		{camDir.getX(), camDir.getX(), camDir.getX(), 0.0f},
+		{cam.up.getX(), cam.up.getX(), cam.up.getX(), 0.0f},
+	};
+	camTraceData.SendData();
+	
+	computeVoxTraceWorld.Bind();
 
+	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);
+	svoMaterialBuffer.BindAsShaderStorageBuffer(LU_SVO_MATERIAL);
+	camTraceData.BindAsUniformBuffer(U_CAMERA_PARAMS);
+	svoTraceData.BindAsUniformBuffer(U_SVO_CONSTANTS);
+	glBindImageTexture(I_COLOR_FB, writeImage, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glUniform2ui(U_IMAGE_SIZE, imgDim.x, imgDim.y);
 
+	uint2 gridSize;
+	gridSize.x = (imgDim.x + 16 - 1) / 16;
+	gridSize.y = (imgDim.y + 16 - 1) / 16;
 
+	glDispatchCompute(gridSize.x, gridSize.y, 1);
+	glEndQuery(GL_TIME_ELAPSED);
 
-	return 0.0;
+	GLuint64 timeElapsed = 0;
+	//glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
+
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	return timeElapsed / 1000000.0;
 }
 
 uint64_t GISparseVoxelOctree::MemoryUsage() const

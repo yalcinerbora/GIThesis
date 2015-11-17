@@ -7,14 +7,14 @@ GPU Buffer That Holds Mesh (and Index)
 #ifndef __GPUBUFFER_H__
 #define __GPUBUFFER_H__
 
+#include <vector>
 #include <map>
 #include <cstdint>
 #include "GLHeader.h"
 #include "ArrayStruct.h"
-#include "GFG/GFGMeshHeader.h"
 #include "DrawPoint.h"
 
-
+struct GFGMeshHeader;
 
 enum class GPUDataType : GLenum
 {

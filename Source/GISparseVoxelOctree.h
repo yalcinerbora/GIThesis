@@ -21,6 +21,31 @@
 class GICudaAllocator;
 struct Camera;
 
+struct SVOTraceData
+{
+	// xyz gridWorldPosition
+	// w is gridSpan
+	float4 worldPosSpan;
+
+	// x is grid dimension
+	// y is grid depth
+	// z is dense dimension
+	// w is dense depth
+	uint4 dimDepth;
+
+	// x is cascade count
+	// y is node sparse offet
+	// z is material sparse offset
+	uint4 offsetCascade;
+};
+
+struct CameraTraceData
+{
+	float4 camPos;
+	float4 camDir;
+	float4 camUp;
+};
+
 class GISparseVoxelOctree
 {
 	private:
@@ -41,6 +66,10 @@ class GISparseVoxelOctree
 		// SVO Data
 		StructuredBuffer<CSVONode>				svoNodeBuffer;
 		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
+
+		// Rendering Helpers
+		StructuredBuffer<SVOTraceData>			svoTraceData;
+		StructuredBuffer<CameraTraceData>		camTraceData;
 
 		// SVO Ptrs
 		CSVOMaterial*							dSVOMaterial;
@@ -80,9 +109,9 @@ class GISparseVoxelOctree
 												~GISparseVoxelOctree();
 
 		// Link Allocators and Adjust Size of the System
-		void									 LinkAllocators(GICudaAllocator** newAllocators,
-																size_t allocatorSize,
-																float sceneMultiplier);
+		void									LinkAllocators(GICudaAllocator** newAllocators,
+															   size_t allocatorSize,
+															   float sceneMultiplier);
 
 		// Updates SVO Tree depending on the changes of the allocators
 		double									UpdateSVO();
@@ -95,14 +124,9 @@ class GISparseVoxelOctree
 														  GLuint colorBuffer,
 														  const Camera& camera);
 
-		double									SVODataToGL(// GL buffer ptrs
-															CVoxelNormPos* dVAONormPosData,
-															uint32_t* dVAOColorData,
-
-															CVoxelGrid& voxGridData,
-															uint32_t& voxCount,
-															uint32_t level,
-															uint32_t maxVoxelCount);
+		double									DebugTraceSVO(GLuint writeImage,
+															  const Camera& cam,
+															  const uint2 & imgDim);
 
 		uint64_t								MemoryUsage() const;
 };

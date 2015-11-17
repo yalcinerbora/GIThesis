@@ -431,6 +431,24 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 	pageVoxels.Draw(voxCount, offset);
 }
 
+double ThesisSolution::DebugRenderSVO(const Camera& camera)
+{
+	double time;
+
+	// Create Dummy Write Texture
+	GLuint colorTex = dRenderer.GetGBuffer().getColorGL();
+
+	// Raytrace voxel scene
+	time = voxelOctree.DebugTraceSVO(colorTex, 
+									 camera,
+									 {static_cast<unsigned int>(camera.width), 
+									  static_cast<unsigned int>(camera.height)});
+
+	// Tell deferred renderer to post process color buffer;
+	dRenderer.ShowGBuffer(camera, RenderTargetLocation::COLOR);
+	return time;
+}
+
 void ThesisSolution::Frame(const Camera& mainRenderCamera)
 {
 	// Zero out debug transfer time since it may not be used
@@ -495,6 +513,13 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		}
 		case GI_LIGHT_INTENSITY:
 		{
+			// Start Render
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
+			glClear(GL_COLOR_BUFFER_BIT |
+					GL_DEPTH_BUFFER_BIT);
+
+			debugVoxTransferTime = DebugRenderSVO(mainRenderCamera);
 			break;
 		}		
 		case GI_VOXEL_PAGE:
@@ -531,7 +556,6 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 
 			// Create VAO after resize since buffer id can change
 			VoxelDebugVAO vao(voxelNormPosBuffer, voxelColorBuffer);
-
 
 			// Start Render
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);

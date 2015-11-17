@@ -70,9 +70,11 @@ static const TwStructMember lightMembers[] =
 #define T_INTENSITY 3
 #define T_SHADOW_DIR 4
 
+#define I_COLOR_FB 0
 #define I_VOX_READ 2
 #define I_VOX_WRITE 2
 
+#define U_IMAGE_SIZE 0
 #define U_TOTAL_VOX_DIM 3
 #define U_OBJ_ID 4
 #define U_TOTAL_OBJ_COUNT 4
@@ -84,12 +86,16 @@ static const TwStructMember lightMembers[] =
 #define U_LIGHT_ID 4
 
 // Unfiorm
+#define U_CAMERA_PARAMS 0
 #define U_FTRANSFORM 0
+#define U_SVO_CONSTANTS 1
 #define U_INVFTRANSFORM 1
 #define U_VOXEL_GRID_INFO 2
 
 // Large Uniform
+#define LU_SVO_NODE 0
 #define LU_VOXEL_NORM_POS 0
+#define LU_SVO_MATERIAL 1
 #define LU_VOXEL_RENDER 1
 #define LU_OBJECT_GRID_INFO 2
 #define LU_VOXEL_IDS 3

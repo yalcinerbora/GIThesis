@@ -515,7 +515,6 @@ void DeferredRenderer::LightMerge(const Camera& camera)
 	// DrawCall
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 	
-	//
 	// Passthrough to Default FBO
 	//
 	// SRGB Texture
@@ -564,4 +563,46 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
 	LightMerge(camera);
 
 	// All Done!
+}
+
+void DeferredRenderer::ShowGBuffer(const Camera& camera,
+								   RenderTargetLocation rt)
+{
+	assert(rt != RenderTargetLocation::NORMAL);
+
+	// Only Draw Color Buffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0,
+			   static_cast<GLsizei>(camera.width),
+			   static_cast<GLsizei>(camera.height));
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	// Shaders
+	Shader::Unbind(ShaderType::GEOMETRY);
+	vertPPGeneric.Bind();
+	fragPPGeneric.Bind();
+
+	// Texture
+	glActiveTexture(GL_TEXTURE0 + T_COLOR);
+	switch(rt)
+	{
+		case RenderTargetLocation::COLOR:
+			glBindTexture(GL_TEXTURE_2D, gBuffer.getColorGL());
+			break;
+
+		case RenderTargetLocation::DEPTH:
+			glBindTexture(GL_TEXTURE_2D, gBuffer.getDepthGL());
+			break;
+		default:
+			assert(false);
+			break;
+	}
+	glBindSampler(T_COLOR, linearSampler);
+
+	// VAO
+	glBindVertexArray(postProcessTriVao);
+
+	// Draw
+	glDrawArrays(GL_TRIANGLES, 0, 3);
 }

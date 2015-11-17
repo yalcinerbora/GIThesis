@@ -116,6 +116,7 @@
     <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
+    <ClInclude Include="..\..\..\Source\Averager.h" />
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
     <ClInclude Include="..\..\..\Source\CHash.cuh" />
@@ -206,9 +207,15 @@
   <ItemGroup>
     <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu" />
     <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu" />
-    <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu" />
+    <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu">
+      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">32</MaxRegCount>
+      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>
+    </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu" />
-    <CudaCompile Include="..\..\..\Source\VoxelInclude.cu" />
+    <CudaCompile Include="..\..\..\Source\VoxelInclude.cu">
+      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">32</MaxRegCount>
+      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>
+    </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
       <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">32</MaxRegCount>
       <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>

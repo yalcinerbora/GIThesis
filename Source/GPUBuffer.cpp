@@ -1,6 +1,7 @@
 #include "GPUBuffer.h"
 #include "Macros.h"
 #include "Globals.h"
+#include "GFG/GFGMeshHeader.h"
 
 // 2 Megs of Buffer
 uint32_t GPUBuffer::totalVertexCount = 2 * 1024 * 1024;

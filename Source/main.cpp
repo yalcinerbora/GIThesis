@@ -14,7 +14,6 @@
 #include "ThesisSolution.h"
 
 #include "Globals.h"
-#include "GFGLoader.h"
 #include "Camera.h"
 #include "Scene.h"
 #include "Macros.h"

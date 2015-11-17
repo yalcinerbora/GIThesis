@@ -81,10 +81,6 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	glTextureView(shadowMapArrayView, GL_TEXTURE_2D_ARRAY, lightShadowMaps, GL_DEPTH_COMPONENT32F,
 				  0, 1, 0, 6 * lights.length);
 
-	glGenTextures(1, &shadowMapR32FCopy);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, shadowMapR32FCopy);
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_R32F, shadowMapWH, shadowMapWH, 6 * lights.length);
-
 	for(unsigned int i = 0; i < lights.length; i++)
 	{
 		lightsGPU.AddData(lights.arr[i]);
@@ -220,11 +216,6 @@ SceneLights::~SceneLights()
 uint32_t SceneLights::Count() const
 {
 	return static_cast<uint32_t>(lightShadowCast.size());
-}
-
-GLuint SceneLights::GetShadowMapArrayR32F()
-{
-	return shadowMapR32FCopy;
 }
 
 GLuint SceneLights::GetLightBufferGL()

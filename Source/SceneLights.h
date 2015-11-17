@@ -61,7 +61,6 @@ class SceneLights
 		StructuredBuffer<IEMatrix4x4>		lightViewProjMatrices;
 		GLuint								lightShadowMaps;
 		GLuint								shadowMapArrayView;
-		GLuint								shadowMapR32FCopy;
 		std::vector<GLuint>					shadowMapViews;
 		std::vector<GLuint>					shadowMapFBOs;
 		std::vector<bool>					lightShadowCast;
@@ -85,7 +84,6 @@ class SceneLights
 									~SceneLights();
 
 		uint32_t					Count() const;
-		GLuint						GetShadowMapArrayR32F();
 		GLuint						GetLightBufferGL();
 		
 		void						ChangeLightPos(uint32_t index, IEVector3 position);

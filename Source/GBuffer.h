@@ -34,7 +34,6 @@ class GBuffer
 		GLuint		rtTextures[3];
 		GLuint		fboTexSampler;
 		GLuint		fbo;
-		GLuint		depthR32FCopy;
 
 		uint32_t    width;
 		uint32_t    height;
@@ -49,9 +48,9 @@ class GBuffer
 		void		BindAsFBO();
 		void		AlignViewport();
 
+		GLuint		getColorGL();
 		GLuint		getDepthGL();
 		GLuint		getNormalGL();
-		GLuint		getDepthGLView();
 
 		static void	BindDefaultFBO();
 };

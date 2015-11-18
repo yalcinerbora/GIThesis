@@ -43,7 +43,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxelScene1024(intialCamPos, 0.513f * 2, 512)
 	, voxelScene512(intialCamPos, 0.513f * 4, 512)
 	, renderScheme(GI_VOXEL_PAGE)
-	//, renderScheme(GI_VOXEL_CACHE2048)
+	//, renderScheme(GI_LIGHT_INTENSITY)
 	, gridInfoBuffer(1)
 	, voxelNormPosBuffer(512)
 	, voxelColorBuffer(512)
@@ -433,16 +433,14 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 
 double ThesisSolution::DebugRenderSVO(const Camera& camera)
 {
-	double time;
-
-	// Create Dummy Write Texture
 	GLuint colorTex = dRenderer.GetGBuffer().getColorGL();
 
 	// Raytrace voxel scene
-	time = voxelOctree.DebugTraceSVO(colorTex, 
+	double time;
+	time = voxelOctree.DebugTraceSVO(colorTex,
 									 camera,
-									 {static_cast<unsigned int>(camera.width), 
-									  static_cast<unsigned int>(camera.height)});
+									 {DeferredRenderer::gBuffWidth,
+									  DeferredRenderer::gBuffHeight});
 
 	// Tell deferred renderer to post process color buffer;
 	dRenderer.ShowGBuffer(camera, RenderTargetLocation::COLOR);
@@ -492,7 +490,6 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	voxelScene1024.UnmapGLPointers();
 	voxelScene512.UnmapGLPointers();
 
-
 	// Voxel Count in Pages
 	cache2048.voxInfo.sceneVoxOctreeCount = voxelScene2048.VoxelCountInPage();
 	cache2048.voxInfo.sceneVoxOctreeSize = static_cast<double>(cache2048.voxInfo.sceneVoxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
@@ -514,11 +511,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		case GI_LIGHT_INTENSITY:
 		{
 			// Start Render
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
-			glClear(GL_COLOR_BUFFER_BIT |
-					GL_DEPTH_BUFFER_BIT);
-
 			debugVoxTransferTime = DebugRenderSVO(mainRenderCamera);
 			break;
 		}		

@@ -6,6 +6,7 @@
 #include "Macros.h"
 #include "Camera.h"
 #include "Globals.h"
+#include "IEUtility/IEMath.h"
 
 GISparseVoxelOctree::GISparseVoxelOctree()
 	: svoNodeBuffer(512)
@@ -482,38 +483,53 @@ double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
 		}
 	};
 	svoTraceData.SendData();
+
+	// Camera params
+	IEVector3 camFovXFovY = IEVector3::ZeroVector;
+	camFovXFovY.setX(std::tan(IEMath::ToRadians(cam.fovX * 0.5f)));
+	float invAspect = static_cast<float>(cam.height) / static_cast<float>(cam.width);
+	camFovXFovY.setY(camFovXFovY.getX() * invAspect);
 	
-	// Camera
+	float fovY = IEMath::ToDegrees(std::atan(camFovXFovY.getY())) * 2.0f;
+
 	IEVector3 camDir = (cam.centerOfInterest - cam.pos).NormalizeSelf();
 	camTraceData.CPUData()[0] =
 	{
-		{cam.pos.getX(), cam.pos.getX(), cam.pos.getX(), 0.0f},
-		{camDir.getX(), camDir.getX(), camDir.getX(), 0.0f},
-		{cam.up.getX(), cam.up.getX(), cam.up.getX(), 0.0f},
+		{cam.pos.getX(), cam.pos.getY(), cam.pos.getZ(), 0.0f},
+		{camDir.getX(), camDir.getY(), camDir.getZ(), 0.0f},
+		{cam.up.getX(), cam.up.getY(), cam.up.getZ(), 0.0f},
+		{camFovXFovY.getX(), camFovXFovY.getY(), cam.near, cam.far}
 	};
 	camTraceData.SendData();
 	
+
+	// Shaders
 	computeVoxTraceWorld.Bind();
 
+	// Buffers
 	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);
 	svoMaterialBuffer.BindAsShaderStorageBuffer(LU_SVO_MATERIAL);
 	camTraceData.BindAsUniformBuffer(U_CAMERA_PARAMS);
 	svoTraceData.BindAsUniformBuffer(U_SVO_CONSTANTS);
+
+	// Images
 	glBindImageTexture(I_COLOR_FB, writeImage, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+
+	// Uniforms
 	glUniform2ui(U_IMAGE_SIZE, imgDim.x, imgDim.y);
 
+	// Dispatch
 	uint2 gridSize;
 	gridSize.x = (imgDim.x + 16 - 1) / 16;
 	gridSize.y = (imgDim.y + 16 - 1) / 16;
-
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
-	glEndQuery(GL_TIME_ELAPSED);
-
+	
+	// Timer
 	GLuint64 timeElapsed = 0;
-	//glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
 
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
 	return timeElapsed / 1000000.0;
 }
 

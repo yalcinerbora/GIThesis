@@ -576,7 +576,15 @@ void DeferredRenderer::ShowGBuffer(const Camera& camera,
 			   static_cast<GLsizei>(camera.width),
 			   static_cast<GLsizei>(camera.height));
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-	glClear(GL_COLOR_BUFFER_BIT);
+
+	glDisable(GL_MULTISAMPLE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDepthFunc(GL_LESS);
+	glDepthMask(true);
+	glColorMask(true, true, true, true);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);

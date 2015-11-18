@@ -44,6 +44,7 @@ struct CameraTraceData
 	float4 camPos;
 	float4 camDir;
 	float4 camUp;
+	float4 camFovXFovY;
 };
 
 class GISparseVoxelOctree

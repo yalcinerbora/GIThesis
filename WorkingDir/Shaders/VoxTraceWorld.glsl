@@ -11,15 +11,17 @@
 */
 
 // Definitions
-#define U_IMAGE_SIZE layout(location = 0)
+#define U_IMAGE_SIZE layout(location = 3)
 
-#define I_COLOR_FB layout(rgba8, binding = 0) restrict writeonly
+#define I_COLOR_FB layout(rgba8, binding = 2) restrict writeonly
 
 #define LU_SVO_NODE layout(binding = 0) readonly
 #define LU_SVO_MATERIAL layout(binding = 1) readonly
 
-#define U_CAMERA_PARAMS layout(binding = 0)
-#define U_SVO_CONSTANTS layout(binding = 1)
+#define U_CAMERA_PARAMS layout(binding = 2)
+#define U_SVO_CONSTANTS layout(binding = 3)
+
+#define FLT_MAX 3.402823466e+38F
 
 // Uniforms
 U_IMAGE_SIZE uniform uvec2 imgSize;
@@ -54,9 +56,15 @@ U_SVO_CONSTANTS uniform SVOConstants
 
 U_CAMERA_PARAMS uniform CameraParams
 {
-	uvec4 camPos;
-	uvec4 camDir;
-	uvec4 camUp;
+	vec4 camPos;
+	vec4 camDir;
+	vec4 camUp;
+
+	// X is tan(fovX/2)
+	// Y is tan(fovY/2)
+	// Z is "near"
+	// W is "far"
+	vec4 halfFoxNearFar;
 };
 
 // Textures
@@ -98,11 +106,36 @@ vec3 UnpackColor(in uint colorPacked)
 	return color;
 }
 
-float IntersectDistance(in vec3 normCoord, in vec3 dir, in float gridDim)
+float IntersectDistance(in vec3 normCoord, 
+						in vec3 dir, 
+						in float gridDim)
 {
-	
+	// 6 Plane intersection on cube normalized coordinates
+	// Since planes axis aligned writing code optimized 
+	// (instead of dot products
+	vec3 tClose = -normCoord;
+	vec3 tFar = -(normCoord + gridDim);
+	tClose /= dir;
+	tFar /= dir;
 
-	return 100.0f;
+	// Negate Negative
+	bvec3 tCloseMask = greaterThan(tClose, vec3(0.0f));
+	bvec3 tFarMask = greaterThan(tFar, vec3(0.0f));
+
+	// Write FLT_MAX if its <= 0
+	tClose.x = (tCloseMask.x) ? tClose.x : FLT_MAX;
+	tClose.y = (tCloseMask.y) ? tClose.y : FLT_MAX;
+	tClose.z = (tCloseMask.z) ? tClose.z : FLT_MAX;
+	tFar.x = (tFarMask.x) ? tFar.x : FLT_MAX;
+	tFar.y = (tFarMask.y) ? tFar.y : FLT_MAX;
+	tFar.z = (tFarMask.z) ? tFar.z : FLT_MAX;
+
+	// Reduction
+	float minClose = min(min(tClose.x, tClose.y), tClose.z);
+	float minFar = min(min(tFar.x, tFar.y), tFar.z);
+
+	// Boost a little bit to be sure
+	return min(minClose, minFar);
 }
 
 ivec3 LevelVoxPos(in ivec3 voxPos, in uint level)
@@ -175,85 +208,87 @@ float FindMarchLength(in uvec4 rayStackHot,
 	if(any(lessThan(voxPos, ivec3(0))) ||
 	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
 	{
-		// Node is out of bounds but does it coming towards to grid?
-		vec3 normMarchPos = marchPos;
+		//// Node is out of bounds but does it coming towards to grid?
+		//vec3 normMarchPos = marchPos - worldPosSpan.xyz;
 			
-		// 6 plane intersections (skip if perpendicular (N dot Dir == 0))
-		float dist = IntersectDistance(normMarchPos, dir, 
-									   worldPosSpan.w * float(0x1 << (dimDepth.y)));
+		//// 6 plane intersections (skip if perpendicular (N dot Dir == 0))
+		//float dist = IntersectDistance(normMarchPos, dir, 
+		//							   worldPosSpan.w * float(0x1 << (dimDepth.y)));
+		//return dist;
 
-		return dist;
+		return FLT_MAX;
 	}
-
-	unsigned int nodeIndex = PeekStack(rayStackHot);
-	for(unsigned int i = dimDepth.w + StackCount(rayStackHot); i <= dimDepth.y; i++)
-	{
-		uint currentNode;
-		if(i == dimDepth.w)
-		{
-			ivec3 denseVox = LevelVoxPos(voxPos, dimDepth.w);
-			currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
-									denseVox.y * dimDepth.z + 
-									denseVox.x];
-		}
-		else
-		{
-			currentNode = svoNode[offsetCascade.y + nodeIndex];
-		}
-
-		if(currentNode == 0xFFFFFFFF)
-		{
-			// Node maybe Empty
-			// This may contain color
-			// Check Material
-			if((dimDepth.y - i) < offsetCascade.x)
-			{
-				// Its leaf cascades, check material color
-				uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
-				if (colorPacked != 0)
-				{
-					// This node contains color write image and return
-					vec3 color = UnpackColor(colorPacked);
-					imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
-					return 0.0f;
-				}
-			}
-			
-			// Node empty 						
-			// Convert Node position and march position to voxel space
-			vec3 voxWorld = VoxToWorld(voxPos, i);
-			vec3 normMarchPos = marchPos - voxWorld;
-			
-			// 6 plane intersections (skip if perpendicular (N dot Dir == 0))
-			float dist = IntersectDistance(normMarchPos, dir, 
-										   worldPosSpan.w * float(0x1 << (dimDepth.y - i + 1)));
-
-			// convert to march ray
-			vec3 newMarch = marchPos + dist * dir;
-					
-			// Check new positions and old positions deepest common parent 
-			ivec3 newVoxPos = WorldToVox(newMarch);
-			ivec3 diff =  voxPos ^ newVoxPos;
-			uvec3 loc = findMSB(uvec3(~diff));
-			loc -= dimDepth.y; 
-			uint minCommon = min(min(loc.x, loc.y), loc.z);
-
-			// and pop stack until that parent
-			PopStack(rayStackHot, (i - 1) - minCommon);
-			
-			// return minimum positive distance
-			return dist;
-		}
-		else
-		{
-			// Node has value
-			// Push current value to stack continue traversing
-			PushStack(rayStackHot, nodeIndex);
-			nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
-		}	
-	}
-	// Code Shouldnt return from here
 	return 0.0f;
+
+	//unsigned int nodeIndex = PeekStack(rayStackHot);
+	//for(unsigned int i = dimDepth.w + StackCount(rayStackHot); i <= dimDepth.y; i++)
+	//{
+	//	uint currentNode;
+	//	if(i == dimDepth.w)
+	//	{
+	//		ivec3 denseVox = LevelVoxPos(voxPos, dimDepth.w);
+	//		currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
+	//								denseVox.y * dimDepth.z + 
+	//								denseVox.x];
+	//	}
+	//	else
+	//	{
+	//		currentNode = svoNode[offsetCascade.y + nodeIndex];
+	//	}
+
+	//	if(currentNode == 0xFFFFFFFF)
+	//	{
+	//		// Node maybe Empty
+	//		// This may contain color
+	//		// Check Material
+	//		if((dimDepth.y - i) < offsetCascade.x)
+	//		{
+	//			// Its leaf cascades, check material color
+	//			uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
+	//			if (colorPacked != 0)
+	//			{
+	//				// This node contains color write image and return
+	//				vec3 color = UnpackColor(colorPacked);
+	//				imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
+	//				return 0.0f;
+	//			}
+	//		}
+			
+	//		// Node empty 						
+	//		// Convert Node position and march position to voxel space
+	//		vec3 voxWorld = VoxToWorld(voxPos, i);
+	//		vec3 normMarchPos = marchPos - voxWorld;
+			
+	//		// 6 plane intersections (skip if perpendicular (N dot Dir == 0))
+	//		float dist = IntersectDistance(normMarchPos, dir, 
+	//									   worldPosSpan.w * float(0x1 << (dimDepth.y - i + 1)));
+
+	//		// convert to march ray
+	//		vec3 newMarch = marchPos + dist * dir;
+					
+	//		// Check new positions and old positions deepest common parent 
+	//		ivec3 newVoxPos = WorldToVox(newMarch);
+	//		ivec3 diff =  voxPos ^ newVoxPos;
+	//		uvec3 loc = findMSB(uvec3(~diff));
+	//		loc -= dimDepth.y; 
+	//		uint minCommon = min(min(loc.x, loc.y), loc.z);
+
+	//		// and pop stack until that parent
+	//		PopStack(rayStackHot, (i - 1) - minCommon);
+			
+	//		// return minimum positive distance
+	//		return dist;
+	//	}
+	//	else
+	//	{
+	//		// Node has value
+	//		// Push current value to stack continue traversing
+	//		PushStack(rayStackHot, nodeIndex);
+	//		nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
+	//	}	
+	//}
+	// Code Shouldnt return from here
+	//return 0.0f;
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
@@ -262,29 +297,47 @@ void main(void)
 	uvec2 globalId = gl_GlobalInvocationID.xy;
 	if(any(greaterThanEqual(globalId, imgSize))) return;
 
+	//uint linearID = gl_GlobalInvocationID.y * imgSize.x +
+	//				gl_GlobalInvocationID.x;
+
+	//vec4 color;
+	//color.xyz = UnpackColor(svoMaterial[linearID].x);
+	//color.w = 1.0f;
+
+	//if(all(equal(color.xyz, vec3(41.0f / 255.0f, 34.0f / 255.0f, 109.0f / 255.0f))) ||
+	//	all(equal(color.xyz, vec3(161.0f / 255.0f, 17.0f / 255.0f, 13.0f / 255.0f))) ||
+	//	all(equal(color.xyz, vec3(185.0f / 255.0f, 181.0f / 255.0f, 173.0f / 255.0f))))
+	//	imageStore(fbo, ivec2(globalId), vec4(0.0f)); 
+	//else
+	//	imageStore(fbo, ivec2(globalId), color); 
+
 	// Generate Ray
-	vec2 centerOffset = vec2(imgSize) - vec2(globalId);
+	vec2 ndcCoords = ((vec2(globalId) + 0.5f) / vec2(imgSize) * 2.0f) - 1.0f; // [-1, 1]
+	ndcCoords *= halfFoxNearFar.xy;
 	vec3 left = cross(camUp.xyz, camDir.xyz);
 	vec3 rayPos = camPos.xyz;
-	vec3 rayDir = normalize(camDir.xyz + centerOffset.x * left + centerOffset.y * camUp.xyz);
+	vec3 rayDir = normalize((camDir.xyz * halfFoxNearFar.z) + 
+								ndcCoords.x * (-left) + 
+								ndcCoords.y * camUp.xyz);
 
-	// Trace Ray
+	//imageStore(fbo, ivec2(globalId), vec4(rayDir, 0.0f)); 
+	
 	uvec4 rayStackHot = uvec4(0);
 	vec3 marchPos = rayPos;
-	float marchLength;
-	while(true)
-	{
-		marchLength = FindMarchLength(rayStackHot, marchPos, rayDir);
-		if(marchLength <= 0)
-		{
-			// we are out of bounds,
-			// or we hit the node and colorized the pixel
-			return;
-		}
-		else
-		{
-			// We didint hit a node march the ray
-			marchPos = marchLength * rayDir;
-		}
-	}
+	float marchLength = 0;
+
+	marchLength = FindMarchLength(rayStackHot, marchPos, rayDir);
+		
+	if(marchLength == FLT_MAX) return;
+
+	imageStore(fbo, ivec2(globalId), vec4(rayDir, 0.0f)); 
+
+
+	//// Trace until ray is out of view frustum
+	//for(float totalMarch = 0.0f;
+	//	totalMarch < halfFoxNearFar.w;
+	//	totalMarch += marchLength)
+	//{
+
+	//}
 }

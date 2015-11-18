@@ -39,9 +39,6 @@ using InvFrameTransformBuffer = StructuredBuffer<InvFrameTransform>;
 class DeferredRenderer
 {
 	private:
-		static const GLsizei	gBuffWidth;
-		static const GLsizei	gBuffHeight;
-
 		static const float		postProcessTriData[6];
 
 		Shader					vertexGBufferWrite;
@@ -96,10 +93,14 @@ class DeferredRenderer
 		void					LightMerge(const Camera&);
 
 	public:
+		// Constructors & Destructor
 								DeferredRenderer();
 								DeferredRenderer(const DeferredRenderer&) = delete;
 		DeferredRenderer&		operator=(const DeferredRenderer&) = delete;
 								~DeferredRenderer();
+
+		static const GLsizei	gBuffWidth;
+		static const GLsizei	gBuffHeight;
 
 		GBuffer&				GetGBuffer();
 		GLuint					GetLightIntensityBufferGL();

@@ -75,7 +75,8 @@ class GICudaVoxelScene
 		// Reconstructs SVO tree
 		void				VoxelUpdate(double& ioTiming,
 										double& updateTiming,
-										const IEVector3& playerPos);
+										const IEVector3& playerPos,
+										float cascadeMultiplier);
 
 		// OGL Buffer Mapping
 		void				MapGLPointers();

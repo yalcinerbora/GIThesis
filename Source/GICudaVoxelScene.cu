@@ -52,7 +52,8 @@ void GICudaVoxelScene::Reset()
 
 void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 								   double& updateTiming,
-								   const IEVector3& playerPos)
+								   const IEVector3& playerPos,
+								   float cascadeMultiplier)
 {
 	// Pass if there is not any linked objects
 	if(allocator.NumSegments() == 0) return;
@@ -191,7 +192,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 
 	// Now Call Update
 	timer.Start();
-	IEVector3 gridNewPos = allocator.GetNewVoxelPos(playerPos);
+	IEVector3 gridNewPos = allocator.GetNewVoxelPos(playerPos, cascadeMultiplier);
 
 	gridSize = (allocator.NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
 				GI_THREAD_PER_BLOCK;

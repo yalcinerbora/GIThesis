@@ -39,26 +39,16 @@ struct SVOTraceData
 	uint4 offsetCascade;
 };
 
-struct CameraTraceData
-{
-	float4 camPos;
-	float4 camDir;
-	float4 camUp;
-	float4 camFovXFovY;
-};
+struct InvFrameTransform;
 
 class GISparseVoxelOctree
 {
 	private:
 		std::vector<GICudaAllocator*>			allocators;			// Page Allocators
-		std::vector<CVoxelGrid>					allocatorGrids;		// Allocator's Responsible Grids
+		std::vector<const CVoxelGrid*>			allocatorGrids;		// Allocator's Responsible Grids
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
-
-		// Debug Stuff
-		StructuredBuffer<VoxelNormPos>			vaoNormPosData;
-		StructuredBuffer<uchar4>				vaoColorData;
 
 		// Texture copied from dSVO dense every frame
 		cudaTextureObject_t						tSVODense;
@@ -70,7 +60,6 @@ class GISparseVoxelOctree
 
 		// Rendering Helpers
 		StructuredBuffer<SVOTraceData>			svoTraceData;
-		StructuredBuffer<CameraTraceData>		camTraceData;
 
 		// SVO Ptrs
 		CSVOMaterial*							dSVOMaterial;
@@ -126,8 +115,9 @@ class GISparseVoxelOctree
 														  const Camera& camera);
 
 		double									DebugTraceSVO(GLuint writeImage,
-															  const Camera& cam,
-															  const uint2 & imgDim);
+															  StructuredBuffer<InvFrameTransform>& invFT,
+															  FrameTransformBuffer& ft,
+															  const uint2& imgDim);
 
 		uint64_t								MemoryUsage() const;
 };

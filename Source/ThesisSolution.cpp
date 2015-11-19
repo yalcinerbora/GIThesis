@@ -435,10 +435,16 @@ double ThesisSolution::DebugRenderSVO(const Camera& camera)
 {
 	GLuint colorTex = dRenderer.GetGBuffer().getColorGL();
 
+	// Update FrameTransform Matrices 
+	// And its inverse realted buffer
+	dRenderer.RefreshInvFTransform(camera);
+	dRenderer.GetFTransform().Update(camera.generateTransform());
+	
 	// Raytrace voxel scene
 	double time;
 	time = voxelOctree.DebugTraceSVO(colorTex,
-									 camera,
+									 dRenderer.GetInvFTransfrom(),
+									 dRenderer.GetFTransform(),
 									 {DeferredRenderer::gBuffWidth,
 									  DeferredRenderer::gBuffHeight});
 
@@ -465,21 +471,24 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	// Cascade #1 Update
 	voxelScene2048.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
-							  mainRenderCamera.pos);
+							  mainRenderCamera.pos,
+							  4.0f);
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
 
 	// Cascade #2 Update
 	voxelScene1024.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
-							  mainRenderCamera.pos);
+							  mainRenderCamera.pos,
+							  2.0f);
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
 
 	// Cascade #3 Update
 	voxelScene512.VoxelUpdate(ioTimeSegment,
 							  transformTimeSegment,
-							  mainRenderCamera.pos);
+							  mainRenderCamera.pos,
+							  1.0f);
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
 	

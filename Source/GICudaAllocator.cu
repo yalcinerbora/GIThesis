@@ -505,12 +505,12 @@ CVoxelGrid* GICudaAllocator::GetVoxelGridDevice()
 	return dVoxelGridInfo.Data();
 }
 
-CVoxelGrid GICudaAllocator::GetVoxelGridHost()
+const CVoxelGrid& GICudaAllocator::GetVoxelGridHost() const
 {
 	return hVoxelGridInfo;
 }
 
-IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos)
+IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos, float cascadeMultiplier)
 {
 	// only grid span increments are allowed
 	float3 voxelCornerPos;
@@ -518,9 +518,10 @@ IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos)
 	voxelCornerPos.y = playerPos.getY() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.y * 0.5f;
 	voxelCornerPos.z = playerPos.getZ() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.z * 0.5f;
 	
-	voxelCornerPos.x -= fmodf(voxelCornerPos.x + hVoxelGridInfo.span * 0.5f, hVoxelGridInfo.span);
-	voxelCornerPos.y -= fmodf(voxelCornerPos.y + hVoxelGridInfo.span * 0.5f, hVoxelGridInfo.span);
-	voxelCornerPos.z -= fmodf(voxelCornerPos.z + hVoxelGridInfo.span * 0.5f, hVoxelGridInfo.span);
+	float parentSpan = hVoxelGridInfo.span * cascadeMultiplier;
+	voxelCornerPos.x -= std::fmod(voxelCornerPos.x + parentSpan * 0.5f, parentSpan);
+	voxelCornerPos.y -= std::fmod(voxelCornerPos.y + parentSpan * 0.5f, parentSpan);
+	voxelCornerPos.z -= std::fmod(voxelCornerPos.z + parentSpan * 0.5f, parentSpan);
 
 	hVoxelGridInfo.position.x = voxelCornerPos.x;
 	hVoxelGridInfo.position.y = voxelCornerPos.y;

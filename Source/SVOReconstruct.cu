@@ -386,4 +386,7 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 	AtomicColorNormalAvg(gSVOMat + matSparseOffset + location,
 						 voxelColorPacked,
 						 voxelNormPacked);
+
+	//gSVOMat[matSparseOffset + location] = PackSVOMaterial(voxelColorPacked,
+	//													  voxelNormPacked);
 }

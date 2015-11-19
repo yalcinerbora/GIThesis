@@ -29,14 +29,15 @@ int main()
 	// Cuda Init
 	CudaInit::InitCuda();
 
+	IEVector3 camPos = IEVector3(-180.0f, 145.0f, 0.3f);
 	Camera mainRenderCamera =
 	{
 		90.0f,
-		0.1f,
+		0.15f,
 		600.0f,
 		1280,
 		720,
-		{ -180.0f, 145.0f, 0.3f },
+		camPos,
 		IEVector3::ZeroVector,
 		IEVector3::Yaxis
 	};

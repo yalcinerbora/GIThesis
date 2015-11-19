@@ -11,21 +11,18 @@
 */
 
 // Definitions
-#define U_IMAGE_SIZE layout(location = 3)
-
 #define I_COLOR_FB layout(rgba8, binding = 2) restrict writeonly
 
-#define LU_SVO_NODE layout(binding = 0) readonly
-#define LU_SVO_MATERIAL layout(binding = 1) readonly
+#define LU_SVO_NODE layout(std430, binding = 0) readonly
+#define LU_SVO_MATERIAL layout(std430, binding = 1) readonly
 
-#define U_CAMERA_PARAMS layout(binding = 2)
-#define U_SVO_CONSTANTS layout(binding = 3)
+#define U_FTRANSFORM layout(std140, binding = 0)
+#define U_INVFTRANSFORM layout(std140, binding = 1)
+#define U_SVO_CONSTANTS layout(std140, binding = 3)
 
 #define FLT_MAX 3.402823466e+38F
 
 // Uniforms
-U_IMAGE_SIZE uniform uvec2 imgSize;
-
 LU_SVO_NODE buffer SVONode
 { 
 	uint svoNode[];
@@ -54,17 +51,20 @@ U_SVO_CONSTANTS uniform SVOConstants
 	uvec4 offsetCascade;
 };
 
-U_CAMERA_PARAMS uniform CameraParams
+U_FTRANSFORM uniform FrameTransform
 {
-	vec4 camPos;
-	vec4 camDir;
-	vec4 camUp;
+	mat4 view;
+	mat4 projection;
+};
 
-	// X is tan(fovX/2)
-	// Y is tan(fovY/2)
-	// Z is "near"
-	// W is "far"
-	vec4 halfFoxNearFar;
+U_INVFTRANSFORM uniform InverseFrameTransform
+{
+	mat4 invViewProjection;
+
+	vec4 camPos;		// To Calculate Eye
+	vec4 camDir;		// To Calculate Eye
+	ivec4 viewport;		// Viewport Params
+	vec4 depthNearFar;	// depth range params (last two unused)
 };
 
 // Textures
@@ -79,7 +79,25 @@ shared unsigned int rayStack[16][16 * 3];
 // Funcs
 ivec3 WorldToVox(in vec3 worldPos)
 {
-	return ivec3((worldPos - worldPosSpan.xyz) / worldPosSpan.w);
+	return ivec3(floor((worldPos - worldPosSpan.xyz) / worldPosSpan.w));
+}
+
+vec3 FragmentToWorld()
+{
+	vec2 gBuffUV = (vec2(gl_GlobalInvocationID.xy) - vec2(viewport.xy)) / vec2(viewport.zw);
+
+	// NDC (Z is near plane)
+	vec3 ndc = vec3(gBuffUV, 0.0f);
+	ndc.xy = 2.0f * ndc.xy - 1.0f;
+	ndc.z = ((2.0f * (ndc.z - depthNearFar.x) / (depthNearFar.y - depthNearFar.x)) - 1.0f);
+
+	// Clip Space
+	vec4 clip;
+	clip.w = projection[3][2] / (ndc.z - (projection[2][2] / projection[2][3]));
+	clip.xyz = ndc * clip.w;
+
+	// From Clip Space to World Space
+	return (invViewProjection * clip).xyz;
 }
 
 vec3 VoxToWorld(in ivec3 voxPos, in uint depth)
@@ -115,6 +133,14 @@ float IntersectDistance(in vec3 normCoord,
 	// (instead of dot products
 	vec3 tClose = -normCoord;
 	vec3 tFar = -(normCoord + gridDim);
+	
+	// Negate zeroes from direction
+	bvec3 dirMask = equal(dir, vec3(0.0f));
+	dir.x = (dirMask.x) ? dir.x : 0.000001f;
+	dir.y = (dirMask.y) ? dir.y : 0.000001f;
+	dir.z = (dirMask.z) ? dir.z : 0.000001f;
+
+	// T Distances to the axis aligned planes
 	tClose /= dir;
 	tFar /= dir;
 
@@ -208,94 +234,95 @@ float FindMarchLength(in uvec4 rayStackHot,
 	if(any(lessThan(voxPos, ivec3(0))) ||
 	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
 	{
-		//// Node is out of bounds but does it coming towards to grid?
-		//vec3 normMarchPos = marchPos - worldPosSpan.xyz;
-			
-		//// 6 plane intersections (skip if perpendicular (N dot Dir == 0))
-		//float dist = IntersectDistance(normMarchPos, dir, 
-		//							   worldPosSpan.w * float(0x1 << (dimDepth.y)));
-		//return dist;
-
+		// Node is out of bounds
+		// Since cam is centered towards grid
+		// Out of bounds means its cannot come towards the grid
+		// directly cull (return negative distance)
 		return FLT_MAX;
 	}
-	return 0.0f;
 
+	// Start tracing (start from cached parent)
 	//unsigned int nodeIndex = PeekStack(rayStackHot);
-	//for(unsigned int i = dimDepth.w + StackCount(rayStackHot); i <= dimDepth.y; i++)
-	//{
-	//	uint currentNode;
-	//	if(i == dimDepth.w)
-	//	{
-	//		ivec3 denseVox = LevelVoxPos(voxPos, dimDepth.w);
-	//		currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
-	//								denseVox.y * dimDepth.z + 
-	//								denseVox.x];
-	//	}
-	//	else
-	//	{
-	//		currentNode = svoNode[offsetCascade.y + nodeIndex];
-	//	}
+	unsigned int nodeIndex = 0;
+	for(unsigned int i = dimDepth.w/* + StackCount(rayStackHot)*/; i <= dimDepth.y; i++)
+	{
+		uint currentNode;
+		if(i == dimDepth.w)
+		{
+			ivec3 denseVox = LevelVoxPos(voxPos, dimDepth.w);
+			currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
+									denseVox.y * dimDepth.z + 
+									denseVox.x];
+		}
+		else
+		{
+			currentNode = svoNode[offsetCascade.y + nodeIndex];
+		}
 
-	//	if(currentNode == 0xFFFFFFFF)
-	//	{
-	//		// Node maybe Empty
-	//		// This may contain color
-	//		// Check Material
-	//		if((dimDepth.y - i) < offsetCascade.x)
-	//		{
-	//			// Its leaf cascades, check material color
-	//			uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
-	//			if (colorPacked != 0)
-	//			{
-	//				// This node contains color write image and return
-	//				vec3 color = UnpackColor(colorPacked);
-	//				imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
-	//				return 0.0f;
-	//			}
-	//		}
+		// Node check
+		if(currentNode == 0xFFFFFFFF)
+		{
+			// Node maybe Empty
+			// This may contain color
+			// Check Material
+			if((dimDepth.y - i) < offsetCascade.x)
+			{
+				// Its leaf cascades, check material color
+				uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
+				if (colorPacked != 0)
+				{
+					// This node contains color write image and return
+					vec3 color = UnpackColor(colorPacked);
+					imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
+					return 0.0f;
+				}
+			}
 			
-	//		// Node empty 						
-	//		// Convert Node position and march position to voxel space
-	//		vec3 voxWorld = VoxToWorld(voxPos, i);
-	//		vec3 normMarchPos = marchPos - voxWorld;
+			// Node empty 						
+			// Convert Node position and march position to voxel space
+			vec3 voxWorld = VoxToWorld(voxPos, i);
+			vec3 normMarchPos = marchPos - voxWorld;
 			
-	//		// 6 plane intersections (skip if perpendicular (N dot Dir == 0))
-	//		float dist = IntersectDistance(normMarchPos, dir, 
-	//									   worldPosSpan.w * float(0x1 << (dimDepth.y - i + 1)));
+			// 6 plane intersections (skip if perpendicular (N dot Dir == 0))
+			float dist = IntersectDistance(normMarchPos, dir, 
+										   worldPosSpan.w * float(0x1 << (dimDepth.y - i + 1)));
 
-	//		// convert to march ray
-	//		vec3 newMarch = marchPos + dist * dir;
+			//// convert to march ray
+			//vec3 newMarch = marchPos + dist * dir;
 					
-	//		// Check new positions and old positions deepest common parent 
-	//		ivec3 newVoxPos = WorldToVox(newMarch);
-	//		ivec3 diff =  voxPos ^ newVoxPos;
-	//		uvec3 loc = findMSB(uvec3(~diff));
-	//		loc -= dimDepth.y; 
-	//		uint minCommon = min(min(loc.x, loc.y), loc.z);
+			//// Check new positions and old positions deepest common parent 
+			//ivec3 newVoxPos = WorldToVox(newMarch);
+			//ivec3 diff =  voxPos ^ newVoxPos;
+			//uvec3 loc = findMSB(uvec3(~diff));
+			//loc -= dimDepth.y; 
+			//uint minCommon = min(min(loc.x, loc.y), loc.z);
 
-	//		// and pop stack until that parent
-	//		PopStack(rayStackHot, (i - 1) - minCommon);
+			//// and pop stack until that parent
+			//PopStack(rayStackHot, (i - 1) - minCommon);
 			
-	//		// return minimum positive distance
-	//		return dist;
-	//	}
-	//	else
-	//	{
-	//		// Node has value
-	//		// Push current value to stack continue traversing
-	//		PushStack(rayStackHot, nodeIndex);
-	//		nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
-	//	}	
-	//}
+			// return minimum positive distance
+			return 1.2f;
+			//return dist;
+		}
+		else
+		{
+			// Node has value
+			// Push current value to stack continue traversing
+			//PushStack(rayStackHot, nodeIndex);
+			
+			// Go deeper
+			nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
+		}	
+	}
 	// Code Shouldnt return from here
-	//return 0.0f;
+	return 0.0f;
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 void main(void)
 {
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	if(any(greaterThanEqual(globalId, imgSize))) return;
+	if(any(greaterThanEqual(globalId, viewport.zw))) return;
 
 	//uint linearID = gl_GlobalInvocationID.y * imgSize.x +
 	//				gl_GlobalInvocationID.x;
@@ -312,15 +339,12 @@ void main(void)
 	//	imageStore(fbo, ivec2(globalId), color); 
 
 	// Generate Ray
-	vec2 ndcCoords = ((vec2(globalId) + 0.5f) / vec2(imgSize) * 2.0f) - 1.0f; // [-1, 1]
-	ndcCoords *= halfFoxNearFar.xy;
-	vec3 left = cross(camUp.xyz, camDir.xyz);
 	vec3 rayPos = camPos.xyz;
-	vec3 rayDir = normalize((camDir.xyz * halfFoxNearFar.z) + 
-								ndcCoords.x * (-left) + 
-								ndcCoords.y * camUp.xyz);
-
+	vec3 nearOffsets = FragmentToWorld();
+	vec3 rayDir = normalize(nearOffsets - rayPos);
+	
 	//imageStore(fbo, ivec2(globalId), vec4(rayDir, 0.0f)); 
+	//return;
 	
 	uvec4 rayStackHot = uvec4(0);
 	vec3 marchPos = rayPos;
@@ -328,16 +352,28 @@ void main(void)
 
 	marchLength = FindMarchLength(rayStackHot, marchPos, rayDir);
 		
-	if(marchLength == FLT_MAX) return;
+	//if(marchLength == FLT_MAX) 
+	//	imageStore(fbo, ivec2(globalId), vec4(0.0f)); 
+	//else
+	//	imageStore(fbo, ivec2(globalId), vec4(rayDir, 0.0f)); 
 
-	imageStore(fbo, ivec2(globalId), vec4(rayDir, 0.0f)); 
 
+	// Trace until ray is out of view frustum
+	for(float totalMarch = 0.0f;
+		totalMarch < 1200.0f;
+		totalMarch += marchLength)
+	{
+		float marchLength = FindMarchLength(rayStackHot, 
+											marchPos,
+											rayDir);
 
-	//// Trace until ray is out of view frustum
-	//for(float totalMarch = 0.0f;
-	//	totalMarch < halfFoxNearFar.w;
-	//	totalMarch += marchLength)
-	//{
-
-	//}
+		if(marchLength == 0.0f)	return;
+		else
+		{
+			// Either out of bounds or still on march
+			totalMarch += marchLength;
+			marchPos += marchLength * rayDir;
+		}
+	}
+	imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 1.0f, 0.0f)); 
 }

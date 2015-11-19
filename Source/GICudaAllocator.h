@@ -155,8 +155,9 @@ class GICudaAllocator
 		uint32_t				NumSegments() const;
 
 		CVoxelGrid*				GetVoxelGridDevice();
-		CVoxelGrid				GetVoxelGridHost();
-		IEVector3				GetNewVoxelPos(const IEVector3& playerPos);
+		const CVoxelGrid&		GetVoxelGridHost() const;
+		IEVector3				GetNewVoxelPos(const IEVector3& playerPos,
+											   float cascadeMultiplier);
 
 		// Memory Usage Func
 		uint64_t				SystemTotalMemoryUsage() const;

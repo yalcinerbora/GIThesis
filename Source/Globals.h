@@ -89,7 +89,6 @@ static const TwStructMember lightMembers[] =
 #define U_FTRANSFORM 0
 #define U_INVFTRANSFORM 1
 #define U_VOXEL_GRID_INFO 2
-#define U_CAMERA_PARAMS 2
 #define U_SVO_CONSTANTS 3
 
 // Large Uniform

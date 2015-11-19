@@ -14,14 +14,10 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, dSVONodeAllocator(1)
 	, dSVOConstants(1)
 	, tSVODense(0)
-	, vaoNormPosData(512)
-	, vaoColorData(512)
 	, computeVoxTraceWorld(ShaderType::COMPUTE, "Shaders/VoxTraceWorld.glsl")
 	, svoTraceData(1)
-	, camTraceData(1)
 {
 	svoTraceData.AddData({});
-	camTraceData.AddData({});
 }
 
 GISparseVoxelOctree::~GISparseVoxelOctree()
@@ -80,7 +76,7 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 
 	std::copy(newAllocators, newAllocators + allocatorSize, allocators.data());
 	for(unsigned int i = 0; i < allocatorSize; i++)
-		allocatorGrids[i] = newAllocators[i]->GetVoxelGridHost();
+		allocatorGrids[i] = &(newAllocators[i]->GetVoxelGridHost());
 
 	// TODO: More Dynamic Allocation Scheme
 	size_t totalAlloc = static_cast<size_t>(sceneMultiplier * 1024.0f * 1024.0f);
@@ -93,9 +89,9 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 	matSparseOffset = static_cast<unsigned int>((1.0 - std::pow(8.0f, GI_DENSE_LEVEL + 1)) / (1.0f - 8.0f));
 	svoMaterialBuffer.Resize(totalAlloc + matSparseOffset);
 
-	hSVOLevelOffsets.resize(allocatorGrids[0].depth + allocatorSize - GI_DENSE_LEVEL + 2);
-	hSVOLevelSizes.resize(allocatorGrids[0].depth + allocatorSize - GI_DENSE_LEVEL);
-	dSVOLevelSizes.Resize(allocatorGrids[0].depth + allocatorSize - GI_DENSE_LEVEL);
+	hSVOLevelOffsets.resize(allocatorGrids[0]->depth + allocatorSize - GI_DENSE_LEVEL + 2);
+	hSVOLevelSizes.resize(allocatorGrids[0]->depth + allocatorSize - GI_DENSE_LEVEL);
+	dSVOLevelSizes.Resize(allocatorGrids[0]->depth + allocatorSize - GI_DENSE_LEVEL);
 	
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoNodeResource, 
 											svoNodeBuffer.getGLBuffer(), 
@@ -120,7 +116,7 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
 	std::fill(hSVOLevelOffsets.begin(), hSVOLevelOffsets.end(), 0);
 	
-	unsigned int totalLevel = static_cast<unsigned int>(allocatorGrids[0].depth + allocatorSize - 1);
+	unsigned int totalLevel = static_cast<unsigned int>(allocatorGrids[0]->depth + allocatorSize - 1);
 
 	hSVOConstants.denseDepth = GI_DENSE_LEVEL;
 	hSVOConstants.denseDim = GI_DENSE_SIZE;
@@ -329,7 +325,7 @@ void GISparseVoxelOctree::ConstructLevelByLevel()
 	CUDA_CHECK(cudaMemcpy3D(&params));
 
 	// Construct Levels
-	for(unsigned int i = GI_DENSE_LEVEL + 1; i < allocatorGrids[0].depth; i++)
+	for(unsigned int i = GI_DENSE_LEVEL + 1; i < allocatorGrids[0]->depth; i++)
 	{
 		ConstructLevel(i, 0);
 	}
@@ -337,13 +333,13 @@ void GISparseVoxelOctree::ConstructLevelByLevel()
 	// Now adding cascade levels
 	for(unsigned int i = 1; i < allocators.size(); i++)
 	{
-		unsigned int currentLevel = allocatorGrids[0].depth + i - 1;
+		unsigned int currentLevel = allocatorGrids[0]->depth + i - 1;
 		ConstructLevel(currentLevel, i);
 	}
 
 	// Last memcpy of the leaf cascade size
-	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data() + (allocatorGrids[0].depth - GI_DENSE_LEVEL),
-		dSVOLevelSizes.Data() + (allocatorGrids[0].depth - GI_DENSE_LEVEL),
+	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data() + (allocatorGrids[0]->depth - GI_DENSE_LEVEL),
+		dSVOLevelSizes.Data() + (allocatorGrids[0]->depth - GI_DENSE_LEVEL),
 		sizeof(unsigned int),
 		cudaMemcpyDeviceToHost));
 }
@@ -459,8 +455,9 @@ double GISparseVoxelOctree::ConeTrace(GLuint depthBuffer,
 }
 
 double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
-										  const Camera& cam,
-										  const uint2 & imgDim)
+										  StructuredBuffer<InvFrameTransform>& invFT,
+										  FrameTransformBuffer& ft,
+										  const uint2& imgDim)
 {
 	// Timing Voxelization Process
 	GLuint queryID;
@@ -468,12 +465,12 @@ double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
 	glBeginQuery(GL_TIME_ELAPSED, queryID);
 
 	// Set Cascade Trace Data
-	float3 pos = allocatorGrids[0].position;
-	uint32_t dim = allocatorGrids[0].dimension.x * (0x1 << (allocators.size() - 1));
-	uint32_t depth = allocatorGrids[0].depth + static_cast<uint32_t>(allocators.size()) - 1;
+	float3 pos = allocatorGrids[0]->position;
+	uint32_t dim = allocatorGrids[0]->dimension.x * (0x1 << (allocators.size() - 1));
+	uint32_t depth = allocatorGrids[0]->depth + static_cast<uint32_t>(allocators.size()) - 1;
 	svoTraceData.CPUData()[0] = 
 	{
-		{pos.x, pos.y, pos.z, allocatorGrids.back().span},
+		{pos.x, pos.y, pos.z, allocatorGrids.back()->span},
 		{dim, depth, GI_DENSE_SIZE, GI_DENSE_LEVEL},
 		{
 			static_cast<unsigned int>(allocators.size()), 
@@ -484,39 +481,18 @@ double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
 	};
 	svoTraceData.SendData();
 
-	// Camera params
-	IEVector3 camFovXFovY = IEVector3::ZeroVector;
-	camFovXFovY.setX(std::tan(IEMath::ToRadians(cam.fovX * 0.5f)));
-	float invAspect = static_cast<float>(cam.height) / static_cast<float>(cam.width);
-	camFovXFovY.setY(camFovXFovY.getX() * invAspect);
-	
-	float fovY = IEMath::ToDegrees(std::atan(camFovXFovY.getY())) * 2.0f;
-
-	IEVector3 camDir = (cam.centerOfInterest - cam.pos).NormalizeSelf();
-	camTraceData.CPUData()[0] =
-	{
-		{cam.pos.getX(), cam.pos.getY(), cam.pos.getZ(), 0.0f},
-		{camDir.getX(), camDir.getY(), camDir.getZ(), 0.0f},
-		{cam.up.getX(), cam.up.getY(), cam.up.getZ(), 0.0f},
-		{camFovXFovY.getX(), camFovXFovY.getY(), cam.near, cam.far}
-	};
-	camTraceData.SendData();
-	
-
 	// Shaders
 	computeVoxTraceWorld.Bind();
 
 	// Buffers
 	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);
 	svoMaterialBuffer.BindAsShaderStorageBuffer(LU_SVO_MATERIAL);
-	camTraceData.BindAsUniformBuffer(U_CAMERA_PARAMS);
+	invFT.BindAsUniformBuffer(U_INVFTRANSFORM);
+	ft.Bind();
 	svoTraceData.BindAsUniformBuffer(U_SVO_CONSTANTS);
 
 	// Images
 	glBindImageTexture(I_COLOR_FB, writeImage, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
-
-	// Uniforms
-	glUniform2ui(U_IMAGE_SIZE, imgDim.x, imgDim.y);
 
 	// Dispatch
 	uint2 gridSize;

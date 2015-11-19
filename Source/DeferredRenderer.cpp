@@ -5,8 +5,8 @@
 #include "Camera.h"
 #include "RectPrism.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = 1920;
-const GLsizei DeferredRenderer::gBuffHeight = 1080;
+const GLsizei DeferredRenderer::gBuffWidth = /*960;*/ 1920;
+const GLsizei DeferredRenderer::gBuffHeight = /*540;*/1080;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
@@ -120,6 +120,16 @@ GBuffer& DeferredRenderer::GetGBuffer()
 GLuint DeferredRenderer::GetLightIntensityBufferGL()
 {
 	return lightIntensityTex;
+}
+
+InvFrameTransformBuffer& DeferredRenderer::GetInvFTransfrom()
+{
+	return invFrameTransform;
+}
+
+FrameTransformBuffer& DeferredRenderer::GetFTransform()
+{
+	return cameraTransform;
 }
 
 float DeferredRenderer::CalculateCascadeLength(float frustumFar,
@@ -386,17 +396,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 
 	// Inverse Frame Transforms
 	invFrameTransform.BindAsUniformBuffer(U_INVFTRANSFORM);
-	float depthRange[2];
-	glGetFloatv(GL_DEPTH_RANGE, depthRange);
-	invFrameTransform.CPUData()[0] = InvFrameTransform
-	{		
-		ft.view.Inverse() * ft.projection.Inverse(),
-		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascadeLength(camera.far, 0)),
-		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
-		{0, 0, gBuffWidth, gBuffHeight},
-		{depthRange[0], depthRange[1], 0.0f, 0.0f}
-	};
-	invFrameTransform.SendData();
+	RefreshInvFTransform(camera);
 
 	// Bind LightIntensity Buffer as framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
@@ -544,6 +544,23 @@ void DeferredRenderer::LightMerge(const Camera& camera)
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+void DeferredRenderer::RefreshInvFTransform(const Camera& camera)
+{
+	FrameTransformBufferData ft = camera.generateTransform();
+
+	float depthRange[2];
+	glGetFloatv(GL_DEPTH_RANGE, depthRange);
+	invFrameTransform.CPUData()[0] = InvFrameTransform
+	{
+		ft.view.Inverse() * ft.projection.Inverse(),
+		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascadeLength(camera.far, 0)),
+		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
+		{ 0, 0, gBuffWidth, gBuffHeight },
+		{ depthRange[0], depthRange[1], 0.0f, 0.0f }
+	};
+	invFrameTransform.SendData();
+}
+
 void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
 {
 	// Shadow Map Generation
@@ -614,3 +631,4 @@ void DeferredRenderer::ShowGBuffer(const Camera& camera,
 	// Draw
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
+

@@ -94,19 +94,23 @@ class DeferredRenderer
 
 	public:
 		// Constructors & Destructor
-								DeferredRenderer();
-								DeferredRenderer(const DeferredRenderer&) = delete;
-		DeferredRenderer&		operator=(const DeferredRenderer&) = delete;
-								~DeferredRenderer();
+									DeferredRenderer();
+									DeferredRenderer(const DeferredRenderer&) = delete;
+		DeferredRenderer&			operator=(const DeferredRenderer&) = delete;
+									~DeferredRenderer();
 
-		static const GLsizei	gBuffWidth;
-		static const GLsizei	gBuffHeight;
+		static const GLsizei		gBuffWidth;
+		static const GLsizei		gBuffHeight;
 
-		GBuffer&				GetGBuffer();
-		GLuint					GetLightIntensityBufferGL();
-		void					Render(SceneI&, const Camera&);
+		GBuffer&					GetGBuffer();
+		GLuint						GetLightIntensityBufferGL();
+		InvFrameTransformBuffer&	GetInvFTransfrom();
+		FrameTransformBuffer&		GetFTransform();
 
-		void					ShowGBuffer(const Camera& camera,
-											RenderTargetLocation);
+		void						RefreshInvFTransform(const Camera&);
+
+		void						Render(SceneI&, const Camera&);
+		void						ShowGBuffer(const Camera& camera,
+												RenderTargetLocation);
 };
 #endif //__DEFERREDRENDERER_H__

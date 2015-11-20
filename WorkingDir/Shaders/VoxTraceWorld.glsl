@@ -324,8 +324,8 @@ void main(void)
 	uvec2 globalId = gl_GlobalInvocationID.xy;
 	if(any(greaterThanEqual(globalId, viewport.zw))) return;
 
-	//uint linearID = gl_GlobalInvocationID.y * imgSize.x +
-	//				gl_GlobalInvocationID.x;
+	uint linearID = gl_GlobalInvocationID.y * viewport.z +
+					gl_GlobalInvocationID.x;
 
 	//vec4 color;
 	//color.xyz = UnpackColor(svoMaterial[linearID].x);
@@ -336,7 +336,8 @@ void main(void)
 	//	all(equal(color.xyz, vec3(185.0f / 255.0f, 181.0f / 255.0f, 173.0f / 255.0f))))
 	//	imageStore(fbo, ivec2(globalId), vec4(0.0f)); 
 	//else
-	//	imageStore(fbo, ivec2(globalId), color); 
+	//imageStore(fbo, ivec2(globalId), color); 
+	//return;
 
 	// Generate Ray
 	vec3 rayPos = camPos.xyz;

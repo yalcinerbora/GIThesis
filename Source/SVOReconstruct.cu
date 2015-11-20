@@ -212,16 +212,16 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 										   // Const SVO Data
 										   const CSVONode* gSVOSparse,
 										   cudaTextureObject_t tSVODense,
-										   const CVoxelPage* gVoxelData,
-										   const unsigned int* gLevelLookupTable,
 
+										   // Page Data
+										   const CVoxelPage* gVoxelData,
+										  
 										   // For Color Lookup
 										   CVoxelRender** gVoxelRenderData,
 
 										   // Constants
 										   const unsigned int matSparseOffset,
 										   const unsigned int cascadeNo,
-										   const unsigned int levelDepth,
 										   const bool average,
 										   const CSVOConstants& svoConstants)
 {
@@ -243,43 +243,36 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked,
 									  cascadeNo,
 									  svoConstants.numCascades);
-	unsigned char childBit = CalculateLevelChildBit(voxelPos,
-													levelDepth + 1,
-													svoConstants.totalDepth);
-	uint3 levelVoxelId = CalculateLevelVoxId(voxelPos,
-											 levelDepth,
-											 svoConstants.totalDepth);
 
-	uint3 denseIndex = CalculateLevelVoxId(levelVoxelId, svoConstants.denseDepth,
-										   levelDepth);
 
-	assert(denseIndex.x < svoConstants.denseDim &&
-		   denseIndex.y < svoConstants.denseDim &&
-		   denseIndex.z < svoConstants.denseDim);
-
-	CSVONode currentNode = tex3D<unsigned int>(tSVODense,
-											   denseIndex.x,
-											   denseIndex.y,
-											   denseIndex.z);
-	assert(currentNode != 0);
 	unsigned int nodeIndex = 0;
-	for(unsigned int i = svoConstants.denseDepth + 1; i <= levelDepth; i++)
+	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
+	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
 	{
-		unsigned int levelBase = gLevelLookupTable[i - svoConstants.denseDepth - 1];
+		CSVONode currentNode;
+		if(i == svoConstants.denseDepth)
+		{
+			uint3 denseIndex = CalculateLevelVoxId(voxelPos, svoConstants.denseDepth,
+												   svoConstants.totalDepth);
 
-		unsigned char childBits;
-		unsigned int childrenStart;
-		UnpackNode(childrenStart, childBits, currentNode);
-		assert(childBits != 0);
+			assert(denseIndex.x < svoConstants.denseDim &&
+				   denseIndex.y < svoConstants.denseDim &&
+				   denseIndex.z < svoConstants.denseDim);
 
-		// Jump to Next Node
-		unsigned char requestedChild = CalculateLevelChildBit(levelVoxelId, i, levelDepth);
-		unsigned char childIndex = CalculateChildIndex(childBits, requestedChild);
+			currentNode = tex3D<unsigned int>(tSVODense,
+											  denseIndex.x,
+											  denseIndex.y,
+											  denseIndex.z);
+		}
+		else
+		{
+			currentNode = gSVOSparse[nodeIndex];
+		}
 
-		nodeIndex = levelBase + childrenStart + childIndex;
-
-		// Last gMem read unnecessary
-		if(i < levelDepth) currentNode = gSVOSparse[nodeIndex];
+		// Offset according to children
+		assert(currentNode != 0xFFFFFFFF);
+		unsigned int childIndex = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
+		nodeIndex = currentNode + childIndex;
 	}
 
 	// Finally found location

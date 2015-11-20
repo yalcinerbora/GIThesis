@@ -344,36 +344,48 @@ void GISparseVoxelOctree::ConstructLevelByLevel()
 		cudaMemcpyDeviceToHost));
 }
 
-void GISparseVoxelOctree::AverageNodes(bool orderedNodes)
+void GISparseVoxelOctree::AverageNodes()
 {
-	// Leaf Nodes Already ordered
-	
+	// TODO
+	// Find a efficient way to 
+	// average from leaf to root
+}
+
+void GISparseVoxelOctree::AverageNodesOrdered()
+{
 	// First Average Leafs atomically	
-	//for(unsigned int i = 0; i < allocators.size(); i++)
-	//{
-	//	assert(allocators[i]->IsGLMapped() == true);
-	//	uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE +  GI_THREAD_PER_BLOCK - 1) / 
-	//						GI_THREAD_PER_BLOCK;
-	//			
-	//	// Average Leaf Node
-	//	SVOReconstructAverageLeaf<<<gridSize, GI_THREAD_PER_BLOCK>>>
-	//	(
-	//		dSVOMaterial.Data(),
-	//		dSVOSparse,
-	//		tSVODense,
-	//		allocators[i]->GetVoxelPagesDevice(),
-	//		dSVOLevelStartIndices.Data(),
-	//		allocators[i]->GetObjRenderCacheDevice(),
-	//		matSparseOffset,
-	//		i,
-	//		hSVOConstants.totalDepth - (hSVOConstants.numCascades - i),
-	//		*dSVOConstants.Data()
-	//	);
-	//	CUDA_KERNEL_CHECK();
-	//}
+	for(unsigned int i = 0; i < allocators.size(); i++)
+	{
+		assert(allocators[i]->IsGLMapped() == true);
+		uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE +  GI_THREAD_PER_BLOCK - 1) / 
+							GI_THREAD_PER_BLOCK;
+				
+		// Average Leaf Node
+		SVOReconstructMaterialLeaf<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		(
+			dSVOMaterial,
+
+			// Const SVO Data
+			dSVOSparse,
+			tSVODense,
+
+			// Page Data
+			allocators[i]->GetVoxelPagesDevice(),
+										  
+			// For Color Lookup
+			allocators[i]->GetObjRenderCacheDevice(),
+
+			// Constants
+			matSparseOffset,
+			i,
+			true,
+			*dSVOConstants.Data()
+		);
+		CUDA_KERNEL_CHECK();
+	}
 
 	// Now use leaf nodes to average upper nodes
-	// Start bottom up (dont average until inner averages itself
+	// Start bottom up
 	// TODO
 }
 
@@ -412,12 +424,12 @@ double GISparseVoxelOctree::UpdateSVO()
 		// create level nodes in ordered manner
 		// for each level we need to traverse node
 		ConstructFullAtomic();
-		AverageNodes(false);
+		AverageNodes();
 	}
 	else
 	{
 		ConstructLevelByLevel();
-		AverageNodes(true);
+		AverageNodesOrdered();
 	}
 
 	//// DEBUG

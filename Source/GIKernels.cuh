@@ -147,22 +147,23 @@ extern __global__ void SVOReconstructAllocateLevel(CSVONode* gSVO,
 												   const unsigned int levelSize,
 												   const CSVOConstants& svoConstants);
 
-extern __global__ void SVOReconstructAverageLeaf(CSVOMaterial* gSVOMat,
+extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 
-												 // Const SVO Data
-												 const CSVONode* gSVOSparse,
-												 cudaTextureObject_t tSVODense,
-												 const CVoxelPage* gVoxelData,
-												 const unsigned int* gLevelLookupTable,
+												  // Const SVO Data
+												  const CSVONode* gSVOSparse,
+												  cudaTextureObject_t tSVODense,
 
-												 // For Color Lookup
-												 CVoxelRender** gVoxelRenderData,
+												  // Page Data
+												  const CVoxelPage* gVoxelData,
 
-												 // Constants
-												 const unsigned int matSparseOffset,
-												 const unsigned int cascadeNo,
-												 const unsigned int levelDepth,
-												 const CSVOConstants& svoConstants);
+												  // For Color Lookup
+												  CVoxelRender** gVoxelRenderData,
+
+												  // Constants
+												  const unsigned int matSparseOffset,
+												  const unsigned int cascadeNo,
+												  const bool average,
+												  const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstructAverageNode(CSVOMaterial* parentMats,
 												 const CSVOMaterial* childrenMats,

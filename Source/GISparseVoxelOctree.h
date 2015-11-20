@@ -87,7 +87,8 @@ class GISparseVoxelOctree
 															   unsigned int allocatorIndex);
 		void									ConstructFullAtomic();
 		void									ConstructLevelByLevel();
-		void									AverageNodes(bool orderedNodes);
+		void									AverageNodesOrdered();
+		void									AverageNodes();
 
 	protected:
 

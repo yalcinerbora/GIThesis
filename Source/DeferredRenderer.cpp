@@ -5,8 +5,8 @@
 #include "Camera.h"
 #include "RectPrism.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = /*960;*/ 1920;
-const GLsizei DeferredRenderer::gBuffHeight = /*540;*/1080;
+const GLsizei DeferredRenderer::gBuffWidth = 1280;// 1920;
+const GLsizei DeferredRenderer::gBuffHeight = 720;//1080;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {

@@ -21,6 +21,7 @@
 #define U_SVO_CONSTANTS layout(std140, binding = 3)
 
 #define FLT_MAX 3.402823466e+38F
+#define EPSILON 0.00001f
 
 // Uniforms
 LU_SVO_NODE buffer SVONode
@@ -77,14 +78,20 @@ uniform I_COLOR_FB image2D fbo;
 shared unsigned int rayStack[16][16 * 3];
 
 // Funcs
-ivec3 WorldToVox(in vec3 worldPos)
+ivec3 PointVoxId(in vec3 worldPoint, in uint depth)
 {
-	return ivec3(floor((worldPos - worldPosSpan.xyz) / worldPosSpan.w));
+	float levelSpan = worldPosSpan.w * float(0x1 << (dimDepth.y - depth));
+	return ivec3(floor((worldPoint - worldPosSpan.xyz) / levelSpan));
 }
 
-vec3 FragmentToWorld()
+ivec3 LevelVoxPos(in ivec3 voxPos, in uint level)
 {
-	vec2 gBuffUV = (vec2(gl_GlobalInvocationID.xy) - vec2(viewport.xy)) / vec2(viewport.zw);
+	return voxPos >> (dimDepth.y - level);
+}
+
+vec3 PixelToWorld()
+{
+	vec2 gBuffUV = (vec2(gl_GlobalInvocationID.xy) + vec2(0.5f) - vec2(viewport.xy)) / vec2(viewport.zw);
 
 	// NDC (Z is near plane)
 	vec3 ndc = vec3(gBuffUV, 0.0f);
@@ -98,12 +105,6 @@ vec3 FragmentToWorld()
 
 	// From Clip Space to World Space
 	return (invViewProjection * clip).xyz;
-}
-
-vec3 VoxToWorld(in ivec3 voxPos, in uint depth)
-{
-	uint spanMultiplier = dimDepth.y - depth;
-	return vec3(voxPos) * worldPosSpan.w * spanMultiplier + worldPosSpan.xyz;
 }
 
 uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
@@ -129,26 +130,36 @@ float IntersectDistance(in vec3 normCoord,
 						in float gridDim)
 {
 	// 6 Plane intersection on cube normalized coordinates
-	// Since planes axis aligned writing code optimized 
-	// (instead of dot products
-	vec3 tClose = -normCoord;
-	vec3 tFar = -(normCoord + gridDim);
+	// Since planes axis aligned writing code is optimized 
+	// (instead of dot products)
+
+	// P is normCoord (ray position)
+	// D is dir (ray direction)
+	// N is plane normal (since axis aligned (1, 0, 0), (0, 1, 0), (0, 0, 1)
+	// d is gridDim (plane distance from origin) (for "far" planes)
+
+	// d - (P dot N) (P dot N returns Px Py Pz for each plane)
+	vec3 tClose = vec3(0.0f) - normCoord;	
+	vec3 tFar = vec3(gridDim) - normCoord;
 	
 	// Negate zeroes from direction
-	bvec3 dirMask = equal(dir, vec3(0.0f));
-	dir.x = (dirMask.x) ? dir.x : 0.000001f;
-	dir.y = (dirMask.y) ? dir.y : 0.000001f;
-	dir.z = (dirMask.z) ? dir.z : 0.000001f;
+	// (D dot N) returns Dx Dy Dz for each plane
+	// IF perpendicaular make it intersect super far
+	bvec3 dirMask = notEqual(dir, vec3(0.0f));
+	dir.x = (dirMask.x) ? dir.x : EPSILON;
+	dir.y = (dirMask.y) ? dir.y : EPSILON;
+	dir.z = (dirMask.z) ? dir.z : EPSILON;
 
-	// T Distances to the axis aligned planes
-	tClose /= dir;
-	tFar /= dir;
+	// acutal T value
+	// d - (P dot N) / (N dot D)
+	vec3 dirInv = vec3(1.0f) / dir;
+	tClose *= dirInv;
+	tFar *= dirInv;
 
 	// Negate Negative
-	bvec3 tCloseMask = greaterThan(tClose, vec3(0.0f));
-	bvec3 tFarMask = greaterThan(tFar, vec3(0.0f));
-
-	// Write FLT_MAX if its <= 0
+	// Write FLT_MAX if its <= 0.0f
+	bvec3 tCloseMask = greaterThan(tClose, vec3(EPSILON));
+	bvec3 tFarMask = greaterThan(tFar, vec3(EPSILON));
 	tClose.x = (tCloseMask.x) ? tClose.x : FLT_MAX;
 	tClose.y = (tCloseMask.y) ? tClose.y : FLT_MAX;
 	tClose.z = (tCloseMask.z) ? tClose.z : FLT_MAX;
@@ -159,14 +170,7 @@ float IntersectDistance(in vec3 normCoord,
 	// Reduction
 	float minClose = min(min(tClose.x, tClose.y), tClose.z);
 	float minFar = min(min(tFar.x, tFar.y), tFar.z);
-
-	// Boost a little bit to be sure
 	return min(minClose, minFar);
-}
-
-ivec3 LevelVoxPos(in ivec3 voxPos, in uint level)
-{
-	return voxPos >> (dimDepth.y - level);
 }
 
 uint PeekStack(in uvec4 rayStackHot)
@@ -228,7 +232,7 @@ float FindMarchLength(in uvec4 rayStackHot,
 					  in vec3 marchPos,
 					  in vec3 dir)
 {
-	ivec3 voxPos = WorldToVox(marchPos);
+	ivec3 voxPos = PointVoxId(marchPos, dimDepth.y);
 
 	// Cull if out of bounds
 	if(any(lessThan(voxPos, ivec3(0))) ||
@@ -237,7 +241,7 @@ float FindMarchLength(in uvec4 rayStackHot,
 		// Node is out of bounds
 		// Since cam is centered towards grid
 		// Out of bounds means its cannot come towards the grid
-		// directly cull (return negative distance)
+		// directly cull
 		return FLT_MAX;
 	}
 
@@ -280,12 +284,12 @@ float FindMarchLength(in uvec4 rayStackHot,
 			
 			// Node empty 						
 			// Convert Node position and march position to voxel space
-			vec3 voxWorld = VoxToWorld(voxPos, i);
+			vec3 voxWorld = vec3(PointVoxId(marchPos, i));
 			vec3 normMarchPos = marchPos - voxWorld;
 			
 			// 6 plane intersections (skip if perpendicular (N dot Dir == 0))
 			float dist = IntersectDistance(normMarchPos, dir, 
-										   worldPosSpan.w * float(0x1 << (dimDepth.y - i + 1)));
+										   worldPosSpan.w * float(0x1 << (dimDepth.y - i)));
 
 			//// convert to march ray
 			//vec3 newMarch = marchPos + dist * dir;
@@ -301,8 +305,9 @@ float FindMarchLength(in uvec4 rayStackHot,
 			//PopStack(rayStackHot, (i - 1) - minCommon);
 			
 			// return minimum positive distance
-			return 1.2f;
-			//return dist;
+			//return 0.513f;
+			return max(worldPosSpan.w, dist + 0.001f);
+			//return worldPosSpan.w;
 		}
 		else
 		{
@@ -315,7 +320,7 @@ float FindMarchLength(in uvec4 rayStackHot,
 		}	
 	}
 	// Code Shouldnt return from here
-	return 0.0f;
+	return -1.0f;
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
@@ -331,18 +336,19 @@ void main(void)
 	//color.xyz = UnpackColor(svoMaterial[linearID].x);
 	//color.w = 1.0f;
 
+	//imageStore(fbo, ivec2(globalId), color); 
+	//return;
+
 	//if(all(equal(color.xyz, vec3(41.0f / 255.0f, 34.0f / 255.0f, 109.0f / 255.0f))) ||
 	//	all(equal(color.xyz, vec3(161.0f / 255.0f, 17.0f / 255.0f, 13.0f / 255.0f))) ||
 	//	all(equal(color.xyz, vec3(185.0f / 255.0f, 181.0f / 255.0f, 173.0f / 255.0f))))
 	//	imageStore(fbo, ivec2(globalId), vec4(0.0f)); 
 	//else
-	//imageStore(fbo, ivec2(globalId), color); 
-	//return;
+	
 
 	// Generate Ray
 	vec3 rayPos = camPos.xyz;
-	vec3 nearOffsets = FragmentToWorld();
-	vec3 rayDir = normalize(nearOffsets - rayPos);
+	vec3 rayDir = normalize(PixelToWorld() - rayPos);
 	
 	//imageStore(fbo, ivec2(globalId), vec4(rayDir, 0.0f)); 
 	//return;
@@ -350,28 +356,31 @@ void main(void)
 	uvec4 rayStackHot = uvec4(0);
 	vec3 marchPos = rayPos;
 	float marchLength = 0;
-
-	marchLength = FindMarchLength(rayStackHot, marchPos, rayDir);
-		
-	//if(marchLength == FLT_MAX) 
-	//	imageStore(fbo, ivec2(globalId), vec4(0.0f)); 
-	//else
-	//	imageStore(fbo, ivec2(globalId), vec4(rayDir, 0.0f)); 
-
-
 	// Trace until ray is out of view frustum
 	for(float totalMarch = 0.0f;
-		totalMarch < 1200.0f;
+		totalMarch < 800.0f;
 		totalMarch += marchLength)
 	{
-		float marchLength = FindMarchLength(rayStackHot, 
-											marchPos,
-											rayDir);
-
+		float marchLength = FindMarchLength(rayStackHot, marchPos, rayDir);
 		if(marchLength == 0.0f)	return;
+		else if(marchLength <= 0.0f)
+		{
+			imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 0.0f, 0.0f)); 
+			return;
+		}
+		else if(marchLength == FLT_MAX)
+		{
+			imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 0.0f, 0.0f)); 
+			return;
+		}
+		//else if(marchLength == worldPosSpan.w)
+		//{
+		//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 0.0f, 0.0f, 0.0f)); 
+		//	return;
+		//}
 		else
 		{
-			// Either out of bounds or still on march
+			// March Ray and Continue
 			totalMarch += marchLength;
 			marchPos += marchLength * rayDir;
 		}

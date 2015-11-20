@@ -98,7 +98,8 @@ inline __device__ uint3 CalculateLevelVoxId(const uint3& voxelPos,
 
 inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 										 const unsigned int cascadeNo,
-										 const unsigned int numCascades)
+										 const unsigned int numCascades,
+										 const unsigned int totalLevel)
 {
 	uint3 expandedVoxId = localVoxelPos;
 	expandedVoxId.x = expandedVoxId.x << (numCascades - cascadeNo - 1);
@@ -110,7 +111,7 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 		// Bit expansion of inner cascades
 		// if MSB is 1 it becomes 10
 		// if MSB is 0 it becomes 01
-		unsigned int bitLoc = 9 + numCascades - cascadeNo - 1;
+		unsigned int bitLoc = totalLevel - cascadeNo + i;
 		unsigned int rightBitMask = (0x01 << (bitLoc - 1)) - 1;
 		unsigned int componentBit;
 		unsigned int component;
@@ -139,43 +140,4 @@ inline __device__ unsigned int CalculateChildIndex(const unsigned char childrenB
 	assert((childrenBits & childBit) != 0);	
 	return __popc(childrenBits & (childBit - 1));
 }
-
-inline __device__ unsigned int PosToKey(const uint3& levelVoxPos,
-										const unsigned int level)
-{
-	unsigned int packedId = 0x00000000;
-	unsigned int bitMask = 0x00000001;
-	for(unsigned int i = 0; i < umax(level, 9u); i++)
-	{
-		packedId |= (levelVoxPos.x & (bitMask << i)) << (i * 2 + 0);
-		packedId |= (levelVoxPos.y & (bitMask << i)) << (i * 2 + 1);
-		packedId |= (levelVoxPos.z & (bitMask << i)) << (i * 2 + 2);
-	}
-	return packedId;
-
-	//// TODO: better hash that occupies more warps
-	//return PackOnlyVoxPos(levelVoxPos, 0);
-}
-
-inline __device__ uint3 KeyToPos(const unsigned int packedVoxel,
-								 const unsigned int level,
-								 const unsigned int cascadeNo,
-								 const unsigned int numCascades)
-{
-	uint3 levelVoxelId = { 0, 0, 0 };
-	unsigned int bitMask = 0x00000001;
-	for(unsigned int i = 0; i < umax(level, 9u); i++)
-	{
-		levelVoxelId.x |= (packedVoxel >> (i * 2 + 0)) & (bitMask << i);
-		levelVoxelId.y |= (packedVoxel >> (i * 2 + 1)) & (bitMask << i);
-		levelVoxelId.z |= (packedVoxel >> (i * 2 + 2)) & (bitMask << i);
-	}
-	if(level > 9)
-		return ExpandToSVODepth(levelVoxelId, cascadeNo, numCascades);
-	return levelVoxelId;
-}
-
-// Returns the intersected voxelIndex if voxel is found
-// Else it returns -1 (0xFFFFFFFF)
-inline __device__ unsigned int ConeTrace() {return 0;}
 #endif //__CSPARSEVOXELOCTREE_H__

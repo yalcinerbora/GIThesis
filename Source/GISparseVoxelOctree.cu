@@ -440,7 +440,7 @@ double GISparseVoxelOctree::UpdateSVO()
 	//					  dSVOLevelSizes.Size() * sizeof(unsigned int),
 	//					  cudaMemcpyDeviceToHost));
 	//unsigned int i;
-	//for(i = 0; i <= allocatorGrids[0].depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
+	//for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
 	//{
 	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);

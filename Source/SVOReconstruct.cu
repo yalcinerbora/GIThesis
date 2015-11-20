@@ -110,7 +110,8 @@ __global__ void SVOReconstructDetermineNode(CSVONode* gSVODense,
 	// Local Voxel pos and expand it if its one of the inner cascades
 	uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);
 	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked, cascadeNo,
-									  svoConstants.numCascades);
+									  svoConstants.numCascades,
+									  svoConstants.totalDepth);
 	uint3 denseIndex = CalculateLevelVoxId(voxelPos, svoConstants.denseDepth,
 										   svoConstants.totalDepth);
 
@@ -150,7 +151,8 @@ __global__ void SVOReconstructDetermineNode(CSVONode* gSVOSparse,
 	// Local Voxel pos and expand it if its one of the inner cascades
 	uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);
 	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked, cascadeNo,
-									  svoConstants.numCascades);
+									  svoConstants.numCascades,
+									  svoConstants.totalDepth);
 
 	unsigned int nodeIndex = 0;
 	for(unsigned int i = svoConstants.denseDepth; i < levelDepth; i++)
@@ -242,7 +244,8 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 	uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);
 	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked,
 									  cascadeNo,
-									  svoConstants.numCascades);
+									  svoConstants.numCascades,
+									  svoConstants.totalDepth);
 
 
 	unsigned int nodeIndex = 0;
@@ -340,14 +343,13 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 	uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);
 	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked,
 									  cascadeNo,
-									  svoConstants.numCascades);
+									  svoConstants.numCascades,
+									  svoConstants.totalDepth);
 
 	unsigned int location;
 	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
 	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
 	{
-		unsigned int childId = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
-		
 		CSVONode* node = nullptr;
 		if(i == svoConstants.denseDepth)
 		{
@@ -365,6 +367,9 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 		unsigned int levelIndex = i + 1 - svoConstants.denseDepth;
 		location = AtomicAllocateNode(node, gSVOAllocLocation, gLevelNodeCounts,
 									  levelIndex, svoTotalSize);
+
+		// Offset child
+		unsigned int childId = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
 		location += childId;
 	}
 

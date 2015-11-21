@@ -20,8 +20,9 @@
 #define U_INVFTRANSFORM layout(std140, binding = 1)
 #define U_SVO_CONSTANTS layout(std140, binding = 3)
 
-#define FLT_MAX 3.402823466e+38F
+#define FLT_MAX 100000.0f//3.402823466e+38F
 #define EPSILON 0.00001f
+#define SQRT_3	1.732051f
 
 // Uniforms
 LU_SVO_NODE buffer SVONode
@@ -78,101 +79,6 @@ uniform I_COLOR_FB image2D fbo;
 shared unsigned int rayStack[16][16 * 3];
 
 // Funcs
-ivec3 PointVoxId(in vec3 worldPoint, in uint depth)
-{
-	float levelSpan = worldPosSpan.w * float(0x1 << (dimDepth.y - depth));
-	return ivec3(floor((worldPoint - worldPosSpan.xyz) / levelSpan));
-}
-
-ivec3 LevelVoxPos(in ivec3 voxPos, in uint level)
-{
-	return voxPos >> (dimDepth.y - level);
-}
-
-vec3 PixelToWorld()
-{
-	vec2 gBuffUV = (vec2(gl_GlobalInvocationID.xy) + vec2(0.5f) - vec2(viewport.xy)) / vec2(viewport.zw);
-
-	// NDC (Z is near plane)
-	vec3 ndc = vec3(gBuffUV, 0.0f);
-	ndc.xy = 2.0f * ndc.xy - 1.0f;
-	ndc.z = ((2.0f * (ndc.z - depthNearFar.x) / (depthNearFar.y - depthNearFar.x)) - 1.0f);
-
-	// Clip Space
-	vec4 clip;
-	clip.w = projection[3][2] / (ndc.z - (projection[2][2] / projection[2][3]));
-	clip.xyz = ndc * clip.w;
-
-	// From Clip Space to World Space
-	return (invViewProjection * clip).xyz;
-}
-
-uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
-{
-	uint bitSet = 0;
-	bitSet |= ((voxPos.z >> (dimDepth.y - levelDepth)) & 0x000000001) << 2;
-	bitSet |= ((voxPos.y >> (dimDepth.y - levelDepth)) & 0x000000001) << 1;
-	bitSet |= ((voxPos.x >> (dimDepth.y - levelDepth)) & 0x000000001) << 0;
-	return bitSet;
-}
-
-vec3 UnpackColor(in uint colorPacked)
-{
-	vec3 color;
-	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
-	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
-	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
-	return color;
-}
-
-float IntersectDistance(in vec3 normCoord, 
-						in vec3 dir, 
-						in float gridDim)
-{
-	// 6 Plane intersection on cube normalized coordinates
-	// Since planes axis aligned writing code is optimized 
-	// (instead of dot products)
-
-	// P is normCoord (ray position)
-	// D is dir (ray direction)
-	// N is plane normal (since axis aligned (1, 0, 0), (0, 1, 0), (0, 0, 1)
-	// d is gridDim (plane distance from origin) (for "far" planes)
-
-	// d - (P dot N) (P dot N returns Px Py Pz for each plane)
-	vec3 tClose = vec3(0.0f) - normCoord;	
-	vec3 tFar = vec3(gridDim) - normCoord;
-	
-	// Negate zeroes from direction
-	// (D dot N) returns Dx Dy Dz for each plane
-	// IF perpendicaular make it intersect super far
-	bvec3 dirMask = notEqual(dir, vec3(0.0f));
-	dir.x = (dirMask.x) ? dir.x : EPSILON;
-	dir.y = (dirMask.y) ? dir.y : EPSILON;
-	dir.z = (dirMask.z) ? dir.z : EPSILON;
-
-	// acutal T value
-	// d - (P dot N) / (N dot D)
-	vec3 dirInv = vec3(1.0f) / dir;
-	tClose *= dirInv;
-	tFar *= dirInv;
-
-	// Negate Negative
-	// Write FLT_MAX if its <= 0.0f
-	bvec3 tCloseMask = greaterThan(tClose, vec3(EPSILON));
-	bvec3 tFarMask = greaterThan(tFar, vec3(EPSILON));
-	tClose.x = (tCloseMask.x) ? tClose.x : FLT_MAX;
-	tClose.y = (tCloseMask.y) ? tClose.y : FLT_MAX;
-	tClose.z = (tCloseMask.z) ? tClose.z : FLT_MAX;
-	tFar.x = (tFarMask.x) ? tFar.x : FLT_MAX;
-	tFar.y = (tFarMask.y) ? tFar.y : FLT_MAX;
-	tFar.z = (tFarMask.z) ? tFar.z : FLT_MAX;
-
-	// Reduction
-	float minClose = min(min(tClose.x, tClose.y), tClose.z);
-	float minFar = min(min(tFar.x, tFar.y), tFar.z);
-	return min(minClose, minFar);
-}
-
 uint PeekStack(in uvec4 rayStackHot)
 {
 	uint indexedDepth = rayStackHot.x - dimDepth.z;
@@ -228,11 +134,139 @@ void PushStack(in uvec4 rayStackHot, in uint nodeId)
 	}
 }
 
+ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
+{
+	ivec3 result = ivec3(floor((worldPoint - worldPosSpan.xyz) / worldPosSpan.w));
+	return result >> (dimDepth.y - depth);
+}
+
+vec3 PixelToWorld()
+{
+	vec2 gBuffUV = (vec2(gl_GlobalInvocationID.xy) + vec2(0.5f) - vec2(viewport.xy)) / vec2(viewport.zw);
+
+	// NDC (Z is near plane)
+	vec3 ndc = vec3(gBuffUV, 0.0f);
+	ndc.xy = 2.0f * ndc.xy - 1.0f;
+	ndc.z = ((2.0f * (ndc.z - depthNearFar.x) / (depthNearFar.y - depthNearFar.x)) - 1.0f);
+
+	// Clip Space
+	vec4 clip;
+	clip.w = projection[3][2] / (ndc.z - (projection[2][2] / projection[2][3]));
+	clip.xyz = ndc * clip.w;
+
+	// From Clip Space to World Space
+	return (invViewProjection * clip).xyz;
+}
+
+uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
+{
+	uint bitSet = 0;
+	bitSet |= ((voxPos.z >> (dimDepth.y - levelDepth)) & 0x000000001) << 2;
+	bitSet |= ((voxPos.y >> (dimDepth.y - levelDepth)) & 0x000000001) << 1;
+	bitSet |= ((voxPos.x >> (dimDepth.y - levelDepth)) & 0x000000001) << 0;
+	return bitSet;
+}
+
+vec3 UnpackColor(in uint colorPacked)
+{
+	vec3 color;
+	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
+	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
+	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
+	return color;
+}
+
+float IntersectDistance(in vec3 relativePos, 
+						in vec3 dir, 
+						in float gridDim)
+{
+	// 6 Plane intersection on cube normalized coordinates
+	// Since planes axis aligned writing code is optimized 
+	// (instead of dot products)
+
+	// P is normCoord (ray position)
+	// D is dir (ray direction)
+	// N is plane normal (since axis aligned (1, 0, 0), (0, 1, 0), (0, 0, 1)
+	// d is gridDim (plane distance from origin) (for "far" planes)
+
+	// Normals
+	//vec3 xN = vec3(1.0f, 0.0f, 0.0f);
+	//vec3 yN = vec3(0.0f, 1.0f, 0.0f);
+	//vec3 zN = vec3(0.0f, 0.0f, 1.0f);
+
+	//vec3 NdotP;
+	//NdotP.x = -dot(xN, relativePos);
+	//NdotP.y = -dot(yN, relativePos);
+	//NdotP.z = -dot(zN, relativePos);
+
+	//vec3 NdotD;
+	//NdotD.x = dot(xN, dir);
+	//NdotD.y = dot(yN, dir);
+	//NdotD.z = dot(zN, dir);
+
+	// Negate Zero (make it interset far)
+	//NdotD.x = (NdotD.x != 0.0f) ? NdotD.x : EPSILON;
+	//NdotD.y = (NdotD.y != 0.0f) ? NdotD.y : EPSILON;
+	//NdotD.z = (NdotD.z != 0.0f) ? NdotD.z : EPSILON;
+
+	// T distances of the planes
+	//vec3 InvNdotD = vec3(1.0f) / NdotD;
+	//vec3 tClose = NdotP * InvNdotD;
+	//vec3 tFar = (vec3(gridDim) + NdotP) * InvNdotD;
+	
+	// Negate Zero and Negatives (make them far)
+	//tClose.x = (tClose.x > EPSILON) ? tClose.x : FLT_MAX;
+	//tClose.y = (tClose.y > EPSILON) ? tClose.y : FLT_MAX;
+	//tClose.z = (tClose.z > EPSILON) ? tClose.z : FLT_MAX;
+	//tFar.x = (tFar.x > EPSILON) ? tFar.x : FLT_MAX;
+	//tFar.y = (tFar.y > EPSILON) ? tFar.y : FLT_MAX;
+	//tFar.z = (tFar.z > EPSILON) ? tFar.z : FLT_MAX;
+
+	// Return closest intersection position
+	//float minClose = min(min(tClose.x, tClose.y), tClose.z);
+	//float minFar = min(min(tFar.x, tFar.y), tFar.z);
+	//return min(minClose, minFar);
+
+	// d - (P dot N) (P dot N returns Px Py Pz for each plane)
+	vec3 tClose = vec3(0.0f) - relativePos;	
+	vec3 tFar = vec3(gridDim) - relativePos;
+	
+	// Negate zeroes from direction
+	// (D dot N) returns Dx Dy Dz for each plane
+	// IF perpendicaular make it intersect super far
+	bvec3 dirMask = notEqual(dir, vec3(0.0f));
+	dir.x = (dirMask.x) ? dir.x : EPSILON;
+	dir.y = (dirMask.y) ? dir.y : EPSILON;
+	dir.z = (dirMask.z) ? dir.z : EPSILON;
+
+	// acutal T value
+	// d - (P dot N) / (N dot D)
+	vec3 dirInv = vec3(1.0f) / dir;
+	tClose *= dirInv;
+	tFar *= dirInv;
+
+	// Negate Negative
+	// Write FLT_MAX if its <= 0.0f
+	bvec3 tCloseMask = greaterThan(tClose, vec3(EPSILON));
+	bvec3 tFarMask = greaterThan(tFar, vec3(EPSILON));
+	tClose.x = (tCloseMask.x) ? tClose.x : FLT_MAX;
+	tClose.y = (tCloseMask.y) ? tClose.y : FLT_MAX;
+	tClose.z = (tCloseMask.z) ? tClose.z : FLT_MAX;
+	tFar.x = (tFarMask.x) ? tFar.x : FLT_MAX;
+	tFar.y = (tFarMask.y) ? tFar.y : FLT_MAX;
+	tFar.z = (tFarMask.z) ? tFar.z : FLT_MAX;
+
+	// Reduction
+	float minClose = min(min(tClose.x, tClose.y), tClose.z);
+	float minFar = min(min(tFar.x, tFar.y), tFar.z);
+	return min(minClose, minFar);
+}
+
 float FindMarchLength(in uvec4 rayStackHot, 
 					  in vec3 marchPos,
 					  in vec3 dir)
 {
-	ivec3 voxPos = PointVoxId(marchPos, dimDepth.y);
+	ivec3 voxPos = LevelVoxId(marchPos, dimDepth.y);
 
 	// Cull if out of bounds
 	if(any(lessThan(voxPos, ivec3(0))) ||
@@ -253,7 +287,8 @@ float FindMarchLength(in uvec4 rayStackHot,
 		uint currentNode;
 		if(i == dimDepth.w)
 		{
-			ivec3 denseVox = LevelVoxPos(voxPos, dimDepth.w);
+			//ivec3 denseVox = LevelVoxPos(voxPos, dimDepth.w);
+			ivec3 denseVox = LevelVoxId(marchPos, dimDepth.w);
 			currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
 									denseVox.y * dimDepth.z + 
 									denseVox.x];
@@ -266,7 +301,7 @@ float FindMarchLength(in uvec4 rayStackHot,
 		// Node check
 		if(currentNode == 0xFFFFFFFF)
 		{
-			// Node maybe Empty
+			// Node Empty
 			// This may contain color
 			// Check Material
 			if((dimDepth.y - i) < offsetCascade.x)
@@ -283,13 +318,16 @@ float FindMarchLength(in uvec4 rayStackHot,
 			}
 			
 			// Node empty 						
-			// Convert Node position and march position to voxel space
-			vec3 voxWorld = vec3(PointVoxId(marchPos, i));
-			vec3 normMarchPos = marchPos - voxWorld;
-			
-			// 6 plane intersections (skip if perpendicular (N dot Dir == 0))
-			float dist = IntersectDistance(normMarchPos, dir, 
-										   worldPosSpan.w * float(0x1 << (dimDepth.y - i)));
+			// Voxel Corners are now (0,0,0) and (span, span, span)
+			// span is current level grid span (leaf span * (2^ totalLevel - currentLevel)
+			float levelSpan = worldPosSpan.w * float(0x1 << (dimDepth.y - i));
+		
+			// Convert march position to voxel space
+			vec3 voxWorld = worldPosSpan.xyz + (vec3(LevelVoxId(marchPos, i)) * levelSpan);
+			vec3 relativeMarchPos = marchPos - voxWorld;
+		
+			// Intersection check between borders of the voxel
+			float dist = IntersectDistance(relativeMarchPos, dir, levelSpan);
 
 			//// convert to march ray
 			//vec3 newMarch = marchPos + dist * dir;
@@ -305,8 +343,9 @@ float FindMarchLength(in uvec4 rayStackHot,
 			//PopStack(rayStackHot, (i - 1) - minCommon);
 			
 			// return minimum positive distance
-			//return 0.513f;
-			return max(worldPosSpan.w, dist + 0.001f);
+			//return dist;
+			return max(0.1f, dist);
+			//return levelSpan;
 			//return worldPosSpan.w;
 		}
 		else
@@ -355,21 +394,30 @@ void main(void)
 	
 	uvec4 rayStackHot = uvec4(0);
 	vec3 marchPos = rayPos;
-	float marchLength = 0;
+
 	// Trace until ray is out of view frustum
+	float maxMarch = worldPosSpan.w * float(0x1 << (dimDepth.y)) * SQRT_3;
+	float marchLength = 0;
 	for(float totalMarch = 0.0f;
-		totalMarch < 800.0f;
+		totalMarch < maxMarch;
 		totalMarch += marchLength)
 	{
-		float marchLength = FindMarchLength(rayStackHot, marchPos, rayDir);
+		marchLength = FindMarchLength(rayStackHot, marchPos, rayDir);
+
+		// March Length zero, we hit a point
 		if(marchLength == 0.0f)	return;
-		else if(marchLength <= 0.0f)
+
+		// March Length < zero, out of bounds
+		else if(marchLength < 0.0f)
 		{
+			// RED
 			imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 0.0f, 0.0f)); 
 			return;
 		}
+		// March Length < too big , paralel ray hitmarker (just
 		else if(marchLength == FLT_MAX)
 		{
+			//GREEEEEEN
 			imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 0.0f, 0.0f)); 
 			return;
 		}
@@ -385,5 +433,6 @@ void main(void)
 			marchPos += marchLength * rayDir;
 		}
 	}
+	// MAGENTA
 	imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 1.0f, 0.0f)); 
 }

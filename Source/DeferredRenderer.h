@@ -110,7 +110,6 @@ class DeferredRenderer
 		void						RefreshInvFTransform(const Camera&);
 
 		void						Render(SceneI&, const Camera&);
-		void						ShowGBuffer(const Camera& camera,
-												RenderTargetLocation);
+		void						ShowColorGBuffer(const Camera& camera);
 };
 #endif //__DEFERREDRENDERER_H__

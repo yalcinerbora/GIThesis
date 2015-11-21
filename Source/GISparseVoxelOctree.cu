@@ -516,8 +516,10 @@ double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
 	GLuint64 timeElapsed = 0;
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
-
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	// I have to unbind the compute shader or weird things happen
+	Shader::Unbind(ShaderType::COMPUTE);
 	return timeElapsed / 1000000.0;
 }
 

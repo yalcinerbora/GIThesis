@@ -103,7 +103,7 @@ bool Shader::IsValid() const
 	return valid;
 }
 
-void  Shader::Unbind(ShaderType shaderType)
+void Shader::Unbind(ShaderType shaderType)
 {
 	glUseProgramStages(shaderPipelineID, ShaderTypeToGLBit(shaderType), 0);
 	glActiveShaderProgram(shaderPipelineID, 0);

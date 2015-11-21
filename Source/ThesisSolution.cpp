@@ -449,7 +449,7 @@ double ThesisSolution::DebugRenderSVO(const Camera& camera)
 									  DeferredRenderer::gBuffHeight});
 
 	// Tell deferred renderer to post process color buffer;
-	dRenderer.ShowGBuffer(camera, RenderTargetLocation::COLOR);
+	dRenderer.ShowColorGBuffer(camera);
 	return time;
 }
 

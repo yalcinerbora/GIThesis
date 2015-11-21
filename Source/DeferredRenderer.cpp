@@ -5,8 +5,8 @@
 #include "Camera.h"
 #include "RectPrism.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = 1280;// 1920;
-const GLsizei DeferredRenderer::gBuffHeight = 720;//1080;
+const GLsizei DeferredRenderer::gBuffWidth = 1280;/* 1920;*///3840;
+const GLsizei DeferredRenderer::gBuffHeight = 720;/*1080;*///2160;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
@@ -582,11 +582,8 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
 	// All Done!
 }
 
-void DeferredRenderer::ShowGBuffer(const Camera& camera,
-								   RenderTargetLocation rt)
+void DeferredRenderer::ShowColorGBuffer(const Camera& camera)
 {
-	assert(rt != RenderTargetLocation::NORMAL);
-
 	// Only Draw Color Buffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0,
@@ -609,21 +606,7 @@ void DeferredRenderer::ShowGBuffer(const Camera& camera,
 	fragPPGeneric.Bind();
 
 	// Texture
-	glActiveTexture(GL_TEXTURE0 + T_COLOR);
-	switch(rt)
-	{
-		case RenderTargetLocation::COLOR:
-			glBindTexture(GL_TEXTURE_2D, gBuffer.getColorGL());
-			break;
-
-		case RenderTargetLocation::DEPTH:
-			glBindTexture(GL_TEXTURE_2D, gBuffer.getDepthGL());
-			break;
-		default:
-			assert(false);
-			break;
-	}
-	glBindSampler(T_COLOR, linearSampler);
+	gBuffer.BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
 
 	// VAO
 	glBindVertexArray(postProcessTriVao);

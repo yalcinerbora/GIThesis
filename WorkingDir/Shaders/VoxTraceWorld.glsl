@@ -20,7 +20,7 @@
 #define U_INVFTRANSFORM layout(std140, binding = 1)
 #define U_SVO_CONSTANTS layout(std140, binding = 3)
 
-#define FLT_MAX 100000.0f//3.402823466e+38F
+#define FLT_MAX 3.402823466e+38F
 #define EPSILON 0.00001f
 #define SQRT_3	1.732051f
 
@@ -234,7 +234,7 @@ float IntersectDistance(in vec3 relativePos,
 	// Negate zeroes from direction
 	// (D dot N) returns Dx Dy Dz for each plane
 	// IF perpendicaular make it intersect super far
-	bvec3 dirMask = notEqual(dir, vec3(0.0f));
+	bvec3 dirMask = greaterThan(abs(dir), vec3(EPSILON));
 	dir.x = (dirMask.x) ? dir.x : EPSILON;
 	dir.y = (dirMask.y) ? dir.y : EPSILON;
 	dir.z = (dirMask.z) ? dir.z : EPSILON;
@@ -247,8 +247,12 @@ float IntersectDistance(in vec3 relativePos,
 
 	// Negate Negative
 	// Write FLT_MAX if its <= 0.0f
-	bvec3 tCloseMask = greaterThan(tClose, vec3(EPSILON));
-	bvec3 tFarMask = greaterThan(tFar, vec3(EPSILON));
+	//bvec3 tCloseMask = greaterThan(abs(tClose), vec3(1.5f));
+	//bvec3 tFarMask = greaterThan(abs(tFar), vec3(1.5f));
+
+	bvec3 tCloseMask = greaterThan(tClose, vec3(0.0005f));
+	bvec3 tFarMask = greaterThan(tFar, vec3(0.0005f));
+
 	tClose.x = (tCloseMask.x) ? tClose.x : FLT_MAX;
 	tClose.y = (tCloseMask.y) ? tClose.y : FLT_MAX;
 	tClose.z = (tCloseMask.z) ? tClose.z : FLT_MAX;

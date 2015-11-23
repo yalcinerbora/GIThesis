@@ -2,44 +2,48 @@
 #include "CSparseVoxelOctree.cuh"
 #include "CVoxel.cuh"
 
+inline __device__ CSVOMaterial Average(const CSVOMaterial& material,
+										const float4& colorUnpack,
+										const float3& normalUnpack)
+{
+	// Unpack Material
+	CSVOColor avgColorPacked;
+	CSVOColor avgNormalPacked;
+	UnpackSVOMaterial(avgColorPacked, avgNormalPacked, material);
+	float4 avgColor = UnpackSVOColor(avgColorPacked);
+	float3 avgNormal = ExpandOnlyNormal(avgNormalPacked);
+
+	// Averaging (color.w is number of nodes)
+	assert(avgColor.w < 255.0f);
+
+	float ratio = avgColor.w / (avgColor.w + 1.0f);
+
+	// New Color Average
+	avgColor.x = (ratio * avgColor.x) + (colorUnpack.x / (avgColor.w + 1.0f));
+	avgColor.y = (ratio * avgColor.y) + (colorUnpack.y / (avgColor.w + 1.0f));
+	avgColor.z = (ratio * avgColor.z) + (colorUnpack.z / (avgColor.w + 1.0f));
+
+	// New Normal Average
+	avgNormal.x = (ratio * avgNormal.x) + (normalUnpack.x / (avgColor.w + 1.0f));
+	avgNormal.y = (ratio * avgNormal.y) + (normalUnpack.y / (avgColor.w + 1.0f));
+	avgNormal.z = (ratio * avgNormal.z) + (normalUnpack.z / (avgColor.w + 1.0f));
+
+	avgColorPacked = PackSVOColor(avgColor);
+	avgNormalPacked = PackOnlyVoxNorm(avgNormal);
+	return PackSVOMaterial(avgColorPacked, avgNormalPacked);
+}
+
 inline __device__ CSVOColor AtomicColorNormalAvg(CSVOMaterial* gMaterial, 
 												 CSVOColor color,
 												 CVoxelNorm voxelNormal)
 {
 	float4 colorUnpack = UnpackSVOColor(color);
 	float3 normalUnpack = ExpandOnlyNormal(voxelNormal);
-
 	CSVOMaterial assumed, old = *gMaterial;
 	do
 	{
 		assumed = old;
-		
-		// CAS Average
-		CSVOColor avgColorPacked;
-		CSVOColor avgNormalPacked;
-		UnpackSVOMaterial(avgColorPacked, avgNormalPacked, assumed);
-		float4 avgColor = UnpackSVOColor(avgColorPacked);
-		float3 avgNormal = ExpandOnlyNormal(avgNormalPacked);
-
-		// Averaging (color.w is number of nodes)
-		assert(avgColor.w < 255.0f);
-
-		float ratio = avgColor.w / (avgColor.w + 1.0f);
-
-		// New Color Average
-		avgColor.x = (ratio * avgColor.x) + (colorUnpack.x / (avgColor.w + 1.0f));
-		avgColor.y = (ratio * avgColor.y) + (colorUnpack.y / (avgColor.w + 1.0f));
-		avgColor.z = (ratio * avgColor.z) + (colorUnpack.z / (avgColor.w + 1.0f));
-
-		// New Normal Average
-		avgNormal.x = (ratio * avgNormal.x) + (normalUnpack.x / (avgColor.w + 1.0f));
-		avgNormal.y = (ratio * avgNormal.y) + (normalUnpack.y / (avgColor.w + 1.0f));
-		avgNormal.z = (ratio * avgNormal.z) + (normalUnpack.z / (avgColor.w + 1.0f));
-		
-		avgColorPacked = PackSVOColor(avgColor);
-		avgNormalPacked = PackOnlyVoxNorm(avgNormal);
-		
-		old = atomicCAS(gMaterial, assumed, PackSVOMaterial(avgColorPacked, avgNormalPacked));
+		old = atomicCAS(gMaterial, assumed, Average(assumed, colorUnpack, normalUnpack));
 	}
 	while(assumed != old);
 	return old;
@@ -94,7 +98,7 @@ __global__ void SVOReconstructDetermineNode(CSVONode* gSVODense,
 											const unsigned int cascadeNo,
 											const CSVOConstants& svoConstants)
 {
-	unsigned int globalId = threadIdx.x + blockIdx.x * GI_THREAD_PER_BLOCK;
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
@@ -135,7 +139,7 @@ __global__ void SVOReconstructDetermineNode(CSVONode* gSVOSparse,
 											const unsigned int levelDepth,
 											const CSVOConstants& svoConstants)
 {
-	unsigned int globalId = threadIdx.x + blockIdx.x * GI_THREAD_PER_BLOCK;
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
@@ -224,10 +228,9 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 										   // Constants
 										   const unsigned int matSparseOffset,
 										   const unsigned int cascadeNo,
-										   const bool average,
 										   const CSVOConstants& svoConstants)
 {
-	unsigned int globalId = threadIdx.x + blockIdx.x * GI_THREAD_PER_BLOCK;
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
@@ -289,25 +292,70 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
 	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
 
-	if(average)
-	{
-		// Actual Atomic Average
-		AtomicColorNormalAvg(gSVOMat + nodeIndex + matSparseOffset,
-							 voxelColorPacked, 
-							 voxelNormPacked);
-	}
-	else
-	{
-		gSVOMat[nodeIndex + matSparseOffset] = PackSVOMaterial(voxelColorPacked, voxelNormPacked);
-	}
+	// Atomic Average
+	AtomicColorNormalAvg(gSVOMat + nodeIndex + matSparseOffset,
+						 voxelColorPacked,
+						 voxelNormPacked);
+
+	//gSVOMat[nodeIndex + matSparseOffset] = PackSVOMaterial(voxelColorPacked, 
+	//													   voxelNormPacked);
+
 }
 
-__global__ void SVOReconstructAverageNode(CSVOMaterial* parentMats,
-										  const CSVOMaterial* childrenMats,
-										  const CSVONode* gSVONode,
-										  const unsigned int parentLevel,
+__global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
+
+										  const CSVONode* gSVOSparse,
+
+										  const unsigned int matOffset,
+										  const unsigned int svoLevelOffset,
+
 										  const CSVOConstants& svoConstants)
 {
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int localNodeId = threadIdx.x / 4;
+	unsigned int localNodeChildId = threadIdx.x % 4;
+	
+	__shared__ CSVONode sNodeIds[GI_THREAD_PER_BLOCK / 4];
+
+	// coalesced access
+	if(threadIdx.x < blockDim.x / 4)
+	{
+		sNodeIds[threadIdx.x] = gSVOSparse[svoLevelOffset + globalId];
+	}
+	__syncthreads();
+
+	// Load Children
+	CSVONode nodeLow, nodeHi;
+	unsigned int nodeId = sNodeIds[localNodeId] + localNodeChildId;
+	nodeLow = (sNodeIds[localNodeId] != 0xFFFFFFFF) ? gSVOSparse[nodeId] : 0xFFFFFFFF;
+	nodeHi = (sNodeIds[localNodeId] != 0xFFFFFFFF) ? gSVOSparse[nodeId + 4] : 0xFFFFFFFF;
+	// Each Thread has two children
+	// T1 -> 0, 4
+	// T2 -> 1, 5
+	// T3 -> 2, 6
+	// T4 -> 3, 7
+
+	// Load Material
+	CSVOMaterial matLow, matHi;
+	matLow = (nodeLow != 0xFFFFFFFF) ? gSVOMat[matOffset + nodeLow] : 0;
+	matHi = (nodeLow != 0xFFFFFFFF) ? gSVOMat[matOffset + nodeHi] : 0;
+
+	//
+	ushort4 color = {0, 0, 0, 0};
+	float3 normal = {0.0f, 0.0f, 0.0f};
+
+	//UnpackSVOMaterial(color, normal, matLow);
+
+
+
+	//// Average Material
+	//for(int offset = 4 / 2; offset > 0; offset /= 2)
+	//{
+
+	//	CVoxelNorm normal = __shfl_down(.x, offset, 4);
+	//	CSVOColor color = __shfl_down(val.x, offset, 4);
+	//}
+	//// 
 
 }
 

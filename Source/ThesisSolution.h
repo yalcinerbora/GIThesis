@@ -159,14 +159,14 @@ class ThesisSolution : public SolutionI
 		GICudaVoxelScene		voxelScene512;
 		GISparseVoxelOctree		voxelOctree;
 
-		static size_t			InitialObjectGridSize;
-		static size_t			InitialVoxelBufferSizes;
+		static const size_t		InitialObjectGridSize;
+		static const size_t		InitialVoxelBufferSizes;
 
 		// Pre Allocating withput determining total size
 		// These are pre calculated
-		static size_t			MaxVoxelCacheSize2048;
-		static size_t			MaxVoxelCacheSize1024;
-		static size_t			MaxVoxelCacheSize512;
+		static const size_t		MaxVoxelCacheSize2048;
+		static const size_t		MaxVoxelCacheSize1024;
+		static const size_t		MaxVoxelCacheSize512;
 
 	protected:
 		
@@ -175,6 +175,10 @@ class ThesisSolution : public SolutionI
 								ThesisSolution(const ThesisSolution&) = delete;
 		const ThesisSolution&	operator=(const ThesisSolution&) = delete;
 								~ThesisSolution();
+
+		// Globals
+		static const float		CascadeSpan;
+		static const uint32_t	CascadeDim;
 
 		// Interface
 		bool					IsCurrentScene(SceneI&) override;

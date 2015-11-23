@@ -378,7 +378,6 @@ void GISparseVoxelOctree::AverageNodesOrdered()
 			// Constants
 			matSparseOffset,
 			i,
-			true,
 			*dSVOConstants.Data()
 		);
 		CUDA_KERNEL_CHECK();

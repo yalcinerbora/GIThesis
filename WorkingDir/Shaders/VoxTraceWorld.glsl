@@ -76,63 +76,64 @@ uniform I_COLOR_FB image2D fbo;
 // Ray stack 3 per thread
 // Worst case stack usage is 5 (7, 8, 9, 10, 11)
 // Other two will be stored on registers as vec4
-shared unsigned int rayStack[16][16 * 3];
+//shared unsigned int rayStack[16][16 * 3];
 
 // Funcs
-uint PeekStack(in uvec4 rayStackHot)
-{
-	uint indexedDepth = rayStackHot.x - dimDepth.z;
-	if (indexedDepth < 3)
-	{
-		return rayStack[gl_LocalInvocationID.y]
-					   [gl_LocalInvocationID.x * 3 + indexedDepth];
-	}
-	else if(indexedDepth == 3)
-	{
-		return rayStackHot.y;
-	}
-	else if(indexedDepth == 4)
-	{
-		return rayStackHot.z;
-	}
-	else
-	{
-		return rayStackHot.w;
-	}
-}
+//uint PeekStack(in uvec4 rayStackHot)
+//{
+//	if(rayStackHot.x == 0) return 0;
 
-uint StackCount(in uvec4 rayStackHot)
-{
-	return rayStackHot.x;
-}
+//	uint lastIndex = rayStackHot.x - 1;
+//	if (lastIndex < 3)
+//	{
+//		return rayStack[gl_LocalInvocationID.y]
+//					   [gl_LocalInvocationID.x * 3 + lastIndex];
+//	}
+//	else if(lastIndex == 3)
+//	{
+//		return rayStackHot.y;
+//	}
+//	else if(lastIndex == 4)
+//	{
+//		return rayStackHot.z;
+//	}
+//	else
+//	{
+//		return rayStackHot.w;
+//	}
+//}
 
-void PopStack(inout uvec4 rayStackHot, in uint popCount)
-{
-	rayStackHot.x -= popCount;
-}
+//uint StackCount(in uvec4 rayStackHot)
+//{
+//	return rayStackHot.x;
+//}
 
-void PushStack(in uvec4 rayStackHot, in uint nodeId)
-{
-	rayStackHot.x += 1;
-	uint indexedDepth = rayStackHot.x - dimDepth.z;
-	if(indexedDepth < 3)
-	{
-		rayStack[gl_LocalInvocationID.y]
-  			    [gl_LocalInvocationID.x * 3 + indexedDepth] = nodeId;
-	}
-	else if(indexedDepth == 3)
-	{
-		rayStackHot.y = nodeId;
-	}
-	else if(indexedDepth == 4)
-	{
-		rayStackHot.z = nodeId;
-	}
-	else
-	{
-		rayStackHot.w = nodeId;
-	}
-}
+//void PopStack(inout uvec4 rayStackHot, in uint popCount)
+//{
+//	rayStackHot.x -= popCount;
+//}
+
+//void PushStack(in uvec4 rayStackHot, in uint nodeId)
+//{
+//	if(rayStackHot.x < 3)
+//	{
+//		rayStack[gl_LocalInvocationID.y]
+//  			    [gl_LocalInvocationID.x * 3 + rayStackHot.x] = nodeId;
+//	}
+//	else if(rayStackHot.x == 3)
+//	{
+//		rayStackHot.y = nodeId;
+//	}
+//	else if(rayStackHot.x == 4)
+//	{
+//		rayStackHot.z = nodeId;
+//	}
+//	else
+//	{
+//		rayStackHot.w = nodeId;
+//	}
+//	rayStackHot.x++;
+//}
 
 ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
 {
@@ -189,44 +190,6 @@ float IntersectDistance(in vec3 relativePos,
 	// N is plane normal (since axis aligned (1, 0, 0), (0, 1, 0), (0, 0, 1)
 	// d is gridDim (plane distance from origin) (for "far" planes)
 
-	// Normals
-	//vec3 xN = vec3(1.0f, 0.0f, 0.0f);
-	//vec3 yN = vec3(0.0f, 1.0f, 0.0f);
-	//vec3 zN = vec3(0.0f, 0.0f, 1.0f);
-
-	//vec3 NdotP;
-	//NdotP.x = -dot(xN, relativePos);
-	//NdotP.y = -dot(yN, relativePos);
-	//NdotP.z = -dot(zN, relativePos);
-
-	//vec3 NdotD;
-	//NdotD.x = dot(xN, dir);
-	//NdotD.y = dot(yN, dir);
-	//NdotD.z = dot(zN, dir);
-
-	// Negate Zero (make it interset far)
-	//NdotD.x = (NdotD.x != 0.0f) ? NdotD.x : EPSILON;
-	//NdotD.y = (NdotD.y != 0.0f) ? NdotD.y : EPSILON;
-	//NdotD.z = (NdotD.z != 0.0f) ? NdotD.z : EPSILON;
-
-	// T distances of the planes
-	//vec3 InvNdotD = vec3(1.0f) / NdotD;
-	//vec3 tClose = NdotP * InvNdotD;
-	//vec3 tFar = (vec3(gridDim) + NdotP) * InvNdotD;
-	
-	// Negate Zero and Negatives (make them far)
-	//tClose.x = (tClose.x > EPSILON) ? tClose.x : FLT_MAX;
-	//tClose.y = (tClose.y > EPSILON) ? tClose.y : FLT_MAX;
-	//tClose.z = (tClose.z > EPSILON) ? tClose.z : FLT_MAX;
-	//tFar.x = (tFar.x > EPSILON) ? tFar.x : FLT_MAX;
-	//tFar.y = (tFar.y > EPSILON) ? tFar.y : FLT_MAX;
-	//tFar.z = (tFar.z > EPSILON) ? tFar.z : FLT_MAX;
-
-	// Return closest intersection position
-	//float minClose = min(min(tClose.x, tClose.y), tClose.z);
-	//float minFar = min(min(tFar.x, tFar.y), tFar.z);
-	//return min(minClose, minFar);
-
 	// d - (P dot N) (P dot N returns Px Py Pz for each plane)
 	vec3 tClose = vec3(0.0f) - relativePos;	
 	vec3 tFar = vec3(gridDim) - relativePos;
@@ -246,13 +209,9 @@ float IntersectDistance(in vec3 relativePos,
 	tFar *= dirInv;
 
 	// Negate Negative
-	// Write FLT_MAX if its <= 0.0f
-	//bvec3 tCloseMask = greaterThan(abs(tClose), vec3(1.5f));
-	//bvec3 tFarMask = greaterThan(abs(tFar), vec3(1.5f));
-
-	bvec3 tCloseMask = greaterThan(tClose, vec3(0.0005f));
-	bvec3 tFarMask = greaterThan(tFar, vec3(0.0005f));
-
+	// Write FLT_MAX if its <= EPSILON
+	bvec3 tCloseMask = greaterThan(tClose, vec3(EPSILON));
+	bvec3 tFarMask = greaterThan(tFar, vec3(EPSILON));
 	tClose.x = (tCloseMask.x) ? tClose.x : FLT_MAX;
 	tClose.y = (tCloseMask.y) ? tClose.y : FLT_MAX;
 	tClose.z = (tCloseMask.z) ? tClose.z : FLT_MAX;
@@ -263,7 +222,7 @@ float IntersectDistance(in vec3 relativePos,
 	// Reduction
 	float minClose = min(min(tClose.x, tClose.y), tClose.z);
 	float minFar = min(min(tFar.x, tFar.y), tFar.z);
-	return min(minClose, minFar);
+	return min(minClose, minFar) + 0.01f;
 }
 
 float FindMarchLength(in uvec4 rayStackHot, 
@@ -291,7 +250,6 @@ float FindMarchLength(in uvec4 rayStackHot,
 		uint currentNode;
 		if(i == dimDepth.w)
 		{
-			//ivec3 denseVox = LevelVoxPos(voxPos, dimDepth.w);
 			ivec3 denseVox = LevelVoxId(marchPos, dimDepth.w);
 			currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
 									denseVox.y * dimDepth.z + 
@@ -313,8 +271,7 @@ float FindMarchLength(in uvec4 rayStackHot,
 				// Its leaf cascades, check material color
 				uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
 				if (colorPacked != 0)
-				{
-					// This node contains color write image and return
+				{				
 					vec3 color = UnpackColor(colorPacked);
 					imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
 					return 0.0f;
@@ -337,29 +294,26 @@ float FindMarchLength(in uvec4 rayStackHot,
 			//vec3 newMarch = marchPos + dist * dir;
 					
 			//// Check new positions and old positions deepest common parent 
-			//ivec3 newVoxPos = WorldToVox(newMarch);
+			//ivec3 newVoxPos = LevelVoxId(newMarch, dimDepth.y);
 			//ivec3 diff =  voxPos ^ newVoxPos;
 			//uvec3 loc = findMSB(uvec3(~diff));
-			//loc -= dimDepth.y; 
+			//loc = uvec3(dimDepth.y) - (loc + 1); 
 			//uint minCommon = min(min(loc.x, loc.y), loc.z);
 
 			//// and pop stack until that parent
-			//PopStack(rayStackHot, (i - 1) - minCommon);
+			//PopStack(rayStackHot, max(StackCount(rayStackHot), min(0, i - minCommon)));
 			
 			// return minimum positive distance
-			//return dist;
-			return max(0.1f, dist);
-			//return levelSpan;
-			//return worldPosSpan.w;
+			return dist;
 		}
 		else
 		{
 			// Node has value
-			// Push current value to stack continue traversing
-			//PushStack(rayStackHot, nodeIndex);
-			
 			// Go deeper
 			nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
+
+			// Push current value to stack continue traversing
+			//PushStack(rayStackHot, nodeIndex);
 		}	
 	}
 	// Code Shouldnt return from here
@@ -375,31 +329,15 @@ void main(void)
 	uint linearID = gl_GlobalInvocationID.y * viewport.z +
 					gl_GlobalInvocationID.x;
 
-	//vec4 color;
-	//color.xyz = UnpackColor(svoMaterial[linearID].x);
-	//color.w = 1.0f;
-
-	//imageStore(fbo, ivec2(globalId), color); 
-	//return;
-
-	//if(all(equal(color.xyz, vec3(41.0f / 255.0f, 34.0f / 255.0f, 109.0f / 255.0f))) ||
-	//	all(equal(color.xyz, vec3(161.0f / 255.0f, 17.0f / 255.0f, 13.0f / 255.0f))) ||
-	//	all(equal(color.xyz, vec3(185.0f / 255.0f, 181.0f / 255.0f, 173.0f / 255.0f))))
-	//	imageStore(fbo, ivec2(globalId), vec4(0.0f)); 
-	//else
-	
-
 	// Generate Ray
 	vec3 rayPos = camPos.xyz;
 	vec3 rayDir = normalize(PixelToWorld() - rayPos);
-	
-	//imageStore(fbo, ivec2(globalId), vec4(rayDir, 0.0f)); 
-	//return;
-	
+
 	uvec4 rayStackHot = uvec4(0);
 	vec3 marchPos = rayPos;
 
-	// Trace until ray is out of view frustum
+	// Trace until ray is out of cascade
+	// Worst case march is edge of the voxel cascade
 	float maxMarch = worldPosSpan.w * float(0x1 << (dimDepth.y)) * SQRT_3;
 	float marchLength = 0;
 	for(float totalMarch = 0.0f;
@@ -410,26 +348,6 @@ void main(void)
 
 		// March Length zero, we hit a point
 		if(marchLength == 0.0f)	return;
-
-		// March Length < zero, out of bounds
-		else if(marchLength < 0.0f)
-		{
-			// RED
-			imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 0.0f, 0.0f)); 
-			return;
-		}
-		// March Length < too big , paralel ray hitmarker (just
-		else if(marchLength == FLT_MAX)
-		{
-			//GREEEEEEN
-			imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 0.0f, 0.0f)); 
-			return;
-		}
-		//else if(marchLength == worldPosSpan.w)
-		//{
-		//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 0.0f, 0.0f, 0.0f)); 
-		//	return;
-		//}
 		else
 		{
 			// March Ray and Continue
@@ -437,6 +355,5 @@ void main(void)
 			marchPos += marchLength * rayDir;
 		}
 	}
-	// MAGENTA
 	imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 1.0f, 0.0f)); 
 }

@@ -519,9 +519,9 @@ IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos, float casc
 	voxelCornerPos.z = playerPos.getZ() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.z * 0.5f;
 	
 	float parentSpan = hVoxelGridInfo.span * cascadeMultiplier;
-	voxelCornerPos.x -= std::fmod(voxelCornerPos.x + parentSpan * 0.5f, parentSpan);
-	voxelCornerPos.y -= std::fmod(voxelCornerPos.y + parentSpan * 0.5f, parentSpan);
-	voxelCornerPos.z -= std::fmod(voxelCornerPos.z + parentSpan * 0.5f, parentSpan);
+	voxelCornerPos.x -= std::fmod(voxelCornerPos.x + parentSpan/* * 0.5f*/, parentSpan);
+	voxelCornerPos.y -= std::fmod(voxelCornerPos.y + parentSpan/* * 0.5f*/, parentSpan);
+	voxelCornerPos.z -= std::fmod(voxelCornerPos.z + parentSpan/* * 0.5f*/, parentSpan);
 
 	hVoxelGridInfo.position.x = voxelCornerPos.x;
 	hVoxelGridInfo.position.y = voxelCornerPos.y;

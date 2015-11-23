@@ -8,10 +8,13 @@
 #include "SceneLights.h"
 #include <cuda_gl_interop.h>
 
-size_t ThesisSolution::InitialObjectGridSize = 256;
-size_t ThesisSolution::MaxVoxelCacheSize2048 = static_cast<size_t>(1024 * 1024 * 1.5f);
-size_t ThesisSolution::MaxVoxelCacheSize1024 = static_cast<size_t>(1024 * 1024 * 2.0f);
-size_t ThesisSolution::MaxVoxelCacheSize512 = static_cast<size_t>(1024 * 1024 * 1.5f);
+const size_t ThesisSolution::InitialObjectGridSize = 256;
+const size_t ThesisSolution::MaxVoxelCacheSize2048 = static_cast<size_t>(1024 * 1024 * 1.5f);
+const size_t ThesisSolution::MaxVoxelCacheSize1024 = static_cast<size_t>(1024 * 1024 * 2.0f);
+const size_t ThesisSolution::MaxVoxelCacheSize512 = static_cast<size_t>(1024 * 1024 * 1.5f);
+
+const float ThesisSolution::CascadeSpan = 0.6f;
+const uint32_t ThesisSolution::CascadeDim = 512;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
@@ -39,9 +42,9 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, cache1024(InitialObjectGridSize, MaxVoxelCacheSize1024)
 	, cache512(InitialObjectGridSize, MaxVoxelCacheSize512)
 	, bar(nullptr)
-	, voxelScene2048(intialCamPos, 0.513f, 512)
-	, voxelScene1024(intialCamPos, 0.513f * 2, 512)
-	, voxelScene512(intialCamPos, 0.513f * 4, 512)
+	, voxelScene2048(intialCamPos, CascadeSpan, CascadeDim)
+	, voxelScene1024(intialCamPos, CascadeSpan * 2, CascadeDim)
+	, voxelScene512(intialCamPos, CascadeSpan * 4, CascadeDim)
 	, renderScheme(GI_VOXEL_PAGE)
 	//, renderScheme(GI_LIGHT_INTENSITY)
 	, gridInfoBuffer(1)
@@ -74,9 +77,9 @@ void ThesisSolution::Init(SceneI& s)
 	// Voxelization
 	// and Voxel Cache Creation
 	double voxelTotaltime = 0.0;
-	voxelTotaltime += Voxelize(cache2048, 0.513f, 1, true);
-	voxelTotaltime += Voxelize(cache1024, 0.513f * 2, 2, false);
-	voxelTotaltime += Voxelize(cache512, 0.513f * 4, 4, false);
+	voxelTotaltime += Voxelize(cache2048, CascadeSpan, 1, true);
+	voxelTotaltime += Voxelize(cache1024, CascadeSpan * 2, 2, false);
+	voxelTotaltime += Voxelize(cache512, CascadeSpan * 4, 4, false);
 	GI_LOG("Scene voxelization completed. Elapsed time %f ms", voxelTotaltime);
 
 	// Voxel Page System Linking

@@ -111,9 +111,9 @@ int main()
 		}
 	};
 
-	Scene crySponza(Scene::sponzaFileName, {sponzaLights, 4}, 2.7f, 5.1f);
-	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1}, 0.513f, 4.1f);
-	Scene movingObjects(Scene::movingObjectsFileName, {sponzaLights, 4}, 0.513f, 0.03f);
+	Scene crySponza(Scene::sponzaFileName, {sponzaLights, 4}, ThesisSolution::CascadeSpan / 0.19f, 5.1f);
+	Scene cornellBox(Scene::cornellboxFileName, {cornellLights, 1}, ThesisSolution::CascadeSpan, 4.1f);
+	Scene movingObjects(Scene::movingObjectsFileName, {sponzaLights, 4}, ThesisSolution::CascadeSpan, 0.03f);
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);
 	scenes.push_back(&movingObjects);

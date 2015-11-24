@@ -164,11 +164,14 @@ extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 												  const unsigned int cascadeNo,
 												  const CSVOConstants& svoConstants);
 
-extern __global__ void SVOReconstructAverageNode(CSVOMaterial* parentMats,
-												 const CSVOMaterial* childrenMats,
-												 const CSVONode* gSVONode,
-												 const unsigned int parentLevel, 
-												 const unsigned int matSparseOffset,
+extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
+
+												 const CSVONode* gSVO,
+
+												 const unsigned int matOffset,
+												 const unsigned int svoLevelOffset,
+												 const unsigned int currentLevel,
+
 												 const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,

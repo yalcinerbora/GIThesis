@@ -385,7 +385,35 @@ void GISparseVoxelOctree::AverageNodesOrdered()
 
 	// Now use leaf nodes to average upper nodes
 	// Start bottom up
-	// TODO
+	
+	for(unsigned int i = hSVOConstants.totalDepth - 1; i > 8; i--)
+	{
+		unsigned int arrayIndex = i - GI_DENSE_LEVEL;
+		uint32_t gridSize;
+		if(i > GI_DENSE_LEVEL)
+			gridSize = ((hSVOLevelSizes[arrayIndex - 1] * 4) + GI_THREAD_PER_BLOCK - 1) / 
+						GI_THREAD_PER_BLOCK;
+		else
+		{
+			unsigned int levelDim = GI_DENSE_SIZE << (GI_DENSE_LEVEL - i);
+			gridSize = (levelDim * levelDim * levelDim * 4 + GI_THREAD_PER_BLOCK - 1) / 
+						GI_THREAD_PER_BLOCK;
+		}
+		
+		//// Average Level
+		//SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		//(
+		//	dSVOMaterial,
+		//	dSVODense,
+
+		//	matSparseOffset,
+		//	(GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE) + hSVOLevelOffsets[arrayIndex],
+		//	i,
+		//	*dSVOConstants.Data()
+		//);
+	}
+
+	// Call Once for other level
 }
 
 double GISparseVoxelOctree::UpdateSVO()
@@ -417,7 +445,7 @@ double GISparseVoxelOctree::UpdateSVO()
 
 	// Maxwell is faster with fully atomic code (CAS Locks etc.)
 	// However kepler sucks (100ms compared to 5ms) 
-	if(CudaInit::CapabilityMajor() >= 5)
+	if(CudaInit::CapabilityMajor() >= 6)
 	{
 		// Since fully atomic construction does not 
 		// create level nodes in ordered manner

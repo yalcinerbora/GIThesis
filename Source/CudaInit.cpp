@@ -17,6 +17,7 @@ void CudaInit::InitCuda()
 	GI_LOG("Cuda Information...");
 	GI_LOG("GPU Name\t\t: %s", props.name);
 	GI_LOG("GPU Compute Capability\t: %d%d", props.major, props.minor);
+	GI_LOG("GPU SM Count: %d", props.multiProcessorCount);
 	GI_LOG("GPU Shared Memory(SM)\t: %dKB", props.sharedMemPerMultiprocessor / 1024);
 	GI_LOG("GPU Shared Memory(Block): %dKB", props.sharedMemPerBlock / 1024);
 	GI_LOG("");
@@ -52,4 +53,10 @@ unsigned int CudaInit::CapabilityMinor()
 {
 	assert(init);
 	return props.minor;
+}
+
+unsigned int CudaInit::SMCount()
+{
+	assert(init);
+	return static_cast<unsigned int>(props.multiProcessorCount);
 }

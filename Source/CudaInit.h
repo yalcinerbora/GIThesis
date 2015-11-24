@@ -40,6 +40,7 @@ class CudaInit
 		static void				InitCuda();
 		static unsigned int		CapabilityMajor();
 		static unsigned int		CapabilityMinor();
+		static unsigned int		SMCount();
 
 };
 #endif //__CUDAINIT_H__

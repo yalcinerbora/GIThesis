@@ -260,23 +260,39 @@ float FindMarchLength(in uvec4 rayStackHot,
 			currentNode = svoNode[offsetCascade.y + nodeIndex];
 		}
 
+
+		// DEBUG
+		if(i == 9)
+		{
+			// Fetch Color
+			uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
+			if (colorPacked != 0)
+			{				
+				vec3 color = UnpackColor(colorPacked);
+				imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
+				return 0.0f;
+			}
+		}
+
+
+
 		// Node check
 		if(currentNode == 0xFFFFFFFF)
 		{
-			// Node Empty
-			// This may contain color
-			// Check Material
-			if((dimDepth.y - i) < offsetCascade.x)
-			{
-				// Its leaf cascades, check material color
-				uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
-				if (colorPacked != 0)
-				{				
-					vec3 color = UnpackColor(colorPacked);
-					imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
-					return 0.0f;
-				}
-			}
+			//// Node Empty
+			//// This may contain color
+			//// Check Material
+			//if((dimDepth.y - i) < offsetCascade.x)
+			//{
+			//	// Its leaf cascades, check material color
+			//	uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
+			//	if (colorPacked != 0)
+			//	{				
+			//		vec3 color = UnpackColor(colorPacked);
+			//		imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
+			//		return 0.0f;
+			//	}
+			//}
 			
 			// Node empty 						
 			// Voxel Corners are now (0,0,0) and (span, span, span)

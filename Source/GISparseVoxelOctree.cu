@@ -386,8 +386,7 @@ void GISparseVoxelOctree::AverageNodesOrdered()
 
 	// Now use leaf nodes to average upper nodes
 	// Start bottom up
-	
-	for(unsigned int i = hSVOConstants.totalDepth - 1; i > 3; i--)
+	for(unsigned int i = hSVOConstants.totalDepth - 1; i > 7; i--)
 	{
 		unsigned int arrayIndex = i - GI_DENSE_LEVEL;
 		uint32_t gridSize;
@@ -401,17 +400,19 @@ void GISparseVoxelOctree::AverageNodesOrdered()
 						GI_THREAD_PER_BLOCK;
 		}
 		
-		//// Average Level
-		//SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
-		//(
-		//	dSVOMaterial,
-		//	dSVODense,
+		// Average Level
+		SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		(
+			dSVOMaterial,
+			dSVODense,
+			dSVOSparse,
 
-		//	matSparseOffset,
-		//	(GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE) + hSVOLevelOffsets[arrayIndex],
-		//	i,
-		//	*dSVOConstants.Data()
-		//);
+			matSparseOffset,
+			hSVOLevelOffsets[arrayIndex],
+			i,
+			hSVOLevelSizes[arrayIndex],
+			*dSVOConstants.Data()
+		);
 	}
 
 	// Call once for all lower levels
@@ -445,7 +446,7 @@ double GISparseVoxelOctree::UpdateSVO()
 	std::fill(hSVOLevelOffsets.begin(), hSVOLevelOffsets.end(), 0);
 
 	// Maxwell is faster with fully atomic code (CAS Locks etc.)
-	// However kepler sucks (100ms compared to 5ms) 
+	// However kepler sucks(660ti) (100ms compared to 5ms) 
 	if(CudaInit::CapabilityMajor() >= 6)
 	{
 		// Since fully atomic construction does not 
@@ -460,20 +461,20 @@ double GISparseVoxelOctree::UpdateSVO()
 		AverageNodesOrdered();
 	}
 
-	//// DEBUG
-	//GI_LOG("-------------------------------------------");
-	//GI_LOG("Tree Node Data");
-	//unsigned int i;
-	//for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
-	//{
-	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
-	//}
-	//unsigned int total;
-	//CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
-	//					  cudaMemcpyDeviceToHost));
-	//GI_LOG("Total : %d", total);
-	//GI_LOG("-------------------------------------------");
+	// DEBUG
+	GI_LOG("-------------------------------------------");
+	GI_LOG("Tree Node Data");
+	unsigned int i;
+	for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
+	{
+		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
+	}
+	unsigned int total;
+	CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
+						  cudaMemcpyDeviceToHost));
+	GI_LOG("Total : %d", total);
+	GI_LOG("-------------------------------------------");
 
 	timer.Stop();
 	

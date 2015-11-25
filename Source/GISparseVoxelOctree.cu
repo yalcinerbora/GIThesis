@@ -338,10 +338,11 @@ void GISparseVoxelOctree::ConstructLevelByLevel()
 	}
 
 	// Last memcpy of the leaf cascade size
-	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data() + (allocatorGrids[0]->depth - GI_DENSE_LEVEL),
-		dSVOLevelSizes.Data() + (allocatorGrids[0]->depth - GI_DENSE_LEVEL),
-		sizeof(unsigned int),
-		cudaMemcpyDeviceToHost));
+	
+	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data() + (hSVOConstants.totalDepth - GI_DENSE_LEVEL),
+						  dSVOLevelSizes.Data() + (hSVOConstants.totalDepth - GI_DENSE_LEVEL),
+						  sizeof(unsigned int),
+						  cudaMemcpyDeviceToHost));
 }
 
 void GISparseVoxelOctree::AverageNodes()
@@ -386,16 +387,16 @@ void GISparseVoxelOctree::AverageNodesOrdered()
 	// Now use leaf nodes to average upper nodes
 	// Start bottom up
 	
-	for(unsigned int i = hSVOConstants.totalDepth - 1; i > 8; i--)
+	for(unsigned int i = hSVOConstants.totalDepth - 1; i > 3; i--)
 	{
 		unsigned int arrayIndex = i - GI_DENSE_LEVEL;
 		uint32_t gridSize;
 		if(i > GI_DENSE_LEVEL)
-			gridSize = ((hSVOLevelSizes[arrayIndex - 1] * 4) + GI_THREAD_PER_BLOCK - 1) / 
+			gridSize = ((hSVOLevelSizes[arrayIndex] * 4) + GI_THREAD_PER_BLOCK - 1) / 
 						GI_THREAD_PER_BLOCK;
 		else
 		{
-			unsigned int levelDim = GI_DENSE_SIZE << (GI_DENSE_LEVEL - i);
+			unsigned int levelDim = GI_DENSE_SIZE >> (GI_DENSE_LEVEL - i);
 			gridSize = (levelDim * levelDim * levelDim * 4 + GI_THREAD_PER_BLOCK - 1) / 
 						GI_THREAD_PER_BLOCK;
 		}
@@ -413,7 +414,7 @@ void GISparseVoxelOctree::AverageNodesOrdered()
 		//);
 	}
 
-	// Call Once for other level
+	// Call once for all lower levels
 }
 
 double GISparseVoxelOctree::UpdateSVO()
@@ -462,10 +463,6 @@ double GISparseVoxelOctree::UpdateSVO()
 	//// DEBUG
 	//GI_LOG("-------------------------------------------");
 	//GI_LOG("Tree Node Data");
-	//CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data(),
-	//					  dSVOLevelSizes.Data(),
-	//					  dSVOLevelSizes.Size() * sizeof(unsigned int),
-	//					  cudaMemcpyDeviceToHost));
 	//unsigned int i;
 	//for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
 	//{

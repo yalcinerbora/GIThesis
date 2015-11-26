@@ -3,42 +3,26 @@
 #include "CVoxel.cuh"
 #include <cuda.h>
 
-inline __device__ uint64_t Shuffle64(uint64_t value, int srcLane, int width = warpSize)
-{
-	// Send to local parent threads
-	unsigned int intLow, intHi;
-	intLow = 0x00000000FFFFFFFF & value;
-	intHi = value >> 32;
-
-	intLow = __shfl(intLow, srcLane, width);
-	intHi = __shfl(intHi, srcLane, width);
-
-	uint64_t result = 0;
-	result |= static_cast<uint64_t>(result) << 32;
-	result |= intLow;
-	return result;
-}
-
 inline __device__ CSVOMaterial Average(const CSVOMaterial& material,
 										const float4& colorUnpack,
 										const float3& normalUnpack)
 {
 	// Unpack Material
 	CSVOColor avgColorPacked;
-	CSVOColor avgNormalPacked;
+	CVoxelNorm avgNormalPacked;
 	UnpackSVOMaterial(avgColorPacked, avgNormalPacked, material);
 	float4 avgColor = UnpackSVOColor(avgColorPacked);
 	float3 avgNormal = ExpandOnlyNormal(avgNormalPacked);
 
 	// Averaging (color.w is number of nodes)
 	assert(avgColor.w < 255.0f);
-
 	float ratio = avgColor.w / (avgColor.w + 1.0f);
 
 	// New Color Average
 	avgColor.x = (ratio * avgColor.x) + (colorUnpack.x / (avgColor.w + 1.0f));
 	avgColor.y = (ratio * avgColor.y) + (colorUnpack.y / (avgColor.w + 1.0f));
 	avgColor.z = (ratio * avgColor.z) + (colorUnpack.z / (avgColor.w + 1.0f));
+	avgColor.w += 1.0f;
 
 	// New Normal Average
 	avgNormal.x = (ratio * avgNormal.x) + (normalUnpack.x / (avgColor.w + 1.0f));
@@ -50,9 +34,9 @@ inline __device__ CSVOMaterial Average(const CSVOMaterial& material,
 	return PackSVOMaterial(avgColorPacked, avgNormalPacked);
 }
 
-inline __device__ CSVOColor AtomicColorNormalAvg(CSVOMaterial* gMaterial, 
-												 CSVOColor color,
-												 CVoxelNorm voxelNormal)
+inline __device__ CSVOMaterial AtomicColorNormalAvg(CSVOMaterial* gMaterial,
+													CSVOColor color,
+													CVoxelNorm voxelNormal)
 {
 	float4 colorUnpack = UnpackSVOColor(color);
 	float3 normalUnpack = ExpandOnlyNormal(voxelNormal);
@@ -415,6 +399,9 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		// Shuffle each parent to actual users
 		node = __shfl(node, laneId / 4);		
 
+		
+		//if(node == 0xFFFFFFFF) return;
+
 		unsigned int nodeId = node + localNodeChildId;
 		mat[0] = (node != 0xFFFFFFFF) ? gSVOMat[matOffset + nodeId] : 0;
 		mat[1] = (node != 0xFFFFFFFF) ? gSVOMat[matOffset + nodeId + 4] : 0;
@@ -428,10 +415,11 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	// Average Portion
 	// Material Data
 	unsigned int count = 0;
-	float4 colorAvg = {0, 0, 0, 0};
+	float4 colorAvg = {0.0f, 0.0f, 0.0f, 0.0f};
 	float3 normalAvg = {0.0f, 0.0f, 0.0f};
 	
 	// Average Yours
+	#pragma unroll
 	for(unsigned int i = 0; i < 2; i++)
 	{
 		if(mat[i] != 0)
@@ -454,7 +442,8 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		}
 	}
 
-	if(threadIdx.x % 4 && currentLevel >= svoConstants.totalDepth)
+	if(threadIdx.x % 4 == 0 && 
+	   (svoConstants.totalDepth - currentLevel) < svoConstants.numCascades)
 	{
 		// Parent also may contain color fetch and add it to average
 		CSVOColor colorPacked;
@@ -462,22 +451,26 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		UnpackSVOMaterial(colorPacked, normalPacked, gSVOMat[matOffset + 
 															 svoLevelOffset +
 															 globalParentId]);
-		float4 color = UnpackSVOColor(colorPacked);
-		float3 normal = ExpandOnlyNormal(normalPacked);
+		if(colorPacked != 0)
+		{
+			float4 color = UnpackSVOColor(colorPacked);
+			float3 normal = ExpandOnlyNormal(normalPacked);
 
-		colorAvg.x += color.x;
-		colorAvg.y += color.y;
-		colorAvg.z += color.z;
+			colorAvg.x += 8 * color.x;
+			colorAvg.y += 8 * color.y;
+			colorAvg.z += 8 * color.z;
 
-		normalAvg.x += normal.x;
-		normalAvg.y += normal.y;
-		normalAvg.z += normal.z;
+			normalAvg.x += 8 * normal.x;
+			normalAvg.y += 8 * normal.y;
+			normalAvg.z += 8 * normal.z;
 
-		// Wieghted average since this color spans more area (8 times more)
-		count += 8;
+			// Wieghted average since this color spans more area (8 times more)
+			count += 8;
+		}
 	}
 
 	// Average Between Threads ( Warp Transfer is ideal here)
+	#pragma unroll
 	for(int offset = 4 / 2; offset > 0; offset /= 2)
 	{
 		colorAvg.x += __shfl_down(colorAvg.x, offset, 4);
@@ -509,7 +502,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	}
 
 	CSVOMaterial matAvg = PackSVOMaterial(PackSVOColor(colorAvg), PackOnlyVoxNorm(normalAvg));
-	matAvg = Shuffle64(matAvg, laneId * 4);
+	matAvg = __shfl(matAvg, laneId * 4);
 	if(laneId < parentPerWarp)
 	{
 		gSVOMat[matOffset + svoLevelOffset + warpLinearId] = matAvg;

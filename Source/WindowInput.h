@@ -14,19 +14,24 @@ Does not interfere with keyboard mouse input
 
 #include "InputManI.h"
 #include "ArrayStruct.h"
-#include <vector>
+#include <map>
 
 struct Camera;
 class SolutionI;
 class SceneI;
 class Window;
 
+using CallbackArray = std::multimap<std::pair<int, int>, 
+									std::pair<void(*)(void*), void*>>;
+
 class WindowInput : public InputManI
 {
 	private:
-		uint32_t&			currentSolution;
-		uint32_t&			currentScene;
-		uint32_t&			currentInput;
+		uint32_t&				currentSolution;
+		uint32_t&				currentScene;
+		uint32_t&				currentInput;
+		
+		CallbackArray			callbacks;
 
 	protected:
 		Camera&				camera;
@@ -37,15 +42,15 @@ class WindowInput : public InputManI
 										uint32_t& currentScene,
 										uint32_t& currentInput);
 
-		virtual void		WindowPosChangedFunc(int posX, int posY) override;
-		virtual void		WindowFBChangedFunc(int fbWidth, int fbHeight) override;
-		virtual void		WindowSizeChangedFunc(int width, int height) override;
-		virtual void		WindowClosedFunc() override;
-		virtual void		WindowRefreshedFunc() override;
-		virtual void		WindowFocusedFunc(bool) override;
-		virtual void		WindowMinimizedFunc(bool) override;
+		void				WindowPosChangedFunc(int posX, int posY) override;
+		void				WindowFBChangedFunc(int fbWidth, int fbHeight) override;
+		void				WindowSizeChangedFunc(int width, int height) override;
+		void				WindowClosedFunc() override;
+		void				WindowRefreshedFunc() override;
+		void				WindowFocusedFunc(bool) override;
+		void				WindowMinimizedFunc(bool) override;
+		void				AddKeyCallback(int, int, void(*)(void*), void*) override;
 
-		// Explicitly showing un-implemented functions
 		virtual void		KeyboardUsedFunc(int key, int osKey, int action, int modifier);
 		virtual void		MouseMovedFunc(double x, double y);
 		virtual void		MousePressedFunc(int button, int action, int modifier);

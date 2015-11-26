@@ -44,6 +44,8 @@ class InputManI
 		virtual void	MouseMovedFunc(double, double) = 0;
 		virtual void	MousePressedFunc(int, int, int) = 0;
 		virtual void	MouseScrolledFunc(double, double) = 0;
+
+		virtual void	AddKeyCallback(int, int, void(*)(void*), void*) = 0;
 };
 
 #endif //__INPUTMANI_H__

@@ -118,8 +118,10 @@ class GISparseVoxelOctree
 		double									DebugTraceSVO(GLuint writeImage,
 															  StructuredBuffer<InvFrameTransform>& invFT,
 															  FrameTransformBuffer& ft,
-															  const uint2& imgDim);
+															  const uint2& imgDim,
+															  uint32_t renderLevel);
 
 		uint64_t								MemoryUsage() const;
+		const CSVOConstants&					SVOConsts() const;
 };
 #endif //__GICUDASPARSEVOXELOCTREE_H__

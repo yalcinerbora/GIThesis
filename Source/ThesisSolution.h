@@ -59,10 +59,12 @@ enum ThesisRenderScheme
 {
 	GI_DEFERRED,
 	GI_LIGHT_INTENSITY,
+	GI_SVO_LEVELS,
 	GI_VOXEL_PAGE,
 	GI_VOXEL_CACHE2048,
 	GI_VOXEL_CACHE1024,
 	GI_VOXEL_CACHE512,
+	GI_END,
 };
 
 struct VoxelObjectCache
@@ -168,6 +170,10 @@ class ThesisSolution : public SolutionI
 		static const size_t		MaxVoxelCacheSize1024;
 		static const size_t		MaxVoxelCacheSize512;
 
+		void					LevelIncrement();
+		void					LevelDecrement();
+		unsigned int			svoRenderLevel;
+
 	protected:
 		
 	public:
@@ -186,5 +192,8 @@ class ThesisSolution : public SolutionI
 		void					Release() override;
 		void					Frame(const Camera&) override;
 		void					SetFPS(double fpsMS) override;
+
+		static void				LevelIncrement(void*);
+		static void				LevelDecrement(void*);
 };
 #endif //__THESISSOLUTION_H__

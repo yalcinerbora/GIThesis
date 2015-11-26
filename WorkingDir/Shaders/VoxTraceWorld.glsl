@@ -50,6 +50,7 @@ U_SVO_CONSTANTS uniform SVOConstants
 	// x is cascade count
 	// y is node sparse offet
 	// z is material sparse offset
+	// w is renderLevel
 	uvec4 offsetCascade;
 };
 
@@ -225,7 +226,8 @@ float IntersectDistance(in vec3 relativePos,
 	return min(minClose, minFar) + 0.01f;
 }
 
-float FindMarchLength(in uvec4 rayStackHot, 
+float FindMarchLength(out uint colorPacked,
+					  in uvec4 rayStackHot, 
 					  in vec3 marchPos,
 					  in vec3 dir)
 {
@@ -261,39 +263,20 @@ float FindMarchLength(in uvec4 rayStackHot,
 		}
 
 
-		// DEBUG
-		if(i == 9)
+		// Color Check
+		if((i < offsetCascade.w &&
+		   i > (dimDepth.y - offsetCascade.x) &&
+		   currentNode == 0xFFFFFFFF) ||
+		   i == offsetCascade.w)
 		{
-			// Fetch Color
-			uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
-			if (colorPacked != 0)
-			{				
-				vec3 color = UnpackColor(colorPacked);
-				imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
-				return 0.0f;
-			}
+			// Mid Leaf Level
+			colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
+			if (colorPacked != 0) return 0.0f;
 		}
-
-
 
 		// Node check
 		if(currentNode == 0xFFFFFFFF)
 		{
-			//// Node Empty
-			//// This may contain color
-			//// Check Material
-			//if((dimDepth.y - i) < offsetCascade.x)
-			//{
-			//	// Its leaf cascades, check material color
-			//	uint colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
-			//	if (colorPacked != 0)
-			//	{				
-			//		vec3 color = UnpackColor(colorPacked);
-			//		imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
-			//		return 0.0f;
-			//	}
-			//}
-			
 			// Node empty 						
 			// Voxel Corners are now (0,0,0) and (span, span, span)
 			// span is current level grid span (leaf span * (2^ totalLevel - currentLevel)
@@ -360,10 +343,16 @@ void main(void)
 		totalMarch < maxMarch;
 		totalMarch += marchLength)
 	{
-		marchLength = FindMarchLength(rayStackHot, marchPos, rayDir);
+		uint colorOut;
+		marchLength = FindMarchLength(colorOut, rayStackHot, marchPos, rayDir);
 
 		// March Length zero, we hit a point
-		if(marchLength == 0.0f)	return;
+		if(marchLength == 0.0f)
+		{
+			vec3 color = UnpackColor(colorOut);
+			imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
+			return;
+		}
 		else
 		{
 			// March Ray and Continue

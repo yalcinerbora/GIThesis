@@ -19,7 +19,8 @@ const uint32_t ThesisSolution::CascadeDim = 512;
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
 	{ GI_DEFERRED, "Deferred" }, 
-	{ GI_LIGHT_INTENSITY, "LI Buffer Only"}, 
+	{ GI_LIGHT_INTENSITY, "LI Buffer Only"},
+	{ GI_SVO_LEVELS, "Render SVO Levels"},
 	{ GI_VOXEL_PAGE, "Render Voxel Page" },
 	{ GI_VOXEL_CACHE2048, "Render Voxel Cache 2048" },
 	{ GI_VOXEL_CACHE1024, "Render Voxel Cache 1024" },
@@ -52,7 +53,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxelColorBuffer(512)
 	, voxelOctree()
 {
-	renderType = TwDefineEnum("RenderType", renderSchemeVals, 6);
+	renderType = TwDefineEnum("RenderType", renderSchemeVals, GI_END);
 	gridInfoBuffer.AddData({});
 }
 
@@ -95,6 +96,7 @@ void ThesisSolution::Init(SceneI& s)
 		voxelScene2048.Allocator(),
 	};
 	voxelOctree.LinkAllocators(allocators, 3, currentScene->SVOMultiplier());
+	svoRenderLevel = voxelOctree.SVOConsts().totalDepth;
 
 	// Memory Usage Total
 	GI_LOG("Voxel Sytem #1 Total Memory Usage %f MB", 
@@ -115,7 +117,7 @@ void ThesisSolution::Init(SceneI& s)
 			   " label='Frame(ms)' precision=2 help='Frame Time in milliseconds.' ");
 	TwAddVarRW(bar, "rendering", renderType,
 			   &renderScheme,
-			   " label='Render' help='Change What to show on screen' ");
+			   " label='Render' help='Change what to show on screen' ");
 	TwAddVarRW(bar, "giOn", TW_TYPE_BOOLCPP,
 			   &giOn,
 			   " label='GI On' help='Cone Tracing GI On off' ");
@@ -350,6 +352,19 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene,
 	scene.AllocateWRTLinkedData(coverageRatio);
 }
 
+void ThesisSolution::LevelIncrement()
+{
+	svoRenderLevel++;
+	svoRenderLevel = std::min(svoRenderLevel, voxelOctree.SVOConsts().totalDepth);
+}
+
+void ThesisSolution::LevelDecrement()
+{
+	svoRenderLevel--;
+	svoRenderLevel = std::max(svoRenderLevel, voxelOctree.SVOConsts().denseDepth + 1);
+}
+
+
 void ThesisSolution::DebugRenderVoxelCache(const Camera& camera, VoxelObjectCache& cache)
 {
 	//DEBUG VOXEL RENDER
@@ -449,7 +464,8 @@ double ThesisSolution::DebugRenderSVO(const Camera& camera)
 									 dRenderer.GetInvFTransfrom(),
 									 dRenderer.GetFTransform(),
 									 {DeferredRenderer::gBuffWidth,
-									  DeferredRenderer::gBuffHeight});
+									  DeferredRenderer::gBuffHeight},
+									  svoRenderLevel);
 
 	// Tell deferred renderer to post process color buffer;
 	dRenderer.ShowColorGBuffer(camera);
@@ -522,11 +538,17 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		}
 		case GI_LIGHT_INTENSITY:
 		{
+			glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+			break;
+		}		
+		case GI_SVO_LEVELS:
+		{
 			// Start Render
 			glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
 			debugVoxTransferTime = DebugRenderSVO(mainRenderCamera);
 			break;
-		}		
+		}
 		case GI_VOXEL_PAGE:
 		{
 			unsigned int totalVoxCount = cache2048.voxInfo.sceneVoxOctreeCount +
@@ -640,4 +662,13 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 void ThesisSolution::SetFPS(double fpsMS)
 {
 	frameTime = fpsMS;
+}
+
+void ThesisSolution::LevelIncrement(void* solPtr)
+{
+	static_cast<ThesisSolution*>(solPtr)->LevelIncrement();
+}
+void ThesisSolution::LevelDecrement(void* solPtr)
+{
+	static_cast<ThesisSolution*>(solPtr)->LevelDecrement();
 }

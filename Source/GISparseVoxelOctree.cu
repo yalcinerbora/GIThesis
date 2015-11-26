@@ -386,7 +386,7 @@ void GISparseVoxelOctree::AverageNodesOrdered()
 
 	// Now use leaf nodes to average upper nodes
 	// Start bottom up
-	for(unsigned int i = hSVOConstants.totalDepth - 1; i > 7; i--)
+	for(unsigned int i = hSVOConstants.totalDepth - 1; i >= hSVOConstants.denseDepth; i--)
 	{
 		unsigned int arrayIndex = i - GI_DENSE_LEVEL;
 		uint32_t gridSize;
@@ -461,20 +461,20 @@ double GISparseVoxelOctree::UpdateSVO()
 		AverageNodesOrdered();
 	}
 
-	// DEBUG
-	GI_LOG("-------------------------------------------");
-	GI_LOG("Tree Node Data");
-	unsigned int i;
-	for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
-	{
-		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
-	}
-	unsigned int total;
-	CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
-						  cudaMemcpyDeviceToHost));
-	GI_LOG("Total : %d", total);
-	GI_LOG("-------------------------------------------");
+	//// DEBUG
+	//GI_LOG("-------------------------------------------");
+	//GI_LOG("Tree Node Data");
+	//unsigned int i;
+	//for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
+	//{
+	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
+	//}
+	//unsigned int total;
+	//CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
+	//					  cudaMemcpyDeviceToHost));
+	//GI_LOG("Total : %d", total);
+	//GI_LOG("-------------------------------------------");
 
 	timer.Stop();
 	
@@ -494,7 +494,8 @@ double GISparseVoxelOctree::ConeTrace(GLuint depthBuffer,
 double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
 										  StructuredBuffer<InvFrameTransform>& invFT,
 										  FrameTransformBuffer& ft,
-										  const uint2& imgDim)
+										  const uint2& imgDim,
+										  uint32_t renderLevel)
 {
 	// Timing Voxelization Process
 	GLuint queryID;
@@ -513,7 +514,7 @@ double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
 			static_cast<unsigned int>(allocators.size()), 
 			GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE,
 			matSparseOffset,
-			0
+			renderLevel
 		}
 	};
 	svoTraceData.SendData();
@@ -556,4 +557,9 @@ uint64_t GISparseVoxelOctree::MemoryUsage() const
 	totalBytes += dSVOLevelSizes.Size() * sizeof(unsigned int);
 	totalBytes += sizeof(unsigned int);
 	return totalBytes;
+}
+
+const CSVOConstants& GISparseVoxelOctree::SVOConsts() const
+{
+	return hSVOConstants;
 }

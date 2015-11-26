@@ -46,6 +46,11 @@ void WindowInput::WindowMinimizedFunc(bool minimized)
 {
 }
 
+void WindowInput::AddKeyCallback(int key, int action, void(*func)(void*), void* ptr)
+{
+	callbacks.emplace(std::make_pair(key, action), std::make_pair(func, ptr));
+}
+
 void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 {	
 	if(action == GLFW_RELEASE)
@@ -83,6 +88,14 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 
 		default:
 			break;
+	}
+
+	// Handle Callbacks
+	// Call functions that has same key action combination
+	auto range = callbacks.equal_range(std::make_pair(key, action));
+	for(auto it = range.first; it != range.second; ++it)
+	{
+		it->second.first(it->second.second);	
 	}
 }
 

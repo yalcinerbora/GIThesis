@@ -360,6 +360,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 
 	// Read Sibling Materials
 	CSVOMaterial mat[2];
+	CSVOMaterial parentMat;
 	if(currentLevel < svoConstants.denseDepth)
 	{
 		//// Reduction between dense
@@ -394,13 +395,14 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			// Coalesced Fetch
 			const CSVONode* n = (currentLevel == svoConstants.denseDepth) ? gSVODense : gSVOSparse;
 			node = n[svoLevelOffset + warpLinearId];
+
+			bool fetchParentMat = (svoConstants.totalDepth - currentLevel) < svoConstants.numCascades;
+			parentMat = fetchParentMat ? gSVOMat[matOffset + svoLevelOffset + warpLinearId] : 0;
 		}
 		
 		// Shuffle each parent to actual users
 		node = __shfl(node, laneId / 4);		
-
-		
-		//if(node == 0xFFFFFFFF) return;
+		parentMat = __shfl(parentMat, laneId / 4);
 
 		unsigned int nodeId = node + localNodeChildId;
 		mat[0] = (node != 0xFFFFFFFF) ? gSVOMat[matOffset + nodeId] : 0;
@@ -433,6 +435,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			colorAvg.x += color.x;
 			colorAvg.y += color.y;
 			colorAvg.z += color.z;
+		//	colorAvg.w += (currentLevel)color.w : 255.0f;
 
 			normalAvg.x += normal.x;
 			normalAvg.y += normal.y;
@@ -442,15 +445,12 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		}
 	}
 
-	if(threadIdx.x % 4 == 0 && 
-	   (svoConstants.totalDepth - currentLevel) < svoConstants.numCascades)
+	if(threadIdx.x % 4 == 0)
 	{
 		// Parent also may contain color fetch and add it to average
 		CSVOColor colorPacked;
 		CVoxelNorm normalPacked;
-		UnpackSVOMaterial(colorPacked, normalPacked, gSVOMat[matOffset + 
-															 svoLevelOffset +
-															 globalParentId]);
+		UnpackSVOMaterial(colorPacked, normalPacked, parentMat);
 		if(colorPacked != 0)
 		{
 			float4 color = UnpackSVOColor(colorPacked);
@@ -459,6 +459,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			colorAvg.x += 8 * color.x;
 			colorAvg.y += 8 * color.y;
 			colorAvg.z += 8 * color.z;
+			colorAvg.w += 8 * 255.0f;
 
 			normalAvg.x += 8 * normal.x;
 			normalAvg.y += 8 * normal.y;
@@ -476,6 +477,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		colorAvg.x += __shfl_down(colorAvg.x, offset, 4);
 		colorAvg.y += __shfl_down(colorAvg.y, offset, 4);
 		colorAvg.z += __shfl_down(colorAvg.z, offset, 4);
+		colorAvg.w += __shfl_down(colorAvg.w, offset, 4);
 
 		normalAvg.x += __shfl_down(normalAvg.x, offset, 4);
 		normalAvg.y += __shfl_down(normalAvg.y, offset, 4);
@@ -493,19 +495,25 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		colorAvg.x *= countInv;
 		colorAvg.y *= countInv;
 		colorAvg.z *= countInv;
+		colorAvg.w *= countInv;
 
 		normalAvg.x *= countInv;
 		normalAvg.y *= countInv;
 		normalAvg.z *= countInv;
-
-		colorAvg.w = static_cast<unsigned char>(count);
 	}
 
 	CSVOMaterial matAvg = PackSVOMaterial(PackSVOColor(colorAvg), PackOnlyVoxNorm(normalAvg));
 	matAvg = __shfl(matAvg, laneId * 4);
 	if(laneId < parentPerWarp)
 	{
-		gSVOMat[matOffset + svoLevelOffset + warpLinearId] = matAvg;
+		if(currentLevel > svoConstants.denseDepth)
+			gSVOMat[matOffset + svoLevelOffset + warpLinearId] = matAvg;
+		else
+		{
+			unsigned int levelOffset = static_cast<unsigned int>((1.0f - powf(8.0f, currentLevel)) /
+																 (1.0f - 8.0f));
+			gSVOMat[levelOffset + warpLinearId] = matAvg;
+		}
 	}
 }
 

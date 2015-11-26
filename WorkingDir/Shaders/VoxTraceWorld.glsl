@@ -270,7 +270,23 @@ float FindMarchLength(out uint colorPacked,
 		   i == offsetCascade.w)
 		{
 			// Mid Leaf Level
-			colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
+			if(i > dimDepth.w)
+			{
+				// Sparse Fetch
+				colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
+			}
+			else
+			{
+				// Dense Fetch
+				uint levelOffset = uint((1.0f - pow(8.0f, i)) / 
+										(1.0f - 8.0f));
+				uint levelDim = dimDepth.z >> (dimDepth.w - i);
+				ivec3 levelVoxId = LevelVoxId(marchPos, i);
+				colorPacked = svoMaterial[levelOffset + 
+											levelDim * levelDim * levelVoxId.z + 
+											levelDim * levelVoxId.y + 
+											levelVoxId.x].x;
+			}
 			if (colorPacked != 0) return 0.0f;
 		}
 

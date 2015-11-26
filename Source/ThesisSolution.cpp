@@ -47,7 +47,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxelScene1024(intialCamPos, CascadeSpan * 2, CascadeDim)
 	, voxelScene512(intialCamPos, CascadeSpan * 4, CascadeDim)
 	, renderScheme(GI_VOXEL_PAGE)
-	//, renderScheme(GI_LIGHT_INTENSITY)
+	//, renderScheme(GI_DEFERRED)
 	, gridInfoBuffer(1)
 	, voxelNormPosBuffer(512)
 	, voxelColorBuffer(512)
@@ -361,7 +361,7 @@ void ThesisSolution::LevelIncrement()
 void ThesisSolution::LevelDecrement()
 {
 	svoRenderLevel--;
-	svoRenderLevel = std::max(svoRenderLevel, voxelOctree.SVOConsts().denseDepth + 1);
+	svoRenderLevel = std::max(svoRenderLevel, voxelOctree.SVOConsts().denseDepth);
 }
 
 

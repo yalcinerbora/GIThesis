@@ -6,8 +6,59 @@
 
 const char* Scene::sponzaFileName = "crySponza.gfg";
 const char* Scene::cornellboxFileName = "cornell.gfg";
-//const char* Scene::movingObjectsFileName = "movingObjects.gfg";
-const char* Scene::movingObjectsFileName = "mvObj1.gfg";
+const char* Scene::movingObjectsFileName = "movingObjects.gfg";
+
+const uint32_t Scene::sponzaSVOLevelSizes[] =
+{
+	1,
+	8,
+	64,
+	512,
+	1024,
+	4096,
+	15 * 1024,
+	65 * 1024,
+	300 * 1024,
+	1300 * 1024,
+	1000 * 1024,
+	1200 * 1024
+};
+
+const uint32_t Scene::cornellSVOLevelSizes[] =
+{
+	1,
+	8,
+	64,
+	512,
+	1024,
+	1024,
+	2048,
+	10 * 1024,
+	35 * 1024,
+	190 * 1024,
+	750 * 1024,
+	2200 * 1024
+};
+
+const uint32_t Scene::movingObjectsSVOLevelSizes[] =
+{
+	1,
+	8,
+	64,
+	512,
+	1024,
+	1024,
+	1024,
+	1024,
+	2048,
+	8192,
+	30 * 1024,
+	120 * 1024,
+};
+
+static_assert(sizeof(Scene::cornellSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::sponzaSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::movingObjectsSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
 
 Scene::Scene(const char* sceneFileName,
 			 const Array32<Light>& lights,

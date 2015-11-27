@@ -278,8 +278,8 @@ float FindMarchLength(out uint colorPacked,
 			else
 			{
 				// Dense Fetch
-				uint levelOffset = uint((1.0f - pow(8.0f, i)) / 
-										(1.0f - 8.0f));
+				uint levelOffset = 37449;//uint((1.0f - pow(8.0f, i)) / 
+										//(1.0f - 8.0f));
 				uint levelDim = dimDepth.z >> (dimDepth.w - i);
 				ivec3 levelVoxId = LevelVoxId(marchPos, i);
 				colorPacked = svoMaterial[levelOffset + 

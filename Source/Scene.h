@@ -50,6 +50,11 @@ class Scene : public SceneI
 		static const char*		cornellboxFileName;
 		static const char*		movingObjectsFileName;
 
+		static const uint32_t	sponzaSVOLevelSizes[];
+		static const uint32_t	cornellSVOLevelSizes[];
+		static const uint32_t	movingObjectsSVOLevelSizes[];
+		
+
 		DrawBuffer&				getDrawBuffer() override;
 		GPUBuffer&				getGPUBuffer() override;
 		SceneLights&			getSceneLights() override;

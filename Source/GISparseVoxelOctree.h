@@ -15,11 +15,20 @@
 #include "CSVOTypes.cuh"
 #include "Shader.h"
 
-#define GI_DENSE_LEVEL 6
-#define GI_DENSE_SIZE 64
+#define GI_DENSE_LEVEL 1
+#define GI_DENSE_SIZE 2
 
 class GICudaAllocator;
 struct Camera;
+
+struct SVOTree
+{
+	CSVONode** gLevelNodes;
+	CSVOMaterial** gLevelMaterials;
+	CSVONode* gLevelNodeCount;
+
+	CSVOMaterial* gDenseMaterial;	
+};
 
 struct SVOTraceData
 {

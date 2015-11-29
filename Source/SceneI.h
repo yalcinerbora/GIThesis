@@ -9,6 +9,8 @@ class DrawBuffer;
 class GPUBuffer;
 class SceneLights;
 
+#include <cstdint>
+
 class SceneI 
 {
 	private:
@@ -27,7 +29,8 @@ class SceneI
 		virtual size_t			PolyCount() const = 0;
 
 		virtual float			MinSpan() const = 0; // Minimum voxel span used in vox generation
-		virtual float			SVOMultiplier() const = 0; // SVOMultipler for memory alloc
+		virtual uint32_t		SVOTotalSize() const = 0; // SVO Total Size Malloc
+		virtual const uint32_t*	SVOLevelSizes() const = 0;// Level Sizes
 };
 
 #endif //__SCENEI_H__

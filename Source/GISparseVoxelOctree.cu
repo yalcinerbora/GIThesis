@@ -30,7 +30,8 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 
 void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 										 size_t allocatorSize,
-										 float sceneMultiplier)
+										 uint32_t totalCount,
+										 const uint32_t* levelCounts)
 {
 	allocatorGrids.clear();
 	allocators.resize(allocatorSize);
@@ -44,7 +45,7 @@ void GISparseVoxelOctree::LinkAllocators(GICudaAllocator** newAllocators,
 		allocatorGrids[i] = &(newAllocators[i]->GetVoxelGridHost());
 
 	// TODO: More Dynamic Allocation Scheme
-	size_t totalAlloc = static_cast<size_t>(sceneMultiplier * 1024.0f * 1024.0f);
+	size_t totalAlloc = totalCount;
 	svoNodeBuffer.Resize(totalAlloc + GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
 
 	dSVODense = nullptr;
@@ -422,22 +423,21 @@ double GISparseVoxelOctree::UpdateSVO()
 		AverageNodesOrdered();
 	}
 
-	// DEBUG
-	GI_LOG("-------------------------------------------");
-	GI_LOG("Tree Node Data");
-	unsigned int i;
-	for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
-	{
-		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
-		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
-	}
-	unsigned int total;
-	CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
-						  cudaMemcpyDeviceToHost));
-	GI_LOG("Total : %d", total);
+	//// DEBUG
+	//GI_LOG("-------------------------------------------");
+	//GI_LOG("Tree Node Data");
+	//unsigned int i;
+	//for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
+	//{
+	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE);
+	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
+	//}
+	//unsigned int total;
+	//CUDA_CHECK(cudaMemcpy(&total, dSVONodeAllocator.Data(), sizeof(unsigned int),
+	//					  cudaMemcpyDeviceToHost));
+	//GI_LOG("Total : %d", total);
 
 	timer.Stop();
-	
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNodeResource));
 	return timer.ElapsedMilliS();

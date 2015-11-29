@@ -56,19 +56,25 @@ const uint32_t Scene::movingObjectsSVOLevelSizes[] =
 	120 * 1024,
 };
 
+const uint32_t Scene::sponzaSVOTotalSize = 5222 * 1024;
+const uint32_t Scene::cornellSVOTotalSize = 4200 * 1024;
+const uint32_t Scene::movingObjectsTotalSize = 62 * 1024;
+
 static_assert(sizeof(Scene::cornellSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
 static_assert(sizeof(Scene::sponzaSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
 static_assert(sizeof(Scene::movingObjectsSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
 
 Scene::Scene(const char* sceneFileName,
 			 const Array32<Light>& lights,
-			 float minSpan,
-			 float svoMultiplier)
+			 float minVoxSpan,
+			 uint32_t totalSVOArraySize,
+			 const uint32_t svoLevelSizes[])
 	: sceneVertex({element, 3})
 	, drawParams()
 	, sceneLights(lights)
-	, minSpan(minSpan)
-	, svoMultiplier(svoMultiplier)
+	, minSpan(minVoxSpan)
+	, svoLevelSizes(svoLevelSizes)
+	, svoTotalSize(totalSVOArraySize)
 {
 	IETimer timer;
 	timer.Start();
@@ -132,7 +138,12 @@ float Scene::MinSpan() const
 	return minSpan;
 }
 
-float Scene::SVOMultiplier() const
+uint32_t Scene::SVOTotalSize() const
 {
-	return svoMultiplier;
+	return svoTotalSize;
+}
+
+const uint32_t* Scene::SVOLevelSizes() const
+{
+	return svoLevelSizes;
 }

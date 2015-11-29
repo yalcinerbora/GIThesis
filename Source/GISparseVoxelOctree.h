@@ -15,8 +15,10 @@
 #include "CSVOTypes.cuh"
 #include "Shader.h"
 
-#define GI_DENSE_LEVEL 1
-#define GI_DENSE_SIZE 2
+#define GI_DENSE_LEVEL 6
+#define GI_DENSE_SIZE 64
+
+static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
 
 class GICudaAllocator;
 struct Camera;
@@ -111,7 +113,8 @@ class GISparseVoxelOctree
 		// Link Allocators and Adjust Size of the System
 		void									LinkAllocators(GICudaAllocator** newAllocators,
 															   size_t allocatorSize,
-															   float sceneMultiplier);
+															   uint32_t totalCount,
+															   const uint32_t* levelCounts);
 
 		// Updates SVO Tree depending on the changes of the allocators
 		double									UpdateSVO();

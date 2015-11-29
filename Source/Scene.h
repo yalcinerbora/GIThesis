@@ -34,15 +34,17 @@ class Scene : public SceneI
 		size_t					totalPolygons;
 
 		float					minSpan;
-		float					svoMultiplier;
+		uint32_t				svoTotalSize;
+		const uint32_t*			svoLevelSizes;
 
 	protected:
 	public:
 		// Constructors & Destructor
 								Scene(const char* sceneFileName,
 									  const Array32<Light>& light,
-									  float minSpan,
-									  float svoMultipler);
+									  float minVoxSpan,
+									  uint32_t totalSVOArraySize,
+									  const uint32_t svoLevelSizes[]);
 								~Scene() = default;
 
 		// Static Files
@@ -53,6 +55,10 @@ class Scene : public SceneI
 		static const uint32_t	sponzaSVOLevelSizes[];
 		static const uint32_t	cornellSVOLevelSizes[];
 		static const uint32_t	movingObjectsSVOLevelSizes[];
+
+		static const uint32_t	sponzaSVOTotalSize;
+		static const uint32_t	cornellSVOTotalSize;
+		static const uint32_t	movingObjectsTotalSize;
 		
 
 		DrawBuffer&				getDrawBuffer() override;
@@ -65,7 +71,8 @@ class Scene : public SceneI
 		size_t					DrawCount() const override;
 
 		float					MinSpan() const override;
-		float					SVOMultiplier() const override;
+		uint32_t				SVOTotalSize() const override;
+		const uint32_t*			SVOLevelSizes() const override;
 };
 
 #endif //__SCENE_H__

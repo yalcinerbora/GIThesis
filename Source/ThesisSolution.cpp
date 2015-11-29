@@ -95,7 +95,9 @@ void ThesisSolution::Init(SceneI& s)
 		voxelScene1024.Allocator(),
 		voxelScene2048.Allocator(),
 	};
-	voxelOctree.LinkAllocators(allocators, 3, currentScene->SVOMultiplier());
+	voxelOctree.LinkAllocators(allocators, 3, 
+							   currentScene->SVOTotalSize(),
+							   currentScene->SVOLevelSizes());
 	svoRenderLevel = voxelOctree.SVOConsts().totalDepth;
 
 	// Memory Usage Total

@@ -130,6 +130,7 @@ extern __global__ void SVOReconstructDetermineNode(CSVONode* gSVODense,
 extern __global__ void SVOReconstructDetermineNode(CSVONode* gSVOSparse,
 												   cudaTextureObject_t tSVODense,
 												   const CVoxelPage* gVoxelData,
+												   const unsigned int* gLevelOffsets,
 
 												   // Constants
 												   const unsigned int cascadeNo,
@@ -139,18 +140,17 @@ extern __global__ void SVOReconstructDetermineNode(CSVONode* gSVOSparse,
 // Allocate next alloates the next level of the tree
 extern __global__ void SVOReconstructAllocateLevel(CSVONode* gSVO,
 												   unsigned int* gLevelNodeCounts,
-												   unsigned int& gSVOAllocLocation,
+												   unsigned int& gSVOLevellAlloator,
+												   const unsigned int& gSVOLevelTotalSize,
+												   const unsigned int& gSVOLevelOffset,
 
-												   unsigned int svoLevelOffset,
-												   const unsigned int svoTotalSize,
-												   const unsigned int level,
-												   const unsigned int levelSize,
 												   const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 
 												  // Const SVO Data
 												  const CSVONode* gSVOSparse,
+												  const unsigned int* gLevelOffsets,
 												  cudaTextureObject_t tSVODense,
 
 												  // Page Data
@@ -168,6 +168,7 @@ extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 
 												 const CSVONode* gSVO,
 												 const CSVONode* gSVOSparse,
+												 const unsigned int& gLevelOffset,
 
 												 const unsigned int matOffset,
 												 const unsigned int svoLevelOffset,
@@ -179,15 +180,15 @@ extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 									  CSVONode* gSVOSparse,
 									  CSVONode* gSVODense,
-									  unsigned int* gLevelNodeCounts,
-									  unsigned int& gSVOAllocLocation,
+									  const unsigned int* gLevelOffsets,
+									  const unsigned int* gLevelTotalSizes,
+									  unsigned int* gLevelAllocators,
 
 									  // For Color Lookup
 									  const CVoxelPage* gVoxelData,
 									  CVoxelRender** gVoxelRenderData,
 
 									  const unsigned int matSparseOffset,
-									  const unsigned int svoTotalSize,
 									  const unsigned int cascadeNo,
 									  const CSVOConstants& svoConstants);
 

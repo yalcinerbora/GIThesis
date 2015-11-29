@@ -17,6 +17,7 @@
 
 #define GI_DENSE_LEVEL 6
 #define GI_DENSE_SIZE 64
+#define GI_DENSE_SIZE_CUBE (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)
 
 static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
 
@@ -68,6 +69,7 @@ class GISparseVoxelOctree
 		// SVO Data
 		StructuredBuffer<CSVONode>				svoNodeBuffer;
 		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
+		StructuredBuffer<uint32_t>				svoLevelOffsets;
 
 		// Rendering Helpers
 		StructuredBuffer<SVOTraceData>			svoTraceData;
@@ -76,18 +78,22 @@ class GISparseVoxelOctree
 		CSVOMaterial*							dSVOMaterial;
 		CSVONode*								dSVODense;
 		CSVONode*								dSVOSparse;
+		uint32_t*								dSVOOffsets;
 
 		// SVO Mat indices
 		uint32_t								matSparseOffset;
+		uint32_t								prevUsedNodeCount;
 
 		// Atomic counter and svo level start locations
-		CudaVector<unsigned int>				dSVONodeAllocator;
-		CudaVector<unsigned int>				dSVOLevelSizes;
-		std::vector<unsigned int>				hSVOLevelSizes;
-		std::vector<unsigned int>				hSVOLevelOffsets;
+		CudaVector<uint32_t>					dSVOLevelTotalSizes;
+		std::vector<uint32_t>					hSVOLevelTotalSizes;
+		CudaVector<uint32_t>					dSVOLevelSizes;
+		std::vector<uint32_t>					hSVOLevelSizes;
+		
 
 		// Interop Data
 		cudaGraphicsResource_t					svoNodeResource;
+		cudaGraphicsResource_t					svoLevelOffsetResource;
 		cudaGraphicsResource_t					svoMaterialResource;
 		
 		// Trace Shaders
@@ -111,8 +117,7 @@ class GISparseVoxelOctree
 												~GISparseVoxelOctree();
 
 		// Link Allocators and Adjust Size of the System
-		void									LinkAllocators(GICudaAllocator** newAllocators,
-															   size_t allocatorSize,
+		void									LinkAllocators(Array32<GICudaAllocator*> allocators,
 															   uint32_t totalCount,
 															   const uint32_t* levelCounts);
 

@@ -244,9 +244,6 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		if(cache.objectGridInfo.CPUData()[i].span != currentScene->MinSpan() * minSpanMultiplier)
 			continue;
 
-		//
-		//unsigned int isMip = 
-
 		// First Call Voxelize over 3D Texture
 		currentScene->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 		voxelRenderTexture.BindAsImage(I_VOX_WRITE, GL_WRITE_ONLY);

@@ -50,11 +50,7 @@ inline __device__ CSVOMaterial AtomicColorNormalAvg(CSVOMaterial* gMaterial,
 	return old;
 }
 
-inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode,
-												  unsigned int& gSVOAllocLocation,
-												  unsigned int* gLevelNodeCounts,
-												  const unsigned int levelIndex,
-												  const unsigned int svoTotalSize)
+inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int& gLevelAllocator)
 {
 	// Release Configuration Optimization fucks up the code
 	// Prob changes some memory i-o ordering
@@ -83,13 +79,12 @@ inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode,
 		if(old == 0xFFFFFFFF)
 		{
 			// Allocate
-			unsigned int location = atomicAdd(&gSVOAllocLocation, 8); assert(location < svoTotalSize);
-			atomicAdd(&gLevelNodeCounts[levelIndex], 8);
+			unsigned int location = atomicAdd(&gLevelAllocator, 8);
 			//atomicExch(gNode, location);
 			*reinterpret_cast<volatile CSVONode*>(gNode) = location;
 			old = location;
 		}
-		__threadfence();
+		__threadfence();	// This is important somehow compiler changes this and makes infinite loop on smae warp threads
 	}
 	return old;
 }
@@ -524,15 +519,15 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 							   CSVONode* gSVOSparse,
 							   CSVONode* gSVODense,
-							   unsigned int* gLevelNodeCounts,
-							   unsigned int& gSVOAllocLocation,
+							   const unsigned int* gLevelOffsets,
+							   const unsigned int* gLevelTotalSizes,
+							   unsigned int* gLevelAllocators,
 
 							   // For Color Lookup
 							   const CVoxelPage* gVoxelData,
 							   CVoxelRender** gVoxelRenderData,
 
 							   const unsigned int matSparseOffset,
-							   const unsigned int svoTotalSize,
 							   const unsigned int cascadeNo,
 							   const CSVOConstants& svoConstants)
 {
@@ -560,6 +555,7 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
 	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
 	{
+		unsigned int levelIndex = i + 1 - svoConstants.denseDepth;
 		CSVONode* node = nullptr;
 		if(i == svoConstants.denseDepth)
 		{
@@ -570,13 +566,12 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 		}
 		else
 		{
-			node = gSVOSparse + location;
+			node = gSVOSparse + gLevelOffsets[levelIndex] + location;
 		}
 
 		// Allocate (or acquire) next location
-		unsigned int levelIndex = i + 1 - svoConstants.denseDepth;
-		location = AtomicAllocateNode(node, gSVOAllocLocation, gLevelNodeCounts,
-									  levelIndex, svoTotalSize);
+		location = AtomicAllocateNode(node, gLevelAllocators[levelIndex]);
+		assert(location < gLevelTotalSizes[levelIndex]);
 
 		// Offset child
 		unsigned int childId = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
@@ -591,7 +586,9 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
 	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
-	AtomicColorNormalAvg(gSVOMat + matSparseOffset + location,
+	AtomicColorNormalAvg(gSVOMat + matSparseOffset + 
+						 gLevelOffsets[cascadeMaxLevel - svoConstants.denseDepth + 2] +
+						 location,
 						 voxelColorPacked,
 						 voxelNormPacked);
 

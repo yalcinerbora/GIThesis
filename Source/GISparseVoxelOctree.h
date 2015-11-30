@@ -15,8 +15,8 @@
 #include "CSVOTypes.cuh"
 #include "Shader.h"
 
-#define GI_DENSE_LEVEL 6
-#define GI_DENSE_SIZE 64
+#define GI_DENSE_LEVEL 5
+#define GI_DENSE_SIZE 32
 #define GI_DENSE_SIZE_CUBE (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)
 
 static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
@@ -82,7 +82,6 @@ class GISparseVoxelOctree
 
 		// SVO Mat indices
 		uint32_t								matSparseOffset;
-		uint32_t								prevUsedNodeCount;
 
 		// Atomic counter and svo level start locations
 		CudaVector<uint32_t>					dSVOLevelTotalSizes;
@@ -90,7 +89,6 @@ class GISparseVoxelOctree
 		CudaVector<uint32_t>					dSVOLevelSizes;
 		std::vector<uint32_t>					hSVOLevelSizes;
 		
-
 		// Interop Data
 		cudaGraphicsResource_t					svoNodeResource;
 		cudaGraphicsResource_t					svoLevelOffsetResource;
@@ -104,8 +102,7 @@ class GISparseVoxelOctree
 															   unsigned int allocatorIndex);
 		void									ConstructFullAtomic();
 		void									ConstructLevelByLevel();
-		void									AverageNodesOrdered();
-		void									AverageNodes();
+		void									AverageNodes(bool skipLeaf);
 
 	protected:
 
@@ -119,7 +116,7 @@ class GISparseVoxelOctree
 		// Link Allocators and Adjust Size of the System
 		void									LinkAllocators(Array32<GICudaAllocator*> allocators,
 															   uint32_t totalCount,
-															   const uint32_t* levelCounts);
+															   const uint32_t levelCounts[]);
 
 		// Updates SVO Tree depending on the changes of the allocators
 		double									UpdateSVO();

@@ -15,6 +15,7 @@
 
 #define LU_SVO_NODE layout(std430, binding = 0) readonly
 #define LU_SVO_MATERIAL layout(std430, binding = 1) readonly
+#define LU_SVO_LEVEL_OFFSET layout(std430, binding = 2) readonly
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
@@ -33,6 +34,11 @@ LU_SVO_NODE buffer SVONode
 LU_SVO_MATERIAL buffer SVOMaterial
 { 
 	uvec2 svoMaterial[];
+};
+
+LU_SVO_LEVEL_OFFSET buffer SVOLevelOffsets
+{
+	uint svoLevelOffset[];
 };
 
 U_SVO_CONSTANTS uniform SVOConstants
@@ -254,12 +260,14 @@ float FindMarchLength(out uint colorPacked,
 		{
 			ivec3 denseVox = LevelVoxId(marchPos, dimDepth.w);
 			currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
-									denseVox.y * dimDepth.z + 
-									denseVox.x];
+								  denseVox.y * dimDepth.z + 
+								  denseVox.x];
 		}
 		else
 		{
-			currentNode = svoNode[offsetCascade.y + nodeIndex];
+			currentNode = svoNode[offsetCascade.y +
+								  svoLevelOffset[i - dimDepth.w] +
+								  nodeIndex];
 		}
 
 
@@ -273,19 +281,21 @@ float FindMarchLength(out uint colorPacked,
 			if(i > dimDepth.w)
 			{
 				// Sparse Fetch
-				colorPacked = svoMaterial[offsetCascade.z + nodeIndex].x;
+				colorPacked = svoMaterial[offsetCascade.z + 
+										  svoLevelOffset[i - dimDepth.w] +
+										  nodeIndex].x;
 			}
 			else
 			{
 				// Dense Fetch
-				uint levelOffset = 37449;//uint((1.0f - pow(8.0f, i)) / 
-										//(1.0f - 8.0f));
+				uint levelOffset = uint((1.0f - pow(8.0f, i)) / 
+										(1.0f - 8.0f));
 				uint levelDim = dimDepth.z >> (dimDepth.w - i);
 				ivec3 levelVoxId = LevelVoxId(marchPos, i);
 				colorPacked = svoMaterial[levelOffset + 
-											levelDim * levelDim * levelVoxId.z + 
-											levelDim * levelVoxId.y + 
-											levelVoxId.x].x;
+										  levelDim * levelDim * levelVoxId.z + 
+										  levelDim * levelVoxId.y + 
+										  levelVoxId.x].x;
 			}
 			if (colorPacked != 0) return 0.0f;
 		}

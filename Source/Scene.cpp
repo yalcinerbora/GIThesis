@@ -17,11 +17,11 @@ const uint32_t Scene::sponzaSVOLevelSizes[] =
 	1024,
 	4096,
 	15 * 1024,
-	65 * 1024,
-	300 * 1024,
+	70 * 1024,
+	280 * 1024,
 	1300 * 1024,
 	1000 * 1024,
-	1200 * 1024
+	1100 * 1024
 };
 
 const uint32_t Scene::cornellSVOLevelSizes[] =
@@ -56,9 +56,9 @@ const uint32_t Scene::movingObjectsSVOLevelSizes[] =
 	120 * 1024,
 };
 
-const uint32_t Scene::sponzaSVOTotalSize = 5222 * 1024;
-const uint32_t Scene::cornellSVOTotalSize = 4200 * 1024;
-const uint32_t Scene::movingObjectsTotalSize = 62 * 1024;
+const uint32_t Scene::sponzaSVOTotalSize = 3771 * 1024;
+const uint32_t Scene::cornellSVOTotalSize = 3190 * 1024;
+const uint32_t Scene::movingObjectsTotalSize = 165 * 1024;
 
 static_assert(sizeof(Scene::cornellSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
 static_assert(sizeof(Scene::sponzaSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");

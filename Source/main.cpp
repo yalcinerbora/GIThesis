@@ -120,7 +120,7 @@ int main()
 					 Array32<Light>{cornellLights, 1},
 					 ThesisSolution::CascadeSpan,
 					 Scene::cornellSVOTotalSize,
-					 Scene::movingObjectsSVOLevelSizes);
+					 Scene::cornellSVOLevelSizes);
 	Scene movingObjects(Scene::movingObjectsFileName,
 						Array32<Light>{sponzaLights, 4},
 						ThesisSolution::CascadeSpan,

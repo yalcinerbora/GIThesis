@@ -138,12 +138,10 @@ extern __global__ void SVOReconstructDetermineNode(CSVONode* gSVOSparse,
 												   const CSVOConstants& svoConstants);
 
 // Allocate next alloates the next level of the tree
-extern __global__ void SVOReconstructAllocateLevel(CSVONode* gSVO,
-												   unsigned int* gLevelNodeCounts,
-												   unsigned int& gSVOLevellAlloator,
+extern __global__ void SVOReconstructAllocateLevel(CSVONode* gSVOLevel,
+												   unsigned int& gSVONextLevelAllocator,
+												   const unsigned int& gSVONextLevelTotalSize,
 												   const unsigned int& gSVOLevelTotalSize,
-												   const unsigned int& gSVOLevelOffset,
-
 												   const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
@@ -166,24 +164,25 @@ extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 
 extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 
-												 const CSVONode* gSVO,
+												 const CSVONode* gSVODense,
 												 const CSVONode* gSVOSparse,
-												 const unsigned int& gLevelOffset,
 
-												 const unsigned int matOffset,
-												 const unsigned int svoLevelOffset,
-												 const unsigned int currentLevel,
+												 const unsigned int& gSVOLevelOffset,
+												 const unsigned int& gSVONextLevelOffset,
+
 												 const unsigned int levelNodeCount,
-
+												 const unsigned int matOffset,
+												 const unsigned int currentLevel,
 												 const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 									  CSVONode* gSVOSparse,
 									  CSVONode* gSVODense,
-									  const unsigned int* gLevelOffsets,
-									  const unsigned int* gLevelTotalSizes,
 									  unsigned int* gLevelAllocators,
 
+									  const unsigned int* gLevelOffsets,
+									  const unsigned int* gLevelTotalSizes,
+									  
 									  // For Color Lookup
 									  const CVoxelPage* gVoxelData,
 									  CVoxelRender** gVoxelRenderData,

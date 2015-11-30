@@ -97,6 +97,7 @@ static const TwStructMember lightMembers[] =
 #define LU_SVO_MATERIAL 1
 #define LU_VOXEL_RENDER 1
 #define LU_OBJECT_GRID_INFO 2
+#define LU_SVO_LEVEL_OFFSET 2
 #define LU_VOXEL_IDS 3
 #define LU_AABB 3
 #define LU_MTRANSFORM 4

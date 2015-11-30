@@ -95,7 +95,7 @@ void ThesisSolution::Init(SceneI& s)
 		voxelScene1024.Allocator(),
 		voxelScene2048.Allocator(),
 	};
-	voxelOctree.LinkAllocators(allocators, 3, 
+	voxelOctree.LinkAllocators(Array32<GICudaAllocator*>{allocators, 3},
 							   currentScene->SVOTotalSize(),
 							   currentScene->SVOLevelSizes());
 	svoRenderLevel = voxelOctree.SVOConsts().totalDepth;
@@ -355,12 +355,14 @@ void ThesisSolution::LevelIncrement()
 {
 	svoRenderLevel++;
 	svoRenderLevel = std::min(svoRenderLevel, voxelOctree.SVOConsts().totalDepth);
+	//GI_LOG("Level %d", svoRenderLevel);
 }
 
 void ThesisSolution::LevelDecrement()
 {
 	svoRenderLevel--;
 	svoRenderLevel = std::max(svoRenderLevel, voxelOctree.SVOConsts().denseDepth);
+	//GI_LOG("Level %d", svoRenderLevel);
 }
 
 

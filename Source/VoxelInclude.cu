@@ -32,7 +32,7 @@ __global__ void VoxelObjectDealloc(// Voxel System
 	if(objectId == 0xFFFFFFFF) return;
 
 	
-	CMatrix4x4 transform = gObjTransforms[objectId].transform;
+	const CMatrix4x4 transform = gObjTransforms[objectId].transform;
 	//{{
 	//	{0.19f, 0.0f, 0.0f, 0.0f},
 	//	{0.0f, 0.19f, 0.0f, 0.0f},
@@ -89,7 +89,7 @@ __global__ void VoxelObjectAlloc(// Voxel System
 	if(objectId == 0xFFFFFFFF) return;
 
 	// Intersection Check
-	CMatrix4x4 transform = gObjTransforms[objectId].transform;
+	const CMatrix4x4 transform = gObjTransforms[objectId].transform;
 	//{{
 	//	{ 0.19f, 0.0f, 0.0f, 0.0f },
 	//	{ 0.0f, 0.19f, 0.0f, 0.0f },

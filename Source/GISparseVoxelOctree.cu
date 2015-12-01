@@ -9,6 +9,7 @@
 
 #include <cuda_gl_interop.h>
 #include <numeric>
+#include <cuda_profiler_api.h>
 
 GISparseVoxelOctree::GISparseVoxelOctree()
 	: svoNodeBuffer(512)
@@ -267,19 +268,20 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 						  hSVOLevelSizes.size() * sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
 
-	// Copy Dense to Texture
-	cudaMemcpy3DParms params = { 0 };
-	params.dstArray = denseArray;
-	params.srcPtr =
-	{
-		dSVODense,
-		GI_DENSE_SIZE * sizeof(unsigned int),
-		GI_DENSE_SIZE,
-		GI_DENSE_SIZE
-	};
-	params.extent = { GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE };
-	params.kind = cudaMemcpyDeviceToDevice;
-	CUDA_CHECK(cudaMemcpy3D(&params));
+	// Full atomic reconst does not use cuda3d tex
+	//// Copy Dense to Texture
+	//cudaMemcpy3DParms params = { 0 };
+	//params.dstArray = denseArray;
+	//params.srcPtr =
+	//{
+	//	dSVODense,
+	//	GI_DENSE_SIZE * sizeof(unsigned int),
+	//	GI_DENSE_SIZE,
+	//	GI_DENSE_SIZE
+	//};
+	//params.extent = { GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE };
+	//params.kind = cudaMemcpyDeviceToDevice;
+	//CUDA_CHECK(cudaMemcpy3D(&params));
 }
 
 void GISparseVoxelOctree::ConstructLevelByLevel()
@@ -390,6 +392,8 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 
 double GISparseVoxelOctree::UpdateSVO()
 {
+	CUDA_CHECK(cudaProfilerStart());
+
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoNodeResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoLevelOffsetResource));
@@ -416,7 +420,7 @@ double GISparseVoxelOctree::UpdateSVO()
 
 	// Maxwell is faster with fully atomic code (CAS Locks etc.)
 	// However kepler sucks(660ti) (100ms compared to 5ms) 
-	if(CudaInit::CapabilityMajor() >= 5)
+	if(CudaInit::CapabilityMajor() >= 6)
 	{
 		ConstructFullAtomic();
 		AverageNodes(true);
@@ -428,7 +432,6 @@ double GISparseVoxelOctree::UpdateSVO()
 		AverageNodes(false);
 	}
 	
-
 	//// DEBUG
 	//GI_LOG("-------------------------------------------");
 	//GI_LOG("Tree Node Data");
@@ -446,6 +449,8 @@ double GISparseVoxelOctree::UpdateSVO()
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNodeResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoLevelOffsetResource));
+
+	CUDA_CHECK(cudaProfilerStop());
 	return timer.ElapsedMilliS();
 }
 

@@ -9,6 +9,8 @@ class DrawBuffer;
 class GPUBuffer;
 class SceneLights;
 
+#include <cstdint>
+
 class MeshBatchI
 {
 	public:

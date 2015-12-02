@@ -22,7 +22,6 @@ StructuredBuffer<T>::StructuredBuffer(StructuredBuffer&& other)
 {
 	other.bufferId = 0;
 	other.bufferCapacity = 0;
-	other.dataChanged = true;
 }
 
 template <class T>

@@ -19,6 +19,7 @@ Solution implementtion
 #include "VoxelRenderTexture.h"
 #include "VoxelDebugVAO.h"
 #include "DrawBuffer.h"
+#include "MeshBatchI.h"
 #include "GISparseVoxelOctree.h"
 
 class DeferredRenderer;
@@ -45,23 +46,6 @@ enum class VoxelObjectType : uint32_t
 	MORPH_DYNAMIC,	// Object moves with morph targets (each voxel has their adjacent vertex morphs weighted)
 };
 
-struct VoxelInfo
-{
-	uint32_t	sceneVoxCacheCount;
-	double		sceneVoxCacheSize;
-
-	uint32_t	sceneVoxOctreeCount;
-	double		sceneVoxOctreeSize;
-
-};
-
-struct SceneVoxCache
-{
-	uint32_t						depth;
-	std::vector<VoxelObjectCache>	cache;
-	VoxelInfo						voxInfo;
-};
-
 enum ThesisRenderScheme
 {
 	GI_DEFERRED,
@@ -82,6 +66,9 @@ struct VoxelObjectCache
 	StructuredBuffer<VoxelRenderData>		voxelRenderData;
 	StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 	VoxelDebugVAO							voxelVAO;
+	
+	uint32_t								batchVoxCacheCount;
+	double									batchVoxCacheSize;
 
 	VoxelObjectCache(size_t objectCount, size_t voxelCount)
 		: objectGridInfo(objectCount)
@@ -93,6 +80,44 @@ struct VoxelObjectCache
 	{
 		voxelCacheUsageSize.AddData(0);
 	}
+
+	VoxelObjectCache(VoxelObjectCache&& other)
+		: objectGridInfo(std::move(other.objectGridInfo))
+		, voxelNormPos(std::move(other.voxelNormPos))
+		, voxelIds(std::move(other.voxelIds))
+		, voxelRenderData(std::move(other.voxelRenderData))
+		, voxelCacheUsageSize(std::move(other.voxelCacheUsageSize))
+		, voxelVAO(std::move(other.voxelVAO))
+		, batchVoxCacheCount(other.batchVoxCacheCount)
+		, batchVoxCacheSize(other.batchVoxCacheSize)
+	{}
+
+	VoxelObjectCache(const VoxelObjectCache&) = delete;
+};
+
+struct SceneVoxCache
+{
+	uint32_t						depth;
+	std::vector<VoxelObjectCache>	cache;
+
+	uint32_t						voxOctreeCount;
+	double							voxOctreeSize;
+
+	uint32_t						totalCacheCount;
+	double							totalCacheSize;
+
+	SceneVoxCache() = default;
+
+	SceneVoxCache(SceneVoxCache&& other)
+	: depth(other.depth)
+	, cache(std::move(other.cache))
+	, voxOctreeCount(other.voxOctreeCount)
+	, voxOctreeSize(other.voxOctreeSize)
+	, totalCacheCount(other.totalCacheCount)
+	, totalCacheSize(other.totalCacheSize)
+	{}
+
+	SceneVoxCache(const SceneVoxCache&) = delete;
 };
 
 class ThesisSolution : public SolutionI
@@ -157,11 +182,12 @@ class ThesisSolution : public SolutionI
 
 		 // Voxelizes the scene for a cache level
 		double								Voxelize(VoxelObjectCache&,
+													 MeshBatchI* batch,
 													 float gridSpan, 
 													 unsigned int minSpanMultiplier,
 													 bool isInnerCascade);
 		void								LinkCacheWithVoxScene(GICudaVoxelScene&, 
-																  VoxelObjectCache&,
+																  SceneVoxCache&,
 																  float coverageRatio);
 													 
 		// Cuda Segment

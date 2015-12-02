@@ -145,7 +145,7 @@ int main()
 					Scene::sponzaSceneLevelSizes);
 
 	MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
-	Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
+	Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 1},
 					 Array32<Light>{cornellLights, 1},
 					 Scene::cornellSceneTotalSize,
 					 Scene::cornellSceneLevelSizes);

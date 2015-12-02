@@ -41,19 +41,19 @@ const uint32_t Scene::cubeSceneLevelSizes[] =
 	8,
 	64,
 	512,
-	1024,
-	1024,
-	1024,
-	1024,
-	2048,
-	8192,
-	30 * 1024,
-	120 * 1024,
+	100 * 1024,
+	100 * 1024,
+	100 * 1024,
+	100 * 1024,
+	100 * 2048,
+	100 * 8192,
+	300 * 1024,
+	1200 * 1024,
 };
 
 const uint32_t Scene::sponzaSceneTotalSize = 3771 * 1024;
 const uint32_t Scene::cornellSceneTotalSize = 3190 * 1024;
-const uint32_t Scene::cubeSceneTotalSize = 165 * 1024;
+const uint32_t Scene::cubeSceneTotalSize = 3200 * 1024;
 
 static_assert(sizeof(Scene::sponzaSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
 static_assert(sizeof(Scene::cornellSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
@@ -88,7 +88,7 @@ SceneLights& Scene::getSceneLights()
 
 Array32<MeshBatchI*> Scene::getBatches()
 {
-	return Array32<MeshBatchI*>{meshBatch.data(), static_cast<size_t>(meshBatch.size())};
+	return Array32<MeshBatchI*>{meshBatch.data(), static_cast<uint32_t>(meshBatch.size())};
 }
 
 uint32_t Scene::SVOTotalSize() const

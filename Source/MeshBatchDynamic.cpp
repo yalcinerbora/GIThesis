@@ -16,9 +16,9 @@ const char* MeshBatchDynamic::rotatingCubeFileName = "rainbowCube.gfg";
 
 size_t MeshBatchDynamic::sponzaDynamicVoxelSizes[] =
 {
-	static_cast<size_t>(1024 * 1024 * 1.5f),
-	static_cast<size_t>(1024 * 1024 * 2.0f),
-	static_cast<size_t>(1024 * 1024 * 1.5f)
+	static_cast<size_t>(1024 * 30.0f),
+	static_cast<size_t>(1024 * 10.0f),
+	static_cast<size_t>(1024 * 5.0f)
 };
 
 size_t MeshBatchDynamic::cornellDynamicVoxelSizes[] =
@@ -30,9 +30,9 @@ size_t MeshBatchDynamic::cornellDynamicVoxelSizes[] =
 
 size_t MeshBatchDynamic::rotatingCubeVoxelSizes[] =
 {
-	static_cast<size_t>(1024 * 1024 * 1.5f),
-	static_cast<size_t>(1024 * 1024 * 2.0f),
-	static_cast<size_t>(1024 * 1024 * 1.5f)
+	static_cast<size_t>(1024 * 120.0f),
+	static_cast<size_t>(1024 * 35.0f),
+	static_cast<size_t>(1024 * 10.0f)
 };
 
 // Interface

@@ -22,6 +22,10 @@ GICudaVoxelScene::GICudaVoxelScene(const IEVector3& intialCenterPos, float span,
 				})
 {}
 
+GICudaVoxelScene::GICudaVoxelScene(GICudaVoxelScene&& other)
+	: allocator(std::move(other.allocator))
+{}
+
 GICudaVoxelScene::~GICudaVoxelScene()
 {}
 

@@ -55,6 +55,13 @@ struct VoxelInfo
 
 };
 
+struct SceneVoxCache
+{
+	uint32_t						depth;
+	std::vector<VoxelObjectCache>	cache;
+	VoxelInfo						voxInfo;
+};
+
 enum ThesisRenderScheme
 {
 	GI_DEFERRED,
@@ -75,7 +82,6 @@ struct VoxelObjectCache
 	StructuredBuffer<VoxelRenderData>		voxelRenderData;
 	StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 	VoxelDebugVAO							voxelVAO;
-	VoxelInfo								voxInfo;
 
 	VoxelObjectCache(size_t objectCount, size_t voxelCount)
 		: objectGridInfo(objectCount)
@@ -112,10 +118,12 @@ class ThesisSolution : public SolutionI
 		FrameTransformBuffer	cameraTransform;
 
 		// Voxel Cache for each cascade
-		VoxelObjectCache		cache2048;
-		VoxelObjectCache		cache1024;
-		VoxelObjectCache		cache512;
-		
+		std::vector<SceneVoxCache>			voxelCaches;
+
+		// Cuda Stuff
+		std::vector<GICudaVoxelScene>		voxelScenes;
+		GISparseVoxelOctree					voxelOctree;
+
 		// Utility(Debug) Buffers
 		StructuredBuffer<VoxelGridInfoGL>	gridInfoBuffer;
 		StructuredBuffer<VoxelNormPos>		voxelNormPosBuffer;
@@ -138,7 +146,8 @@ class ThesisSolution : public SolutionI
 		TwType								renderType;
 											
 		// Debug Rendering					
-		void								DebugRenderVoxelCache(const Camera& camera, VoxelObjectCache&);
+		void								DebugRenderVoxelCache(const Camera& camera, 
+																  SceneVoxCache&);
 		void								DebugRenderVoxelPage(const Camera& camera,
 																 VoxelDebugVAO& pageVoxels,
 																 const CVoxelGrid& voxGrid,
@@ -156,11 +165,6 @@ class ThesisSolution : public SolutionI
 																  float coverageRatio);
 													 
 		// Cuda Segment
-		GICudaVoxelScene		voxelScene2048;
-		GICudaVoxelScene		voxelScene1024;
-		GICudaVoxelScene		voxelScene512;
-		GISparseVoxelOctree		voxelOctree;
-
 		static const size_t		InitialObjectGridSize;
 		static const size_t		InitialVoxelBufferSizes;
 

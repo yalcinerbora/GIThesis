@@ -2,13 +2,12 @@
 #include "GFG/GFGFileLoader.h"
 #include "GFG/GFGMaterialTypes.h"
 #include "Macros.h"
-#include "GPUBuffer.h"
-#include "DrawBuffer.h"
+#include "MeshBatchStatic.h"
 #include "Material.h"
 #include "IEUtility/IEMatrix4x4.h"
 #include "Scene.h"
 
-GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
+GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 								GPUBuffer& buffer,
 								DrawBuffer& drawBuffer,
 								const char* gfgFilename)
@@ -101,6 +100,36 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 		params.materialCount++;
 	}
 
+	// Write Total Transform
+	uint32_t transformIndex = 0;
+	for(const GFGTransform& transform : gfgFile.Header().transformData.transforms)
+	{
+		auto HasThisTransform = [&transformIndex](const GFGNode& node) { return node.transformIndex == transformIndex; };
+		const GFGNode* parent = &(*std::find_if(gfgFile.Header().sceneHierarchy.nodes.begin(),
+												gfgFile.Header().sceneHierarchy.nodes.end(),
+												HasThisTransform));
+		IEMatrix4x4 transform = IEMatrix4x4::IdentityMatrix;
+		IEMatrix3x3 transformRotation = IEMatrix3x3::IdentityMatrix;
+		while(parent->parentIndex != -1)
+		{
+			const GFGTransform& t = gfgFile.Header().transformData.transforms[parent->transformIndex];
+
+			transform = IEMatrix4x4::Rotate(t.rotate[0], IEVector3::Xaxis) * transform;
+			transform = IEMatrix4x4::Rotate(t.rotate[1], IEVector3::Yaxis) * transform;
+			transform = IEMatrix4x4::Rotate(t.rotate[2], IEVector3::Zaxis) * transform;
+
+			transformRotation = transform;
+
+			transform = IEMatrix4x4::Scale(t.scale[0], t.scale[1], t.scale[2]) * transform;
+			transform = IEMatrix4x4::Translate({t.translate[0], t.translate[1], t.translate[2]}) * transform;
+
+			parent = &gfgFile.Header().sceneHierarchy.nodes[parent->parentIndex];
+		}
+
+		drawBuffer.AddTransform(ModelTransform{transform, transformRotation});
+		transformIndex++;
+	}
+
 	params.drawCallCount = 0;
 	for(const GFGMeshMatPair& pair : gfgFile.Header().meshMaterialConnections.pairs)
 	{
@@ -109,39 +138,16 @@ GFGLoadError GFGLoader::LoadGFG(SceneParams& params,
 		dpi.count = static_cast<uint32_t>(pair.indexCount);
 		dpi.baseInstance = static_cast<uint32_t>(params.drawCallCount);
 
-		IEMatrix4x4 transform = IEMatrix4x4::IdentityMatrix;
-		IEMatrix3x3 transformRotation = IEMatrix3x3::IdentityMatrix;
-		for(const GFGNode& node : gfgFile.Header().sceneHierarchy.nodes)
-		{
-			if(node.meshReference == pair.meshIndex)
-			{
-				const GFGNode* parent = &node;
-				while(parent->parentIndex != -1)
-				{
-					const GFGTransform& t = gfgFile.Header().transformData.transforms[parent->transformIndex];
-
-					transform = IEMatrix4x4::Rotate(t.rotate[0], IEVector3::Xaxis) * transform;
-					transform = IEMatrix4x4::Rotate(t.rotate[1], IEVector3::Yaxis) * transform;
-					transform = IEMatrix4x4::Rotate(t.rotate[2], IEVector3::Zaxis) * transform;
-
-					transformRotation = transform;
-
-					transform = IEMatrix4x4::Scale(t.scale[0], t.scale[1], t.scale[2]) * transform;
-					transform = IEMatrix4x4::Translate({t.translate[0], t.translate[1], t.translate[2]}) * transform;
-
-					parent = &gfgFile.Header().sceneHierarchy.nodes[parent->parentIndex];
-				}											
-			}
-		}
-
+		uint32_t meshIndex = pair.meshIndex;
+		auto FindMeshTransform = [&meshIndex](const GFGNode& node) { return node.meshReference == meshIndex; };
+		uint32_t transformIndex = std::find_if(gfgFile.Header().sceneHierarchy.nodes.begin(),
+											   gfgFile.Header().sceneHierarchy.nodes.end(),
+											   FindMeshTransform)->transformIndex;
 		drawBuffer.AddDrawCall
 		(
 			dpi,
 			pair.materialIndex,
-			{ 
-				transform,
-				transformRotation
-			},
+			transformIndex,
 			{ 
 				IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.min)),
 				IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.max)),

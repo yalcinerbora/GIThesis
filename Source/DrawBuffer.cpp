@@ -17,15 +17,19 @@ void DrawBuffer::AddMaterial(const ColorMaterial& c)
 	materials.emplace_back(c);
 }
 
+void DrawBuffer::AddTransform(const ModelTransform& mt)
+{
+	drawTransforms.AddData(mt);
+}
+
 void DrawBuffer::AddDrawCall(const DrawPointIndexed& dp,
 							 uint32_t mIndex,
-							 const ModelTransform& modelTransform,
+							 uint32_t transIndex,
 							 const AABBData& aabb)
 {
-	drawTransforms.AddData(modelTransform);
 	drawPoints.AddData(dp);
 	drawAABBs.AddData(aabb);
-	modelTransformIndices.AddData(static_cast<uint32_t>(modelTransformIndices.Count()));
+	modelTransformIndices.AddData(transIndex);
 	materialIndex.push_back(mIndex);
 }
 

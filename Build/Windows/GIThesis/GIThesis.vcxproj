@@ -114,6 +114,7 @@
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
     <ClCompile Include="..\..\..\Source\DeferredRenderer.cpp" />
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp" />
+    <ClCompile Include="..\..\..\Source\BatchUpdates.cpp" />
     <ClCompile Include="..\..\..\Source\EmptyGISolution.cpp" />
     <ClCompile Include="..\..\..\Source\FPSInput.cpp" />
     <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp" />
@@ -141,6 +142,8 @@
     <ClCompile Include="..\..\..\Source\main.cpp" />
     <ClCompile Include="..\..\..\Source\Material.cpp" />
     <ClCompile Include="..\..\..\Source\MayaInput.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchDynamic.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchStatic.cpp" />
     <ClCompile Include="..\..\..\Source\Scene.cpp" />
     <ClCompile Include="..\..\..\Source\SceneLights.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
@@ -149,10 +152,14 @@
     <ClInclude Include="..\..\..\Source\CVoxelPage.h" />
     <ClInclude Include="..\..\..\Source\DeferredRenderer.h" />
     <ClInclude Include="..\..\..\Source\DrawPoint.h" />
+    <ClInclude Include="..\..\..\Source\BatchUpdates.h" />
     <ClInclude Include="..\..\..\Source\GBuffer.h" />
     <ClInclude Include="..\..\..\Source\GICudaStructMatching.h" />
     <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h" />
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchDynamic.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchStatic.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchI.h" />
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />

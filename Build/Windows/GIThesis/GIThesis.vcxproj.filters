@@ -83,6 +83,15 @@
     <ClCompile Include="..\..\..\Source\CudaInit.cpp">
       <Filter>Utility</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchDynamic.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchStatic.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\BatchUpdates.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -265,6 +274,18 @@
     <ClInclude Include="..\..\..\Source\Averager.h">
       <Filter>Utility</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchDynamic.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchI.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchStatic.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\BatchUpdates.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -299,6 +320,9 @@
     </Filter>
     <Filter Include="GI\Thesis\OGL">
       <UniqueIdentifier>{0ba2f6db-f4c0-4910-9fbe-02c4444b0d3f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MeshBatch">
+      <UniqueIdentifier>{2d7cede7-c75c-4f8c-9666-ed084bed1c8d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

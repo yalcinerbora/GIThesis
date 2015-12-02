@@ -56,9 +56,10 @@ class DrawBuffer
 
 		// 
 		void								AddMaterial(const ColorMaterial&);
+		void								AddTransform(const ModelTransform&);
 		void								AddDrawCall(const DrawPointIndexed&,
 														uint32_t materialIndex,
-														const ModelTransform& modelTransform,
+														uint32_t transformIndex,
 														const AABBData& aabb);
 
 		void								SendToGPU();

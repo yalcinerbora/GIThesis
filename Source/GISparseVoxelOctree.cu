@@ -420,7 +420,7 @@ double GISparseVoxelOctree::UpdateSVO()
 
 	// Maxwell is faster with fully atomic code (CAS Locks etc.)
 	// However kepler sucks(660ti) (100ms compared to 5ms) 
-	if(CudaInit::CapabilityMajor() >= 6)
+	if(CudaInit::CapabilityMajor() >= 5)
 	{
 		ConstructFullAtomic();
 		AverageNodes(true);

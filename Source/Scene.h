@@ -6,63 +6,43 @@
 #define __SCENE_H__
 
 #include "SceneI.h"
-#include "GPUBuffer.h"
-#include "DrawBuffer.h"
+#include "MeshBatchI.h"
 #include "SceneLights.h"
-
-struct SceneParams
-{
-	size_t				materialCount;
-	size_t				objectCount;
-	size_t				drawCallCount;
-	size_t				totalPolygons;
-};
 
 class Scene : public SceneI
 {
 	private:
 		// Props
-		GPUBuffer				sceneVertex;
-		DrawBuffer				drawParams;
-
-		SceneLights				sceneLights;
+		SceneLights					sceneLights;
+		std::vector<MeshBatchI*>	meshBatch;
 
 		// Some Data Related to the scene
-		size_t					materialCount;
-		size_t					objectCount;
-		size_t					drawCallCount;
-		size_t					totalPolygons;
+		size_t						materialCount;
+		size_t						objectCount;
+		size_t						drawCallCount;
+		size_t						totalPolygons;
 
-		float					minSpan;
-		uint32_t				svoTotalSize;
-		const uint32_t*			svoLevelSizes;
+		uint32_t					svoTotalSize;
+		const uint32_t*				svoLevelSizes;
 
 	protected:
 	public:
 		// Constructors & Destructor
-								Scene(const char* sceneFileName,
+								Scene(const Array32<MeshBatchI*> batches,
 									  const Array32<Light>& light,
-									  float minVoxSpan,
 									  uint32_t totalSVOArraySize,
 									  const uint32_t svoLevelSizes[]);
 								~Scene() = default;
 
-		// Static Files
-		static const char*		sponzaFileName;
-		static const char*		cornellboxFileName;
-		static const char*		movingObjectsFileName;
+		static const uint32_t	sponzaSceneLevelSizes[];
+		static const uint32_t	cornellSceneLevelSizes[];
+		static const uint32_t	cubeSceneLevelSizes[];
 
-		static const uint32_t	sponzaSVOLevelSizes[];
-		static const uint32_t	cornellSVOLevelSizes[];
-		static const uint32_t	movingObjectsSVOLevelSizes[];
-
-		static const uint32_t	sponzaSVOTotalSize;
-		static const uint32_t	cornellSVOTotalSize;
-		static const uint32_t	movingObjectsTotalSize;
+		static const uint32_t	sponzaSceneTotalSize;
+		static const uint32_t	cornellSceneTotalSize;
+		static const uint32_t	cubeSceneTotalSize;
 		
-
-		DrawBuffer&				getDrawBuffer() override;
-		GPUBuffer&				getGPUBuffer() override;
+		Array32<MeshBatchI*>	getBatches() override;
 		SceneLights&			getSceneLights() override;
 
 		size_t					ObjectCount() const override;
@@ -70,7 +50,8 @@ class Scene : public SceneI
 		size_t					MaterialCount() const override;
 		size_t					DrawCount() const override;
 
-		float					MinSpan() const override;
+		void					Update(double elapsedS) override;
+
 		uint32_t				SVOTotalSize() const override;
 		const uint32_t*			SVOLevelSizes() const override;
 };

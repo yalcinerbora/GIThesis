@@ -1,14 +1,9 @@
 #include "Scene.h"
-#include "Globals.h"
 #include "GFGLoader.h"
 #include "IEUtility/IETimer.h"
 #include "Macros.h"
 
-const char* Scene::sponzaFileName = "crySponza.gfg";
-const char* Scene::cornellboxFileName = "cornell.gfg";
-const char* Scene::movingObjectsFileName = "movingObjects.gfg";
-
-const uint32_t Scene::sponzaSVOLevelSizes[] =
+const uint32_t Scene::sponzaSceneLevelSizes[] =
 {
 	1,
 	8,
@@ -24,7 +19,7 @@ const uint32_t Scene::sponzaSVOLevelSizes[] =
 	1100 * 1024
 };
 
-const uint32_t Scene::cornellSVOLevelSizes[] =
+const uint32_t Scene::cornellSceneLevelSizes[] =
 {
 	1,
 	8,
@@ -40,7 +35,7 @@ const uint32_t Scene::cornellSVOLevelSizes[] =
 	2200 * 1024
 };
 
-const uint32_t Scene::movingObjectsSVOLevelSizes[] =
+const uint32_t Scene::cubeSceneLevelSizes[] =
 {
 	1,
 	8,
@@ -56,61 +51,54 @@ const uint32_t Scene::movingObjectsSVOLevelSizes[] =
 	120 * 1024,
 };
 
-const uint32_t Scene::sponzaSVOTotalSize = 3771 * 1024;
-const uint32_t Scene::cornellSVOTotalSize = 3190 * 1024;
-const uint32_t Scene::movingObjectsTotalSize = 165 * 1024;
+const uint32_t Scene::sponzaSceneTotalSize = 3771 * 1024;
+const uint32_t Scene::cornellSceneTotalSize = 3190 * 1024;
+const uint32_t Scene::cubeSceneTotalSize = 165 * 1024;
 
-static_assert(sizeof(Scene::cornellSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
-static_assert(sizeof(Scene::sponzaSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
-static_assert(sizeof(Scene::movingObjectsSVOLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::sponzaSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::cornellSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::cubeSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
 
-Scene::Scene(const char* sceneFileName,
+Scene::Scene(const Array32<MeshBatchI*> batches,
 			 const Array32<Light>& lights,
-			 float minVoxSpan,
 			 uint32_t totalSVOArraySize,
 			 const uint32_t svoLevelSizes[])
-	: sceneVertex({element, 3})
-	, drawParams()
-	, sceneLights(lights)
-	, minSpan(minVoxSpan)
+	: sceneLights(lights)
 	, svoLevelSizes(svoLevelSizes)
 	, svoTotalSize(totalSVOArraySize)
+	, meshBatch(batches.arr, batches.arr + batches.length)
+	, materialCount(0)
+	, objectCount(0)
+	, drawCallCount(0)
+	, totalPolygons(0)
 {
-	IETimer timer;
-	timer.Start();
-
-	SceneParams sceneParams = {0};
-	GFGLoader::LoadGFG(sceneParams, sceneVertex, drawParams, sceneFileName);
-	drawParams.SendToGPU();
-	timer.Stop();
-
-	materialCount = sceneParams.materialCount;
-	objectCount = sceneParams.objectCount;
-	drawCallCount = sceneParams.drawCallCount;
-	totalPolygons = sceneParams.totalPolygons;
-
-	GI_LOG("Loading \"%s\" complete", sceneFileName, timer.ElapsedMilliS());
-	GI_LOG("\tDuration : %f ms", timer.ElapsedMilliS());
-	GI_LOG("\tMaterials : %d", materialCount);
-	GI_LOG("\tMeshes : %d", objectCount);
-	GI_LOG("\tDrawPoints : %d", drawCallCount);
-	GI_LOG("\tPolyCount : %d", totalPolygons);
-	GI_LOG("----------");
-}
-
-DrawBuffer& Scene::getDrawBuffer()
-{
-	return drawParams;
-}
-
-GPUBuffer& Scene::getGPUBuffer()
-{
-	return sceneVertex;
+	for(const MeshBatchI* batch : meshBatch)
+	{
+		materialCount += batch->MaterialCount();
+		objectCount += batch->ObjectCount();
+		drawCallCount += batch->DrawCount();
+		totalPolygons += batch->PolyCount();
+	}
 }
 
 SceneLights& Scene::getSceneLights()
 {
 	return sceneLights;
+}
+
+Array32<MeshBatchI*> Scene::getBatches()
+{
+	return Array32<MeshBatchI*>{meshBatch.data(), static_cast<size_t>(meshBatch.size())};
+}
+
+uint32_t Scene::SVOTotalSize() const
+{
+	return svoTotalSize;
+}
+
+const uint32_t* Scene::SVOLevelSizes() const
+{
+	return svoLevelSizes;
 }
 
 size_t Scene::ObjectCount() const
@@ -133,17 +121,8 @@ size_t Scene::DrawCount() const
 	return drawCallCount;
 }
 
-float Scene::MinSpan() const
+void Scene::Update(double elapsedS)
 {
-	return minSpan;
-}
-
-uint32_t Scene::SVOTotalSize() const
-{
-	return svoTotalSize;
-}
-
-const uint32_t* Scene::SVOLevelSizes() const
-{
-	return svoLevelSizes;
+	for(MeshBatchI* batch : meshBatch)
+		batch->Update(elapsedS);
 }

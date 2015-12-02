@@ -16,6 +16,8 @@
 #include "Globals.h"
 #include "Camera.h"
 #include "Scene.h"
+#include "MeshBatchDynamic.h"
+#include "BatchUpdates.h"
 #include "Macros.h"
 #include "CudaInit.h"
 
@@ -111,24 +113,51 @@ int main()
 		}
 	};
 
-	Scene crySponza(Scene::sponzaFileName,
+	// Sponza Scene
+	MeshBatchStatic crySponzaStatic(MeshBatchStatic::sponzaFileName,
+									ThesisSolution::CascadeSpan / 0.19f,
+									{MeshBatchStatic::sponzaVoxelSizes, GI_CASCADE_COUNT});
+	MeshBatchDynamic crySponzaDynamic(MeshBatchDynamic::sponzaDynamicFileName,
+									  ThesisSolution::CascadeSpan,
+									  {MeshBatchDynamic::sponzaDynamicVoxelSizes, GI_CASCADE_COUNT},
+									  BatchUpdates::SponzaUpdate);
+
+	// Cornell Box Scene
+	MeshBatchStatic cornellStatic(MeshBatchStatic::cornellboxFileName,
+								  ThesisSolution::CascadeSpan,
+								  {MeshBatchDynamic::cornellVoxelSizes, GI_CASCADE_COUNT});
+	MeshBatchDynamic cornellDynamic(MeshBatchDynamic::cornellDynamicFileName,
+									ThesisSolution::CascadeSpan,
+									{MeshBatchDynamic::cornellDynamicVoxelSizes, GI_CASCADE_COUNT},
+									BatchUpdates::CornellUpdate);
+
+	// Cube Scene
+	MeshBatchDynamic cubeRotateBatch(MeshBatchDynamic::rotatingCubeFileName,
+									 ThesisSolution::CascadeSpan,
+									 {MeshBatchDynamic::rotatingCubeVoxelSizes, GI_CASCADE_COUNT},
+									 BatchUpdates::CubeUpdate);
+
+	// Scene Interfaces
+	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic};
+	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 2},
 					Array32<Light>{sponzaLights, 4},
-					ThesisSolution::CascadeSpan / 0.19f,
-					Scene::sponzaSVOTotalSize,
-					Scene::sponzaSVOLevelSizes);
-	Scene cornellBox(Scene::cornellboxFileName,
+					Scene::sponzaSceneTotalSize,
+					Scene::sponzaSceneLevelSizes);
+
+	MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
+	Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
 					 Array32<Light>{cornellLights, 1},
-					 ThesisSolution::CascadeSpan,
-					 Scene::cornellSVOTotalSize,
-					 Scene::cornellSVOLevelSizes);
-	Scene movingObjects(Scene::movingObjectsFileName,
-						Array32<Light>{sponzaLights, 4},
-						ThesisSolution::CascadeSpan,
-						Scene::movingObjectsTotalSize,
-						Scene::movingObjectsSVOLevelSizes);
+					 Scene::cornellSceneTotalSize,
+					 Scene::cornellSceneLevelSizes);
+
+	MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
+	Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
+					 Array32<Light>{sponzaLights, 1},
+					 Scene::cubeSceneTotalSize,
+					 Scene::cubeSceneLevelSizes);
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);
-	scenes.push_back(&movingObjects);
+	scenes.push_back(&cubeRotate);
 
 	// Solutions
 	EmptyGISolution emptySolution(deferredRenderer);
@@ -185,19 +214,8 @@ int main()
 			solution->Init(*scenes[currentScene % scenes.size()]);
 		}
 
-		//// Rotation
-		//IEVector3 dir = sponzaLights[0].direction;
-		//angle += 0.00005f;
-		//IEQuaternion rot(angle, IEVector3::Xaxis);
-		//dir = rot.ApplyRotation(dir);
-		//scenes[currentScene]->getSceneLights().ChangeLightDir(0, dir.Normalize());
-		//
-		//IEVector3 pos = sponzaLights[2].position;
-		//posXInc += 0.05f;
-		//pos.setX(pos.getX() + posXInc);
-		//scenes[currentScene]->getSceneLights().ChangeLightPos(2, pos);
-
 		// Render frame
+		scenes[currentScene % scenes.size()]->Update(t.ElapsedS());
 		solution->Frame(mainRenderCamera);
 		
 		// End of the Loop

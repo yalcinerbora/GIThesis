@@ -1,9 +1,10 @@
 #include "DeferredRenderer.h"
+#include "IEUtility/IEMath.h"
 #include "Scene.h"
 #include "Globals.h"
-#include "IEUtility/IEMath.h"
 #include "Camera.h"
 #include "RectPrism.h"
+#include "DrawBuffer.h"
 
 const GLsizei DeferredRenderer::gBuffWidth = 1280;/*1920;*///3840;
 const GLsizei DeferredRenderer::gBuffHeight = 720;/*1080;*///2160;
@@ -198,11 +199,6 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glViewport(0, 0, SceneLights::shadowMapWH, SceneLights::shadowMapWH);
 
-	scene.getGPUBuffer().Bind();
-	cameraTransform.Bind();
-	scene.getDrawBuffer().getDrawParamBuffer().BindAsDrawIndirectBuffer();
-	scene.getSceneLights().lightViewProjMatrices.BindAsShaderStorageBuffer(LU_LIGHT_MATRIX);
-	
 	// Render From Dir of the light	with proper view params
 	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
 	{
@@ -287,46 +283,61 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	}
 	scene.getSceneLights().lightViewProjMatrices.SendData();
 
+	// Binding
+	cameraTransform.Bind();
+	scene.getSceneLights().lightViewProjMatrices.BindAsShaderStorageBuffer(LU_LIGHT_MATRIX);
+
 	// Render Loop
 	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
 	{
 		// FBO Bind and render calls
 		glBindFramebuffer(GL_FRAMEBUFFER, scene.getSceneLights().shadowMapFBOs[i]);
 		glClear(GL_DEPTH_BUFFER_BIT);
-	
+
 		if(!scene.getSceneLights().lightShadowCast[i])
 			continue;
 
-		// Base poly offset gives ok results on point-area lights
-		glPolygonOffset(2.1f, 256.0f);
-
-		const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
-		LightType t = static_cast<LightType>(static_cast<uint32_t>(currentLight.position.getW()));
-		switch(t)
+		// Draw Batches
+		Array32<MeshBatchI*> batches = scene.getBatches();
+		for(unsigned int j = 0; j < batches.length; j++)
 		{
-			case LightType::POINT: geomPointShadowMap.Bind(); break;
-			case LightType::DIRECTIONAL: geomDirShadowMap.Bind(); 	
-				glPolygonOffset(4.12f, 1024.0f); // Higher offset req since camera span is large
-				break;
-			case LightType::AREA: geomAreaShadowMap.Bind(); break;
+			GPUBuffer& currentGPUBuffer = batches.arr[j]->getGPUBuffer();
+			DrawBuffer& currentDrawBuffer = batches.arr[j]->getDrawBuffer();
+
+			currentGPUBuffer.Bind();
+			currentDrawBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
+
+			// Base poly offset gives ok results on point-area lights
+			glPolygonOffset(2.1f, 256.0f);
+
+			const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
+			LightType t = static_cast<LightType>(static_cast<uint32_t>(currentLight.position.getW()));
+			switch(t)
+			{
+				case LightType::POINT: geomPointShadowMap.Bind(); break;
+				case LightType::DIRECTIONAL: geomDirShadowMap.Bind();
+					glPolygonOffset(4.12f, 1024.0f); // Higher offset req since camera span is large
+					break;
+				case LightType::AREA: geomAreaShadowMap.Bind(); break;
+			}
+			glUniform1ui(U_LIGHT_ID, static_cast<GLuint>(i));
+
+			currentDrawBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+
+			glMultiDrawElementsIndirect(GL_TRIANGLES,
+										GL_UNSIGNED_INT,
+										nullptr,
+										static_cast<GLsizei>(batches.arr[j]->DrawCount()),
+										sizeof(DrawPointIndexed));
+
+			// Stays Here for Debugging purposes (nsight states)
+			//for(unsigned int k = 0; k < batches.arr[j]->DrawCount(); k++)
+			//{
+			//	glDrawElementsIndirect(GL_TRIANGLES,
+			//						   GL_UNSIGNED_INT,
+			//						   (void *) (k * sizeof(DrawPointIndexed)));
+			//}
 		}
-		glUniform1ui(U_LIGHT_ID, static_cast<GLuint>(i));
-
-		scene.getDrawBuffer().getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
-
-		glMultiDrawElementsIndirect(GL_TRIANGLES,
-									GL_UNSIGNED_INT,
-									nullptr,
-									static_cast<GLsizei>(scene.DrawCount()),
-									sizeof(DrawPointIndexed));
-
-		// Stays Here for Debugging purposes (nsight states)
-		//for(unsigned int i = 0; i < scene.DrawCount(); i++)
-		//{
-		//	glDrawElementsIndirect(GL_TRIANGLES,
-		//						   GL_UNSIGNED_INT,
-		//						   (void *) (i * sizeof(DrawPointIndexed)));
-		//}
 	}
 	glDisable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(0.0, 0);
@@ -357,17 +368,24 @@ void DeferredRenderer::GPass(SceneI& scene,
 	fragmentGBufferWrite.Bind();
 
 	// DrawCall
-	DrawBuffer& dBuffer = scene.getDrawBuffer();
-	scene.getGPUBuffer().Bind();
-	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
-	dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
-
-	for(unsigned int i = 0; i < scene.DrawCount(); i++)
+	// Draw Batches
+	Array32<MeshBatchI*> batches = scene.getBatches();
+	for(unsigned int i = 0; i < batches.length; i++)
 	{
-		dBuffer.BindMaterialForDraw(i);
-		glDrawElementsIndirect(GL_TRIANGLES,
-							   GL_UNSIGNED_INT,
-							   (void *) (i * sizeof(DrawPointIndexed)));
+		GPUBuffer& currentGPUBuffer = batches.arr[i]->getGPUBuffer();
+		DrawBuffer& currentDrawBuffer = batches.arr[i]->getDrawBuffer();
+
+		currentGPUBuffer.Bind();
+		currentDrawBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
+		currentDrawBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+
+		for(unsigned int j = 0; j < batches.arr[i]->DrawCount(); j++)
+		{
+			currentDrawBuffer.BindMaterialForDraw(j);
+			glDrawElementsIndirect(GL_TRIANGLES,
+								   GL_UNSIGNED_INT,
+								   (void *)(j * sizeof(DrawPointIndexed)));
+		}
 	}
 }
 
@@ -457,25 +475,33 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 	cameraTransform.Update(camera.generateTransform());
 	cameraTransform.Bind();
 
-	// Buffers
-	DrawBuffer& dBuffer = scene.getDrawBuffer();
-	scene.getGPUBuffer().Bind();
-	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
-	dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+	
+	
+	// Draw Batches
+	Array32<MeshBatchI*> batches = scene.getBatches();
+	for(unsigned int i = 0; i < batches.length; i++)
+	{
+		GPUBuffer& currentGPUBuffer = batches.arr[i]->getGPUBuffer();
+		DrawBuffer& currentDrawBuffer = batches.arr[i]->getDrawBuffer();
 
-	glMultiDrawElementsIndirect(GL_TRIANGLES,
-								GL_UNSIGNED_INT,
-								nullptr,
-								static_cast<GLsizei>(scene.DrawCount()),
-								sizeof(DrawPointIndexed));
+		currentGPUBuffer.Bind();
+		currentDrawBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
+		currentDrawBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
 
-	// Stays Here for Debugging purposes (nsight states)
-	//for(unsigned int i = 0; i < scene.DrawCount(); i++)
-	//{
-	//	glDrawElementsIndirect(GL_TRIANGLES,
-	//						   GL_UNSIGNED_INT,
-	//						   (void *) (i * sizeof(DrawPointIndexed)));
-	//}
+		glMultiDrawElementsIndirect(GL_TRIANGLES,
+									GL_UNSIGNED_INT,
+									nullptr,
+									static_cast<GLsizei>(batches.arr[i]->DrawCount()),
+									sizeof(DrawPointIndexed));
+
+		// Stays Here for Debugging purposes (nsight states)
+		//for(unsigned int j = 0; j < batches.arr[i]->DrawCount(); j++)
+		//{
+		//	glDrawElementsIndirect(GL_TRIANGLES,
+		//						   GL_UNSIGNED_INT,
+		//						   (void *) (j * sizeof(DrawPointIndexed)));
+		//}
+	}
 }
 
 void DeferredRenderer::LightMerge(const Camera& camera)

@@ -104,6 +104,7 @@ static const TwStructMember lightMembers[] =
 #define LU_AABB 3
 #define LU_MTRANSFORM 4
 #define LU_INDEX_CHECK 4
+#define LU_MTRANSFORM_INDEX 5
 #define LU_LIGHT 1
 #define LU_LIGHT_MATRIX 0
 

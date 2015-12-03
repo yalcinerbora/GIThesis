@@ -36,6 +36,7 @@ class MeshBatchDynamic : public MeshBatchStatic
 
 		// Interface
 		void					Update(double elapsedS) override;
+		VoxelObjectType			MeshType() const override;
 };
 
 #endif //__MESHBATCHDYNAMIC_H__

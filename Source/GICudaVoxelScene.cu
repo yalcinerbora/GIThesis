@@ -30,7 +30,8 @@ GICudaVoxelScene::~GICudaVoxelScene()
 {}
 
 void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
-							   GLuint transformBufferID,
+							   GLuint transformBuffer,
+							   GLuint transformIDBuffer,
 							   GLuint infoBufferID,
 							   GLuint voxelCacheNormPos,
 							   GLuint voxelCacheIds,
@@ -38,7 +39,7 @@ void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 							   uint32_t objCount,
 							   uint32_t voxelCount)
 {
-	allocator.LinkOGLVoxelCache(aabbBuffer, transformBufferID, infoBufferID, 
+	allocator.LinkOGLVoxelCache(aabbBuffer, transformBuffer, transformIDBuffer, infoBufferID,
 								voxelCacheNormPos, voxelCacheIds, voxelCacheRender, 
 								objCount, voxelCount);
 }
@@ -89,7 +90,8 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			 // Per Object Related
 			 allocator.GetWriteSignals(i),
 			 allocator.GetObjectAABBDevice(i),
-			 allocator.GetTransformsDevice(i));
+			 allocator.GetTransformsDevice(i),
+			 allocator.GetTransformIDDevice(i));
 		CUDA_KERNEL_CHECK();
 
 		// Call Logic Per Voxel
@@ -110,10 +112,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			 allocator.GetWriteSignals(i),
 			 allocator.GetVoxelStrides(i),
 			 allocator.GetObjectAllocationIndexLookup(i),
-			 allocator.GetObjectAABBDevice(i),
-			 allocator.GetTransformsDevice(i),
-			 allocator.GetObjectInfoDevice(i),
-			 
+			 			 
 			 // Per Voxel Related
 			 allocator.GetObjCacheIdsDevice(i),
 			 allocator.NumVoxels(i),
@@ -148,7 +147,8 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			// Per Object Related
 			allocator.GetWriteSignals(i),
 			allocator.GetObjectAABBDevice(i),
-			allocator.GetTransformsDevice(i));
+			allocator.GetTransformsDevice(i),
+			allocator.GetTransformIDDevice(i));
 		CUDA_KERNEL_CHECK();
 	}
 
@@ -212,11 +212,14 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	   // Object Related
 	   allocator.GetObjectAllocationIndexLookup2D(),
 	   allocator.GetTransformsDevice(),
+	   allocator.GetTransformIDDevice(),
 	   allocator.GetObjCacheNormPosDevice(),
 	   allocator.GetObjRenderCacheDevice(),
 	   allocator.GetObjectInfoDevice(),
 	   allocator.GetObjectAABBDevice());
 	CUDA_KERNEL_CHECK();
+
+	
 
 	allocator.SendNewVoxPosToDevice();
 	

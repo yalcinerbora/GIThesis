@@ -67,6 +67,11 @@ size_t MeshBatchStatic::VoxelCacheMax(uint32_t level) const
 	return maxVoxelCount[level];
 }
 
+VoxelObjectType MeshBatchStatic::MeshType() const
+{
+	return VoxelObjectType::STATIC;
+}
+
 size_t MeshBatchStatic::ObjectCount() const
 {
 	return batchParams.objectCount;

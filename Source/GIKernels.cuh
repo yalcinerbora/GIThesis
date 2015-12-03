@@ -34,6 +34,7 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 									   // Object Related
 									   unsigned int** gObjectAllocIndexLookup,
 									   CObjectTransform** gObjTransforms,
+									   uint32_t** gObjTransformIds,
 									   CVoxelNormPos** gVoxNormPosCacheData,
 									   CVoxelRender** gVoxRenderData,
 									   CObjectVoxelInfo** gObjInfo,
@@ -55,7 +56,8 @@ extern __global__ void VoxelObjectDealloc(// Voxel System
 										  // Per Object Related
 										  char* gWriteToPages,
 										  const CObjectAABB* gObjectAABB,
-										  const CObjectTransform* gObjTransforms);
+										  const CObjectTransform* gObjTransforms,
+										  const unsigned int* gObjTransformIds);
 
 extern __global__ void VoxelObjectAlloc(// Voxel System
 										CVoxelPage* gVoxelData,
@@ -70,7 +72,8 @@ extern __global__ void VoxelObjectAlloc(// Voxel System
 										// Per Object Related
 										char* gWriteToPages,
 										const CObjectAABB* gObjectAABB,
-										const CObjectTransform* gObjTransforms);
+										const CObjectTransform* gObjTransforms,
+										const unsigned int* gObjTransformIds);
 
 // Voxel Clear Marked
 // Clears the deallocated voxels marked by "VxoelObjecDealloc" function
@@ -98,10 +101,7 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 										  // Per Object Related
 										  char* gWriteToPages,
 										  const unsigned int* gObjectVoxStrides,
-										  const unsigned int* gObjectAllocIndexLookup,
-										  const CObjectAABB* gObjectAABB,
-										  const CObjectTransform* gObjTransforms,
-										  const CObjectVoxelInfo* gObjInfo,
+										  const unsigned int* gObjectAllocIndexLookup,					  
 
 										  // Per Voxel Related
 										  const CVoxelIds* gVoxelIdsCache,

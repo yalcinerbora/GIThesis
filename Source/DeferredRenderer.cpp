@@ -6,8 +6,8 @@
 #include "RectPrism.h"
 #include "DrawBuffer.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = 1280;/*1920;*///3840;
-const GLsizei DeferredRenderer::gBuffHeight = 720;/*1080;*///2160;
+const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*/1280;/*1920;*///3840;
+const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*/720;/*1080*/;//2160;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
@@ -194,8 +194,8 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glDepthMask(true);
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_MULTISAMPLE);
 	glDisable(GL_CULL_FACE);
+	glDisable(GL_MULTISAMPLE);
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glViewport(0, 0, SceneLights::shadowMapWH, SceneLights::shadowMapWH);
 
@@ -308,7 +308,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 			currentDrawBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
 
 			// Base poly offset gives ok results on point-area lights
-			glPolygonOffset(2.1f, 256.0f);
+			glPolygonOffset(2.64f, 512.0f);
 
 			const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
 			LightType t = static_cast<LightType>(static_cast<uint32_t>(currentLight.position.getW()));
@@ -340,7 +340,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 		}
 	}
 	glDisable(GL_POLYGON_OFFSET_FILL);
-	glPolygonOffset(0.0, 0);
+	glPolygonOffset(0.0f, 0.0f);
 }
 
 void DeferredRenderer::GPass(SceneI& scene,

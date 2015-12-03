@@ -12,6 +12,7 @@ inline __device__ void LoadTransformData(// Shared Mem
 
 										 // Object Transform Matrix
 										 CObjectTransform** gObjTransforms,
+										 uint32_t** gObjTransformIds,
 
 										 // Object Type that will be broadcasted
 										 const CVoxelObjectType& objType,
@@ -19,10 +20,15 @@ inline __device__ void LoadTransformData(// Shared Mem
 {
 	__shared__ CVoxelObjectType sObjType;
 	unsigned int blockLocalId = threadIdx.x;
+	unsigned int transformId;
 	
 	// Broadcast objType
 	if(blockLocalId == 0)
 	{
+		if(objectId.x == 0xFFFF && objectId.y == 0x3FFF)
+			transformId = 0;
+		else
+			transformId = gObjTransformIds[objectId.y][objectId.x];
 		sObjType = objType;
 	}
 	__syncthreads();
@@ -44,17 +50,14 @@ inline __device__ void LoadTransformData(// Shared Mem
 			// Pack objId to int
 			unsigned int objIdShuffle;
 			objIdShuffle = static_cast<unsigned int>(objectId.y) << 16;
-			objIdShuffle |= static_cast<unsigned int>(objectId.x);
+			objIdShuffle |= static_cast<unsigned int>(transformId);
 
 			// Broadcast
 			#if __CUDA_ARCH__ >= 300
 				objIdShuffle = __shfl(objIdShuffle, 0);
 			#else
 				__shared__ unsigned int sObjId;
-				if(blockLocalId == 0)
-				{
-					sObjId = objIdShuffle;
-				}
+				if(blockLocalId == 0) sObjId = objIdShuffle;
 				objIdShuffle = sObjId;
 			#endif
 
@@ -63,7 +66,7 @@ inline __device__ void LoadTransformData(// Shared Mem
 			objIdAfterShuffle.x = (objIdShuffle & 0x0000FFFF);
 			objIdAfterShuffle.y = (objIdShuffle & 0xFFFF0000) >> 16;
 		
-			// Load matrices
+			// Load matrices (4 byte load by each thread sequential no bank conflict)
 			if(blockLocalId < 16)
 			{
 				reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
@@ -124,6 +127,7 @@ __global__ void VoxelTransform(// Voxel Pages
 							   // Object Related
 							   unsigned int** gObjectAllocIndexLookup,
 							   CObjectTransform** gObjTransforms,
+							   uint32_t** gObjTransformIds,
 							   CVoxelNormPos** gVoxNormPosCacheData,
 							   CVoxelRender** gVoxRenderData,
 							   CObjectVoxelInfo** gObjInfo,	
@@ -157,6 +161,7 @@ __global__ void VoxelTransform(// Voxel Pages
 
 					  // Object Transform Matrix
 					  gObjTransforms,
+					  gObjTransformIds,
 
 					  // Object Type that will be broadcasted
 					  objType,

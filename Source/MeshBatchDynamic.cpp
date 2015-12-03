@@ -40,3 +40,8 @@ void MeshBatchDynamic::Update(double elapsedS)
 {
 	updateFunc(batchVertex, batchDrawParams, elapsedS);
 }
+
+VoxelObjectType MeshBatchDynamic::MeshType() const
+{
+	return VoxelObjectType::DYNAMIC;
+}

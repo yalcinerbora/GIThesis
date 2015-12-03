@@ -71,6 +71,7 @@ class GICudaAllocator
 		// Object Related Data (Comes from OGL)
 		// Kernel call ready aligned pointer(s)		
 		CudaVector<CObjectTransform*>			dTransforms;			// Transform matrices from object space (object -> world)
+		CudaVector<uint32_t*>					dTransformIds;
 		CudaVector<CObjectAABB*>				dObjectAABB;			// Object Space Axis Aligned Bounding Box for each object
 		CudaVector<CObjectVoxelInfo*>			dObjectInfo;			// Voxel Count of the object
 		
@@ -79,35 +80,23 @@ class GICudaAllocator
 		CudaVector<CVoxelRender*>				dObjRenderCache;
 
 		std::vector<CObjectTransform*>			hTransforms;			
-		std::vector<CObjectAABB*>				hObjectAABB;			
+		std::vector<CObjectAABB*>				hObjectAABB;
+		std::vector<uint32_t*>					hTransformIds;
 		std::vector<CObjectVoxelInfo*>			hObjectInfo;		
 
 		std::vector<CVoxelNormPos*>				hObjNormPosCache;
 		std::vector<CVoxelIds*>					hObjIdsCache;
 		std::vector<CVoxelRender*>				hObjRenderCache;
 
-		// G Buffer Related Data
-		cudaTextureObject_t						depthBuffer;
-		cudaTextureObject_t						normalBuffer;
-		cudaSurfaceObject_t						lightIntensityBuffer;
-
-		// Scene Light Related Data
-		cudaTextureObject_t						shadowMaps;
-
 		// Interop Data
 		std::vector<cudaGraphicsResource_t>		transformLinks;
+		std::vector<cudaGraphicsResource_t>		transformIdLinks;
 		std::vector<cudaGraphicsResource_t>		aabbLinks;
 		std::vector<cudaGraphicsResource_t>		objectInfoLinks;
 
 		std::vector<cudaGraphicsResource_t>		cacheNormPosLinks;
 		std::vector<cudaGraphicsResource_t>		cacheIdsLinks;
 		std::vector<cudaGraphicsResource_t>		cacheRenderLinks;
-
-		// Per Scene Interop Data
-		cudaGraphicsResource_t					sceneShadowMapLink;	
-		cudaGraphicsResource_t					depthBuffLink;
-		cudaGraphicsResource_t					normalBuffLink;
-		cudaGraphicsResource_t					lightIntensityLink;
 
 		// Size Data
 		std::vector<size_t>						voxelCounts;
@@ -129,8 +118,9 @@ class GICudaAllocator
 
 		// Linking and Unlinking Voxel Cache Data (from OGL)
 		void					LinkOGLVoxelCache(GLuint aabbBuffer,
-												  GLuint transformBufferID,
-												  GLuint infoBufferID,
+												  GLuint transformBuffer,
+												  GLuint transformIDBuffer,
+												  GLuint infoBuffer,
 												  GLuint voxelNormPosBuffer,
 												  GLuint voxelIdsBuffer,
 												  GLuint voxelCacheRender,
@@ -164,6 +154,7 @@ class GICudaAllocator
 
 		// Mapped OGL Pointers		
 		CObjectTransform**		GetTransformsDevice();
+		uint32_t**				GetTransformIDDevice();
 		CObjectAABB**			GetObjectAABBDevice();
 		CObjectVoxelInfo**		GetObjectInfoDevice();
 
@@ -172,6 +163,7 @@ class GICudaAllocator
 		CVoxelRender**			GetObjRenderCacheDevice();
 
 		CObjectTransform*		GetTransformsDevice(uint32_t index);
+		uint32_t*				GetTransformIDDevice(uint32_t index);
 		CObjectAABB*			GetObjectAABBDevice(uint32_t index);
 		CObjectVoxelInfo*		GetObjectInfoDevice(uint32_t index);
 

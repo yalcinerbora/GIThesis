@@ -49,6 +49,7 @@ class MeshBatchStatic : public MeshBatchI
 		GPUBuffer&				getGPUBuffer() override;
 
 		size_t					VoxelCacheMax(uint32_t level) const override;
+		VoxelObjectType			MeshType() const override;
 
 		size_t					ObjectCount() const override;
 		size_t					DrawCount() const override;

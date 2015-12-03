@@ -85,7 +85,7 @@ void ThesisSolution::Init(SceneI& s)
 									   batches.arr[i],
 									   CascadeSpan * multiplier, 
 									   multiplier, 
-									   i == 0);
+									   j == 0);
 		}
 	}
 
@@ -93,7 +93,7 @@ void ThesisSolution::Init(SceneI& s)
 	{
 		uint32_t totalCount = 0;
 		double totalSize = 0.0f;
-		for(unsigned int j = 0; j < voxelCaches.size(); j++)
+		for(unsigned int j = 0; j < voxelCaches[i].cache.size(); j++)
 		{
 			totalCount += voxelCaches[i].cache[j].batchVoxCacheCount;
 			totalSize += voxelCaches[i].cache[j].batchVoxCacheSize;
@@ -108,9 +108,10 @@ void ThesisSolution::Init(SceneI& s)
 		LinkCacheWithVoxScene(voxelScenes[j], voxelCaches[j], 1.0f);
 	
 	// Allocators Link
+	// Ordering is reversed svo tree needs cascades from other to inner
 	std::vector<GICudaAllocator*> allocators;
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
-		allocators.push_back(voxelScenes[i].Allocator());
+		allocators.push_back(voxelScenes[GI_CASCADE_COUNT - i - 1].Allocator());
 
 	voxelOctree.LinkAllocators(Array32<GICudaAllocator*>{allocators.data(), GI_CASCADE_COUNT},
 							   currentScene->SVOTotalSize(),
@@ -120,7 +121,7 @@ void ThesisSolution::Init(SceneI& s)
 	// Memory Usage Total
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
-		GI_LOG("Voxel Sytem #1 Total Memory Usage %f MB",
+		GI_LOG("Voxel Sytem #%d Total Memory Usage %f MB", i,
 			   static_cast<double>(voxelScenes[i].AllocatorMemoryUsage()) / 1024.0 / 1024.0);
 	}
 	GI_LOG("Voxel Octree Sytem Total Memory Usage %f MB",
@@ -144,8 +145,8 @@ void ThesisSolution::Init(SceneI& s)
 	{
 		std::string start("label = 'Cascade#");
 		start += std::to_string(i);
-		std::string endCount("Count' group='Voxel Cache' help='Cache voxel count.' ");
-		std::string endSize("Size(MB)' group='Voxel Cache' precision=2 help='Cache voxel total size in megabytes.' ");
+		std::string endCount(" Count' group='Voxel Cache' help='Cache voxel count.' ");
+		std::string endSize(" Size(MB)' group='Voxel Cache' precision=2 help='Cache voxel total size in megabytes.' ");
 		TwAddVarRO(bar, (std::string("voxCache") + std::to_string(i)).c_str(), TW_TYPE_UINT32, &voxelCaches[i].totalCacheCount,
 				   (start + endCount).c_str());
 		TwAddVarRO(bar, (std::string("voxCacheSize") + std::to_string(i)).c_str(), TW_TYPE_DOUBLE, &voxelCaches[i].totalCacheSize,
@@ -156,8 +157,8 @@ void ThesisSolution::Init(SceneI& s)
 	{
 		std::string start("label = 'Cascade#");
 		start += std::to_string(i);
-		std::string endCount("Count' group='Voxel Octree' help='Voxel count in octree.' ");
-		std::string endSize("Size(MB)' group='Voxel Octree' precision=2 help='Octree Voxel total size in megabytes.' ");
+		std::string endCount(" Count' group='Voxel Octree' help='Voxel count in octree.' ");
+		std::string endSize(" Size(MB)' group='Voxel Octree' precision=2 help='Octree Voxel total size in megabytes.' ");
 
 		TwAddVarRO(bar, (std::string("voxUsed") + std::to_string(i)).c_str(), TW_TYPE_UINT32, &voxelCaches[i].voxOctreeCount,
 				   (start + endCount).c_str());
@@ -307,7 +308,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 		cache.voxelRenderData.BindAsShaderStorageBuffer(LU_VOXEL_RENDER);
 		cache.voxelCacheUsageSize.BindAsShaderStorageBuffer(LU_INDEX_CHECK);
 		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
-		glUniform1ui(U_OBJ_TYPE, static_cast<GLuint>(VoxelObjectType::STATIC));
+		glUniform1ui(U_OBJ_TYPE, static_cast<GLuint>(batch->MeshType()));
 		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
 		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
 		glUniform1ui(U_MAX_CACHE_SIZE, static_cast<GLuint>(cache.voxelNormPos.Capacity()));
@@ -358,10 +359,11 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene,
 	// Send it to CUDA
 	Array32<MeshBatchI*> batches = currentScene->getBatches();
 	assert(batches.length == cache.cache.size());
-	for(unsigned int i = 0; i < 1/*cache.cache.size()*/; i++)
+	for(unsigned int i = 0; i < cache.cache.size(); i++)
 	{
 		scene.LinkOGL(batches.arr[i]->getDrawBuffer().getAABBBuffer().getGLBuffer(),
 					  batches.arr[i]->getDrawBuffer().getModelTransformBuffer().getGLBuffer(),
+					  batches.arr[i]->getDrawBuffer().getModelTransformIndexBuffer().getGLBuffer(),
 					  cache.cache[i].objectGridInfo.getGLBuffer(),
 					  cache.cache[i].voxelNormPos.getGLBuffer(),
 					  cache.cache[i].voxelIds.getGLBuffer(),
@@ -426,6 +428,7 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 		DrawBuffer& dBuffer = batches.arr[i]->getDrawBuffer();
 		dBuffer.getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 		dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+		dBuffer.getModelTransformIndexBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM_INDEX);
 
 		cache.cache[i].voxelVAO.Bind();
 		cache.cache[i].voxelVAO.Draw(cache.cache[i].batchVoxCacheCount, 0);

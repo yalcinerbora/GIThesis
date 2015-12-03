@@ -20,7 +20,8 @@ __global__ void VoxelObjectDealloc(// Voxel System
 								   // Per Object Related
 								   char* gWriteToPages,
 								   const CObjectAABB* gObjectAABB,
-								   const CObjectTransform* gObjTransforms)
+								   const CObjectTransform* gObjTransforms,
+								   const unsigned int* gObjTransformIds)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -31,8 +32,8 @@ __global__ void VoxelObjectDealloc(// Voxel System
 	unsigned int objectId = gSegmentObjectId[globalId];
 	if(objectId == 0xFFFFFFFF) return;
 
-	
-	const CMatrix4x4 transform = gObjTransforms[objectId].transform;
+	const uint32_t transformId = gObjTransformIds[objectId];
+	const CMatrix4x4 transform = gObjTransforms[transformId].transform;
 	//{{
 	//	{0.19f, 0.0f, 0.0f, 0.0f},
 	//	{0.0f, 0.19f, 0.0f, 0.0f},
@@ -79,7 +80,8 @@ __global__ void VoxelObjectAlloc(// Voxel System
 								 // Per Object Related
 								 char* gWriteToPages,
 								 const CObjectAABB* gObjectAABB,
-								 const CObjectTransform* gObjTransforms)
+								 const CObjectTransform* gObjTransforms,
+								 const unsigned int* gObjTransformIds)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= totalSegments) return;
@@ -89,14 +91,16 @@ __global__ void VoxelObjectAlloc(// Voxel System
 	if(objectId == 0xFFFFFFFF) return;
 
 	// Intersection Check
-	const CMatrix4x4 transform = gObjTransforms[objectId].transform;
+	const uint32_t transformId = gObjTransformIds[objectId];
+	const CMatrix4x4 transform = gObjTransforms[transformId].transform;
 	//{{
 	//	{ 0.19f, 0.0f, 0.0f, 0.0f },
 	//	{ 0.0f, 0.19f, 0.0f, 0.0f },
 	//	{ 0.0f, 0.0f, 0.19f, 0.0f },
 	//	{ 0.0f, 0.0f, 0.0f, 0.19f },
 	//}};
-	CObjectAABB objAABB = gObjectAABB[objectId];
+
+	const CObjectAABB objAABB = gObjectAABB[objectId];
 	bool intersects = CheckGridVoxIntersect(gGridInfo, objAABB, transform);
 
 	// Check if this object already allocated
@@ -107,7 +111,6 @@ __global__ void VoxelObjectAlloc(// Voxel System
 		// First Segment is responsible for sending the signal
 		if(globalId == 0 || (globalId != 0 && gSegmentObjectId[globalId - 1] != objectId))
 			gWriteToPages[objectId] = 1;
-		
 
 		//// Non atomic alloc
 		//unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
@@ -151,10 +154,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 								   char* gWriteToPages,
 								   const unsigned int* gObjectVoxStrides,
 								   const unsigned int* gObjectAllocIndexLookup,
-								   const CObjectAABB* gObjectAABB,
-								   const CObjectTransform* gObjTransforms,
-								   const CObjectVoxelInfo* gObjInfo,
-
+								  
 								   // Per Voxel Related
 								   const CVoxelIds* gVoxelIdsCache,
 								   uint32_t voxCount,
@@ -189,9 +189,9 @@ __global__ void VoxelObjectInclude(// Voxel System
 			// Finally Actual Voxel Write
 			objectId.y = batchId;
 			PackVoxelIds(gVoxelData[segmentLoc.x].dGridVoxIds[segmentLoc.y * GI_SEGMENT_SIZE + segmentLocalVoxPos],
-							objectId,
-							objType,
-							renderLoc);
+						 objectId,
+						 objType,
+						 renderLoc);
 		}
 	}
 }

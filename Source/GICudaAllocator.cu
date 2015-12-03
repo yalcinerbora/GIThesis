@@ -45,13 +45,9 @@ __global__ void SegmentAllocLocInit(ushort2* gSegments,
 __global__ void DetermineTotalSegment(int& dTotalSegmentCount,
 									  // Per object Related (Write)
 									  unsigned int* gObjectVoxStrides,
-									  unsigned int* gObjectAllocIndexLookup,
-
-									  // Grid Related
-									  const CVoxelGrid& gGridInfo,
+									  unsigned int* gObjectAllocIndexLookup,	  
 									  // Per object Related (Read)									  
 									  const CObjectVoxelInfo* gVoxelInfo,
-									  const CObjectTransform* gObjTransforms,
 									  const uint32_t objCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
@@ -88,12 +84,15 @@ __global__ void DetermineSegmentObjId(unsigned int* gSegmentObjectId,
 									  const unsigned int* gObjectAllocIndexLookup,
 									  const CObjectVoxelInfo* gVoxelInfo,
 									  const CObjectTransform* gObjTransforms,
+									  const uint32_t* gObjTransformIds,
+
 									  const uint32_t objCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= objCount) return;
 
-	float3 scaling = ExtractScaleInfo(gObjTransforms[globalId].transform);
+	uint32_t transformId = gObjTransformIds[globalId];
+	float3 scaling = ExtractScaleInfo(gObjTransforms[transformId].transform);
 	assert(fabs(scaling.x - scaling.y) < 0.0001f);
 	assert(fabs(scaling.y - scaling.z) < 0.0001f);
 	unsigned int voxelDim = static_cast<unsigned int>((gVoxelInfo[globalId].span * scaling.x + 0.1f) / gGridInfo.span);
@@ -119,12 +118,13 @@ GICudaAllocator::GICudaAllocator(const CVoxelGrid& gridInfo)
 	dVoxelGridInfo.Assign(0, hVoxelGridInfo);
 }
 
-void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
-										GLuint batchTransformBuffer,
+void GICudaAllocator::LinkOGLVoxelCache(GLuint aabbBuffer,
+										GLuint transformBuffer,
+										GLuint transformIDBuffer,
 										GLuint infoBuffer,
 										GLuint voxelNormPosBuffer,
 										GLuint voxelIdsBuffer,
-										GLuint voxelRenderBuffer,
+										GLuint voxelCacheRender,
 										uint32_t objCount,
 										uint32_t voxelCount)
 {
@@ -132,19 +132,21 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	timer.Start();
 
 	transformLinks.emplace_back();
+	transformIdLinks.emplace_back();
 	aabbLinks.emplace_back();
 	objectInfoLinks.emplace_back();
 	cacheNormPosLinks.emplace_back();
 	cacheIdsLinks.emplace_back();
 	cacheRenderLinks.emplace_back();
 
-	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&transformLinks.back(), batchTransformBuffer, cudaGraphicsMapFlagsReadOnly));
-	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&aabbLinks.back(), batchAABBBuffer, cudaGraphicsMapFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&transformLinks.back(), transformBuffer, cudaGraphicsMapFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&transformIdLinks.back(), transformIDBuffer, cudaGraphicsMapFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&aabbLinks.back(), aabbBuffer, cudaGraphicsMapFlagsReadOnly));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&objectInfoLinks.back(), infoBuffer, cudaGraphicsMapFlagsReadOnly));
 
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheNormPosLinks.back(), voxelNormPosBuffer, cudaGraphicsMapFlagsReadOnly));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheIdsLinks.back(), voxelIdsBuffer, cudaGraphicsMapFlagsReadOnly));
-	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheRenderLinks.back(), voxelRenderBuffer, cudaGraphicsMapFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&cacheRenderLinks.back(), voxelCacheRender, cudaGraphicsMapFlagsReadOnly));
 
 	objectCounts.emplace_back(objCount);
 	voxelCounts.emplace_back(voxelCount);
@@ -169,20 +171,21 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	// Mapping Pointer
 	CObjectVoxelInfo* dVoxelInfo = nullptr;
 	CObjectTransform* dObjTransform = nullptr;
+	uint32_t* dObjTransformIds = nullptr;
 	size_t size = 0;
 	CUDA_CHECK(cudaGraphicsMapResources(1, &objectInfoLinks.back()));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &transformLinks.back()));
+	CUDA_CHECK(cudaGraphicsMapResources(1, &transformIdLinks.back()));
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dVoxelInfo), &size, objectInfoLinks.back()));
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dObjTransform), &size, transformLinks.back()));
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dObjTransformIds), &size, transformIdLinks.back()));
 	
 	uint32_t gridSize = static_cast<uint32_t>((objCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK);
 	DetermineTotalSegment<<<gridSize, GI_THREAD_PER_BLOCK>>>(*dTotalCount,
 															 dVoxelStrides.back().Data(),
 															 dObjectAllocationIndexLookup.back().Data(),
 
-															 *dVoxelGridInfo.Data(),
 															 dVoxelInfo,
-															 dObjTransform,
 															 objCount);
 	CUDA_KERNEL_CHECK();
 	
@@ -200,11 +203,12 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 															 dObjectAllocationIndexLookup.back().Data(),
 															 dVoxelInfo,
 															 dObjTransform,
+															 dObjTransformIds,
 															 objCount);
 	CUDA_KERNEL_CHECK();
 
 
-	///DEBUG
+	////DEBUG
 	//dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
 	//dVoxelStrides.back().DumpToFile("voxelStrides");
 	//dSegmentObjecId.back().DumpToFile("segmentObjId");
@@ -222,10 +226,11 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	//	fOut << "{" << data.span << ", " << data.voxelCount << "}" << std::endl;
 	//}
 	//fOut.close();
-	///DEBUG END
+	////DEBUG END
 
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &objectInfoLinks.back()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &transformLinks.back()));
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &transformIdLinks.back()));
 
 	dObjectAllocationIndexLookup2D.InsertEnd(dObjectAllocationIndexLookup.back().Data());
 	dSegmentAllocLoc2D.InsertEnd(dSegmentAllocLoc.back().Data());
@@ -234,7 +239,8 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint batchAABBBuffer,
 	timer.Stop();
 	GI_LOG("Linked Object Batch to CUDA. Elaped time %f ms", timer.ElapsedMilliS());
 
-	assert(transformLinks.size() == aabbLinks.size());
+	assert(transformLinks.size() == transformIdLinks.size());
+	assert(transformIdLinks.size() == aabbLinks.size());
 	assert(aabbLinks.size() == transformLinks.size());
 	assert(aabbLinks.size() == objectInfoLinks.size());
 	assert(objectInfoLinks.size() == cacheNormPosLinks.size());
@@ -252,6 +258,7 @@ void GICudaAllocator::SetupDevicePointers()
 	assert(pointersSet == false);
 
 	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(transformLinks.size()), transformLinks.data()));
+	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(transformIdLinks.size()), transformIdLinks.data()));
 	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data()));
 	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data()));
 
@@ -263,6 +270,7 @@ void GICudaAllocator::SetupDevicePointers()
 	for(unsigned int i = 0; i < objectCounts.size(); i++)
 	{
 		hTransforms.push_back(nullptr);
+		hTransformIds.push_back(nullptr);
 		hObjectAABB.push_back(nullptr);
 		hObjectInfo.push_back(nullptr);
 
@@ -271,6 +279,7 @@ void GICudaAllocator::SetupDevicePointers()
 		hObjRenderCache.push_back(nullptr);
 
 		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hTransforms.back()), &size, transformLinks[i]));
+		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hTransformIds.back()), &size, transformIdLinks[i]));
 		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjectAABB.back()), &size, aabbLinks[i]));
 		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjectInfo.back()), &size, objectInfoLinks[i]));
 
@@ -279,8 +288,9 @@ void GICudaAllocator::SetupDevicePointers()
 		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&hObjRenderCache.back()), &size, cacheRenderLinks[i]));
 	}
 
-	//// Data Sent to GPU
+	// Data Sent to GPU
 	dTransforms = hTransforms;
+	dTransformIds = hTransformIds;
 	dObjectAABB = hObjectAABB;
 	dObjectInfo = hObjectInfo;
 
@@ -294,6 +304,7 @@ void GICudaAllocator::ClearDevicePointers()
 {
 	assert(pointersSet == true);
 	dTransforms.Clear();
+	dTransformIds.Clear();
 	dObjectAABB.Clear();
 	dObjectInfo.Clear();
 
@@ -302,6 +313,7 @@ void GICudaAllocator::ClearDevicePointers()
 	dObjRenderCache.Clear();
 
 	hTransforms.clear();
+	hTransformIds.clear();
 	hObjectAABB.clear();
 	hObjectInfo.clear();
 
@@ -310,6 +322,7 @@ void GICudaAllocator::ClearDevicePointers()
 	hObjRenderCache.clear();
 	
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(transformLinks.size()), transformLinks.data()));
+	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(transformIdLinks.size()), transformIdLinks.data()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(aabbLinks.size()), aabbLinks.data()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(objectInfoLinks.size()), objectInfoLinks.data()));
 
@@ -367,6 +380,7 @@ void GICudaAllocator::ResetSceneData()
 	for(unsigned int i = 0; i < transformLinks.size(); i++)
 	{
 		CUDA_CHECK(cudaGraphicsUnregisterResource(transformLinks[i]));
+		CUDA_CHECK(cudaGraphicsUnregisterResource(transformIdLinks[i]));
 		CUDA_CHECK(cudaGraphicsUnregisterResource(aabbLinks[i]));
 		CUDA_CHECK(cudaGraphicsUnregisterResource(objectInfoLinks[i]));
 
@@ -376,6 +390,7 @@ void GICudaAllocator::ResetSceneData()
 	}	
 
 	transformLinks.clear();
+	transformIdLinks.clear();
 	aabbLinks.clear();
 	objectInfoLinks.clear();
 
@@ -419,7 +434,7 @@ void GICudaAllocator::ResetSceneData()
 void GICudaAllocator::ReserveForSegments(float coverageRatio)
 {
 	uint32_t requiredPages = static_cast<uint32_t>((totalSegmentCount + GI_SEGMENT_PER_PAGE - 1) / GI_SEGMENT_PER_PAGE);
-	requiredPages = static_cast<uint32_t>(requiredPages / coverageRatio);
+	requiredPages = static_cast<uint32_t>(requiredPages * coverageRatio);
 
 	if(dVoxelPages.Size() < requiredPages)
 	{
@@ -540,6 +555,11 @@ CObjectTransform** GICudaAllocator::GetTransformsDevice()
 	return dTransforms.Data();
 }
 
+uint32_t** GICudaAllocator::GetTransformIDDevice()
+{
+	return dTransformIds.Data();
+}
+
 CObjectAABB** GICudaAllocator::GetObjectAABBDevice()
 {
 	return dObjectAABB.Data();
@@ -568,6 +588,11 @@ CVoxelRender** GICudaAllocator::GetObjRenderCacheDevice()
 CObjectTransform* GICudaAllocator::GetTransformsDevice(uint32_t index)
 {
 	return hTransforms[index];
+}
+
+uint32_t* GICudaAllocator::GetTransformIDDevice(uint32_t index)
+{
+	return hTransformIds[index];
 }
 
 CObjectAABB* GICudaAllocator::GetObjectAABBDevice(uint32_t index)

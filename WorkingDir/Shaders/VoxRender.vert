@@ -19,6 +19,7 @@
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict
 #define LU_AABB layout(std430, binding = 3) restrict readonly
 #define LU_MTRANSFORM layout(std430, binding = 4) restrict readonly
+#define LU_MTRANSFORM_INDEX layout(std430, binding = 5) restrict readonly
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 
@@ -68,6 +69,11 @@ LU_MTRANSFORM buffer ModelTransform
 	} modelTransforms[];
 };
 
+LU_MTRANSFORM_INDEX buffer ModelTransformID
+{
+	uint modelTransformIds[];
+};
+
 uvec4 UnpackVoxelDataAndObjId(in uint voxNormPosX, in uint voxIdsX)
 {
 	uvec4 vec;
@@ -84,6 +90,7 @@ void main(void)
 
 	uvec4 voxIndex = UnpackVoxelDataAndObjId(voxNormPos.x, voxIds.x);
 	uint objId = voxIndex.w;
+	uint transformId = modelTransformIds[objId];
 
 	float span = objectGridInfo[objId].span;
 	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + 
@@ -92,5 +99,5 @@ void main(void)
 						  0.0f,			span,		0.0f,		0.0f,
 						  0.0f,			0.0f,		span,		0.0f,
 						  deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);
-	gl_Position = projection * view * modelTransforms[objId].model * voxModel * vec4(vPos, 1.0f);
+	gl_Position = projection * view * modelTransforms[transformId].model * voxModel * vec4(vPos, 1.0f);
 }

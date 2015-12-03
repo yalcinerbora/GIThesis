@@ -9,7 +9,7 @@
 #include <cuda_gl_interop.h>
 
 const size_t ThesisSolution::InitialObjectGridSize = 256;
-const float ThesisSolution::CascadeSpan = 0.6f;
+const float ThesisSolution::CascadeSpan = 0.8f;
 const uint32_t ThesisSolution::CascadeDim = 512;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
@@ -37,7 +37,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, computeDetermineVoxSpan(ShaderType::COMPUTE, "Shaders/DetermineVoxSpan.glsl")
 	, bar(nullptr)
 	, renderScheme(GI_VOXEL_PAGE)
-	//, renderScheme(GI_DEFERRED)
+	//, renderScheme(GI_VOXEL_CACHE2048)
 	, gridInfoBuffer(1)
 	, voxelNormPosBuffer(512)
 	, voxelColorBuffer(512)

@@ -208,25 +208,25 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint aabbBuffer,
 	CUDA_KERNEL_CHECK();
 
 
-	////DEBUG
-	//dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
-	//dVoxelStrides.back().DumpToFile("voxelStrides");
-	//dSegmentObjecId.back().DumpToFile("segmentObjId");
-	//dSegmentAllocLoc.back().DumpToFile("segmentAllocLoc");
+	//DEBUG
+	dObjectAllocationIndexLookup.back().DumpToFile("allocIndexLookup");
+	dVoxelStrides.back().DumpToFile("voxelStrides");
+	dSegmentObjecId.back().DumpToFile("segmentObjId");
+	dSegmentAllocLoc.back().DumpToFile("segmentAllocLoc");
 
-	//std::vector<CObjectVoxelInfo> objInfoArray;
-	//objInfoArray.resize(objCount);
-	//cudaMemcpy(objInfoArray.data(), dVoxelInfo, objCount * sizeof(CObjectVoxelInfo), cudaMemcpyDeviceToHost);
+	std::vector<CObjectVoxelInfo> objInfoArray;
+	objInfoArray.resize(objCount);
+	cudaMemcpy(objInfoArray.data(), dVoxelInfo, objCount * sizeof(CObjectVoxelInfo), cudaMemcpyDeviceToHost);
 
-	//std::ofstream fOut;
-	//fOut.open("objVoxelInfo");
+	std::ofstream fOut;
+	fOut.open("objVoxelInfo");
 
-	//for(const CObjectVoxelInfo& data : objInfoArray)
-	//{
-	//	fOut << "{" << data.span << ", " << data.voxelCount << "}" << std::endl;
-	//}
-	//fOut.close();
-	////DEBUG END
+	for(const CObjectVoxelInfo& data : objInfoArray)
+	{
+		fOut << "{" << data.span << ", " << data.voxelCount << "}" << std::endl;
+	}
+	fOut.close();
+	//DEBUG END
 
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &objectInfoLinks.back()));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &transformLinks.back()));

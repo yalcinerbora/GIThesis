@@ -154,6 +154,10 @@ __global__ void VoxelTransform(// Voxel Pages
 	CVoxelIds voxIdPacked = gVoxelData[pageId].dGridVoxIds[pageLocalId];
 	ExpandVoxelIds(renderLoc, objectId, objType, voxIdPacked);
 
+
+	//if(threadIdx.x == 0 && objectId.x == 0xFFFF)
+	//	assert(false);
+
 	// Segment is occupied so load matrices before culling unused warps
 	LoadTransformData(// Shared Mem
 					  sTransformMatrices,

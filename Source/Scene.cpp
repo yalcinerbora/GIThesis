@@ -12,11 +12,11 @@ const uint32_t Scene::sponzaSceneLevelSizes[] =
 	1024,
 	4096,
 	15 * 1024,
-	70 * 1024,
-	280 * 1024,
-	1300 * 1024,
-	1000 * 1024,
-	1100 * 1024
+	80 * 1024,
+	300 * 1024,
+	1400 * 1024,
+	1100 * 1024,
+	1200 * 1024
 };
 
 const uint32_t Scene::cornellSceneLevelSizes[] =
@@ -51,7 +51,7 @@ const uint32_t Scene::cubeSceneLevelSizes[] =
 	1200 * 1024,
 };
 
-const uint32_t Scene::sponzaSceneTotalSize = 3771 * 1024;
+const uint32_t Scene::sponzaSceneTotalSize = 4101 * 1024;
 const uint32_t Scene::cornellSceneTotalSize = 3190 * 1024;
 const uint32_t Scene::cubeSceneTotalSize = 3200 * 1024;
 

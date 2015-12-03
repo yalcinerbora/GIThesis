@@ -217,9 +217,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	   allocator.GetObjRenderCacheDevice(),
 	   allocator.GetObjectInfoDevice(),
 	   allocator.GetObjectAABBDevice());
-	CUDA_KERNEL_CHECK();
-
-	
+	CUDA_KERNEL_CHECK();	
 
 	allocator.SendNewVoxPosToDevice();
 	

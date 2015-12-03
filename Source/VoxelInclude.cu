@@ -174,6 +174,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 	ExpandVoxelIds(renderLoc, objectId, objType, gVoxelIdsCache[globalId]);
 	
 	// We need to check if this obj is not already in the page system or not
+	assert(objectId.x != 0xFFFF);
 	if(gWriteToPages[objectId.x] == 1)
 	{
 		// Determine where to write this pixel
@@ -184,6 +185,7 @@ __global__ void VoxelObjectInclude(// Voxel System
 		unsigned int segmentLocalVoxPos = objectLocalVoxId % GI_SEGMENT_SIZE;
 			
 		// Even tho write signal is sent, allocator may not find position for all segments (page system full)
+		assert(segmentLoc.x != 0xFFFF);	// Still assert for debugging
 		if(segmentLoc.x != 0xFFFF)
 		{
 			// Finally Actual Voxel Write
@@ -192,6 +194,10 @@ __global__ void VoxelObjectInclude(// Voxel System
 						 objectId,
 						 objType,
 						 renderLoc);
+		}
+		else
+		{
+			assert(false);
 		}
 	}
 }

@@ -116,6 +116,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			 // Per Voxel Related
 			 allocator.GetObjCacheIdsDevice(i),
 			 allocator.NumVoxels(i),
+			 allocator.NumObjects(i),
 
 			 // Batch(ObjectGroup in terms of OGL) Id
 			 i);

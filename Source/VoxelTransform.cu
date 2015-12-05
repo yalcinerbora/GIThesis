@@ -25,10 +25,7 @@ inline __device__ void LoadTransformData(// Shared Mem
 	// Broadcast objType
 	if(blockLocalId == 0)
 	{
-		if(objectId.x == 0xFFFF && objectId.y == 0x3FFF)
-			transformId = 0;
-		else
-			transformId = gObjTransformIds[objectId.y][objectId.x];
+		transformId = gObjTransformIds[objectId.y][objectId.x];
 		sObjType = objType;
 	}
 	__syncthreads();
@@ -135,6 +132,7 @@ __global__ void VoxelTransform(// Voxel Pages
 {
 	// CacheLoading
 	// Shared Memory which used for transform rendering
+	__shared__ unsigned int sBlockBail;
 	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_SHARED_COUNT];
 	__shared__ CMatrix3x3 sRotationMatrices[GI_MAX_SHARED_COUNT];
 
@@ -154,9 +152,11 @@ __global__ void VoxelTransform(// Voxel Pages
 	CVoxelIds voxIdPacked = gVoxelData[pageId].dGridVoxIds[pageLocalId];
 	ExpandVoxelIds(renderLoc, objectId, objType, voxIdPacked);
 
-
-	//if(threadIdx.x == 0 && objectId.x == 0xFFFF)
-	//	assert(false);
+	// Check if this subsegment contains any voxels
+	bool localBail = static_cast<unsigned int>(voxIdPacked.x == 0xFFFFFFFF && voxIdPacked.y == 0xFFFFFFFF);
+	if(threadIdx.x == 0) sBlockBail = localBail;
+	__syncthreads();
+	if(sBlockBail) return;
 
 	// Segment is occupied so load matrices before culling unused warps
 	LoadTransformData(// Shared Mem
@@ -172,7 +172,7 @@ __global__ void VoxelTransform(// Voxel Pages
 					  objectId);
 
 	// Cull unused warps
-	if(voxIdPacked.x == 0xFFFFFFFF && voxIdPacked.y == 0xFFFFFFFF) return;
+	if(localBail) return;
 
 	// Fetch NormalPos from cache
 	uint3 voxPos;

@@ -47,7 +47,7 @@ __global__ void VoxelObjectDealloc(// Voxel System
 	ushort2 objAlloc = gObjectAllocLocations[globalId];
 	if(!intersects && objAlloc.x != 0xFFFF)
 	{
-
+		assert(gVoxelData[objAlloc.x].dIsSegmentOccupied[objAlloc.y] == SegmentOccupation::OCCUPIED);
 		//// Non atomic dealloc
 		//unsigned int linearPageId = globalId / GI_SEGMENT_PER_PAGE;
 		//unsigned int linearPagelocalSegId = globalId % GI_SEGMENT_PER_PAGE;
@@ -158,11 +158,12 @@ __global__ void VoxelObjectInclude(// Voxel System
 								   // Per Voxel Related
 								   const CVoxelIds* gVoxelIdsCache,
 								   uint32_t voxCount,
+								   uint32_t objCount,
 
 								   // Batch(ObjectGroup in terms of OGL) Id
 								   uint32_t batchId)
 {
-	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	volatile unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 
 	// Now Thread Sceheme changes per voxel
 	if(globalId >= voxCount) return;
@@ -174,7 +175,8 @@ __global__ void VoxelObjectInclude(// Voxel System
 	ExpandVoxelIds(renderLoc, objectId, objType, gVoxelIdsCache[globalId]);
 	
 	// We need to check if this obj is not already in the page system or not
-	assert(objectId.x != 0xFFFF);
+	assert(objectId.x < objCount);
+	assert(renderLoc == globalId);
 	if(gWriteToPages[objectId.x] == 1)
 	{
 		// Determine where to write this pixel

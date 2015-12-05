@@ -36,9 +36,9 @@ const char*	MeshBatchStatic::cornellboxFileName = "cornell.gfg";
 
 size_t MeshBatchStatic::sponzaVoxelSizes[] = 
 {
-	static_cast<size_t>(1024 * 900.0f),
-	static_cast<size_t>(1024 * 700.0f),
-	static_cast<size_t>(1024 * 800.0f)
+	static_cast<size_t>(1024 * 1900.0f),
+	static_cast<size_t>(1024 * 1700.0f),
+	static_cast<size_t>(1024 * 1800.0f)
 };
 size_t MeshBatchStatic::cornellVoxelSizes[] =
 {

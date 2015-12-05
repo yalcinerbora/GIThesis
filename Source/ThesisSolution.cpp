@@ -9,7 +9,7 @@
 #include <cuda_gl_interop.h>
 
 const size_t ThesisSolution::InitialObjectGridSize = 256;
-const float ThesisSolution::CascadeSpan = 0.8f;
+const float ThesisSolution::CascadeSpan = 0.6f;
 const uint32_t ThesisSolution::CascadeDim = 512;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
@@ -329,6 +329,10 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	for(int i = 0; i < batch->DrawCount(); i++)
 		cache.batchVoxCacheCount += cache.objectGridInfo.CPUData()[i].voxCount;
 	assert(cache.voxelCacheUsageSize.CPUData()[0] == cache.batchVoxCacheCount);
+
+	// Check if we exceeded the max (normally we didnt write bu we incremented counter)
+	cache.batchVoxCacheCount = std::min(cache.batchVoxCacheCount, 
+										static_cast<uint32_t>(cache.voxelNormPos.Capacity()));
 	cache.batchVoxCacheSize = static_cast<double>(cache.batchVoxCacheCount *
 												  (sizeof(CVoxelNormPos) +
 												  sizeof(VoxelRenderData) +

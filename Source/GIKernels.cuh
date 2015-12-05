@@ -106,6 +106,7 @@ extern __global__ void VoxelObjectInclude(// Voxel System
 										  // Per Voxel Related
 										  const CVoxelIds* gVoxelIdsCache,
 										  uint32_t voxCount,
+										  uint32_t objCount,
 
 										  // Batch(ObjectGroup in terms of OGL) Id
 										  uint32_t batchId);

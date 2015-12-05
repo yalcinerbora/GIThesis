@@ -267,21 +267,6 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 						  dSVOLevelSizes.Data(),
 						  hSVOLevelSizes.size() * sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
-
-	// Full atomic reconst does not use cuda3d tex
-	//// Copy Dense to Texture
-	//cudaMemcpy3DParms params = { 0 };
-	//params.dstArray = denseArray;
-	//params.srcPtr =
-	//{
-	//	dSVODense,
-	//	GI_DENSE_SIZE * sizeof(unsigned int),
-	//	GI_DENSE_SIZE,
-	//	GI_DENSE_SIZE
-	//};
-	//params.extent = { GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE };
-	//params.kind = cudaMemcpyDeviceToDevice;
-	//CUDA_CHECK(cudaMemcpy3D(&params));
 }
 
 void GISparseVoxelOctree::ConstructLevelByLevel()

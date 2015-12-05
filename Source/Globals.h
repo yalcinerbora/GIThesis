@@ -11,7 +11,7 @@ Globals For Rendering
 #include "GPUBuffer.h"
 #include <AntTweakBar.h>
 
-#define GI_CASCADE_COUNT 2
+#define GI_CASCADE_COUNT 3
 
 // Vertex Element
 #pragma pack(push, 1)

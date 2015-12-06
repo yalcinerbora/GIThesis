@@ -403,7 +403,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			colorAvg.x += color.x;
 			colorAvg.y += color.y;
 			colorAvg.z += color.z;
-			//	colorAvg.w += (currentLevel)color.w : 255.0f;
+			colorAvg.w += (currentLevel == (svoConstants.totalDepth - 1)) ? 1.0f : color.w;
 
 			normalAvg.x += normal.x;
 			normalAvg.y += normal.y;
@@ -427,7 +427,6 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			colorAvg.x += 8 * color.x;
 			colorAvg.y += 8 * color.y;
 			colorAvg.z += 8 * color.z;
-			colorAvg.w += 8 * 255.0f;
 
 			normalAvg.x += 8 * normal.x;
 			normalAvg.y += 8 * normal.y;
@@ -463,12 +462,13 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		colorAvg.x *= countInv;
 		colorAvg.y *= countInv;
 		colorAvg.z *= countInv;
-		colorAvg.w *= countInv;
+		colorAvg.w *= 0.125f;
 
 		normalAvg.x *= countInv;
 		normalAvg.y *= countInv;
 		normalAvg.z *= countInv;
 	}
+	if(parentMat != 0) colorAvg.w = 1.0f;	// Opaque
 
 	CSVOMaterial matAvg = PackSVOMaterial(PackSVOColor(colorAvg), PackOnlyVoxNorm(normalAvg));
 	if(GI_NODE_THREAD_COUNT != 1) matAvg = __shfl(matAvg, laneId * GI_NODE_THREAD_COUNT);

@@ -184,6 +184,20 @@ vec3 UnpackColor(in uint colorPacked)
 	return color;
 }
 
+vec3 UnpackNormal(in uint normalPacked)
+{
+	vec3 result;
+	result.x = (float(normalPacked & 0x0000FFFF) / 0x0000FFFF) * 2.0f - 1.0f;
+	result.y = (float((normalPacked & 0x7FFF0000) >> 16) / 0x00007FFF) * 2.0f - 1.0f;
+	result.z = (int(normalPacked >> 31) * -2 + 1) * (1.0f - sqrt(result.x * result.x + result.y  * result.y));
+	return result;
+}
+
+float UnpackOcculusion(in uint colorPacked)
+{
+	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
+}
+
 float IntersectDistance(in vec3 relativePos, 
 						in vec3 dir, 
 						in float gridDim)
@@ -283,7 +297,7 @@ float FindMarchLength(out uint colorPacked,
 				// Sparse Fetch
 				colorPacked = svoMaterial[offsetCascade.z + 
 										  svoLevelOffset[i - dimDepth.w] +
-										  nodeIndex].x;
+										  nodeIndex].y;//.x;
 			}
 			else
 			{
@@ -295,7 +309,7 @@ float FindMarchLength(out uint colorPacked,
 				colorPacked = svoMaterial[levelOffset + 
 										  levelDim * levelDim * levelVoxId.z + 
 										  levelDim * levelVoxId.y + 
-										  levelVoxId.x].x;
+										  levelVoxId.x].y;//.x;
 			}
 			if (colorPacked != 0) return 0.0f;
 		}
@@ -375,7 +389,9 @@ void main(void)
 		// March Length zero, we hit a point
 		if(marchLength == 0.0f)
 		{
-			vec3 color = UnpackColor(colorOut);
+			//vec3 color = UnpackColor(colorOut);
+			//vec3 color = vec3(1.0f - UnpackOcculusion(colorOut));
+			vec3 color = UnpackNormal(colorOut);
 			imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
 			return;
 		}

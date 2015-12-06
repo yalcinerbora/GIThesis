@@ -36,14 +36,14 @@ inline __device__ float4 UnpackSVOColor(const CSVOColor& node)
 	color.x = static_cast<float>((node & 0x000000FF) >> 0) / 255.0f;
 	color.y = static_cast<float>((node & 0x0000FF00) >> 8) / 255.0f;
 	color.z = static_cast<float>((node & 0x00FF0000) >> 16) / 255.0f;
-	color.w = static_cast<float>((node & 0xFF000000) >> 24);
+	color.w = static_cast<float>((node & 0xFF000000) >> 24) / 255.0f;
 	return color;
 }
 
 inline __device__ CSVOColor PackSVOColor(const float4& color)
 {
 	CSVOColor colorPacked;
-	colorPacked = static_cast<unsigned int>(color.w) << 24;
+	colorPacked = static_cast<unsigned int>(color.w * 255.0f) << 24;
 	colorPacked |= static_cast<unsigned int>(color.z * 255.0f) << 16;
 	colorPacked |= static_cast<unsigned int>(color.y * 255.0f) << 8;
 	colorPacked |= static_cast<unsigned int>(color.x * 255.0f) << 0;

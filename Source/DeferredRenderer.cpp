@@ -6,8 +6,8 @@
 #include "RectPrism.h"
 #include "DrawBuffer.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*/1280;/*1920;*///3840;
-const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*/720;/*1080*/;//2160;
+const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*//*1280;*/1920;//3840;
+const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*/1080;//2160;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {

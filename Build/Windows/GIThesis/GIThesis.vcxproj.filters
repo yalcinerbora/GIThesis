@@ -83,13 +83,16 @@
     <ClCompile Include="..\..\..\Source\CudaInit.cpp">
       <Filter>Utility</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\MeshBatchDynamic.cpp">
-      <Filter>MeshBatch</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\MeshBatchStatic.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\BatchUpdates.cpp">
+    <ClCompile Include="..\..\..\Source\MeshBatchSponza.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchCornell.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchCube.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
   </ItemGroup>
@@ -274,17 +277,26 @@
     <ClInclude Include="..\..\..\Source\Averager.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\MeshBatchDynamic.h">
-      <Filter>MeshBatch</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatchI.h">
       <Filter>MeshBatch</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatchStatic.h">
       <Filter>MeshBatch</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\BatchUpdates.h">
+    <ClInclude Include="..\..\..\Source\MeshBatchSponza.h">
       <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchCornell.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchCube.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\BatchFunctors.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CVoxelTypes.h">
+      <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

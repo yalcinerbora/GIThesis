@@ -231,7 +231,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 	//if(lightIntensity == vec3(0.0f))
 	//	return vec3(0.0f);
 
-	// Check Light Occulusion to prevent unnecesary calculation (ShadowMap)
+	// Check Light Occulusion (ShadowMap)
 	float shadowIntensity = 1.0f;
 	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
 		shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
@@ -254,10 +254,6 @@ vec3 PhongBDRF(in vec3 worldPos)
 	//		lightIntensity = vec3(1.0f, 0.0f, 1.0f);
 	//	lightIntensity *= 0.1f;
 	//}
-
-	// Early Bail out of Light Calculation if shadow fully occludes pixel
-	//if(shadowIntensity == 0.0f)
-	//	return vec3(0.0f);
 
 	// Specular
 	float specPower = texture(gBuffColor, gBuffUV).a * 4096.0f;
@@ -286,7 +282,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 void main(void)
 {
 	// Do Light Calculation
-	vec3 lightIntensity = PhongBDRF(DepthToWorld());	
+	vec3 lightIntensity = PhongBDRF(DepthToWorld());
 	// Additive Blending will take care of the rest
 	fboColor = vec4(lightIntensity, 1.0f);
 }

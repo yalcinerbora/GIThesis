@@ -24,6 +24,13 @@ static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
 class GICudaAllocator;
 struct Camera;
 
+enum class SVOTraceType : uint32_t
+{
+	COLOR,
+	OCCULUSION,
+	NORMAL
+};
+
 struct SVOTree
 {
 	CSVONode** gLevelNodes;
@@ -133,7 +140,8 @@ class GISparseVoxelOctree
 															  StructuredBuffer<InvFrameTransform>& invFT,
 															  FrameTransformBuffer& ft,
 															  const uint2& imgDim,
-															  uint32_t renderLevel);
+															  uint32_t renderLevel,
+															  SVOTraceType);
 
 		uint64_t								MemoryUsage() const;
 		const CSVOConstants&					SVOConsts() const;

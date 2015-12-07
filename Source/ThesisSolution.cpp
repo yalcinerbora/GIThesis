@@ -36,12 +36,13 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, computePackObjectVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.glsl")
 	, computeDetermineVoxSpan(ShaderType::COMPUTE, "Shaders/DetermineVoxSpan.glsl")
 	, bar(nullptr)
-	, renderScheme(GI_VOXEL_PAGE)
-	//, renderScheme(GI_VOXEL_CACHE2048)
+	//, renderScheme(GI_VOXEL_PAGE)
+	, renderScheme(GI_VOXEL_CACHE2048)
 	, gridInfoBuffer(1)
 	, voxelNormPosBuffer(512)
 	, voxelColorBuffer(512)
 	, voxelOctree()
+	, traceType(0)
 {
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, GI_END);
 	gridInfoBuffer.AddData({});
@@ -393,6 +394,17 @@ void ThesisSolution::LevelDecrement()
 	//GI_LOG("Level %d", svoRenderLevel);
 }
 
+void ThesisSolution::TraceTypeInc()
+{
+	traceType++;
+	//GI_LOG("Trace Type %d", traceType % 3);
+}
+
+void ThesisSolution::TraceTypeDec()
+{
+	traceType--;
+	//GI_LOG("Trace Type %d", traceType % 3);
+}
 
 void ThesisSolution::DebugRenderVoxelCache(const Camera& camera, 
 										   SceneVoxCache& cache)
@@ -419,6 +431,7 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 	// Debug Voxelize Scene
 	Shader::Unbind(ShaderType::GEOMETRY);
 	vertexDebugVoxel.Bind();
+	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(traceType % 2));
 	fragmentDebugVoxel.Bind();
 
 	cameraTransform.Bind();
@@ -466,6 +479,7 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 	// User World Render Vertex Shader
 	Shader::Unbind(ShaderType::GEOMETRY);
 	vertexDebugWorldVoxel.Bind();
+	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(traceType % 2));
 	fragmentDebugVoxel.Bind();
 
 	// We need grid info buffer as uniform and frame transform buffer
@@ -494,6 +508,9 @@ double ThesisSolution::DebugRenderSVO(const Camera& camera)
 	dRenderer.RefreshInvFTransform(camera);
 	dRenderer.GetFTransform().Update(camera.generateTransform());
 	
+	//DEBUG
+	SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
+
 	// Raytrace voxel scene
 	double time;
 	time = voxelOctree.DebugTraceSVO(colorTex,
@@ -501,7 +518,8 @@ double ThesisSolution::DebugRenderSVO(const Camera& camera)
 									 dRenderer.GetFTransform(),
 									 {DeferredRenderer::gBuffWidth,
 									  DeferredRenderer::gBuffHeight},
-									  svoRenderLevel);
+									  svoRenderLevel,
+									  traceTypeEnum);
 
 	// Tell deferred renderer to post process color buffer;
 	dRenderer.ShowColorGBuffer(camera);
@@ -675,4 +693,14 @@ void ThesisSolution::LevelIncrement(void* solPtr)
 void ThesisSolution::LevelDecrement(void* solPtr)
 {
 	static_cast<ThesisSolution*>(solPtr)->LevelDecrement();
+}
+
+void ThesisSolution::TraceIncrement(void* solutionPtr)
+{
+	static_cast<ThesisSolution*>(solutionPtr)->TraceTypeInc();
+}
+
+void ThesisSolution::TraceDecrement(void* solutionPtr)
+{
+	static_cast<ThesisSolution*>(solutionPtr)->TraceTypeDec();
 }

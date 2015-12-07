@@ -17,6 +17,8 @@
 #define LU_SVO_MATERIAL layout(std430, binding = 1) readonly
 #define LU_SVO_LEVEL_OFFSET layout(std430, binding = 2) readonly
 
+#define U_RENDER_TYPE layout(location = 0)
+
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
 #define U_SVO_CONSTANTS layout(std140, binding = 3)
@@ -25,7 +27,13 @@
 #define EPSILON 0.00001f
 #define SQRT_3	1.732051f
 
+#define RENDER_TYPE_COLOR 0
+#define RENDER_TYPE_OCCULUSION 1
+#define RENDER_TYPE_NORMAL 2
+
 // Uniforms
+U_RENDER_TYPE uniform uint renderType;
+
 LU_SVO_NODE buffer SVONode
 { 
 	uint svoNode[];
@@ -292,12 +300,12 @@ float FindMarchLength(out uint colorPacked,
 		   i == offsetCascade.w)
 		{
 			// Mid Leaf Level
+			uint loc;
 			if(i > dimDepth.w)
 			{
 				// Sparse Fetch
-				colorPacked = svoMaterial[offsetCascade.z + 
-										  svoLevelOffset[i - dimDepth.w] +
-										  nodeIndex].y;//.x;
+				loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] +
+					  nodeIndex;
 			}
 			else
 			{
@@ -306,11 +314,15 @@ float FindMarchLength(out uint colorPacked,
 										(1.0f - 8.0f));
 				uint levelDim = dimDepth.z >> (dimDepth.w - i);
 				ivec3 levelVoxId = LevelVoxId(marchPos, i);
-				colorPacked = svoMaterial[levelOffset + 
-										  levelDim * levelDim * levelVoxId.z + 
-										  levelDim * levelVoxId.y + 
-										  levelVoxId.x].y;//.x;
+				loc = levelOffset + levelDim * levelDim * levelVoxId.z + 
+					  levelDim * levelVoxId.y + 
+					  levelVoxId.x;
 			}
+			if(renderType == RENDER_TYPE_COLOR ||
+			   renderType == RENDER_TYPE_OCCULUSION)
+				colorPacked = svoMaterial[loc].x;
+			else if(renderType == RENDER_TYPE_NORMAL)
+				colorPacked = svoMaterial[loc].y;
 			if (colorPacked != 0) return 0.0f;
 		}
 
@@ -391,7 +403,19 @@ void main(void)
 		{
 			//vec3 color = UnpackColor(colorOut);
 			//vec3 color = vec3(1.0f - UnpackOcculusion(colorOut));
-			vec3 color = UnpackNormal(colorOut);
+			vec3 color = vec3(1.0f, 1.0f, 0.0f);
+			if(renderType == RENDER_TYPE_COLOR)			   
+			{
+				color = UnpackColor(colorOut);
+			}
+			else if(renderType == RENDER_TYPE_OCCULUSION)
+			{
+				color = vec3(1.0f - UnpackOcculusion(colorOut));
+			}
+			else if(renderType == RENDER_TYPE_NORMAL)
+			{
+				color = UnpackNormal(colorOut);
+			}			
 			imageStore(fbo, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0f)); 
 			return;
 		}

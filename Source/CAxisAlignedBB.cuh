@@ -8,7 +8,7 @@ Voxel Sturcutres
 #define __CAXISALIGNEDBB_H__
 
 #include <vector_types.h>
-#include "CVoxel.cuh"
+#include "CVoxelTypes.h"
 #include "CMatrix.cuh"
 #include "COpenGLCommon.cuh"
 #include <limits>

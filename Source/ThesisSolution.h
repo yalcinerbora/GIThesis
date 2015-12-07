@@ -194,7 +194,10 @@ class ThesisSolution : public SolutionI
 
 		void					LevelIncrement();
 		void					LevelDecrement();
+		void					TraceTypeInc();
+		void					TraceTypeDec();
 		unsigned int			svoRenderLevel;
+		unsigned int			traceType;
 
 	protected:
 		
@@ -217,5 +220,8 @@ class ThesisSolution : public SolutionI
 
 		static void				LevelIncrement(void*);
 		static void				LevelDecrement(void*);
+
+		static void				TraceIncrement(void*);
+		static void				TraceDecrement(void*);
 };
 #endif //__THESISSOLUTION_H__

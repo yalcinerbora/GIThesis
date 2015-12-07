@@ -73,7 +73,7 @@ uvec2 PackNormal(in vec3 normal)
 	// MSB is the sign of Z
 	// Rest is Y
 	// both x and y is SNORM types
-	uvec2 result = uvec2(0.0f);
+	uvec2 result = uvec2(0);
 	result.x = uint((normal.x * 0.5f + 0.5f) * 0xFFFF);
 	result.y = uint((normal.y * 0.5f + 0.5f) * 0x7FFF);
 	result.y |= (floatBitsToUint(normal.z) >> 16) & 0x00008000;

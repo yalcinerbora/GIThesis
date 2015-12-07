@@ -76,6 +76,7 @@ static const TwStructMember lightMembers[] =
 #define I_VOX_READ 2
 #define I_VOX_WRITE 2
 
+#define U_RENDER_TYPE 0
 #define U_IMAGE_SIZE 3
 #define U_TOTAL_VOX_DIM 3
 #define U_OBJ_ID 4

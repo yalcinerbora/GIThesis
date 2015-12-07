@@ -16,10 +16,12 @@
 #include "Globals.h"
 #include "Camera.h"
 #include "Scene.h"
-#include "MeshBatchDynamic.h"
-#include "BatchUpdates.h"
 #include "Macros.h"
 #include "CudaInit.h"
+
+#include "MeshBatchCornell.h"
+#include "MeshBatchSponza.h"
+#include "MeshBatchCube.h"
 
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
@@ -117,25 +119,22 @@ int main()
 	MeshBatchStatic crySponzaStatic(MeshBatchStatic::sponzaFileName,
 									ThesisSolution::CascadeSpan / 0.19f,
 									{MeshBatchStatic::sponzaVoxelSizes, GI_CASCADE_COUNT});
-	MeshBatchDynamic crySponzaDynamic(MeshBatchDynamic::sponzaDynamicFileName,
+	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
 									  ThesisSolution::CascadeSpan,
-									  {MeshBatchDynamic::sponzaDynamicVoxelSizes, GI_CASCADE_COUNT},
-									  BatchUpdates::SponzaUpdate);
+									  {MeshBatchSponza::sponzaDynamicVoxelSizes, GI_CASCADE_COUNT});
 
 	// Cornell Box Scene
 	MeshBatchStatic cornellStatic(MeshBatchStatic::cornellboxFileName,
 								  ThesisSolution::CascadeSpan,
-								  {MeshBatchDynamic::cornellVoxelSizes, GI_CASCADE_COUNT});
-	MeshBatchDynamic cornellDynamic(MeshBatchDynamic::cornellDynamicFileName,
+								  {MeshBatchStatic::cornellVoxelSizes, GI_CASCADE_COUNT});
+	MeshBatchCornell cornellDynamic(MeshBatchCornell::cornellDynamicFileName,
 									ThesisSolution::CascadeSpan,
-									{MeshBatchDynamic::cornellDynamicVoxelSizes, GI_CASCADE_COUNT},
-									BatchUpdates::CornellUpdate);
+									{MeshBatchCornell::cornellDynamicVoxelSizes, GI_CASCADE_COUNT});
 
 	// Cube Scene
-	MeshBatchDynamic cubeRotateBatch(MeshBatchDynamic::rotatingCubeFileName,
-									 ThesisSolution::CascadeSpan,
-									 {MeshBatchDynamic::rotatingCubeVoxelSizes, GI_CASCADE_COUNT},
-									 BatchUpdates::CubeUpdate);
+	MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
+								  ThesisSolution::CascadeSpan,
+								  {MeshBatchCube::rotatingCubeVoxelSizes, GI_CASCADE_COUNT});
 
 	// Scene Interfaces
 	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic};
@@ -173,6 +172,13 @@ int main()
 	fpsInput.AddKeyCallback(GLFW_KEY_KP_ADD, GLFW_RELEASE, &ThesisSolution::LevelIncrement, &thesisSolution);
 	fpsInput.AddKeyCallback(GLFW_KEY_KP_SUBTRACT, GLFW_RELEASE, &ThesisSolution::LevelDecrement, &thesisSolution);
 
+	nullInput.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::TraceDecrement, &thesisSolution);
+	nullInput.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::TraceIncrement, &thesisSolution);
+	mayaInput.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::TraceDecrement, &thesisSolution);
+	mayaInput.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::TraceIncrement, &thesisSolution);
+	fpsInput.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::TraceDecrement, &thesisSolution);
+	fpsInput.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::TraceIncrement, &thesisSolution);
+
 	// Main Help
 	TwDefine(" GLOBAL iconpos=tl ");
 	TwDefine(" GLOBAL help='GI Implementation using voxels.\n"
@@ -188,10 +194,7 @@ int main()
 	IETimer t;
 	t.Start();
 
-	// All Init
 	// Render Loop
-	//float angle = 0.0f;
-	//float posXInc = 0.0f;
 	while(!mainWindow.WindowClosed())
 	{
 		// Constantly Check Input Scheme Change

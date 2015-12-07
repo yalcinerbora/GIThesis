@@ -15,8 +15,13 @@
 
 #define OUT_COLOR layout(location = 0)
 
+#define U_RENDER_TYPE layout(location = 0)
+
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_VOXEL_GRID_INFO layout(std140, binding = 2)
+
+#define RENDER_TYPE_COLOR 0
+#define RENDER_TYPE_NORMAL 1
 
 // Input
 in IN_POS vec3 vPos;
@@ -30,6 +35,8 @@ out OUT_COLOR vec3 fColor;
 // Textures
 
 // Uniforms
+U_RENDER_TYPE uniform uint renderType;
+
 U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
@@ -41,6 +48,17 @@ U_VOXEL_GRID_INFO uniform GridInfo
 	vec4 position;		// World Position of the voxel grid, last component is span
 	uvec4 dimension;	// Voxel Grid Dimentions, last component is depth of the SVO
 };
+
+vec3 UnpackNormal(in uint voxNormPosY)
+{
+	vec3 result;
+	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
+	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
+	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
+	result.z *= sign(int(voxNormPosY));
+	
+	return result;
+}
 
 uvec4 UnpackVoxelDataAndSpan(in uint voxNormPosX)
 {
@@ -55,7 +73,12 @@ uvec4 UnpackVoxelDataAndSpan(in uint voxNormPosX)
 void main(void)
 {
 	// Color directly to fragment
-	fColor = voxColor.rgb;
+	if(renderType == RENDER_TYPE_COLOR)
+		fColor = voxColor.rgb;
+	else if(renderType == RENDER_TYPE_NORMAL)
+	{
+		fColor = UnpackNormal(voxNormPos.y);
+	}
 
 	// Voxels are in world space
 	// Need to determine the scale and relative position wrt the grid

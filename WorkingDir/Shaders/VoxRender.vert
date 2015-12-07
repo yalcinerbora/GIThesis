@@ -16,12 +16,17 @@
 
 #define OUT_COLOR layout(location = 0)
 
+#define U_RENDER_TYPE layout(location = 0)
+
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict
 #define LU_AABB layout(std430, binding = 3) restrict readonly
 #define LU_MTRANSFORM layout(std430, binding = 4) restrict readonly
 #define LU_MTRANSFORM_INDEX layout(std430, binding = 5) restrict readonly
 
 #define U_FTRANSFORM layout(std140, binding = 0)
+
+#define RENDER_TYPE_COLOR 0
+#define RENDER_TYPE_NORMAL 1
 
 // Input
 in IN_POS vec3 vPos;
@@ -36,6 +41,8 @@ out OUT_COLOR vec3 fColor;
 // Textures
 
 // Uniforms
+U_RENDER_TYPE uniform uint renderType;
+
 U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
@@ -74,6 +81,17 @@ LU_MTRANSFORM_INDEX buffer ModelTransformID
 	uint modelTransformIds[];
 };
 
+vec3 UnpackNormal(in uint voxNormPosY)
+{
+	vec3 result;
+	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
+	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
+	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
+	result.z *= sign(int(voxNormPosY));
+	
+	return result;
+}
+
 uvec4 UnpackVoxelDataAndObjId(in uint voxNormPosX, in uint voxIdsX)
 {
 	uvec4 vec;
@@ -86,18 +104,24 @@ uvec4 UnpackVoxelDataAndObjId(in uint voxNormPosX, in uint voxIdsX)
 
 void main(void)
 {
-	fColor = voxColor.rgb;
-
 	uvec4 voxIndex = UnpackVoxelDataAndObjId(voxNormPos.x, voxIds.x);
 	uint objId = voxIndex.w;
 	uint transformId = modelTransformIds[objId];
 
 	float span = objectGridInfo[objId].span;
-	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + 
-					(span * vec3(voxIndex.xyz));
+	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + (span * vec3(voxIndex.xyz));
 	mat4 voxModel =	mat4( span,		0.0f,		0.0f,		0.0f,
 						  0.0f,			span,		0.0f,		0.0f,
 						  0.0f,			0.0f,		span,		0.0f,
 						  deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);
 	gl_Position = projection * view * modelTransforms[transformId].model * voxModel * vec4(vPos, 1.0f);
+
+	if(renderType == RENDER_TYPE_COLOR)
+		fColor = voxColor.rgb;
+	else if(renderType == RENDER_TYPE_NORMAL)
+	{
+		vec3 normalModel = UnpackNormal(voxNormPos.y);
+		fColor = mat3x3(modelTransforms[transformId].modelRotation) * normalModel;
+	}
+
 }

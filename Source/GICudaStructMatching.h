@@ -8,7 +8,7 @@ Structure matchig between Generic System and Cuda
 #define __GICUDASTRUCTMATCH_H__
 
 #include "CMatrix.cuh"
-#include "CVoxel.cuh"
+#include "CVoxelTypes.h"
 #include "CAxisAlignedBB.cuh"
 
 #include "IEUtility/IEMatrix4x4.h"

@@ -10,7 +10,7 @@ Memory Allocation
 #include <cuda.h>
 #include <stdint.h>
 #include <vector>
-#include "CVoxel.cuh"
+#include "CVoxelTypes.h"
 #include "COpenGLCommon.cuh"
 #include "CudaVector.cuh"
 #include "GLHeader.h"

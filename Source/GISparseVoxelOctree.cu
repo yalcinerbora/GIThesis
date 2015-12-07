@@ -451,7 +451,8 @@ double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
 										  StructuredBuffer<InvFrameTransform>& invFT,
 										  FrameTransformBuffer& ft,
 										  const uint2& imgDim,
-										  uint32_t renderLevel)
+										  uint32_t renderLevel,
+										  SVOTraceType type)
 {
 	// Timing Voxelization Process
 	GLuint queryID;
@@ -477,6 +478,7 @@ double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
 
 	// Shaders
 	computeVoxTraceWorld.Bind();
+	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(type));
 
 	// Buffers
 	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);

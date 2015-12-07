@@ -7,60 +7,7 @@ Voxel Sturcutres
 #ifndef __CVOXEL_H__
 #define __CVOXEL_H__
 
-#include <vector_types.h>
-
-enum class CVoxelObjectType
-{
-	STATIC,			// Object does not move
-	DYNAMIC,		// Object does move (with transform matrices)
-	SKEL_DYNAMIC,	// Object moves with weighted transformation matrices
-	MORPH_DYNAMIC,	// Object moves with morph targets (each voxel has their adjacent vertex morphs weighted)
-};
-
-// Global Voxel Data
-struct CVoxelGrid
-{
-	float3			position;	// World Position of the voxel grid
-	float			span;
-	uint3			dimension;	// Voxel Grid Dimentions
-	unsigned int	depth;
-};
-
-// Seperated Voxel Data
-typedef uint2 CVoxelNormPos;
-typedef uint2 CVoxelIds;
-
-// Further Seperated Voxel Data
-typedef unsigned int CVoxelPos;
-typedef unsigned int CVoxelNorm;
-
-// Voxel Rendering Data
-#pragma pack(push, 1)
-struct CVoxelRender
-{
-	//unsigned int	voxelTransformType;
-	uchar4			color;		// Color
-
-	// Transform Related Data
-	// For Skeletal mesh these shows index of the transforms and weights
-	// For Morph target this shows the neigbouring vertices and their morph related index
-	//uchar4		weightIndex;
-	//uchar4		weight;
-};
-
-struct CVoxelRenderSkelMorph
-{
-	//unsigned int	voxelTransformType;
-	uchar4			color;		// Color
-
-	// Transform Related Data
-	// For Skeletal mesh these shows index of the transforms and weights
-	// For Morph target this shows the neigbouring vertices and their morph related index
-	uchar4			weightIndex;
-	uchar4			weight;
-};
-
-#pragma pack(pop)
+#include "CVoxelTypes.h"
 
 //
 inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
@@ -75,9 +22,10 @@ inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 inline __device__ float3 ExpandOnlyNormal(const unsigned int packedVoxY)
 {
 	float3 result;
-	result.x = (static_cast<float>(packedVoxY & 0x0000FFFF) / 0x0000FFFF) * 2.0f - 1.0f;
-	result.y = (static_cast<float>((packedVoxY & 0x7FFF0000) >> 16) / 0x00007FFF) * 2.0f - 1.0f;
-	result.z = (static_cast<int>(packedVoxY >> 31) * -2 + 1) * (1.0f - sqrtf(result.x * result.x + result.y  * result.y));
+	result.x = ((static_cast<float>(packedVoxY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
+	result.y = ((static_cast<float>((packedVoxY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
+	result.z = sqrtf(fabsf(1.0f - (result.x * result.x + result.y * result.y)));
+	result.z *= (packedVoxY >> 31 == 1) ? -1.0f : 1.0f;
 	return result;
 }
 
@@ -144,9 +92,9 @@ inline __device__ unsigned int PackOnlyVoxNorm(const float3& normal)
 {
 	// (x,y components packed NORM int with 16/15 bit repectively, MSB is sign of z
 	unsigned int value = 0;
-	value |= signbit(normal.z) << 31;
-	value |= static_cast<unsigned int>(normal.y * 0x00007FFF) << 16;
-	value |= static_cast<unsigned int>(normal.x * 0x0000FFFF);
+	value |= __float_as_uint(normal.z) & 0x80000000;
+	value |= static_cast<unsigned int>((normal.y * 0.5f + 0.5f) * 0x7FFF) << 16;
+	value |= static_cast<unsigned int>((normal.x * 0.5f + 0.5f) * 0xFFFF);
 	return value;
 }
 

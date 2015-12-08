@@ -22,12 +22,12 @@ inline __device__ CSVOMaterial Average(const CSVOMaterial& material,
 	avgColor.x = (ratio * avgColor.x) + (colorUnpack.x / (avgColor.w + 1.0f));
 	avgColor.y = (ratio * avgColor.y) + (colorUnpack.y / (avgColor.w + 1.0f));
 	avgColor.z = (ratio * avgColor.z) + (colorUnpack.z / (avgColor.w + 1.0f));
-	avgColor.w += 1.0f;
 
 	// New Normal Average
 	avgNormal.x = (ratio * avgNormal.x) + (normalUnpack.x / (avgColor.w + 1.0f));
 	avgNormal.y = (ratio * avgNormal.y) + (normalUnpack.y / (avgColor.w + 1.0f));
 	avgNormal.z = (ratio * avgNormal.z) + (normalUnpack.z / (avgColor.w + 1.0f));
+	avgColor.w += 1.0f;
 
 	avgColorPacked = PackSVOColor(avgColor);
 	avgNormalPacked = PackOnlyVoxNorm(avgNormal);
@@ -311,7 +311,7 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 	unsigned int voxelId;
 	ExpandVoxelIds(voxelId, objectId, objType, gVoxelData[pageId].dGridVoxIds[pageLocalId]);
 
-	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
+	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
 	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
 
 	// Atomic Average
@@ -321,8 +321,9 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 						 voxelColorPacked,
 						 voxelNormPacked);
 
-	//gSVOMat[nodeIndex + matSparseOffset] = PackSVOMaterial(voxelColorPacked, 
-	//													   voxelNormPacked);
+	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 - 
+	//		svoConstants.denseDepth] +
+	//		nodeIndex] = PackSVOMaterial(voxelColorPacked, voxelNormPacked);
 
 }
 
@@ -554,11 +555,16 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 	unsigned int voxelId;
 	ExpandVoxelIds(voxelId, objectId, objType, gVoxelData[pageId].dGridVoxIds[pageLocalId]);
 
-	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
+	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
 	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
 	AtomicColorNormalAvg(gSVOMat + matSparseOffset +
 						 gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] +
 						 location,
 						 voxelColorPacked,
 						 voxelNormPacked);
+
+	//// Non atmoic overwrite
+	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
+	//		svoConstants.denseDepth] +
+	//		nodeIndex] = PackSVOMaterial(voxelColorPacked, voxelNormPacked);
 }

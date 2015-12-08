@@ -54,7 +54,7 @@ __global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
 	// All one normal means invalid voxel
 	if(voxPosPacked != 0xFFFFFFFF)
 	{	
-		CVoxelPos voxNormpacked = gVoxPages[pageId].dGridVoxPos[pageLocalId];
+		CVoxelPos voxNormpacked = gVoxPages[pageId].dGridVoxNorm[pageLocalId];
 
 		unsigned int index = atomicInc(&atomicIndex, 0xFFFFFFFF);
 		assert(index < maxBufferSize);

@@ -192,12 +192,14 @@ vec3 UnpackColor(in uint colorPacked)
 	return color;
 }
 
-vec3 UnpackNormal(in uint normalPacked)
+vec3 UnpackNormal(in uint voxNormPosY)
 {
 	vec3 result;
-	result.x = (float(normalPacked & 0x0000FFFF) / 0x0000FFFF) * 2.0f - 1.0f;
-	result.y = (float((normalPacked & 0x7FFF0000) >> 16) / 0x00007FFF) * 2.0f - 1.0f;
-	result.z = (int(normalPacked >> 31) * -2 + 1) * (1.0f - sqrt(result.x * result.x + result.y  * result.y));
+	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
+	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
+	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
+	result.z *= sign(int(voxNormPosY));
+	
 	return result;
 }
 

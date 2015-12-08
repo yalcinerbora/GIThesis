@@ -22,6 +22,7 @@
 static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
 
 class GICudaAllocator;
+class DeferredRenderer;
 struct Camera;
 
 enum class SVOTraceType : uint32_t
@@ -78,6 +79,9 @@ class GISparseVoxelOctree
 		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
 		StructuredBuffer<uint32_t>				svoLevelOffsets;
 
+		// Light Intensity Texture (for SVO GI)
+		GLuint									liTexture;
+
 		// Rendering Helpers
 		StructuredBuffer<SVOTraceData>			svoTraceData;
 
@@ -111,6 +115,9 @@ class GISparseVoxelOctree
 		void									ConstructLevelByLevel();
 		void									AverageNodes(bool skipLeaf);
 
+		static const GLsizei					TraceWidth;
+		static const GLsizei					TraceHeight;
+
 	protected:
 
 	public:
@@ -136,10 +143,8 @@ class GISparseVoxelOctree
 														  GLuint colorBuffer,
 														  const Camera& camera);
 
-		double									DebugTraceSVO(GLuint writeImage,
-															  StructuredBuffer<InvFrameTransform>& invFT,
-															  FrameTransformBuffer& ft,
-															  const uint2& imgDim,
+		double									DebugTraceSVO(DeferredRenderer&,
+															  const Camera& camera,
 															  uint32_t renderLevel,
 															  SVOTraceType);
 

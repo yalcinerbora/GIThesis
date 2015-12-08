@@ -501,28 +501,13 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 
 double ThesisSolution::DebugRenderSVO(const Camera& camera)
 {
-	GLuint colorTex = dRenderer.GetGBuffer().getColorGL();
-
-	// Update FrameTransform Matrices 
-	// And its inverse realted buffer
-	dRenderer.RefreshInvFTransform(camera);
-	dRenderer.GetFTransform().Update(camera.generateTransform());
-	
-	//DEBUG
-	SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
-
 	// Raytrace voxel scene
+	SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
 	double time;
-	time = voxelOctree.DebugTraceSVO(colorTex,
-									 dRenderer.GetInvFTransfrom(),
-									 dRenderer.GetFTransform(),
-									 {DeferredRenderer::gBuffWidth,
-									  DeferredRenderer::gBuffHeight},
-									  svoRenderLevel,
-									  traceTypeEnum);
-
-	// Tell deferred renderer to post process color buffer;
-	dRenderer.ShowColorGBuffer(camera);
+	time = voxelOctree.DebugTraceSVO(dRenderer,
+									 camera,
+									 svoRenderLevel,
+									 traceTypeEnum);
 	return time;
 }
 
@@ -577,8 +562,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		}
 		case GI_LIGHT_INTENSITY:
 		{
-			glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
-			glClear(GL_COLOR_BUFFER_BIT);
+			dRenderer.Render(*currentScene, mainRenderCamera);
+			dRenderer.ShowLIBuffer(mainRenderCamera);
 			break;
 		}		
 		case GI_SVO_LEVELS:

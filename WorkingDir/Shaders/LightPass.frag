@@ -201,7 +201,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 		// Quadratic Falloff
 		falloff = distSqr / (lightRadius * lightRadius);
 		falloff = clamp(1.0f - falloff * falloff, 0.0f, 1.0f);
-		falloff = (falloff * falloff) / (distSqr + 10.0f);
+		falloff = (falloff * falloff) / (distSqr + 1.0f);
 	}		
 	worldLight = normalize(worldLight);
 	worldNormal = normalize(worldNormal);
@@ -228,8 +228,9 @@ vec3 PhongBDRF(in vec3 worldPos)
 	//lightIntensity *= NdL;
 
 	// Early Bail From Light Occulusion
-	//if(lightIntensity == vec3(0.0f))
-	//	return vec3(0.0f);
+	// This also eliminates some self shadowing artifacts
+	if(lightIntensity == vec3(0.0f))
+		return vec3(0.0f);
 
 	// Check Light Occulusion (ShadowMap)
 	float shadowIntensity = 1.0f;

@@ -87,69 +87,7 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 // Textures
 uniform I_COLOR_FB image2D fbo;
 
-// SMem
-// Ray stack 3 per thread
-// Worst case stack usage is 5 (7, 8, 9, 10, 11)
-// Other two will be stored on registers as vec4
-//shared unsigned int rayStack[16][16 * 3];
-
-// Funcs
-//uint PeekStack(in uvec4 rayStackHot)
-//{
-//	if(rayStackHot.x == 0) return 0;
-
-//	uint lastIndex = rayStackHot.x - 1;
-//	if (lastIndex < 3)
-//	{
-//		return rayStack[gl_LocalInvocationID.y]
-//					   [gl_LocalInvocationID.x * 3 + lastIndex];
-//	}
-//	else if(lastIndex == 3)
-//	{
-//		return rayStackHot.y;
-//	}
-//	else if(lastIndex == 4)
-//	{
-//		return rayStackHot.z;
-//	}
-//	else
-//	{
-//		return rayStackHot.w;
-//	}
-//}
-
-//uint StackCount(in uvec4 rayStackHot)
-//{
-//	return rayStackHot.x;
-//}
-
-//void PopStack(inout uvec4 rayStackHot, in uint popCount)
-//{
-//	rayStackHot.x -= popCount;
-//}
-
-//void PushStack(in uvec4 rayStackHot, in uint nodeId)
-//{
-//	if(rayStackHot.x < 3)
-//	{
-//		rayStack[gl_LocalInvocationID.y]
-//  			    [gl_LocalInvocationID.x * 3 + rayStackHot.x] = nodeId;
-//	}
-//	else if(rayStackHot.x == 3)
-//	{
-//		rayStackHot.y = nodeId;
-//	}
-//	else if(rayStackHot.x == 4)
-//	{
-//		rayStackHot.z = nodeId;
-//	}
-//	else
-//	{
-//		rayStackHot.w = nodeId;
-//	}
-//	rayStackHot.x++;
-//}
-
+// Functions
 ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
 {
 	ivec3 result = ivec3(floor((worldPoint - worldPosSpan.xyz) / worldPosSpan.w));
@@ -257,7 +195,6 @@ float IntersectDistance(in vec3 relativePos,
 }
 
 float FindMarchLength(out uint colorPacked,
-					  in uvec4 rayStackHot, 
 					  in vec3 marchPos,
 					  in vec3 dir)
 {
@@ -274,10 +211,9 @@ float FindMarchLength(out uint colorPacked,
 		return FLT_MAX;
 	}
 
-	// Start tracing (start from cached parent)
-	//unsigned int nodeIndex = PeekStack(rayStackHot);
+	// Start tracing (stateless start from root (dense))
 	unsigned int nodeIndex = 0;
-	for(unsigned int i = dimDepth.w/* + StackCount(rayStackHot)*/; i <= dimDepth.y; i++)
+	for(unsigned int i = dimDepth.w; i <= dimDepth.y; i++)
 	{
 		uint currentNode;
 		if(i == dimDepth.w)
@@ -340,33 +276,15 @@ float FindMarchLength(out uint colorPacked,
 			vec3 voxWorld = worldPosSpan.xyz + (vec3(LevelVoxId(marchPos, i)) * levelSpan);
 			vec3 relativeMarchPos = marchPos - voxWorld;
 		
-			// Intersection check between borders of the voxel
-			float dist = IntersectDistance(relativeMarchPos, dir, levelSpan);
-
-			//// convert to march ray
-			//vec3 newMarch = marchPos + dist * dir;
-					
-			//// Check new positions and old positions deepest common parent 
-			//ivec3 newVoxPos = LevelVoxId(newMarch, dimDepth.y);
-			//ivec3 diff =  voxPos ^ newVoxPos;
-			//uvec3 loc = findMSB(uvec3(~diff));
-			//loc = uvec3(dimDepth.y) - (loc + 1); 
-			//uint minCommon = min(min(loc.x, loc.y), loc.z);
-
-			//// and pop stack until that parent
-			//PopStack(rayStackHot, max(StackCount(rayStackHot), min(0, i - minCommon)));
-			
+			// Intersection check between borders of the voxel and
 			// return minimum positive distance
-			return dist;
+			return IntersectDistance(relativeMarchPos, dir, levelSpan);
 		}
 		else
 		{
 			// Node has value
 			// Go deeper
 			nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
-
-			// Push current value to stack continue traversing
-			//PushStack(rayStackHot, nodeIndex);
 		}	
 	}
 	// Code Shouldnt return from here
@@ -385,8 +303,6 @@ void main(void)
 	// Generate Ray
 	vec3 rayPos = camPos.xyz;
 	vec3 rayDir = normalize(PixelToWorld() - rayPos);
-
-	uvec4 rayStackHot = uvec4(0);
 	vec3 marchPos = rayPos;
 
 	// Trace until ray is out of cascade
@@ -398,7 +314,7 @@ void main(void)
 		totalMarch += marchLength)
 	{
 		uint colorOut;
-		marchLength = FindMarchLength(colorOut, rayStackHot, marchPos, rayDir);
+		marchLength = FindMarchLength(colorOut, marchPos, rayDir);
 
 		// March Length zero, we hit a point
 		if(marchLength == 0.0f)

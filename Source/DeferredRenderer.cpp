@@ -6,8 +6,8 @@
 #include "RectPrism.h"
 #include "DrawBuffer.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920;*///3840;
-const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*///2160;
+const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*//*1280;*/1920;//3840;
+const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*/1080;//2160;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
@@ -45,7 +45,7 @@ DeferredRenderer::DeferredRenderer()
 	glGenFramebuffers(1, &lightIntensityFBO);
 
 	glBindTexture(GL_TEXTURE_2D, lightIntensityTex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB32F, gBuffWidth, gBuffHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB16F, gBuffWidth, gBuffHeight);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
@@ -414,7 +414,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 
 	// Inverse Frame Transforms
 	invFrameTransform.BindAsUniformBuffer(U_INVFTRANSFORM);
-	RefreshInvFTransform(camera);
+	RefreshInvFTransform(camera, gBuffWidth, gBuffHeight);
 
 	// Bind LightIntensity Buffer as framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
@@ -570,7 +570,9 @@ void DeferredRenderer::LightMerge(const Camera& camera)
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void DeferredRenderer::RefreshInvFTransform(const Camera& camera)
+void DeferredRenderer::RefreshInvFTransform(const Camera& camera,
+											GLsizei width,
+											GLsizei height)
 {
 	FrameTransformBufferData ft = camera.generateTransform();
 
@@ -581,7 +583,7 @@ void DeferredRenderer::RefreshInvFTransform(const Camera& camera)
 		ft.view.Inverse() * ft.projection.Inverse(),
 		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascadeLength(camera.far, 0)),
 		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
-		{ 0, 0, gBuffWidth, gBuffHeight },
+		{0, 0, width, height},
 		{ depthRange[0], depthRange[1], 0.0f, 0.0f }
 	};
 	invFrameTransform.SendData();
@@ -608,7 +610,7 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
 	// All Done!
 }
 
-void DeferredRenderer::ShowColorGBuffer(const Camera& camera)
+void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex)
 {
 	// Only Draw Color Buffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -632,7 +634,9 @@ void DeferredRenderer::ShowColorGBuffer(const Camera& camera)
 	fragPPGeneric.Bind();
 
 	// Texture
-	gBuffer.BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
+	glActiveTexture(GL_TEXTURE0 + T_COLOR);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glBindSampler(T_COLOR, linearSampler);
 
 	// VAO
 	glBindVertexArray(postProcessTriVao);
@@ -641,3 +645,12 @@ void DeferredRenderer::ShowColorGBuffer(const Camera& camera)
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+void DeferredRenderer::ShowColorGBuffer(const Camera& camera)
+{
+	ShowTexture(camera, gBuffer.getColorGL());
+}
+
+void DeferredRenderer::ShowLIBuffer(const Camera& camera)
+{
+	ShowTexture(camera, lightIntensityTex);
+}

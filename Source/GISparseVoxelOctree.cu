@@ -6,10 +6,14 @@
 #include "Camera.h"
 #include "Globals.h"
 #include "IEUtility/IEMath.h"
+#include "DeferredRenderer.h"
 
 #include <cuda_gl_interop.h>
 #include <numeric>
 #include <cuda_profiler_api.h>
+
+const GLsizei GISparseVoxelOctree::TraceWidth = /*160;*//*320;*//*640;*/800;/*1280;*//*1920;*///3840;
+const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*//*360;*/450;/*720;*//*1080;*///2160;
 
 GISparseVoxelOctree::GISparseVoxelOctree()
 	: svoNodeBuffer(512)
@@ -22,8 +26,14 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, svoNodeResource(nullptr)
 	, svoLevelOffsetResource(nullptr)
 	, svoMaterialResource(nullptr)
+	, liTexture(0)
 {
 	svoTraceData.AddData({});
+
+	// Light Intensity Tex
+	glGenTextures(1, &liTexture);
+	glBindTexture(GL_TEXTURE_2D, liTexture);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TraceWidth, TraceHeight);
 }
 
 GISparseVoxelOctree::~GISparseVoxelOctree()
@@ -33,6 +43,7 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 	if(svoLevelOffsetResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoLevelOffsetResource));
 	if(tSVODense) CUDA_CHECK(cudaDestroyTextureObject(tSVODense));
 	if(denseArray) CUDA_CHECK(cudaFreeArray(denseArray));
+	if(liTexture) glDeleteTextures(1, &liTexture);
 }
 
 void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators,
@@ -444,16 +455,24 @@ double GISparseVoxelOctree::ConeTrace(GLuint depthBuffer,
 									  GLuint colorBuffer,
 									  const Camera& camera)
 {
+	// Light Intensity Texture
+	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+	glClearTexImage(liTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
+
 	return 0.0;
 }
 
-double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
-										  StructuredBuffer<InvFrameTransform>& invFT,
-										  FrameTransformBuffer& ft,
-										  const uint2& imgDim,
+double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
+										  const Camera& camera,
 										  uint32_t renderLevel,
 										  SVOTraceType type)
 {
+
+	// Update FrameTransform Matrices 
+	// And its inverse realted buffer
+	dRenderer.RefreshInvFTransform(camera, TraceWidth, TraceHeight);
+	dRenderer.GetFTransform().Update(camera.generateTransform());
+
 	// Timing Voxelization Process
 	GLuint queryID;
 	glGenQueries(1, &queryID);
@@ -484,25 +503,28 @@ double GISparseVoxelOctree::DebugTraceSVO(GLuint writeImage,
 	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);
 	svoMaterialBuffer.BindAsShaderStorageBuffer(LU_SVO_MATERIAL);
 	svoLevelOffsets.BindAsShaderStorageBuffer(LU_SVO_LEVEL_OFFSET);
-	invFT.BindAsUniformBuffer(U_INVFTRANSFORM);
-	ft.Bind();
+	dRenderer.GetInvFTransfrom().BindAsUniformBuffer(U_INVFTRANSFORM);
+	dRenderer.GetFTransform().Bind();
 	svoTraceData.BindAsUniformBuffer(U_SVO_CONSTANTS);
 
 	// Images
-	glBindImageTexture(I_COLOR_FB, writeImage, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glBindImageTexture(I_COLOR_FB, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 
 	// Dispatch
 	uint2 gridSize;
-	gridSize.x = (imgDim.x + 16 - 1) / 16;
-	gridSize.y = (imgDim.y + 16 - 1) / 16;
+	gridSize.x = (TraceWidth + 16 - 1) / 16;
+	gridSize.y = (TraceHeight + 16 - 1) / 16;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
 	
+	// Render to window
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	dRenderer.ShowTexture(camera, liTexture);
+
 	// Timer
 	GLuint64 timeElapsed = 0;
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
+	
 	// I have to unbind the compute shader or weird things happen
 	Shader::Unbind(ShaderType::COMPUTE);
 	return timeElapsed / 1000000.0;

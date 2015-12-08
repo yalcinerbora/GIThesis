@@ -107,9 +107,17 @@ class DeferredRenderer
 		InvFrameTransformBuffer&	GetInvFTransfrom();
 		FrameTransformBuffer&		GetFTransform();
 
-		void						RefreshInvFTransform(const Camera&);
+		void						RefreshInvFTransform(const Camera&,
+														 GLsizei width,
+														 GLsizei height);
 
 		void						Render(SceneI&, const Camera&);
+		
+		// Directly Renders Buffers
 		void						ShowColorGBuffer(const Camera& camera);
+		void						ShowLIBuffer(const Camera& camera);
+		void						ShowTexture(const Camera& camera, GLuint tex);
+		
+		void						AddToLITexture(GLuint texture);
 };
 #endif //__DEFERREDRENDERER_H__

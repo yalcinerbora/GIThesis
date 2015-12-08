@@ -97,5 +97,17 @@ namespace IEMath
 		return number;
 	}
 
+	inline float PowSeries(unsigned int n, float a)
+	{
+		// a^0 + a^1 + .... + a^n
+		return static_cast<float>((1.0f - ::std::pow(a, n + 1)) / (1.0f - a));
+	}
+
+	template<class T>
+	inline T SumLinear(T n)
+	{
+		return static_cast<T>(n * (n + 1) / 2.0f);
+	}
+
 }
 #endif //__IE_MATH_H__

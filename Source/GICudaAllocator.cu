@@ -3,6 +3,7 @@
 #include <cuda_gl_interop.h>
 #include "CudaTimer.h"
 #include "Macros.h"
+#include "IEUtility/IEMath.h"
 #include "CudaInit.h"
 
 __global__ void PurgePages(CVoxelPage* gVoxelData)
@@ -528,20 +529,30 @@ const CVoxelGrid& GICudaAllocator::GetVoxelGridHost() const
 IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos, float cascadeMultiplier)
 {
 	// only grid span increments are allowed
-	float3 voxelCornerPos;
-	voxelCornerPos.x = playerPos.getX() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.x * 0.5f;
-	voxelCornerPos.y = playerPos.getY() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.y * 0.5f;
-	voxelCornerPos.z = playerPos.getZ() - hVoxelGridInfo.span * hVoxelGridInfo.dimension.z * 0.5f;
-	
-	float parentSpan = hVoxelGridInfo.span * cascadeMultiplier;
-	voxelCornerPos.x -= std::fmod(voxelCornerPos.x + parentSpan * 0.5f, parentSpan);
-	voxelCornerPos.y -= std::fmod(voxelCornerPos.y + parentSpan * 0.5f, parentSpan);
-	voxelCornerPos.z -= std::fmod(voxelCornerPos.z + parentSpan * 0.5f, parentSpan);
+	float rootSpan = hVoxelGridInfo.span * cascadeMultiplier;
 
+	float3 voxelCornerPos;
+	voxelCornerPos.x = playerPos.getX() - rootSpan * hVoxelGridInfo.dimension.x * 0.5f;
+	voxelCornerPos.y = playerPos.getY() - rootSpan * hVoxelGridInfo.dimension.y * 0.5f;
+	voxelCornerPos.z = playerPos.getZ() - rootSpan * hVoxelGridInfo.dimension.z * 0.5f;
+	
+	voxelCornerPos.x -= std::fmod(voxelCornerPos.x + rootSpan * 0.5f, rootSpan);
+	voxelCornerPos.y -= std::fmod(voxelCornerPos.y + rootSpan * 0.5f, rootSpan);
+	voxelCornerPos.z -= std::fmod(voxelCornerPos.z + rootSpan * 0.5f, rootSpan);
+
+	// VoxCornerPos is at root cascade's position
+	// Translate it to cascade corner
+	if(cascadeMultiplier != 0)
+	{
+		float cascadeNo = IEMath::Log2F(cascadeMultiplier);
+		float factor = IEMath::SumLinear(cascadeNo);
+		voxelCornerPos.x += (factor * hVoxelGridInfo.span * hVoxelGridInfo.dimension.x) / 2.0f;
+		voxelCornerPos.y += (factor * hVoxelGridInfo.span * hVoxelGridInfo.dimension.y) / 2.0f;
+		voxelCornerPos.z += (factor * hVoxelGridInfo.span * hVoxelGridInfo.dimension.z) / 2.0f;
+	}
 	hVoxelGridInfo.position.x = voxelCornerPos.x;
 	hVoxelGridInfo.position.y = voxelCornerPos.y;
 	hVoxelGridInfo.position.z = voxelCornerPos.z;
-
 	return 
 	{
 		hVoxelGridInfo.position.x, 

@@ -541,11 +541,11 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	{
 		voxelScenes[i].MapGLPointers();
 
-		// Cascade #1 Update
+		// Cascade Update
 		voxelScenes[i].VoxelUpdate(ioTimeSegment,
 								   transformTimeSegment,
 								   mainRenderCamera.pos,
-								   static_cast<float>(0x1 << (3 - i)));
+								   static_cast<float>(0x1 << (3 - i - 1)));
 		ioTime += ioTimeSegment;
 		transformTime += transformTimeSegment;
 	}

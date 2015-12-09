@@ -18,7 +18,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxelRelated", "VoxelRelate
 		..\..\WorkingDir\Shaders\VoxRender.frag = ..\..\WorkingDir\Shaders\VoxRender.frag
 		..\..\WorkingDir\Shaders\VoxRender.vert = ..\..\WorkingDir\Shaders\VoxRender.vert
 		..\..\WorkingDir\Shaders\VoxRenderWorld.vert = ..\..\WorkingDir\Shaders\VoxRenderWorld.vert
-		..\..\WorkingDir\Shaders\VoxTraceWorld.glsl = ..\..\WorkingDir\Shaders\VoxTraceWorld.glsl
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42F0F4B2-2641-411B-8938-15FBF14395FA}"
@@ -47,6 +46,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TODO List", "TODO List", "{
 		..\..\TodoList.txt = ..\..\TodoList.txt
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxTrace", "VoxTrace", "{411BEC89-FDE7-42D4-A363-8AD320B28DAF}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\VoxTraceAO.glsl = ..\..\WorkingDir\Shaders\VoxTraceAO.glsl
+		..\..\WorkingDir\Shaders\VoxTraceGI.glsl = ..\..\WorkingDir\Shaders\VoxTraceGI.glsl
+		..\..\WorkingDir\Shaders\VoxTraceWorld.glsl = ..\..\WorkingDir\Shaders\VoxTraceWorld.glsl
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -65,5 +71,6 @@ Global
 		{E1A6E462-843D-4491-90A8-8137B528F211} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{42F0F4B2-2641-411B-8938-15FBF14395FA} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{CEC68846-BCA8-4FEC-9016-2B716037C75A} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
+		{411BEC89-FDE7-42D4-A363-8AD320B28DAF} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 	EndGlobalSection
 EndGlobal

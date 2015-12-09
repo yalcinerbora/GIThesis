@@ -2,7 +2,7 @@
 /*	
 	**Voxel Raytrace Compute Shader**
 	
-	File Name	: VoxtraceWorld.vert
+	File Name	: VoxTraceWorld.vert
 	Author		: Bora Yalciner
 	Description	:
 
@@ -96,10 +96,10 @@ ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
 
 vec3 PixelToWorld()
 {
-	vec2 gBuffUV = (vec2(gl_GlobalInvocationID.xy) + vec2(0.5f) - vec2(viewport.xy)) / vec2(viewport.zw);
+	vec2 screenUV = (vec2(gl_GlobalInvocationID.xy) + vec2(0.5f) - vec2(viewport.xy)) / vec2(viewport.zw);
 
 	// NDC (Z is near plane)
-	vec3 ndc = vec3(gBuffUV, 0.0f);
+	vec3 ndc = vec3(screenUV, 0.0f);
 	ndc.xy = 2.0f * ndc.xy - 1.0f;
 	ndc.z = ((2.0f * (ndc.z - depthNearFar.x) / (depthNearFar.y - depthNearFar.x)) - 1.0f);
 

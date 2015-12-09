@@ -166,8 +166,7 @@ void main(void)
 {
 	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	uvec2 localId = gl_LocalInvocationID.xy / TRACE_RATIO;
-	uvec2 pixelId = gl_GlobalInvocationID.xy / TRACE_RATIO;
+	uvec2 pixelId = globalId / TRACE_RATIO;
 	if(any(greaterThanEqual(pixelId, imageSize(liTex).xy)) return;
 
 	// Fetch GBuffer (Interpolate Positions)

@@ -1,16 +1,15 @@
 #version 430
 /*	
-	**Voxel Raytrace Compute Shader**
+	**Voxel Deferred Sampled Compute Shader**
 	
-	File Name	: VoxTraceWorld.vert
+	File Name	: VoxTraceAO.vert
 	Author		: Bora Yalciner
 	Description	:
 
-		Cuda does not support depth texture copy
-		we need to copy depth values of the gbuffer to depth
+		Instead of tracing camera rays it directly samples deferred depth buffer to
+		Sample positions from depth buffer
 */
 
-// Definitions
 #define I_COLOR_FB layout(rgba8, binding = 2) restrict writeonly
 
 #define LU_SVO_NODE layout(std430, binding = 0) readonly
@@ -23,15 +22,20 @@
 #define U_INVFTRANSFORM layout(std140, binding = 1)
 #define U_SVO_CONSTANTS layout(std140, binding = 3)
 
-#define FLT_MAX 3.402823466e+38F
-#define EPSILON 0.00001f
-#define SQRT_3	1.732051f
+#define T_DEPTH layout(binding = 2)
+
+// Ratio Between TraceBuffer and GBuffer
+#define TRACE_RATIO 1
 
 #define RENDER_TYPE_COLOR 0
 #define RENDER_TYPE_OCCULUSION 1
 #define RENDER_TYPE_NORMAL 2
 
-// Uniforms
+#define FLT_MAX 3.402823466e+38F
+#define EPSILON 0.00001f
+#define PI_OVR_2 (3.1416f * 0.5f)
+
+// Buffers
 U_RENDER_TYPE uniform uint renderType;
 
 LU_SVO_NODE buffer SVONode
@@ -85,21 +89,15 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 };
 
 // Textures
-uniform I_COLOR_FB image2D fbo;
+uniform I_COLOR_FB image2D traceTex;
+uniform T_DEPTH sampler2D gBuffDepth;
 
 // Functions
-ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
+vec3 DepthToWorld(vec2 gBuffUV)
 {
-	ivec3 result = ivec3(floor((worldPoint - worldPosSpan.xyz) / worldPosSpan.w));
-	return result >> (dimDepth.y - depth);
-}
-
-vec3 PixelToWorld()
-{
-	vec2 screenUV = (vec2(gl_GlobalInvocationID.xy) + vec2(0.5f) - vec2(viewport.xy)) / vec2(viewport.zw);
-
-	// NDC (Z is near plane)
-	vec3 ndc = vec3(screenUV, 0.0f);
+	// Converts Depthbuffer Value to World Coords
+	// First Depthbuffer to Screen Space
+	vec3 ndc = vec3(gBuffUV, texture(gBuffDepth, gBuffUV).x);
 	ndc.xy = 2.0f * ndc.xy - 1.0f;
 	ndc.z = ((2.0f * (ndc.z - depthNearFar.x) / (depthNearFar.y - depthNearFar.x)) - 1.0f);
 
@@ -110,40 +108,6 @@ vec3 PixelToWorld()
 
 	// From Clip Space to World Space
 	return (invViewProjection * clip).xyz;
-}
-
-uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
-{
-	uint bitSet = 0;
-	bitSet |= ((voxPos.z >> (dimDepth.y - levelDepth)) & 0x000000001) << 2;
-	bitSet |= ((voxPos.y >> (dimDepth.y - levelDepth)) & 0x000000001) << 1;
-	bitSet |= ((voxPos.x >> (dimDepth.y - levelDepth)) & 0x000000001) << 0;
-	return bitSet;
-}
-
-vec3 UnpackColor(in uint colorPacked)
-{
-	vec3 color;
-	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
-	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
-	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
-	return color;
-}
-
-vec3 UnpackNormal(in uint voxNormPosY)
-{
-	vec3 result;
-	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
-	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
-	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
-	result.z *= sign(int(voxNormPosY));
-	
-	return result;
-}
-
-float UnpackOcculusion(in uint colorPacked)
-{
-	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
 }
 
 float IntersectDistance(in vec3 relativePos, 
@@ -194,11 +158,55 @@ float IntersectDistance(in vec3 relativePos,
 	return min(minClose, minFar) + 0.01f;
 }
 
-float FindMarchLength(out uint colorPacked,
-					  in vec3 marchPos,
-					  in vec3 dir)
+ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
 {
-	ivec3 voxPos = LevelVoxId(marchPos, dimDepth.y);
+	ivec3 result = ivec3(floor((worldPoint - worldPosSpan.xyz) / worldPosSpan.w));
+	return result >> (dimDepth.y - depth);
+}
+
+uint SpanToDepth(in uint number)
+{
+	return dimDepth.y - findMSB(number);
+}
+
+uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
+{
+	uint bitSet = 0;
+	bitSet |= ((voxPos.z >> (dimDepth.y - levelDepth)) & 0x000000001) << 2;
+	bitSet |= ((voxPos.y >> (dimDepth.y - levelDepth)) & 0x000000001) << 1;
+	bitSet |= ((voxPos.x >> (dimDepth.y - levelDepth)) & 0x000000001) << 0;
+	return bitSet;
+}
+
+vec3 UnpackColor(in uint colorPacked)
+{
+	vec3 color;
+	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
+	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
+	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
+	return color;
+}
+
+vec3 UnpackNormalSVO(in uint voxNormPosY)
+{
+	vec3 result;
+	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
+	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
+	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
+	result.z *= sign(int(voxNormPosY));
+	
+	return result;
+}
+
+float UnpackOcculusion(in uint colorPacked)
+{
+	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
+}
+
+uint SampleSVO(in vec3 worldPos)
+{
+	// Start tracing (stateless start from root (dense))
+	ivec3 voxPos = LevelVoxId(worldPos, dimDepth.y);
 
 	// Cull if out of bounds
 	if(any(lessThan(voxPos, ivec3(0))) ||
@@ -208,17 +216,16 @@ float FindMarchLength(out uint colorPacked,
 		// Since cam is centered towards grid
 		// Out of bounds means its cannot come towards the grid
 		// directly cull
-		return FLT_MAX;
+		return 0;
 	}
 
-	// Start tracing (stateless start from root (dense))
 	unsigned int nodeIndex = 0;
 	for(unsigned int i = dimDepth.w; i <= dimDepth.y; i++)
 	{
 		uint currentNode;
 		if(i == dimDepth.w)
 		{
-			ivec3 denseVox = LevelVoxId(marchPos, dimDepth.w);
+			ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
 			currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
 								  denseVox.y * dimDepth.z + 
 								  denseVox.x];
@@ -251,98 +258,82 @@ float FindMarchLength(out uint colorPacked,
 				uint levelOffset = uint((1.0f - pow(8.0f, i)) / 
 										(1.0f - 8.0f));
 				uint levelDim = dimDepth.z >> (dimDepth.w - i);
-				ivec3 levelVoxId = LevelVoxId(marchPos, i);
+				ivec3 levelVoxId = LevelVoxId(worldPos, i);
 				loc = levelOffset + levelDim * levelDim * levelVoxId.z + 
 					  levelDim * levelVoxId.y + 
 					  levelVoxId.x;
 			}
 			if(renderType == RENDER_TYPE_COLOR ||
 			   renderType == RENDER_TYPE_OCCULUSION)
-				colorPacked = svoMaterial[loc].x;
-			else if(renderType == RENDER_TYPE_NORMAL)
-				colorPacked = svoMaterial[loc].y;
-			if (colorPacked != 0) return 0.0f;
+				return svoMaterial[loc].x;
+			else
+				return  svoMaterial[loc].y;
 		}
 
-		// Node check
+		// Node check (Empty node also not leaf)
+		// Means object does not
 		if(currentNode == 0xFFFFFFFF)
 		{
-			// Node empty 						
-			// Voxel Corners are now (0,0,0) and (span, span, span)
-			// span is current level grid span (leaf span * (2^ totalLevel - currentLevel)
-			float levelSpan = worldPosSpan.w * float(0x1 << (dimDepth.y - i));
-		
-			// Convert march position to voxel space
-			vec3 voxWorld = worldPosSpan.xyz + (vec3(LevelVoxId(marchPos, i)) * levelSpan);
-			vec3 relativeMarchPos = marchPos - voxWorld;
-		
-			// Intersection check between borders of the voxel and
-			// return minimum positive distance
-			return IntersectDistance(relativeMarchPos, dir, levelSpan);
+			return 0;
 		}
 		else
 		{
 			// Node has value
 			// Go deeper
 			nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
-		}	
+		}
 	}
-	// Code Shouldnt return from here
-	return -1.0f;
+	return 0;
+}
+
+vec3 InterpolatePos(in vec3 worldPos)
+{
+	// Interpolate position if gBufferTex > traceTex
+	if(TRACE_RATIO == 1) return worldPos;
+	else
+	{
+		// TODO: Implement
+		// Use sibling cone threads and shared memory to reduce neigbouring pixels
+		// dimensional difference has to be power of two
+		return worldPos;
+	}
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 void main(void)
 {
+	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	if(any(greaterThanEqual(globalId, viewport.zw))) return;
+	uvec2 pixelId = globalId / TRACE_RATIO;
+	if(any(greaterThanEqual(pixelId, imageSize(traceTex).xy))) return;
 
-	uint linearID = gl_GlobalInvocationID.y * viewport.z +
-					gl_GlobalInvocationID.x;
+	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
+	vec2 gBuffUV = vec2(pixelId * TRACE_RATIO + vec2(0.5f) - viewport.xy) / viewport.zw;
+	vec3 worldPos = DepthToWorld(gBuffUV);
+	worldPos = InterpolatePos(worldPos); 
 
-	// Generate Ray
-	vec3 rayPos = camPos.xyz;
-	vec3 rayDir = normalize(PixelToWorld() - rayPos);
-	vec3 marchPos = rayPos;
+	// Skip Occluded Edges at start (since polygon renderings does not align with voxel space)
+	// Align voxel Space and World Space (voxel space incremented by multiples of grid span)
+	// (so its slightly shifted no need to convert via matrix mult)
+	//vec3 dif = (worldPosSpan.xyz + (dimDepth.x * 0.5f * worldPosSpan.w)) - camPos.xyz;
+	//worldPos -= dif;
 
-	// Trace until ray is out of cascade
-	// Worst case march is edge of the voxel cascade
-	float maxMarch = worldPosSpan.w * float(0x1 << (dimDepth.y)) * SQRT_3;
-	float marchLength = 0;
-	for(float totalMarch = 0.0f;
-		totalMarch < maxMarch;
-		totalMarch += marchLength)
+	uint data = SampleSVO(worldPos);
+	vec3 color = vec3(1.0f, 0.0f, 1.0f);
+	if(data != 0)
 	{
-		uint colorOut;
-		marchLength = FindMarchLength(colorOut, marchPos, rayDir);
-
-		// March Length zero, we hit a point
-		if(marchLength == 0.0f)
+		if(renderType == RENDER_TYPE_COLOR)			   
 		{
-			//vec3 color = UnpackColor(colorOut);
-			//vec3 color = vec3(1.0f - UnpackOcculusion(colorOut));
-			vec3 color = vec3(1.0f, 1.0f, 0.0f);
-			if(renderType == RENDER_TYPE_COLOR)			   
-			{
-				color = UnpackColor(colorOut);
-			}
-			else if(renderType == RENDER_TYPE_OCCULUSION)
-			{
-				color = vec3(1.0f - UnpackOcculusion(colorOut));
-			}
-			else if(renderType == RENDER_TYPE_NORMAL)
-			{
-				color = UnpackNormal(colorOut);
-			}			
-			imageStore(fbo, ivec2(globalId), vec4(color, 0.0f)); 
-			return;
+			color = UnpackColor(data);
 		}
-		else
+		else if(renderType == RENDER_TYPE_OCCULUSION)
 		{
-			// March Ray and Continue
-			totalMarch += marchLength;
-			marchPos += marchLength * rayDir;
+			color = vec3(1.0f - UnpackOcculusion(data));
+		}
+		else if(renderType == RENDER_TYPE_NORMAL)
+		{
+			color = UnpackNormalSVO(data);
 		}
 	}
-	imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 1.0f, 0.0f)); 
+	imageStore(traceTex, ivec2(globalId), vec4(color, 0.0f)); 
 }

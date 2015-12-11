@@ -112,7 +112,8 @@ class DeferredRenderer
 														 GLsizei height);
 
 		void						Render(SceneI&, const Camera&);
-		
+		void						PopulateGBuffer(SceneI&, const Camera&);
+
 		// Directly Renders Buffers
 		void						ShowColorGBuffer(const Camera& camera);
 		void						ShowLIBuffer(const Camera& camera);

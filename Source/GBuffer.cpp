@@ -24,8 +24,8 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 
 	// Sampler
 	glGenSamplers(1, &fboTexSampler);
-	glSamplerParameteri(fboTexSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glSamplerParameteri(fboTexSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glSamplerParameteri(fboTexSampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glSamplerParameteri(fboTexSampler, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	// Generate FBO
 	glGenFramebuffers(1, &fbo);

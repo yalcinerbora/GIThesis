@@ -174,11 +174,6 @@ uint SpanToDepth(in uint number)
 	return dimDepth.y - findMSB(number);
 }
 
-float UnpackOcculusion(in uint colorPacked)
-{
-	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
-}
-
 float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
 {
 	uint matLoc;
@@ -200,9 +195,11 @@ float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
 		uint nodeIndex = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
 								 denseVox.y * dimDepth.z + 
 								 denseVox.x];		
+		if(nodeIndex == 0xFFFFFFFF) return 0.0f;
 		for(unsigned int i = dimDepth.w + 1; i <= depth; i++)
 		{
 			currentNode = svoNode[offsetCascade.y + svoLevelOffset[i - dimDepth.w] + nodeIndex];
+			if(currentNode == 0xFFFFFFFF) return 0.0f;
 			nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
 		}
 		matLoc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
@@ -210,7 +207,25 @@ float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
 	return UnpackOcculusion(svoMaterial[matLoc].x);
 }
 
-vec3 UnpackNormal(in uvec2 norm)
+uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
+{
+	uint bitSet = 0;
+	bitSet |= ((voxPos.z >> (dimDepth.y - levelDepth)) & 0x000000001) << 2;
+	bitSet |= ((voxPos.y >> (dimDepth.y - levelDepth)) & 0x000000001) << 1;
+	bitSet |= ((voxPos.x >> (dimDepth.y - levelDepth)) & 0x000000001) << 0;
+	return bitSet;
+}
+
+vec3 UnpackColor(in uint colorPacked)
+{
+	vec3 color;
+	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
+	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
+	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
+	return color;
+}
+
+vec3 UnpackNormalGBuff(in uvec2 norm)
 {
 	vec3 result;
 	result.x = ((float(norm.x) / 0xFFFF) - 0.5f) * 2.0f;
@@ -218,6 +233,22 @@ vec3 UnpackNormal(in uvec2 norm)
 	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
 	result.z *= sign(int(norm.y << 16));
 	return result;
+}
+
+vec3 UnpackNormalSVO(in uint voxNormPosY)
+{
+	vec3 result;
+	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
+	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
+	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
+	result.z *= sign(int(voxNormPosY));
+	
+	return result;
+}
+
+float UnpackOcculusion(in uint colorPacked)
+{
+	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
 }
 
 vec3 InterpolatePos(in vec3 worldPos)
@@ -278,36 +309,42 @@ void main(void)
 	coneEdge = normalize(coneEdge);
 
 	// Skip Occluded Edges at start (since polygon renderings does not align with voxel space)
-	float currentDistance = 
+	// Align voxel Space and World Space (voxel space incremented by multiples of grid span)
+	// (so its slightly shifted no need to convert via matrix mult)
+	vec3 dif = (worldPosSpan.xyz + (dimDepth.x * 0.5 * worldPosSpan.w)) - camPos.xyz
+	float currentDistance += dif;
 
-	// Start sampling towards that direction
-	float totalConeOcclusion = 0;
-	while(currentDistance < maxDistance)
-	{
-		// Calculate cone sphere diameter at the point
-		vec2 coneRelativeLoc = coneDir * currentDistance;
-		float edgeLength = dot(coneRelativeLoc, coneEdge);
-		float diameter = length(coneRelativeLoc - edgeLength * coneEdge) * 2.0f;
-
-		// Sample Location
-		uint nodeDepth = SpanToDepth(int(ceil(diameter / worldPosSpan.w)));
-		float nodeOcclusion = SampleSVOOcclusion(worldPos + currentDistance * coneDir,
+	SampleSVOOcclusion(worldPos + currentDistance * coneDir,
 												 nodeDepth);
 
-		// Correction Term Reduces intersecting samples error
-		float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
-		float multipliedSample = max(depthMultiplier * sampleDistance, worldPosSpan.w);
-		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, multipliedSample / (depthMultiplier * worldPosSpan.w));
-		// Occlusion falloff (linear)
-		nodeOcclusion *= (1.0f / (1.0f + currentDistance))); 
-		
-		// Average total occlusion value
-		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
+	//// Start sampling towards that direction
+	//float totalConeOcclusion = 0;
+	//while(currentDistance < maxDistance)
+	//{
+	//	// Calculate cone sphere diameter at the point
+	//	vec2 coneRelativeLoc = coneDir * currentDistance;
+	//	float edgeLength = dot(coneRelativeLoc, coneEdge);
+	//	float diameter = length(coneRelativeLoc - edgeLength * coneEdge) * 2.0f;
 
-		// Traverse Further
-		// Traverse even further when cone exposure increased
-		currentDistance += sampleDistance * multipliedSample;
-	}
+	//	// Sample Location
+	//	uint nodeDepth = SpanToDepth(int(ceil(diameter / worldPosSpan.w)));
+	//	float nodeOcclusion = SampleSVOOcclusion(worldPos + currentDistance * coneDir,
+	//											 nodeDepth);
+
+	//	// Correction Term Reduces intersecting samples error
+	//	float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
+	//	float multipliedSample = max(depthMultiplier * sampleDistance, worldPosSpan.w);
+	//	nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, multipliedSample / (depthMultiplier * worldPosSpan.w));
+	//	// Occlusion falloff (linear)
+	//	nodeOcclusion *= (1.0f / (1.0f + currentDistance))); 
+		
+	//	// Average total occlusion value
+	//	totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
+
+	//	// Traverse Further
+	//	// Traverse even further when cone exposure increased
+	//	currentDistance += sampleDistance * multipliedSample;
+	//}
 		
 	// Sample Cone for each level (in the direction of trace)
 	// Accumulatete occlusion and write

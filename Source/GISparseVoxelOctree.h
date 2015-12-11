@@ -107,6 +107,7 @@ class GISparseVoxelOctree
 		
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;
+		Shader									computeVoxTraceDeferred;
 
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
@@ -147,6 +148,10 @@ class GISparseVoxelOctree
 															  const Camera& camera,
 															  uint32_t renderLevel,
 															  SVOTraceType);
+		double									DebugDeferredSVO(DeferredRenderer& dRenderer,
+																 const Camera& camera,
+																 uint32_t renderLevel,
+																 SVOTraceType type);
 
 		uint64_t								MemoryUsage() const;
 		const CSVOConstants&					SVOConsts() const;

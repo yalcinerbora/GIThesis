@@ -562,8 +562,15 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		}
 		case GI_LIGHT_INTENSITY:
 		{
-			dRenderer.Render(*currentScene, mainRenderCamera);
-			dRenderer.ShowLIBuffer(mainRenderCamera);
+	//		dRenderer.Render(*currentScene, mainRenderCamera);
+	//		dRenderer.ShowLIBuffer(mainRenderCamera);
+		
+			SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
+			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
+			debugVoxTransferTime = voxelOctree.DebugDeferredSVO(dRenderer,
+																mainRenderCamera,
+																svoRenderLevel,
+																traceTypeEnum);
 			break;
 		}		
 		case GI_SVO_LEVELS:

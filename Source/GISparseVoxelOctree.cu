@@ -12,8 +12,8 @@
 #include <numeric>
 #include <cuda_profiler_api.h>
 
-const GLsizei GISparseVoxelOctree::TraceWidth = /*160;*//*320;*//*640;*/800;/*1280;*//*1920;*///3840;
-const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*//*360;*/450;/*720;*//*1080;*///2160;
+const GLsizei GISparseVoxelOctree::TraceWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920;*///3840;
+const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*///2160;
 
 GISparseVoxelOctree::GISparseVoxelOctree()
 	: svoNodeBuffer(512)
@@ -22,6 +22,7 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, dSVOConstants(1)
 	, tSVODense(0)
 	, computeVoxTraceWorld(ShaderType::COMPUTE, "Shaders/VoxTraceWorld.glsl")
+	, computeVoxTraceDeferred(ShaderType::COMPUTE, "Shaders/VoxTraceDeferred.glsl")
 	, svoTraceData(1)
 	, svoNodeResource(nullptr)
 	, svoLevelOffsetResource(nullptr)
@@ -462,12 +463,81 @@ double GISparseVoxelOctree::ConeTrace(GLuint depthBuffer,
 	return 0.0;
 }
 
+double GISparseVoxelOctree::DebugDeferredSVO(DeferredRenderer& dRenderer,
+											 const Camera& camera,
+											 uint32_t renderLevel,
+											 SVOTraceType type)
+{
+	// Update FrameTransform Matrices 
+	// And its inverse realted buffer
+	assert(TraceWidth == DeferredRenderer::gBuffWidth);
+	assert(TraceHeight == DeferredRenderer::gBuffHeight);
+	dRenderer.RefreshInvFTransform(camera, TraceWidth, TraceHeight);
+	dRenderer.GetFTransform().Update(camera.generateTransform());
+
+	// Timing Voxelization Process
+	GLuint queryID;
+	glGenQueries(1, &queryID);
+	glBeginQuery(GL_TIME_ELAPSED, queryID);
+
+	// Set Cascade Trace Data
+	float3 pos = allocatorGrids[0]->position;
+	uint32_t dim = allocatorGrids[0]->dimension.x * (0x1 << (allocators.size() - 1));
+	uint32_t depth = allocatorGrids[0]->depth + static_cast<uint32_t>(allocators.size()) - 1;
+	svoTraceData.CPUData()[0] =
+	{
+		{pos.x, pos.y, pos.z, allocatorGrids.back()->span},
+		{dim, depth, GI_DENSE_SIZE, GI_DENSE_LEVEL},
+		{
+			static_cast<unsigned int>(allocators.size()),
+			GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE,
+			matSparseOffset,
+			renderLevel
+		}
+	};
+	svoTraceData.SendData();
+
+	// Shaders
+	computeVoxTraceDeferred.Bind();
+	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(type));
+
+	// Buffers
+	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);
+	svoMaterialBuffer.BindAsShaderStorageBuffer(LU_SVO_MATERIAL);
+	svoLevelOffsets.BindAsShaderStorageBuffer(LU_SVO_LEVEL_OFFSET);
+	dRenderer.GetInvFTransfrom().BindAsUniformBuffer(U_INVFTRANSFORM);
+	dRenderer.GetFTransform().Bind();
+	svoTraceData.BindAsUniformBuffer(U_SVO_CONSTANTS);
+
+	// Images
+	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
+	glBindImageTexture(I_COLOR_FB, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+
+	// Dispatch
+	uint2 gridSize;
+	gridSize.x = (TraceWidth + 16 - 1) / 16;
+	gridSize.y = (TraceHeight + 16 - 1) / 16;
+	glDispatchCompute(gridSize.x, gridSize.y, 1);
+
+	// Render to window
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	dRenderer.ShowTexture(camera, liTexture);
+
+	// Timer
+	GLuint64 timeElapsed = 0;
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
+
+	// I have to unbind the compute shader or weird things happen
+	Shader::Unbind(ShaderType::COMPUTE);
+	return timeElapsed / 1000000.0;
+}
+
 double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
 										  const Camera& camera,
 										  uint32_t renderLevel,
 										  SVOTraceType type)
 {
-
 	// Update FrameTransform Matrices 
 	// And its inverse realted buffer
 	dRenderer.RefreshInvFTransform(camera, TraceWidth, TraceHeight);
@@ -477,6 +547,7 @@ double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
 	GLuint queryID;
 	glGenQueries(1, &queryID);
 	glBeginQuery(GL_TIME_ELAPSED, queryID);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// Set Cascade Trace Data
 	float3 pos = allocatorGrids[0]->position;

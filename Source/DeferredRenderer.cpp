@@ -6,8 +6,8 @@
 #include "RectPrism.h"
 #include "DrawBuffer.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*//*1280;*/1920;//3840;
-const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*/1080;//2160;
+const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920*/;//3840;
+const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*///2160;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
@@ -589,18 +589,24 @@ void DeferredRenderer::RefreshInvFTransform(const Camera& camera,
 	invFrameTransform.SendData();
 }
 
-void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
+void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
 {
-	// Shadow Map Generation
-	GenerateShadowMaps(scene, camera);
-
 	// Depth Pre-Pass
 	DPass(scene, camera);
 
 	// Actual Render
 	// G Pass
 	GPass(scene, camera);
+}
 
+void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
+{
+	// Shadow Map Generation
+	GenerateShadowMaps(scene, camera);
+
+	// GPass
+	PopulateGBuffer(scene, camera);
+	
 	// Light Pass
 	LightPass(scene, camera);
 	

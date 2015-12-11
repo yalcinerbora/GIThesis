@@ -49,6 +49,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxTrace", "VoxTrace", "{411BEC89-FDE7-42D4-A363-8AD320B28DAF}"
 	ProjectSection(SolutionItems) = preProject
 		..\..\WorkingDir\Shaders\VoxTraceAO.glsl = ..\..\WorkingDir\Shaders\VoxTraceAO.glsl
+		..\..\WorkingDir\Shaders\VoxTraceDeferred.glsl = ..\..\WorkingDir\Shaders\VoxTraceDeferred.glsl
 		..\..\WorkingDir\Shaders\VoxTraceGI.glsl = ..\..\WorkingDir\Shaders\VoxTraceGI.glsl
 		..\..\WorkingDir\Shaders\VoxTraceWorld.glsl = ..\..\WorkingDir\Shaders\VoxTraceWorld.glsl
 	EndProjectSection

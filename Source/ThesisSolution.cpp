@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "DeferredRenderer.h"
 #include "SceneLights.h"
+#include "IEUtility/IEMath.h"
 #include <cuda_gl_interop.h>
 
 const size_t ThesisSolution::InitialObjectGridSize = 256;
@@ -15,7 +16,8 @@ const uint32_t ThesisSolution::CascadeDim = 512;
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
 	{ GI_DEFERRED, "Deferred" }, 
-	{ GI_LIGHT_INTENSITY, "LI Buffer Only"},
+	{ GI_LIGHT_INTENSITY, "LI Buffer Only" },
+	{ GI_SVO_DEFERRED, "Render SVO Deferred" },
 	{ GI_SVO_LEVELS, "Render SVO Levels"},
 	{ GI_VOXEL_PAGE, "Render Voxel Page" },
 	{ GI_VOXEL_CACHE2048, "Render Voxel Cache 2048" },
@@ -565,6 +567,18 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	//		dRenderer.Render(*currentScene, mainRenderCamera);
 	//		dRenderer.ShowLIBuffer(mainRenderCamera);
 		
+			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
+			debugVoxTransferTime = voxelOctree.AmbientOcclusion(dRenderer,
+																mainRenderCamera,
+																IEMath::ToRadians(60.0f),
+																60.0f,
+																1.0f);
+
+			break;
+		}		
+
+		case GI_SVO_DEFERRED:
+		{
 			SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
 			debugVoxTransferTime = voxelOctree.DebugDeferredSVO(dRenderer,
@@ -572,7 +586,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 																svoRenderLevel,
 																traceTypeEnum);
 			break;
-		}		
+		}
+
 		case GI_SVO_LEVELS:
 		{
 			// Start Render

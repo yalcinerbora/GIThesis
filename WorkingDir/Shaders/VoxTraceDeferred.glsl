@@ -212,10 +212,6 @@ uint SampleSVO(in vec3 worldPos)
 	if(any(lessThan(voxPos, ivec3(0))) ||
 	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
 	{
-		// Node is out of bounds
-		// Since cam is centered towards grid
-		// Out of bounds means its cannot come towards the grid
-		// directly cull
 		return 0;
 	}
 
@@ -236,8 +232,7 @@ uint SampleSVO(in vec3 worldPos)
 								  svoLevelOffset[i - dimDepth.w] +
 								  nodeIndex];
 		}
-
-
+		
 		// Color Check
 		if((i < offsetCascade.w &&
 		   i > (dimDepth.y - offsetCascade.x) &&
@@ -308,15 +303,9 @@ void main(void)
 	if(any(greaterThanEqual(pixelId, imageSize(traceTex).xy))) return;
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
-	vec2 gBuffUV = vec2(pixelId * TRACE_RATIO + vec2(0.5f) - viewport.xy) / viewport.zw;
+	vec2 gBuffUV = vec2(pixelId + vec2(0.5f) - viewport.xy) / viewport.zw;
 	vec3 worldPos = DepthToWorld(gBuffUV);
 	worldPos = InterpolatePos(worldPos); 
-
-	// Skip Occluded Edges at start (since polygon renderings does not align with voxel space)
-	// Align voxel Space and World Space (voxel space incremented by multiples of grid span)
-	// (so its slightly shifted no need to convert via matrix mult)
-	//vec3 dif = (worldPosSpan.xyz + (dimDepth.x * 0.5f * worldPosSpan.w)) - camPos.xyz;
-	//worldPos -= dif;
 
 	uint data = SampleSVO(worldPos);
 	vec3 color = vec3(1.0f, 0.0f, 1.0f);

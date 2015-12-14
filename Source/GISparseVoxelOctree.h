@@ -108,6 +108,7 @@ class GISparseVoxelOctree
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;
 		Shader									computeVoxTraceDeferred;
+		Shader									computeAO;
 
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
@@ -138,11 +139,12 @@ class GISparseVoxelOctree
 		
 		// Traces entire scene with the given ray params
 		// Writes results to intensity texture
-		// Uses GBuffer to create inital rays (free first bounce)
-		double									ConeTrace(GLuint depthBuffer,
-														  GLuint normalBuffer,
-														  GLuint colorBuffer,
-														  const Camera& camera);
+		// Uses GBuffer to create inital rays (free camera to first bounce)
+		double									AmbientOcclusion(DeferredRenderer&,
+																 const Camera& camera,
+																 float coneAngle,
+																 float maxDistance,
+																 float sampleDistanceRatio);
 
 		double									DebugTraceSVO(DeferredRenderer&,
 															  const Camera& camera,

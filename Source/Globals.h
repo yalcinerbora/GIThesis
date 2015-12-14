@@ -73,10 +73,14 @@ static const TwStructMember lightMembers[] =
 #define T_SHADOW_DIR 4
 
 #define I_COLOR_FB 2
+#define I_LIGHT_INENSITY 2
 #define I_VOX_READ 2
 #define I_VOX_WRITE 2
 
 #define U_RENDER_TYPE 0
+#define U_MAX_DISTANCE 0
+#define U_CONE_ANGLE 1
+#define U_SAMPLE_DISTANCE 2
 #define U_IMAGE_SIZE 3
 #define U_TOTAL_VOX_DIM 3
 #define U_OBJ_ID 4

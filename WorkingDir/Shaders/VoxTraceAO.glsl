@@ -9,7 +9,7 @@
 		Ambient Occulusion approximation using SVO
 */
 
-#define I_COLOR_FB layout(rgba8, binding = 2) restrict writeonly
+#define I_LIGHT_INENSITY layout(rgba8, binding = 2) restrict writeonly
 
 #define LU_SVO_NODE layout(std430, binding = 0) readonly
 #define LU_SVO_MATERIAL layout(std430, binding = 1) readonly
@@ -17,6 +17,7 @@
 
 #define U_MAX_DISTANCE layout(location = 0)
 #define U_CONE_ANGLE layout(location = 1)
+#define U_SAMPLE_DISTANCE layout(location = 2)
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
@@ -25,9 +26,15 @@
 #define T_NORMAL layout(binding = 1)
 #define T_DEPTH layout(binding = 2)
 
+#define BLOCK_SIZE_X 16
+#define BLOCK_SIZE_Y 16
+
 // Static cone count for faster implementation (prob i'll switch shaders instead of dynamically writing it)
 #define CONE_COUNT 4		// Total cone count
 #define CONE_COUNT_AXIS 2	// Cone count for each axis
+
+// Ratio Difference Between LI Buffer and GBuffer
+// ATM only works for 1
 #define TRACE_RATIO 1
 
 #define FLT_MAX 3.402823466e+38F
@@ -36,7 +43,7 @@
 
 U_CONE_ANGLE uniform float coneAngle;
 U_MAX_DISTANCE uniform float maxDistance;
-U_SAMPLE_DISTANCE uniform float sampleDistance;
+U_SAMPLE_DISTANCE uniform float sampleDistanceRatio;
 
 LU_SVO_NODE buffer SVONode
 { 
@@ -89,13 +96,13 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 };
 
 // Textures
-uniform I_COLOR_FB image2D liTex;
+uniform I_LIGHT_INENSITY image2D liTex;
 
 uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
 
 // Shared Mem
-shared vec3 reduceBuff [8][8 * 2]; 
+shared float reduceBuffer[BLOCK_SIZE_X][BLOCK_SIZE_Y * (CONE_COUNT / 2)]; 
 
 // Functions
 vec3 DepthToWorld(vec2 gBuffUV)
@@ -160,7 +167,7 @@ float IntersectDistance(in vec3 relativePos,
 	// Reduction
 	float minClose = min(min(tClose.x, tClose.y), tClose.z);
 	float minFar = min(min(tFar.x, tFar.y), tFar.z);
-	return min(minClose, minFar) + 0.01f;
+	return min(minClose, minFar) + 0.1f;
 }
 
 ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
@@ -172,39 +179,6 @@ ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
 uint SpanToDepth(in uint number)
 {
 	return dimDepth.y - findMSB(number);
-}
-
-float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
-{
-	uint matLoc;
-	if(depth <= dimDepth.w)
-	{
-		// Dense Fetch
-		uint levelOffset = uint((1.0f - pow(8.0f, i)) / (1.0f - 8.0f));
-		uint levelDim = dimDepth.z >> (dimDepth.w - i);
-		ivec3 levelVoxId = LevelVoxId(worldPos, depth);
-		matLoc = levelOffset + levelDim * levelDim * levelVoxId.z + 
-				 levelDim * levelVoxId.y + 
-				 levelVoxId.x;
-	}
-	else
-	{
-		// Sparse Fetch
-		ivec3 voxPos = LevelVoxId(worldPos, dimDepth.y);
-		ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
-		uint nodeIndex = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
-								 denseVox.y * dimDepth.z + 
-								 denseVox.x];		
-		if(nodeIndex == 0xFFFFFFFF) return 0.0f;
-		for(unsigned int i = dimDepth.w + 1; i <= depth; i++)
-		{
-			currentNode = svoNode[offsetCascade.y + svoLevelOffset[i - dimDepth.w] + nodeIndex];
-			if(currentNode == 0xFFFFFFFF) return 0.0f;
-			nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
-		}
-		matLoc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
-	}	
-	return UnpackOcculusion(svoMaterial[matLoc].x);
 }
 
 uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
@@ -277,18 +251,118 @@ vec3 InterpolateNormal(in vec3 worldNormal)
 	}
 }
 
-layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
+{
+	// Start tracing (stateless start from root (dense))
+	ivec3 voxPos = LevelVoxId(worldPos, dimDepth.y);
+
+	// Cull if out of bounds
+	if(any(lessThan(voxPos, ivec3(0))) ||
+	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
+	{
+		return 0;
+	}
+
+	// Color Check
+	if(depth <= dimDepth.w)
+	{
+		// Dense Fetch
+		uint levelOffset = uint((1.0f - pow(8.0f, depth)) / 
+								(1.0f - 8.0f));
+		uint levelDim = dimDepth.z >> (dimDepth.w - depth);
+		ivec3 levelVoxId = LevelVoxId(worldPos, depth);
+		uint loc = levelOffset + levelDim * levelDim * levelVoxId.z + 
+				   levelDim * levelVoxId.y + 
+				   levelVoxId.x;
+		return UnpackOcculusion(svoMaterial[loc].x);
+	}
+	else
+	{
+		unsigned int nodeIndex = 0;
+		for(unsigned int i = dimDepth.w; i <= depth; i++)
+		{
+			uint currentNode;
+			if(i == dimDepth.w)
+			{
+				ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
+				currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
+									  denseVox.y * dimDepth.z + 
+									  denseVox.x];
+			}
+			else
+			{
+				currentNode = svoNode[offsetCascade.y +
+									  svoLevelOffset[i - dimDepth.w] +
+									  nodeIndex];
+			}
+
+			// Node check (Empty node also not leaf)
+			// Means object does not
+			if(currentNode == 0xFFFFFFFF)
+			{
+				return 0;
+			}
+			else if(i == depth)
+			{
+				uint loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] +
+						   nodeIndex;
+				return UnpackOcculusion(svoMaterial[loc].x);
+			}
+			else
+			{
+				// Node has value
+				// Go deeper
+				nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
+			}
+		}
+	}
+	return 0;
+}
+
+void SumPixelOcclusion(inout float totalConeOcclusion)
+{
+	uvec2 globald = gl_GlobalInvocationID.xy;
+	uvec2 localId = gl_LocalInvocationID.xy;
+	uvec2 sMemId = localId / CONE_COUNT_AXIS;
+	
+	uvec2 pixelConeId = localId % CONE_COUNT_AXIS;
+
+	// left ones share their data
+	if(pixelConeId.x == 0) reduceBuffer[sMemId.y][sMemId.x + pixelConeId.y] = totalConeOcclusion;
+	memoryBarrierShared();
+
+	// right ones reduce
+	if(pixelConeId.x == 1)
+	{
+		// Lerp it at the middle (weighted avg)
+		float other = reduceBuffer[sMemId.y][sMemId.x + pixelConeId.y];
+		other = mix(totalConeOcclusion, other, 0.5f);
+
+		if(all(notEqual(pixelConeId, uvec2(1u))))
+			reduceBuffer[sMemId.y][sMemId.x] = other;
+	}
+	memoryBarrierShared();
+
+	if(all(equal(pixelConeId, uvec2(1u))))
+	{
+		// Leader reduce and writes
+		float other = reduceBuffer[sMemId.y][sMemId.x];
+		totalConeOcclusion = mix(totalConeOcclusion, other, 0.5f);
+	}
+}
+
+layout (local_size_x = BLOCK_SIZE_X, local_size_y = BLOCK_SIZE_Y, local_size_z = 1) in;
 void main(void)
 {
 	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	uvec2 pixelId = globalId / TRACE_RATIO;
-	if(any(greaterThanEqual(pixelId, imageSize(liTex).xy)) return;
+	uvec2 pixelId = globalId / CONE_COUNT_AXIS;
+	if(any(greaterThanEqual(pixelId, imageSize(liTex).xy))) return;
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
-	vec2 gBuffUV = (pixelId * TRACE_RATIO - viewport.xy - vec2(0.5f)) / viewport.zw;
+	vec2 gBuffUV = vec2(pixelId + vec2(0.5f) - viewport.xy) / viewport.zw;
 	vec3 worldPos = DepthToWorld(gBuffUV);
-	vec3 worldNorm = UnpackNormal(texture(gBuffNormal, gBuffUV).xy);
+	vec3 worldNorm = UnpackNormalGBuff(texture(gBuffNormal, gBuffUV).xy);
 	worldPos = InterpolatePos(worldPos); 
 	worldNorm = InterpolateNormal(worldNorm);
 
@@ -296,58 +370,65 @@ void main(void)
 	// We will cast 4 Cones centered around the normal
 	// we will choose two orthonormal vectors (wrt normal) in the plane defined by this normal and pos	
 	// get and arbitrarty perpendicaular vector towards normal (N dot A = 0)
-	vec3 ortho1 = normalize(worldNorm.xzy * vec3(0, -1.0f, -1.0f));
-	vec3 ortho2 = cross(worldNorm, ortho1);
+	vec3 ortho1 = normalize(worldNorm.xzy * vec3(0, -1.0f, 1.0f));
+	vec3 ortho2 = cross(normalize(worldNorm), ortho1);
 
-	// Determine your cone's direction
-	uvec2 coneId = gl_GlobalInvocationID.xy % CONE_COUNT_AXIS;	// [0 or 1]
-	coneId = coneId * 2 - 1;									// [-1 or 1]
-	vec3 coneDir = ortho1 * coneId.x + ortho2 * coneId.y;
-	coneId *= tan(PI_OVR_2 - coneAngle * 0.5f);
-	vec3 coneEdge = ortho1 * coneId.x + ortho2 * coneId.y;
-	coneDir = normalize(coneDir);
-	coneEdge = normalize(coneEdge);
-
-	// Skip Occluded Edges at start (since polygon renderings does not align with voxel space)
-	// Align voxel Space and World Space (voxel space incremented by multiples of grid span)
-	// (so its slightly shifted no need to convert via matrix mult)
-	vec3 dif = (worldPosSpan.xyz + (dimDepth.x * 0.5 * worldPosSpan.w)) - camPos.xyz
-	float currentDistance += dif;
-
-	SampleSVOOcclusion(worldPos + currentDistance * coneDir,
-												 nodeDepth);
-
-	//// Start sampling towards that direction
-	//float totalConeOcclusion = 0;
-	//while(currentDistance < maxDistance)
-	//{
-	//	// Calculate cone sphere diameter at the point
-	//	vec2 coneRelativeLoc = coneDir * currentDistance;
-	//	float edgeLength = dot(coneRelativeLoc, coneEdge);
-	//	float diameter = length(coneRelativeLoc - edgeLength * coneEdge) * 2.0f;
-
-	//	// Sample Location
-	//	uint nodeDepth = SpanToDepth(int(ceil(diameter / worldPosSpan.w)));
-	//	float nodeOcclusion = SampleSVOOcclusion(worldPos + currentDistance * coneDir,
-	//											 nodeDepth);
-
-	//	// Correction Term Reduces intersecting samples error
-	//	float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
-	//	float multipliedSample = max(depthMultiplier * sampleDistance, worldPosSpan.w);
-	//	nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, multipliedSample / (depthMultiplier * worldPosSpan.w));
-	//	// Occlusion falloff (linear)
-	//	nodeOcclusion *= (1.0f / (1.0f + currentDistance))); 
-		
-	//	// Average total occlusion value
-	//	totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
-
-	//	// Traverse Further
-	//	// Traverse even further when cone exposure increased
-	//	currentDistance += sampleDistance * multipliedSample;
-	//}
-		
-	// Sample Cone for each level (in the direction of trace)
-	// Accumulatete occlusion and write
+	//// Determine your cone's direction
+	//uvec2 coneId = gl_GlobalInvocationID.xy % CONE_COUNT_AXIS;	// [0 or 1]
+	//coneId = coneId * 2 - 1;									// [-1 or 1]
+	//vec3 coneDir = worldNorm + ortho1;// * coneId.x + ortho2 * coneId.y;
+	//coneDir = normalize(coneDir);
 	
-	// Trace Directions
+	vec3 coneDir = normalize(worldNorm + vec3(0.1f, 0.0f, 0.0f));
+	float coneDiameterRatio = tan(coneAngle * 0.5f) * 2.0f;
+
+	// Start sampling towards that direction
+	float totalConeOcclusion = 0.0f;
+	float currentDistance = 0.0f;
+	while(currentDistance < maxDistance)
+	{
+		// Calculate cone sphere diameter at the point
+		vec3 coneRelativeLoc = coneDir * currentDistance;
+		float diameter = coneDiameterRatio * currentDistance;
+
+		// Sample Location Occlusion
+		uint nodeDepth = SpanToDepth(max(1, int(ceil(diameter / worldPosSpan.w))));
+		float nodeOcclusion = SampleSVOOcclusion(worldPos + coneRelativeLoc, nodeDepth);
+
+		// Omit if %100 occuluded in closer ranges
+		// Since its not always depth pos aligned with voxel pos
+		if(currentDistance < (worldPosSpan.w * (0x1 << (offsetCascade.x - 1))))
+		nodeOcclusion = 0.0f;
+
+		// March Distance
+		float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
+		float levelSpan = worldPosSpan.w * depthMultiplier;
+		vec3 voxWorld = worldPosSpan.xyz + (vec3(LevelVoxId(worldPos + coneRelativeLoc, nodeDepth)) * levelSpan);
+		vec3 relativeMarchPos = worldPos + coneRelativeLoc - voxWorld;
+		float marchDist = IntersectDistance(relativeMarchPos, coneDir, levelSpan);
+
+		// Correction Term to prevent intersecting samples error
+		//float multipliedSample = max(marchDist * sampleDistanceRatio, worldPosSpan.w);
+		//nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, multipliedSample / (depthMultiplier * worldPosSpan.w));
+		
+		// Occlusion falloff (linear)
+		nodeOcclusion *= (1.0f / (1.0f + currentDistance)); 
+		
+		// Average total occlusion value
+		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
+
+		// Traverse Further
+		currentDistance += marchDist;
+	}
+
+	// Exchange Data Between cones (total is only on leader)
+//	SumPixelOcclusion(totalConeOcclusion);
+	
+	// Logic Change (image write)
+	if(all(equal(globalId % CONE_COUNT_AXIS, uvec2(1u))))
+	{
+		imageStore(liTex, ivec2(pixelId), vec4(vec3(1.0f - totalConeOcclusion), 0.0f));
+		//imageStore(liTex, ivec2(pixelId), vec4(coneDir, 0.0f));
+	}
+		
 }

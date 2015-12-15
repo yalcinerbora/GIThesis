@@ -12,8 +12,8 @@
 #include <numeric>
 #include <cuda_profiler_api.h>
 
-const GLsizei GISparseVoxelOctree::TraceWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920;*//*2560;*///3840;
-const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*//*1440;*///2160;
+const GLsizei GISparseVoxelOctree::TraceWidth = /*160;*//*320;*/640;/*800;*//*1280;*//*1920;*//*2560;*///3840;
+const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*/360;/*450;*//*720;*//*1080;*//*1440;*///2160;
 
 GISparseVoxelOctree::GISparseVoxelOctree()
 	: svoNodeBuffer(512)
@@ -465,8 +465,8 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 
 	// Update FrameTransform Matrices 
 	// And its inverse realted buffer
-	assert(TraceWidth == DeferredRenderer::gBuffWidth);
-	assert(TraceHeight == DeferredRenderer::gBuffHeight);
+	//assert(TraceWidth == DeferredRenderer::gBuffWidth);
+	//assert(TraceHeight == DeferredRenderer::gBuffHeight);
 	dRenderer.RefreshInvFTransform(camera, TraceWidth, TraceHeight);
 	dRenderer.GetFTransform().Update(camera.generateTransform());
 

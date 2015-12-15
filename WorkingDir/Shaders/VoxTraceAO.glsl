@@ -102,7 +102,7 @@ uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
 
 // Shared Mem
-shared float reduceBuffer[BLOCK_SIZE_X][BLOCK_SIZE_Y * (CONE_COUNT / 2)]; 
+shared float reduceBuffer[BLOCK_SIZE_X / 2][(BLOCK_SIZE_Y / 2) * (CONE_COUNT / 2)]; 
 
 // Functions
 vec3 DepthToWorld(vec2 gBuffUV)
@@ -167,7 +167,7 @@ float IntersectDistance(in vec3 relativePos,
 	// Reduction
 	float minClose = min(min(tClose.x, tClose.y), tClose.z);
 	float minFar = min(min(tFar.x, tFar.y), tFar.z);
-	return min(minClose, minFar) + 0.1f;
+	return min(minClose, minFar) + 0.01f;
 }
 
 ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
@@ -336,7 +336,7 @@ void SumPixelOcclusion(inout float totalConeOcclusion)
 	{
 		// Lerp it at the middle (weighted avg)
 		float other = reduceBuffer[sMemId.y][sMemId.x + pixelConeId.y];
-		other = mix(totalConeOcclusion, other, 0.5f);
+		other += totalConeOcclusion;// mix(totalConeOcclusion, other, 0.5f);
 
 		if(all(notEqual(pixelConeId, uvec2(1u))))
 			reduceBuffer[sMemId.y][sMemId.x] = other;
@@ -347,7 +347,7 @@ void SumPixelOcclusion(inout float totalConeOcclusion)
 	{
 		// Leader reduce and writes
 		float other = reduceBuffer[sMemId.y][sMemId.x];
-		totalConeOcclusion = mix(totalConeOcclusion, other, 0.5f);
+		totalConeOcclusion += other; mix(totalConeOcclusion, other, 0.5f);
 	}
 }
 
@@ -366,6 +366,12 @@ void main(void)
 	worldPos = InterpolatePos(worldPos); 
 	worldNorm = InterpolateNormal(worldNorm);
 
+
+	// Align voxel Space and World Space (voxel space incremented by multiples of grid span)
+	// (so its slightly shifted no need to convert via matrix mult)
+	//vec3 dif = (worldPosSpan.xyz + (dimDepth.x * 0.5f * worldPosSpan.w)) - camPos.xyz;
+	//worldPos -= dif;
+
 	// Each Thread Has locally same location now generate cones
 	// We will cast 4 Cones centered around the normal
 	// we will choose two orthonormal vectors (wrt normal) in the plane defined by this normal and pos	
@@ -373,13 +379,13 @@ void main(void)
 	vec3 ortho1 = normalize(worldNorm.xzy * vec3(0, -1.0f, 1.0f));
 	vec3 ortho2 = cross(normalize(worldNorm), ortho1);
 
-	//// Determine your cone's direction
-	//uvec2 coneId = gl_GlobalInvocationID.xy % CONE_COUNT_AXIS;	// [0 or 1]
-	//coneId = coneId * 2 - 1;									// [-1 or 1]
-	//vec3 coneDir = worldNorm + ortho1;// * coneId.x + ortho2 * coneId.y;
-	//coneDir = normalize(coneDir);
+	// Determine your cone's direction
+	uvec2 coneId = gl_GlobalInvocationID.xy % CONE_COUNT_AXIS;	// [0 or 1]
+	coneId = coneId * 2 - 1;									// [-1 or 1]
+	vec3 coneDir = worldNorm + ortho1 * float(coneId.x) + ortho2 * float(coneId.y);
+	coneDir = normalize(coneDir);
 	
-	vec3 coneDir = normalize(worldNorm + vec3(0.1f, 0.0f, 0.0f));
+	//coneDir = worldNorm;
 	float coneDiameterRatio = tan(coneAngle * 0.5f) * 2.0f;
 
 	// Start sampling towards that direction
@@ -391,14 +397,21 @@ void main(void)
 		vec3 coneRelativeLoc = coneDir * currentDistance;
 		float diameter = coneDiameterRatio * currentDistance;
 
-		// Sample Location Occlusion
+		// Select SVO Depth Relative to the current cone radius
 		uint nodeDepth = SpanToDepth(max(1, int(ceil(diameter / worldPosSpan.w))));
-		float nodeOcclusion = SampleSVOOcclusion(worldPos + coneRelativeLoc, nodeDepth);
-
+		
 		// Omit if %100 occuluded in closer ranges
 		// Since its not always depth pos aligned with voxel pos
-		if(currentDistance < (worldPosSpan.w * (0x1 << (offsetCascade.x - 1))))
-		nodeOcclusion = 0.0f;
+		float nodeOcclusion;
+		if(currentDistance < 1.732f * (worldPosSpan.w * (0x1 << (offsetCascade.x - 1))) &&
+		   nodeOcclusion > 0.5f)
+		{
+			nodeOcclusion = 0.0f;
+		}
+		else
+		{
+			nodeOcclusion = SampleSVOOcclusion(worldPos + coneRelativeLoc, nodeDepth);
+		}
 
 		// March Distance
 		float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
@@ -408,22 +421,26 @@ void main(void)
 		float marchDist = IntersectDistance(relativeMarchPos, coneDir, levelSpan);
 
 		// Correction Term to prevent intersecting samples error
-		//float multipliedSample = max(marchDist * sampleDistanceRatio, worldPosSpan.w);
-		//nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, multipliedSample / (depthMultiplier * worldPosSpan.w));
+		float multipliedSample = max(marchDist * sampleDistanceRatio, worldPosSpan.w);
+		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, multipliedSample / (depthMultiplier * worldPosSpan.w));
 		
 		// Occlusion falloff (linear)
-		nodeOcclusion *= (1.0f / (1.0f + currentDistance)); 
+		nodeOcclusion *= (1.0f / (1.0f + currentDistance));//pow(currentDistance, 1.2f))); 
 		
 		// Average total occlusion value
 		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
 
 		// Traverse Further
-		currentDistance += marchDist;
+		currentDistance += max(1.0f, diameter) * sampleDistanceRatio;// marchDist * sampleDistanceRatio;
 	}
 
 	// Exchange Data Between cones (total is only on leader)
-//	SumPixelOcclusion(totalConeOcclusion);
+	// CosTetha multiplication
+	totalConeOcclusion *= dot(worldNorm, coneDir);
+	SumPixelOcclusion(totalConeOcclusion);
 	
+	totalConeOcclusion *= 1.85f;
+
 	// Logic Change (image write)
 	if(all(equal(globalId % CONE_COUNT_AXIS, uvec2(1u))))
 	{

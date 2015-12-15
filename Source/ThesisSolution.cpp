@@ -282,7 +282,6 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 							   GL_UNSIGNED_INT,
 							   (void *) (i * sizeof(DrawPointIndexed)));
 
-
 		// Reflect Changes for the next process
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -570,9 +569,9 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
 			debugVoxTransferTime = voxelOctree.AmbientOcclusion(dRenderer,
 																mainRenderCamera,
-																IEMath::ToRadians(60.0f),
-																60.0f,
-																1.0f);
+																IEMath::ToRadians(15.0f),
+																220.0f,
+																1.1f);
 
 			break;
 		}		

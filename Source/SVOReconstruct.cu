@@ -522,6 +522,8 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 									  svoConstants.numCascades,
 									  svoConstants.totalDepth);
 
+	
+
 	unsigned int location;
 	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
 	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
@@ -567,4 +569,100 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
 	//		svoConstants.denseDepth] +
 	//		nodeIndex] = PackSVOMaterial(voxelColorPacked, voxelNormPacked);
+}
+
+__global__ void SVOReconstructLerpShift(CSVOMaterial* gSVOMat,
+
+										   // Const SVO Data
+										   const CSVONode* gSVOSparse,
+										   const unsigned int* gLevelOffsets,
+										   cudaTextureObject_t tSVODense,
+
+										   // Page Data
+										   const CVoxelPage* gVoxelData,
+
+										   // For Color Lookup
+										   CVoxelRender** gVoxelRenderData,
+
+										   // Constants
+										   const unsigned int matSparseOffset,
+										   const unsigned int cascadeNo,
+										   const CSVOConstants& svoConstants)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = globalId / GI_PAGE_SIZE;
+	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
+	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
+
+	// Skip Whole segment if necessary
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
+	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
+
+	// Fetch voxel
+	CVoxelPos voxelPosPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
+	if(voxelPosPacked == 0xFFFFFFFF) return;
+
+	// Local Voxel pos and expand it if its one of the inner cascades
+	uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);
+
+
+
+	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked,
+									  cascadeNo,
+									  svoConstants.numCascades,
+									  svoConstants.totalDepth);
+
+
+	unsigned int nodeIndex = 0;
+	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
+	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
+	{
+		CSVONode currentNode;
+		if(i == svoConstants.denseDepth)
+		{
+			uint3 denseIndex = CalculateLevelVoxId(voxelPos, svoConstants.denseDepth,
+												   svoConstants.totalDepth);
+
+			assert(denseIndex.x < svoConstants.denseDim &&
+				   denseIndex.y < svoConstants.denseDim &&
+				   denseIndex.z < svoConstants.denseDim);
+
+			currentNode = tex3D<unsigned int>(tSVODense,
+											  denseIndex.x,
+											  denseIndex.y,
+											  denseIndex.z);
+		}
+		else
+		{
+			currentNode = gSVOSparse[gLevelOffsets[i - svoConstants.denseDepth] + nodeIndex];
+		}
+
+		// Offset according to children
+		assert(currentNode != 0xFFFFFFFF);
+		unsigned int childIndex = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
+		nodeIndex = currentNode + childIndex;
+	}
+
+	// Finally found location
+	// Average color and normal
+	// Fetch obj Id to get color
+	ushort2 objectId;
+	CVoxelObjectType objType;
+	unsigned int voxelId;
+	ExpandVoxelIds(voxelId, objectId, objType, gVoxelData[pageId].dGridVoxIds[pageLocalId]);
+
+	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
+	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
+
+	// Atomic Average
+	AtomicColorNormalAvg(gSVOMat + matSparseOffset +
+						 gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] +
+						 nodeIndex,
+						 voxelColorPacked,
+						 voxelNormPacked);
+
+	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 - 
+	//		svoConstants.denseDepth] +
+	//		nodeIndex] = PackSVOMaterial(voxelColorPacked, voxelNormPacked);
+
 }

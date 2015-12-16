@@ -569,8 +569,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
 			debugVoxTransferTime = voxelOctree.AmbientOcclusion(dRenderer,
 																mainRenderCamera,
-																IEMath::ToRadians(15.0f),
-																220.0f,
+																IEMath::ToRadians(10.0f),
+																100.0f,
 																1.1f);
 
 			break;

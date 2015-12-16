@@ -304,9 +304,39 @@ float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
 			}
 			else if(i == depth)
 			{
+				nodeIndex -= CalculateLevelChildId(voxPos, i);
 				uint loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] +
 						   nodeIndex;
-				return UnpackOcculusion(svoMaterial[loc].x);
+
+				// Bigass fetch (its fast tho L1 cache doing work! on GPU!!!)
+				vec4 first, last;
+				first.x = UnpackOcculusion(svoMaterial[loc + 0].x);
+				first.y = UnpackOcculusion(svoMaterial[loc + 1].x);
+				first.z = UnpackOcculusion(svoMaterial[loc + 2].x);
+				first.w = UnpackOcculusion(svoMaterial[loc + 3].x);
+
+				last.x = UnpackOcculusion(svoMaterial[loc + 4].x);
+				last.y = UnpackOcculusion(svoMaterial[loc + 5].x);
+				last.z = UnpackOcculusion(svoMaterial[loc + 6].x);
+				last.w = UnpackOcculusion(svoMaterial[loc + 7].x);
+
+				ivec3 voxPosLevel = LevelVoxId(worldPos, depth - 1);
+				vec3 voxPosWorld = worldPosSpan.xyz + vec3(voxPosLevel) * (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
+				voxPosWorld = (worldPos - voxPosWorld) / (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
+
+				voxPosWorld = 1.0f - voxPosWorld;
+
+				vec4 lerpBuff;
+				lerpBuff.x = mix(first.x, first.y, voxPosWorld.x);
+				lerpBuff.y = mix(first.z, first.w, voxPosWorld.x);
+				lerpBuff.z = mix(last.x, last.y, voxPosWorld.x);
+				lerpBuff.w = mix(last.z, last.w, voxPosWorld.x);
+
+				lerpBuff.x = mix(lerpBuff.x, lerpBuff.y, voxPosWorld.y);
+				lerpBuff.y = mix(lerpBuff.z, lerpBuff.w, voxPosWorld.y);
+
+				lerpBuff.x = mix(lerpBuff.x, lerpBuff.y, voxPosWorld.z);
+				return lerpBuff.x;
 			}
 			else
 			{
@@ -366,7 +396,6 @@ void main(void)
 	worldPos = InterpolatePos(worldPos); 
 	worldNorm = InterpolateNormal(worldNorm);
 
-
 	// Align voxel Space and World Space (voxel space incremented by multiples of grid span)
 	// (so its slightly shifted no need to convert via matrix mult)
 	//vec3 dif = (worldPosSpan.xyz + (dimDepth.x * 0.5f * worldPosSpan.w)) - camPos.xyz;
@@ -377,12 +406,12 @@ void main(void)
 	// we will choose two orthonormal vectors (wrt normal) in the plane defined by this normal and pos	
 	// get and arbitrarty perpendicaular vector towards normal (N dot A = 0)
 	vec3 ortho1 = normalize(worldNorm.xzy * vec3(0, -1.0f, 1.0f));
-	vec3 ortho2 = cross(normalize(worldNorm), ortho1);
+	vec3 ortho2 = normalize(cross(worldNorm, ortho1));
 
 	// Determine your cone's direction
-	uvec2 coneId = gl_GlobalInvocationID.xy % CONE_COUNT_AXIS;	// [0 or 1]
-	coneId = coneId * 2 - 1;									// [-1 or 1]
-	vec3 coneDir = worldNorm + ortho1 * float(coneId.x) + ortho2 * float(coneId.y);
+	vec2 coneId = vec2(gl_GlobalInvocationID.xy % CONE_COUNT_AXIS);		// [0 or 1]
+	coneId = (coneId * 2.0f - 1.0f)/* * tan(coneAngle * 0.5f)*/;		// [-tan or tan]
+	vec3 coneDir = worldNorm + ortho1 * coneId.x + ortho2 * coneId.y;
 	coneDir = normalize(coneDir);
 	
 	//coneDir = worldNorm;
@@ -425,7 +454,7 @@ void main(void)
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, multipliedSample / (depthMultiplier * worldPosSpan.w));
 		
 		// Occlusion falloff (linear)
-		nodeOcclusion *= (1.0f / (1.0f + currentDistance));//pow(currentDistance, 1.2f))); 
+		nodeOcclusion *= (1.0f / (1.0f + /*currentDistance));*/pow(currentDistance, 1.2f))); 
 		
 		// Average total occlusion value
 		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
@@ -439,7 +468,7 @@ void main(void)
 	totalConeOcclusion *= dot(worldNorm, coneDir);
 	SumPixelOcclusion(totalConeOcclusion);
 	
-	totalConeOcclusion *= 1.85f;
+	//totalConeOcclusion *= 1.85f;
 
 	// Logic Change (image write)
 	if(all(equal(globalId % CONE_COUNT_AXIS, uvec2(1u))))

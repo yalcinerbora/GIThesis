@@ -26,7 +26,7 @@ inline __device__ CSVOMaterial Average(const CSVOMaterial& material,
 	CSVOColor avgColorPacked;
 	CVoxelNorm avgNormalPacked;
 	UnpackSVOMaterial(avgColorPacked, avgNormalPacked, material);
-	float4 avgColor = UnpackSVOColor(avgColorPacked);
+	float4 avgColor = UnpackSVOColorCount(avgColorPacked);
 	float3 avgNormal = ExpandOnlyNormal(avgNormalPacked);
 
 	// Averaging (color.w is number of nodes)
@@ -44,7 +44,7 @@ inline __device__ CSVOMaterial Average(const CSVOMaterial& material,
 	avgNormal.z = (ratio * avgNormal.z) + (normalUnpack.z / (avgColor.w + 1.0f));
 	avgColor.w += 1.0f;
 
-	avgColorPacked = PackSVOColor(avgColor);
+	avgColorPacked = PackSVOColorCount(avgColor);
 	avgNormalPacked = PackOnlyVoxNorm(avgNormal);
 	return PackSVOMaterial(avgColorPacked, avgNormalPacked);
 }
@@ -387,7 +387,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			node = n[gSVOLevelOffset + warpLinearId];
 
 			// Only fetch parent when its contributes to the average
-			bool fetchParentMat = ((svoConstants.totalDepth - currentLevel) < svoConstants.numCascades) && (node != 0xFFFFFFFF);
+			bool fetchParentMat = ((svoConstants.totalDepth - currentLevel) < svoConstants.numCascades);// || (node != 0xFFFFFFFF);
 			parentMat = fetchParentMat ? gSVOMat[matOffset + gSVOLevelOffset + warpLinearId] : 0;
 		}
 
@@ -485,11 +485,12 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		normalAvg.z *= countInv;
 	}
 	if(parentMat != 0) colorAvg.w = 1.0f;	// Opaque
-
+	
 	CSVOMaterial matAvg = PackSVOMaterial(PackSVOColor(colorAvg), PackOnlyVoxNorm(normalAvg));
 	if(GI_NODE_THREAD_COUNT != 1) matAvg = __shfl(matAvg, laneId * GI_NODE_THREAD_COUNT);
 	if(laneId < parentPerWarp && matAvg != 0)
 	{
+		colorAvg.w = 1.0f;
 		if(currentLevel > svoConstants.denseDepth)
 			gSVOMat[matOffset + gSVOLevelOffset + warpLinearId] = matAvg;
 		else
@@ -534,11 +535,11 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 	uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);
 	int3 splitId;
 	splitId.x = static_cast<int>(voxelUnpacked.x & 0x00000001) * 2 - 1;
-	splitId.y = (voxelUnpacked.y & 0x00000001) * 2 - 1;
-	splitId.z = (voxelUnpacked.z & 0x00000001) * 2 - 1;
+	splitId.y = static_cast<int>(voxelUnpacked.y & 0x00000001) * 2 - 1;
+	splitId.z = static_cast<int>(voxelUnpacked.z & 0x00000001) * 2 - 1;
 
 	// Put the color value to the each node corners of the interpolate nodes
-	for(unsigned int i = 0; i < 8; i++)
+	for(unsigned int i = 0; i < 1; i++)
 	{
 		int3 voxSigned;
 		voxSigned.x = static_cast<int>(voxelUnpacked.x) + (voxLookup[i].x * splitId.x);

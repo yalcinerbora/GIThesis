@@ -256,9 +256,15 @@ float FindMarchLength(out uint colorPacked,
 					  levelDim * levelVoxId.y + 
 					  levelVoxId.x;
 			}
-			if(renderType == RENDER_TYPE_COLOR ||
-			   renderType == RENDER_TYPE_OCCULUSION)
+			if(renderType == RENDER_TYPE_COLOR)
 				colorPacked = svoMaterial[loc].x;
+			else if(renderType == RENDER_TYPE_OCCULUSION)
+			{
+				if(i == dimDepth.y)
+					colorPacked = 0xFF000000;
+				else
+					colorPacked = svoMaterial[loc].x;
+			}
 			else if(renderType == RENDER_TYPE_NORMAL)
 				colorPacked = svoMaterial[loc].y;
 			if (colorPacked != 0) return 0.0f;

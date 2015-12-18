@@ -31,10 +31,16 @@
 
 // Static cone count for faster implementation (prob i'll switch shaders instead of dynamically writing it)
 #define CONE_COUNT 4		// Total cone count
-#define CONE_COUNT_AXIS 2	// Cone count for each axis
 #define TRACE_RATIO 1
-#define PI_OVR_2 (3.1416f * 0.5f)
 #define SQRT3 1.732f
+
+uniform vec2 CONE_ID_MAP[ 4 ] = 
+{
+	vec2( 0.0f, 0.0f),
+    vec2( 0.0f, 1.0f),
+    vec2( 1.0f, 0.0f),
+    vec2( 1.0f, 1.0f)
+};
 
 U_CONE_ANGLE uniform float coneAngle;
 U_MAX_DISTANCE uniform float maxDistance;
@@ -95,9 +101,6 @@ uniform I_LIGHT_INENSITY image2D liTex;
 
 uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
-
-// Shared Mem
-shared float reduceBuffer[BLOCK_SIZE_X / 2][(BLOCK_SIZE_Y / 2) * (CONE_COUNT / 2)]; 
 
 // Functions
 vec3 DepthToWorld(vec2 gBuffUV)
@@ -288,36 +291,31 @@ float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
 	}
 }
 
+
+// Shared Mem
+shared float reduceBuffer[BLOCK_SIZE_Y * (BLOCK_SIZE_X / CONE_COUNT)][(CONE_COUNT / 2)]; 
 void SumPixelOcclusion(inout float totalConeOcclusion)
 {
-	uvec2 globald = gl_GlobalInvocationID.xy;
 	uvec2 localId = gl_LocalInvocationID.xy;
-	uvec2 sMemId = localId / CONE_COUNT_AXIS;
-	
-	uvec2 pixelConeId = localId % CONE_COUNT_AXIS;
+	uvec2 sMemId = uvec2(localId.y * (BLOCK_SIZE_X / CONE_COUNT) + (localId.x / CONE_COUNT),
+						 localId.x % (CONE_COUNT / 2));
+
+	uint pixelConeId = localId.x % CONE_COUNT;
 
 	// left ones share their data
-	if(pixelConeId.x == 0) reduceBuffer[sMemId.y][sMemId.x + pixelConeId.y] = totalConeOcclusion;
+	if(pixelConeId >= 2) 
+		reduceBuffer[sMemId.x][sMemId.y] = totalConeOcclusion;
 	memoryBarrierShared();
 
 	// right ones reduce
-	if(pixelConeId.x == 1)
+	if(pixelConeId < 2) 
 	{
 		// Lerp it at the middle (weighted avg)
-		float other = reduceBuffer[sMemId.y][sMemId.x + pixelConeId.y];
-		other += totalConeOcclusion;
-
-		if(all(notEqual(pixelConeId, uvec2(1u))))
-			reduceBuffer[sMemId.y][sMemId.x] = other;
+		totalConeOcclusion += reduceBuffer[sMemId.x][sMemId.y];
+		if(pixelConeId == 1) reduceBuffer[sMemId.x][0] = totalConeOcclusion;
 	}
 	memoryBarrierShared();
-
-	if(all(equal(pixelConeId, uvec2(1u))))
-	{
-		// Leader reduce and writes
-		float other = reduceBuffer[sMemId.y][sMemId.x];
-		totalConeOcclusion += other;
-	}
+	if(pixelConeId == 0) totalConeOcclusion += reduceBuffer[sMemId.x][0];
 }
 
 layout (local_size_x = BLOCK_SIZE_X, local_size_y = BLOCK_SIZE_Y, local_size_z = 1) in;
@@ -325,7 +323,7 @@ void main(void)
 {
 	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	uvec2 pixelId = globalId / CONE_COUNT_AXIS;
+	uvec2 pixelId = globalId / uvec2(CONE_COUNT, 1);
 	if(any(greaterThanEqual(pixelId, imageSize(liTex).xy))) return;
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
@@ -346,27 +344,16 @@ void main(void)
 	// get and arbitrarty perpendicaular vector towards normal (N dot A = 0)
 	// [(-z-y) / x, 1, 1] is one of those vectors (unless normal is X axis)
 	vec3 ortho1 = normalize(vec3(-(worldNorm.z + worldNorm.y) / worldNorm.x, 1.0f, 1.0f));
-	//if(worldNorm.x == 1.0f) ortho1 = vec3(0.0f, 1.0f, 0.0f);
+	if(worldNorm.x == 1.0f) ortho1 = vec3(0.0f, 1.0f, 0.0f);
 	vec3 ortho2 = normalize(cross(worldNorm, ortho1));
 
 
-		if(dot(ortho1, ortho2) >= 0.001f &&
-		//all(equal(ortho1, vec3(0.0f))) &&
-		all(equal(globalId % CONE_COUNT_AXIS, uvec2(1u))))
-	{
-		imageStore(liTex, ivec2(pixelId), vec4(vec3(1.0f, 0.0f, 1.0f), 0.0f));
-		return;
-	}
-
-
-
 	// Determine your cone's direction
-	vec2 coneId = vec2(globalId % CONE_COUNT_AXIS);		// [0 or 1]
-	coneId = (coneId * 2.0f - 1.0f) /** tan(coneAngle * 0.5f)*/;		// [-tan or tan]
+	vec2 coneId = CONE_ID_MAP[globalId.x % CONE_COUNT];
+	coneId = (coneId * 2.0f - 1.0f);
+	coneId *= tan(coneAngle * 0.5f);
 	vec3 coneDir = worldNorm + ortho1 * coneId.x + ortho2 * coneId.y;
 	coneDir = normalize(coneDir);
-	
-	//coneDir = worldNorm;
 	float coneDiameterRatio = tan(coneAngle * 0.5f) * 2.0f;
 
 	// Start sampling towards that direction
@@ -381,12 +368,16 @@ void main(void)
 		// Select SVO Depth Relative to the current cone radius
 		uint nodeDepth = SpanToDepth(max(1, int(ceil(diameter / worldPosSpan.w))));
 		
+		//DEBUG
+		nodeDepth = dimDepth.y;
+
+
 		// Omit if %100 occuluded in closer ranges
 		// Since its not always depth pos aligned with voxel pos
 		float nodeOcclusion = SampleSVOOcclusion(worldPos + coneRelativeLoc, nodeDepth);
 		float gripSpanSize = worldPosSpan.w * (0x1 << (offsetCascade.x - 1));
 		bool isOmitDistance = currentDistance < (SQRT3 * gripSpanSize) && 
-							  nodeOcclusion > 0.1f;
+							  nodeOcclusion > 0.0f;
 		nodeOcclusion = isOmitDistance ? 0.0f : nodeOcclusion;
 
 		// March Distance
@@ -414,7 +405,7 @@ void main(void)
 	//totalConeOcclusion *= 3;
 
 	// Logic Change (image write)
-	if(all(equal(globalId % CONE_COUNT_AXIS, uvec2(1u))))
+	if(globalId.x % CONE_COUNT == 0)
 	{
 		imageStore(liTex, ivec2(pixelId), vec4(vec3(1.0f - totalConeOcclusion), 0.0f));
 		//imageStore(liTex, ivec2(pixelId), vec4(coneDir, 0.0f));

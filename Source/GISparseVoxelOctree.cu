@@ -513,8 +513,8 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 
 	// Dispatch
 	uint2 gridSize;
-	gridSize.x = (TraceWidth * 2 + 16 - 1) / 16;
-	gridSize.y = (TraceHeight * 2 + 16 - 1) / 16;
+	gridSize.x = (TraceWidth * 4 + 16 - 1) / 16;
+	gridSize.y = (TraceHeight + 16 - 1) / 16;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
 
 	// Render to window

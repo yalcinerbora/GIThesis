@@ -138,7 +138,7 @@ int main()
 
 	// Scene Interfaces
 	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic};
-	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 1},
+	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 2},
 					Array32<Light>{sponzaLights, 4},
 					Scene::sponzaSceneTotalSize,
 					Scene::sponzaSceneLevelSizes);

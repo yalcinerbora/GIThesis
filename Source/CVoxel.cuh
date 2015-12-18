@@ -13,9 +13,9 @@ Voxel Sturcutres
 inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 {
 	uint3 result;
-	result.x = (packedVoxX & 0x000001FF);
-	result.y = (packedVoxX & 0x0003FE00) >> 9;
-	result.z = (packedVoxX & 0x07FC0000) >> 18;
+	result.x = (packedVoxX & 0x000003FF);
+	result.y = (packedVoxX & 0x000FFC00) >> 10;
+	result.z = (packedVoxX & 0x3FF00000) >> 20;
 	return result;
 }
 
@@ -36,7 +36,7 @@ inline __device__ void ExpandNormalPos(uint3& voxPos,
 {
 	unsigned int voxPosX = packedVoxNormalPos.x;
 	voxPos = ExpandOnlyVoxPos(voxPosX);
-	isMip = ((voxPosX & 0xF8000000) >> 27) != 0;
+	isMip = ((voxPosX & 0xC0000000) >> 30) != 0;
 	normal = ExpandOnlyNormal(packedVoxNormalPos.y);
 }
 
@@ -81,10 +81,10 @@ inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
 {
 	unsigned int packed = 0;
 	unsigned int uintMip = (isMip) ? 1 : 0;
-	packed |= (uintMip & 0x0000001F) << 27;
-	packed |= (voxPos.z & 0x000001FF) << 18;
-	packed |= (voxPos.y & 0x000001FF) << 9;
-	packed |= (voxPos.x & 0x000001FF);
+	packed |= (uintMip & 0x00000003) << 30;
+	packed |= (voxPos.z & 0x000003FF) << 20;
+	packed |= (voxPos.y & 0x000003FF) << 10;
+	packed |= (voxPos.x & 0x000003FF);
 	return packed;
 }
 

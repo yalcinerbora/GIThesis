@@ -95,9 +95,9 @@ vec3 UnpackNormal(in uint voxNormPosY)
 uvec4 UnpackVoxelDataAndObjId(in uint voxNormPosX, in uint voxIdsX)
 {
 	uvec4 vec;
-	vec.x = (voxNormPosX & 0x000001FF);
-	vec.y = (voxNormPosX & 0x0003FE00) >> 9;
-	vec.z = (voxNormPosX & 0x07FC0000) >> 18;
+	vec.x = (voxNormPosX & 0x000003FF);
+	vec.y = (voxNormPosX & 0x000FFC00) >> 10;
+	vec.z = (voxNormPosX & 0x3FF00000) >> 20;
 	vec.w = (voxIdsX & 0x0000FFFF);
 	return vec;
 }

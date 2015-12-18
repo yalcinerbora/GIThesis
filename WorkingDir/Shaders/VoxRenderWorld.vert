@@ -63,9 +63,9 @@ vec3 UnpackNormal(in uint voxNormPosY)
 uvec4 UnpackVoxelDataAndSpan(in uint voxNormPosX)
 {
 	uvec4 vec;
-	vec.x = (voxNormPosX & 0x000001FF);
-	vec.y = (voxNormPosX & 0x0003FE00) >> 9;
-	vec.z = (voxNormPosX & 0x07FC0000) >> 18;
+	vec.x = (voxNormPosX & 0x000003FF);
+	vec.y = (voxNormPosX & 0x000FFC00) >> 10;
+	vec.z = (voxNormPosX & 0x3FF00000) >> 20;
 	vec.w  = (voxNormPosX & 0xF8000000) >> 27;
 	return vec;
 }

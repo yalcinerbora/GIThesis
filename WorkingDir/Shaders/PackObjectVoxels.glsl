@@ -72,9 +72,9 @@ uvec2 PackVoxelNormPos(in uvec3 voxCoord,
 	
 	// Voxel Ids 9 Bit Each (last 5 bit is span depth)
 	unsigned int value = 0;
-	value |= isMip << 27;
-	value |= voxCoord.z << 18;
-	value |= voxCoord.y << 9;
+	value |= isMip << 30;
+	value |= voxCoord.z << 20;
+	value |= voxCoord.y << 10;
 	value |= voxCoord.x;
 	result.x = value;
 

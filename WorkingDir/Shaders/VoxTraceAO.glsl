@@ -268,18 +268,24 @@ float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
 		for(uint i = dimDepth.w + 1; i < depth; i++)
 		{
 			// Fetch Next Level
-			nodeIndex = svoNode[offsetCascade.y +
-								svoLevelOffset[i - dimDepth.w] +
-								nodeIndex];
+			uint newNodeIndex = svoNode[offsetCascade.y +
+										svoLevelOffset[i - dimDepth.w] +
+										nodeIndex];
 
 			// Node check (Empty node also not leaf)
 			// Means object does not
-			if(nodeIndex == 0xFFFFFFFF) return 0;
+			if(newNodeIndex == 0xFFFFFFFF)
+			{
+				//nodeIndex -= CalculateLevelChildId(voxPos, i);
+				//uint matLoc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
+				//return TripolateOcclusion(worldPos, i, matLoc);
+				return 0;
+			}
 			else
 			{
 				// Node has value
 				// Go deeper
-				nodeIndex += CalculateLevelChildId(voxPos, i + 1);
+				nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
 			}
 		}
 		// Finally At requested level
@@ -369,7 +375,7 @@ void main(void)
 		uint nodeDepth = SpanToDepth(max(1, int(ceil(diameter / worldPosSpan.w))));
 		
 		//DEBUG
-		nodeDepth = dimDepth.y;
+		//nodeDepth = dimDepth.y;
 
 
 		// Omit if %100 occuluded in closer ranges
@@ -377,12 +383,12 @@ void main(void)
 		float nodeOcclusion = SampleSVOOcclusion(worldPos + coneRelativeLoc, nodeDepth);
 		float gripSpanSize = worldPosSpan.w * (0x1 << (offsetCascade.x - 1));
 		bool isOmitDistance = currentDistance < (SQRT3 * gripSpanSize) && 
-							  nodeOcclusion > 0.0f;
+							  nodeOcclusion > 0.5f;
 		nodeOcclusion = isOmitDistance ? 0.0f : nodeOcclusion;
 
 		// March Distance
 		float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
-		float marchDist = max(1.0f, diameter) * sampleDistanceRatio;
+		float marchDist = max(worldPosSpan.w, diameter) * sampleDistanceRatio;
 
 		// Correction Term to prevent intersecting samples error
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDist / (depthMultiplier * worldPosSpan.w));

@@ -261,7 +261,11 @@ float FindMarchLength(out uint colorPacked,
 			else if(renderType == RENDER_TYPE_OCCULUSION)
 			{
 				if(i == dimDepth.y)
-					colorPacked = 0xFF000000;
+				{
+					float occ = UnpackOcculusion(svoMaterial[loc].x);
+					occ = ceil(occ);
+					colorPacked = uint(occ * 255.0f) << 24;
+				}
 				else
 					colorPacked = svoMaterial[loc].x;
 			}

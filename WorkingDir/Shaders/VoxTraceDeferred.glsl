@@ -258,11 +258,21 @@ uint SampleSVO(in vec3 worldPos)
 					  levelDim * levelVoxId.y + 
 					  levelVoxId.x;
 			}
-			if(renderType == RENDER_TYPE_COLOR ||
-			   renderType == RENDER_TYPE_OCCULUSION)
+			if(renderType == RENDER_TYPE_COLOR)
 				return svoMaterial[loc].x;
-			else
-				return  svoMaterial[loc].y;
+			else if(renderType == RENDER_TYPE_OCCULUSION)
+			{
+				if(i == dimDepth.y)
+				{
+					float occ = UnpackOcculusion(svoMaterial[loc].x);
+					occ = ceil(occ);
+					return uint(occ * 255.0f) << 24;
+				}
+				else
+					return svoMaterial[loc].x;
+			}
+			else if(renderType == RENDER_TYPE_NORMAL)
+				return svoMaterial[loc].y;
 		}
 
 		// Node check (Empty node also not leaf)

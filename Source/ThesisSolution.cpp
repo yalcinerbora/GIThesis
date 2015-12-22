@@ -10,8 +10,8 @@
 #include <cuda_gl_interop.h>
 
 const size_t ThesisSolution::InitialObjectGridSize = 256;
-const float ThesisSolution::CascadeSpan = 2.0f;
-const uint32_t ThesisSolution::CascadeDim = 128;
+const float ThesisSolution::CascadeSpan = 0.6f;//2.0f;
+const uint32_t ThesisSolution::CascadeDim = 512;//128;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
@@ -569,9 +569,9 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
 			debugVoxTransferTime = voxelOctree.AmbientOcclusion(dRenderer,
 																mainRenderCamera,
-																IEMath::ToRadians(35.0f),
-																200.0f,
-																1.0f);
+																IEMath::ToRadians(15.0f),
+																75.0f,
+																4.0f);
 
 			break;
 		}		

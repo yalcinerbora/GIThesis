@@ -562,7 +562,6 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 										  svoConstants.numCascades,
 										  svoConstants.totalDepth);
 
-
 		unsigned int location;
 		unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
 		for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)

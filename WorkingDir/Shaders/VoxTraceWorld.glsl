@@ -141,7 +141,7 @@ vec3 UnpackNormal(in uint voxNormPosY)
 	return result;
 }
 
-float UnpackOcculusion(in uint colorPacked)
+float UnpackOcclusion(in uint colorPacked)
 {
 	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
 }
@@ -194,7 +194,7 @@ float IntersectDistance(in vec3 relativePos,
 	return min(minClose, minFar) + 0.01f;
 }
 
-float FindMarchLength(out uint colorPacked,
+float FindMarchLength(out vec3 outData,
 					  in vec3 marchPos,
 					  in vec3 dir)
 {
@@ -257,21 +257,16 @@ float FindMarchLength(out uint colorPacked,
 					  levelVoxId.x;
 			}
 			if(renderType == RENDER_TYPE_COLOR)
-				colorPacked = svoMaterial[loc].x;
+				outData = UnpackColor(svoMaterial[loc].x);				
 			else if(renderType == RENDER_TYPE_OCCULUSION)
 			{
-				if(i == dimDepth.y)
-				{
-					float occ = UnpackOcculusion(svoMaterial[loc].x);
-					occ = ceil(occ);
-					colorPacked = uint(occ * 255.0f) << 24;
-				}
-				else
-					colorPacked = svoMaterial[loc].x;
+				float occ = UnpackOcclusion(svoMaterial[loc].x);
+				if(i == dimDepth.y) occ = ceil(occ);
+				outData = vec3(1.0f - occ);
 			}
 			else if(renderType == RENDER_TYPE_NORMAL)
-				colorPacked = svoMaterial[loc].y;
-			if (colorPacked != 0) return 0.0f;
+				outData = UnpackNormal(svoMaterial[loc].y);
+			if(all(notEqual(outData, vec3(0.0f)))) return 0.0f;
 		}
 
 		// Node check
@@ -323,28 +318,13 @@ void main(void)
 		totalMarch < maxMarch;
 		totalMarch += marchLength)
 	{
-		uint colorOut;
+		vec3 colorOut;
 		marchLength = FindMarchLength(colorOut, marchPos, rayDir);
 
 		// March Length zero, we hit a point
 		if(marchLength == 0.0f)
 		{
-			//vec3 color = UnpackColor(colorOut);
-			//vec3 color = vec3(1.0f - UnpackOcculusion(colorOut));
-			vec3 color = vec3(1.0f, 1.0f, 0.0f);
-			if(renderType == RENDER_TYPE_COLOR)			   
-			{
-				color = UnpackColor(colorOut);
-			}
-			else if(renderType == RENDER_TYPE_OCCULUSION)
-			{
-				color = vec3(1.0f - UnpackOcculusion(colorOut));
-			}
-			else if(renderType == RENDER_TYPE_NORMAL)
-			{
-				color = UnpackNormal(colorOut);
-			}			
-			imageStore(fbo, ivec2(globalId), vec4(color, 0.0f)); 
+			imageStore(fbo, ivec2(globalId), vec4(colorOut, 0.0f)); 
 			return;
 		}
 		else

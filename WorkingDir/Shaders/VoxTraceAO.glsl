@@ -339,10 +339,11 @@ void main(void)
 	worldPos = InterpolatePos(worldPos); 
 	worldNorm = InterpolateNormal(worldNorm);
 
-	// Align voxel Space and World Space (voxel space incremented by multiples of grid span)
-	// (so its slightly shifted no need to convert via matrix mult)
-	//vec3 dif = (worldPosSpan.xyz + (dimDepth.x * 0.5f * worldPosSpan.w)) - camPos.xyz;
-	//worldPos -= dif;
+	// Determine cascade
+	vec3 gridCenter = worldPosSpan.xyz + worldPosSpan.w * (dimDepth.x >> 1);
+	vec3 diff = abs(worldPos - gridCenter) / (worldPosSpan.w * (dimDepth.x >> offsetCascade.x));
+	uvec3 cascades = findMSB(uvec3(diff)) + 1;
+	uint cascadeNo = uint(max(cascades.x, max(cascades.y, cascades.z)));
 
 	// Each Thread Has locally same location now generate cones
 	// We will cast 4 Cones centered around the normal
@@ -353,7 +354,6 @@ void main(void)
 	if(worldNorm.x == 1.0f) ortho1 = vec3(0.0f, 1.0f, 0.0f);
 	vec3 ortho2 = normalize(cross(worldNorm, ortho1));
 
-
 	// Determine your cone's direction
 	vec2 coneId = CONE_ID_MAP[globalId.x % CONE_COUNT];
 	coneId = (coneId * 2.0f - 1.0f);
@@ -362,45 +362,50 @@ void main(void)
 	coneDir = normalize(coneDir);
 	float coneDiameterRatio = tan(coneAngle * 0.5f) * 2.0f;
 
+	float gripSpanSize = worldPosSpan.w * (0x1 <<  cascadeNo);
+	worldPos += coneDir * gripSpanSize;
+
 	// Start sampling towards that direction
 	float totalConeOcclusion = 0.0f;
-	float currentDistance = 0.0f;
-	while(currentDistance < maxDistance)
+	float traversedDistance = 0.1f;	// Dont Start with zero to make sample depth 0
+	while(traversedDistance <= maxDistance)
 	{
 		// Calculate cone sphere diameter at the point
-		vec3 coneRelativeLoc = coneDir * currentDistance;
-		float diameter = coneDiameterRatio * currentDistance;
+		vec3 coneRelativeLoc = coneDir * traversedDistance;
+		float diameter = coneDiameterRatio * traversedDistance;
 
 		// Select SVO Depth Relative to the current cone radius
-		uint nodeDepth = SpanToDepth(max(1, int(ceil(diameter / worldPosSpan.w))));
-		
+		uint nodeDepth = SpanToDepth(uint(ceil(diameter / worldPosSpan.w)));
+		nodeDepth = min(nodeDepth, dimDepth.y - cascadeNo);
+
 		//DEBUG
 		//nodeDepth = dimDepth.y;
+		//nodeDepth = min(nodeDepth, dimDepth.y - cascadeNo);
 
+		// SVO Query
+		float nodeOcclusion = SampleSVOOcclusion(worldPos + coneRelativeLoc, nodeDepth);
 
 		// Omit if %100 occuluded in closer ranges
 		// Since its not always depth pos aligned with voxel pos
-		float nodeOcclusion = SampleSVOOcclusion(worldPos + coneRelativeLoc, nodeDepth);
-		float gripSpanSize = worldPosSpan.w * (0x1 << (offsetCascade.x - 1));
-		bool isOmitDistance = currentDistance < (SQRT3 * gripSpanSize) && 
-							  nodeOcclusion > 0.5f;
-		nodeOcclusion = isOmitDistance ? 0.0f : nodeOcclusion;
+		bool isOmitDistance = (nodeOcclusion > 0.0f) &&
+							  (traversedDistance < (SQRT3 * gripSpanSize));
+		nodeOcclusion = isOmitDistance ? 0.0f : nodeOcclusion;		
 
 		// March Distance
-		float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
-		float marchDist = max(worldPosSpan.w, diameter) * sampleDistanceRatio;
+		float marchDist = diameter * sampleDistanceRatio;
 
 		// Correction Term to prevent intersecting samples error
+		float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDist / (depthMultiplier * worldPosSpan.w));
 		
 		// Occlusion falloff (linear)
-		nodeOcclusion *= (1.0f / (1.0f + currentDistance));//pow(currentDistance, 1.2f))); 
+		nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f))); 
 		
 		// Average total occlusion value
 		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
 
 		// Traverse Further
-		currentDistance += marchDist;
+		traversedDistance += marchDist;
 	}
 
 	// Exchange Data Between cones (total is only on leader)
@@ -408,7 +413,9 @@ void main(void)
 	totalConeOcclusion *= dot(worldNorm, coneDir);
 	SumPixelOcclusion(totalConeOcclusion);
 
-	//totalConeOcclusion *= 3;
+	totalConeOcclusion *= 0.25f;
+	//totalConeOcclusion *= 16.0f;
+
 
 	// Logic Change (image write)
 	if(globalId.x % CONE_COUNT == 0)

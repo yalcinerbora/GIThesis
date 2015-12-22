@@ -6,6 +6,7 @@
 #define __IE_MATH_H__
 
 #include <cmath>
+#include <cassert>
 
 namespace IEMath
 {
@@ -97,9 +98,10 @@ namespace IEMath
 		return number;
 	}
 
-	inline float PowSeries(unsigned int n, float a)
+	inline float GeomSeries(unsigned int n, float a)
 	{
 		// a^0 + a^1 + .... + a^n
+		assert(a != 1.0f);
 		return static_cast<float>((1.0f - ::std::pow(a, n + 1)) / (1.0f - a));
 	}
 

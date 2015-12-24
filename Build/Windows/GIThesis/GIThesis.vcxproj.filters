@@ -95,6 +95,9 @@
     <ClCompile Include="..\..\..\Source\MeshBatchCube.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\SVOTexPool.cpp">
+      <Filter>GI\Thesis\OGL</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -297,6 +300,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CVoxelTypes.h">
       <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\SVOTexPool.h">
+      <Filter>GI\Thesis\OGL</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

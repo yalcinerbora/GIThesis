@@ -665,7 +665,7 @@ double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
 	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
 	
 	// I have to unbind the compute shader or weird things happen
-	Shader::Unbind(ShaderType::COMPUTE);
+//	Shader::Unbind(ShaderType::COMPUTE);
 	return timeElapsed / 1000000.0;
 }
 

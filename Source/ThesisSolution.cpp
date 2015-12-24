@@ -559,6 +559,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		case GI_DEFERRED:
 		{
 			dRenderer.Render(*currentScene, mainRenderCamera);
+			dRenderer.ShowColorGBuffer(mainRenderCamera);
 			break;
 		}
 		case GI_LIGHT_INTENSITY:
@@ -571,7 +572,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 																mainRenderCamera,
 																IEMath::ToRadians(15.0f),
 																75.0f,
-																4.0f);
+																1.0f);
 
 			break;
 		}		

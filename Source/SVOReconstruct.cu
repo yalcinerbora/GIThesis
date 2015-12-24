@@ -539,6 +539,7 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 	splitId.z = static_cast<int>(voxelUnpacked.z & 0x00000001) * 2 - 1;
 
 	// Put the color value to the each node corners of the interpolate nodes
+	// TODO Mark Dynamic objects and expand those in here
 	for(unsigned int i = 0; i < 1; i++)
 	{
 		int3 voxSigned;

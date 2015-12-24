@@ -94,6 +94,12 @@ class GISparseVoxelOctree
 		// SVO Mat indices
 		uint32_t								matSparseOffset;
 
+
+
+
+		GLuint									sparsePtrDenseTex;
+
+
 		// Atomic counter and svo level start locations
 		CudaVector<uint32_t>					dSVOLevelTotalSizes;
 		std::vector<uint32_t>					hSVOLevelTotalSizes;

@@ -170,7 +170,7 @@ vec3 UnpackNormalSVO(in uint voxNormPosY)
 	return result;
 }
 
-float UnpackOcculusion(in uint colorPacked)
+float UnpackOcclusion(in uint colorPacked)
 {
 	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
 }
@@ -207,15 +207,15 @@ float TripolateOcclusion(in vec3 worldPos,
 {
 	// Bigass fetch (its fast tho L1 cache doing work! on GPU!!!)
 	vec4 first, last;
-	first.x = UnpackOcculusion(svoMaterial[matLoc + 0].x);
-	first.y = UnpackOcculusion(svoMaterial[matLoc + 1].x);
-	first.z = UnpackOcculusion(svoMaterial[matLoc + 2].x);
-	first.w = UnpackOcculusion(svoMaterial[matLoc + 3].x);
+	first.x = UnpackOcclusion(svoMaterial[matLoc + 0].x);
+	first.y = UnpackOcclusion(svoMaterial[matLoc + 1].x);
+	first.z = UnpackOcclusion(svoMaterial[matLoc + 2].x);
+	first.w = UnpackOcclusion(svoMaterial[matLoc + 3].x);
 
-	last.x = UnpackOcculusion(svoMaterial[matLoc + 4].x);
-	last.y = UnpackOcculusion(svoMaterial[matLoc + 5].x);
-	last.z = UnpackOcculusion(svoMaterial[matLoc + 6].x);
-	last.w = UnpackOcculusion(svoMaterial[matLoc + 7].x);
+	last.x = UnpackOcclusion(svoMaterial[matLoc + 4].x);
+	last.y = UnpackOcclusion(svoMaterial[matLoc + 5].x);
+	last.z = UnpackOcclusion(svoMaterial[matLoc + 6].x);
+	last.w = UnpackOcclusion(svoMaterial[matLoc + 7].x);
 
 	// Last level AO value is invalid (it used as avg count)
 	if(depth == dimDepth.y)
@@ -242,7 +242,7 @@ float TripolateOcclusion(in vec3 worldPos,
 }
 
 float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
-{
+{	
 	// Start tracing (stateless start from root (dense))
 	ivec3 voxPos = LevelVoxId(worldPos, dimDepth.y);
 
@@ -293,15 +293,20 @@ float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
 		nodeIndex -= CalculateLevelChildId(voxPos, depth);
 		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] +
 					  nodeIndex;
+
+		//return UnpackOcclusion(svoMaterial[matLoc].x);
 		return TripolateOcclusion(worldPos, depth, matLoc); 
 	}
 }
 
-
 // Shared Mem
-shared float reduceBuffer[BLOCK_SIZE_Y * (BLOCK_SIZE_X / CONE_COUNT)][(CONE_COUNT / 2)]; 
+shared float reduceBuffer[BLOCK_SIZE_Y * (BLOCK_SIZE_X / CONE_COUNT)][(CONE_COUNT / 2)];
+
 void SumPixelOcclusion(inout float totalConeOcclusion)
 {
+	// Transactions are between warp level adjacent values so barrier shouldnt be necessary here
+	// Tho ogl multiplatform solution (this code may not work on other platforms)
+
 	uvec2 localId = gl_LocalInvocationID.xy;
 	uvec2 sMemId = uvec2(localId.y * (BLOCK_SIZE_X / CONE_COUNT) + (localId.x / CONE_COUNT),
 						 localId.x % (CONE_COUNT / 2));
@@ -311,7 +316,7 @@ void SumPixelOcclusion(inout float totalConeOcclusion)
 	// left ones share their data
 	if(pixelConeId >= 2) 
 		reduceBuffer[sMemId.x][sMemId.y] = totalConeOcclusion;
-	memoryBarrierShared();
+	//memoryBarrierShared(); 
 
 	// right ones reduce
 	if(pixelConeId < 2) 
@@ -320,7 +325,7 @@ void SumPixelOcclusion(inout float totalConeOcclusion)
 		totalConeOcclusion += reduceBuffer[sMemId.x][sMemId.y];
 		if(pixelConeId == 1) reduceBuffer[sMemId.x][0] = totalConeOcclusion;
 	}
-	memoryBarrierShared();
+	//memoryBarrierShared();
 	if(pixelConeId == 0) totalConeOcclusion += reduceBuffer[sMemId.x][0];
 }
 
@@ -367,7 +372,7 @@ void main(void)
 
 	// Start sampling towards that direction
 	float totalConeOcclusion = 0.0f;
-	float traversedDistance = 0.1f;	// Dont Start with zero to make sample depth 0
+	float traversedDistance = 0.1f;	// Dont Start with zero
 	while(traversedDistance <= maxDistance)
 	{
 		// Calculate cone sphere diameter at the point
@@ -375,7 +380,7 @@ void main(void)
 		float diameter = coneDiameterRatio * traversedDistance;
 
 		// Select SVO Depth Relative to the current cone radius
-		uint nodeDepth = SpanToDepth(uint(ceil(diameter / worldPosSpan.w)));
+		uint nodeDepth = SpanToDepth(uint(round(diameter / worldPosSpan.w)));
 		nodeDepth = min(nodeDepth, dimDepth.y - cascadeNo);
 
 		//DEBUG
@@ -399,7 +404,8 @@ void main(void)
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDist / (depthMultiplier * worldPosSpan.w));
 		
 		// Occlusion falloff (linear)
-		nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f))); 
+		//nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
+		nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
 		
 		// Average total occlusion value
 		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
@@ -412,9 +418,10 @@ void main(void)
 	// CosTetha multiplication
 	totalConeOcclusion *= dot(worldNorm, coneDir);
 	SumPixelOcclusion(totalConeOcclusion);
-
 	totalConeOcclusion *= 0.25f;
-	//totalConeOcclusion *= 16.0f;
+
+	// Debug intensity
+	totalConeOcclusion *= 1.2f;
 
 
 	// Logic Change (image write)

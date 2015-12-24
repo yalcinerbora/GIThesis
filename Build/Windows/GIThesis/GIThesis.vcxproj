@@ -167,11 +167,13 @@
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
+    <ClCompile Include="..\..\..\Source\SVOTexPool.cpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
     <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp" />
     <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
+    <ClInclude Include="..\..\..\Source\SVOTexPool.h" />
     <ClInclude Include="..\..\..\Source\VoxelCopyToVAO.cuh" />
     <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h" />
     <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h" />

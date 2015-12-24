@@ -28,7 +28,7 @@
 #define SQRT_3	1.732051f
 
 #define RENDER_TYPE_COLOR 0
-#define RENDER_TYPE_OCCULUSION 1
+#define RENDER_TYPE_OCCLUSION 1
 #define RENDER_TYPE_NORMAL 2
 
 // Uniforms
@@ -258,11 +258,10 @@ float FindMarchLength(out vec3 outData,
 			}
 			if(renderType == RENDER_TYPE_COLOR)
 				outData = UnpackColor(svoMaterial[loc].x);				
-			else if(renderType == RENDER_TYPE_OCCULUSION)
+			else if(renderType == RENDER_TYPE_OCCLUSION)
 			{
-				float occ = UnpackOcclusion(svoMaterial[loc].x);
-				if(i == dimDepth.y) occ = ceil(occ);
-				outData = vec3(1.0f - occ);
+				outData = vec3(UnpackOcclusion(svoMaterial[loc].x));
+				if(i == dimDepth.y) outData = ceil(outData);
 			}
 			else if(renderType == RENDER_TYPE_NORMAL)
 				outData = UnpackNormal(svoMaterial[loc].y);
@@ -324,6 +323,7 @@ void main(void)
 		// March Length zero, we hit a point
 		if(marchLength == 0.0f)
 		{
+			if(renderType == RENDER_TYPE_OCCLUSION) colorOut = 1.0f - colorOut;
 			imageStore(fbo, ivec2(globalId), vec4(colorOut, 0.0f)); 
 			return;
 		}

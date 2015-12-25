@@ -559,7 +559,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		case GI_DEFERRED:
 		{
 			dRenderer.Render(*currentScene, mainRenderCamera);
-			dRenderer.ShowColorGBuffer(mainRenderCamera);
+		//	dRenderer.ShowColorGBuffer(mainRenderCamera);
 			break;
 		}
 		case GI_LIGHT_INTENSITY:

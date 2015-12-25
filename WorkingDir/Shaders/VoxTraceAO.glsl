@@ -377,7 +377,7 @@ void main(void)
 	{
 		// Calculate cone sphere diameter at the point
 		vec3 coneRelativeLoc = coneDir * traversedDistance;
-		float diameter = coneDiameterRatio * traversedDistance;
+		float diameter = max(gripSpanSize, coneDiameterRatio * traversedDistance);
 
 		// Select SVO Depth Relative to the current cone radius
 		uint nodeDepth = SpanToDepth(uint(round(diameter / worldPosSpan.w)));

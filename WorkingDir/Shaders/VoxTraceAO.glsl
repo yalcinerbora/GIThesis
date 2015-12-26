@@ -306,7 +306,6 @@ void SumPixelOcclusion(inout float totalConeOcclusion)
 {
 	// Transactions are between warp level adjacent values so barrier shouldnt be necessary here
 	// Tho ogl multiplatform solution (this code may not work on other platforms)
-
 	uvec2 localId = gl_LocalInvocationID.xy;
 	uvec2 sMemId = uvec2(localId.y * (BLOCK_SIZE_X / CONE_COUNT) + (localId.x / CONE_COUNT),
 						 localId.x % (CONE_COUNT / 2));
@@ -404,8 +403,8 @@ void main(void)
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDist / (depthMultiplier * worldPosSpan.w));
 		
 		// Occlusion falloff (linear)
-		//nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
-		nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
+		nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
+		//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
 		
 		// Average total occlusion value
 		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
@@ -422,8 +421,7 @@ void main(void)
 
 	// Debug intensity
 	totalConeOcclusion *= 1.2f;
-
-
+	
 	// Logic Change (image write)
 	if(globalId.x % CONE_COUNT == 0)
 	{

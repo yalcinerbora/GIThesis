@@ -25,15 +25,16 @@
 #define T_DEPTH layout(binding = 2)
 
 #define CONE_COUNT 4
-#define BLOCK_SIZE_XY 16
-#define SAMPLE_PER_PIXEL_XY 3 // 3 * 3 coverage points
+#define BLOCK_SIZE_X 32
+#define BLOCK_SIZE_Y 8
+#define SURF_DIM_XY 3 // 3 * 3 coverage points
 
 // Uniforms
-uniform vec2 CONE_ORTHO_FACTOR[4] = 
+uniform vec2 CONE_ORTHO[4] = 
 {
-	vec2( 0.0f, 0.0f),
-    vec2( 0.0f, 1.0f),
-    vec2( 1.0f, 0.0f),
+	vec2( -1.0f, -1.0f),
+    vec2( -1.0f, 1.0f),
+    vec2( 1.0f, -1.0f),
     vec2( 1.0f, 1.0f)
 };
 
@@ -71,21 +72,6 @@ U_SVO_CONSTANTS uniform SVOConstants
 	uvec4 offsetCascade;
 };
 
-U_CONE_PARAMS uniform ConeTraceParams
-{
-	// x max traverse distance
-	// y tangent(ConeAngle)
-	// z tangent(ConeAngle / 2)
-	// w sample ratio
-	vec4 coneParams1;
-	
-	// x is intensity factor
-	// y sqrt2 (to determine surface lengths)
-	// z empty
-	// w empty
-	vec4 coneParams2;
-};
-
 U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
@@ -102,6 +88,21 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 	vec4 depthNearFar;	// depth range params (last two unused)
 };
 
+U_CONE_PARAMS uniform ConeTraceParameters
+{
+	// x max traverse distance
+	// y tangent(coneAngle)
+	// z tangent(coneAngle * 0.5f)
+	// w sample ratio;
+	vec4 coneParams1;
+
+	// x intensity
+	// y sqrt2
+	// z empty
+	// w empty
+	vec4 coneParams2;
+};
+
 // Textures
 uniform I_LIGHT_INENSITY image2D liTex;
 
@@ -109,8 +110,7 @@ uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
 
 // Surfaces traced by each pixel
-shared uvec2 surface [(BLOCK_SIZE_XY / 2) * SAMPLE_PER_PIXEL_XY]
-					 [(BLOCK_SIZE_XY / 2) * SAMPLE_PER_PIXEL_XY];
+shared uvec2 surface [BLOCK_SIZE_Y][(BLOCK_SIZE_X / CONE_COUNT) * SURF_DIM_XY * SURF_DIM_XY];
 
 // Functions
 vec3 DepthToWorld(vec2 gBuffUV)
@@ -152,11 +152,12 @@ uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
 
 vec3 UnpackColor(in uint colorPacked)
 {
-	vec3 color;
-	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
-	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
-	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
-	return color;
+	//vec3 color;
+	//color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
+	//color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
+	//color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
+	//return color;
+	return unpackUnorm4x8(colorPacked).xyz;
 }
 
 vec3 UnpackNormalGBuff(in uvec2 norm)
@@ -193,6 +194,45 @@ void SampleSurface()
 }
 
 // SVO Fetch
+float TripolateOcclusion(in vec3 worldPos,
+						 in uint depth,
+						 in uint matLoc)
+{
+	// Bigass fetch (its fast tho L1 cache doing work! on GPU!!!)
+	vec4 first, last;
+	first.x = UnpackOcclusion(svoMaterial[matLoc + 0].x);
+	first.y = UnpackOcclusion(svoMaterial[matLoc + 1].x);
+	first.z = UnpackOcclusion(svoMaterial[matLoc + 2].x);
+	first.w = UnpackOcclusion(svoMaterial[matLoc + 3].x);
+
+	last.x = UnpackOcclusion(svoMaterial[matLoc + 4].x);
+	last.y = UnpackOcclusion(svoMaterial[matLoc + 5].x);
+	last.z = UnpackOcclusion(svoMaterial[matLoc + 6].x);
+	last.w = UnpackOcclusion(svoMaterial[matLoc + 7].x);
+
+	// Last level AO value is invalid (it used as avg count)
+	if(depth == dimDepth.y)
+	{
+		first = ceil(first);
+		last = ceil(last);
+	}
+
+	ivec3 voxPosLevel = LevelVoxId(worldPos, depth - 1);
+	vec3 voxPosWorld = worldPosSpan.xyz + vec3(voxPosLevel) * (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
+	voxPosWorld = (worldPos - voxPosWorld) / (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
+
+	vec4 lerpBuff;
+	lerpBuff.x = mix(first.x, first.y, voxPosWorld.x);
+	lerpBuff.y = mix(first.z, first.w, voxPosWorld.x);
+	lerpBuff.z = mix(last.x, last.y, voxPosWorld.x);
+	lerpBuff.w = mix(last.z, last.w, voxPosWorld.x);
+
+	lerpBuff.x = mix(lerpBuff.x, lerpBuff.y, voxPosWorld.y);
+	lerpBuff.y = mix(lerpBuff.z, lerpBuff.w, voxPosWorld.y);
+
+	lerpBuff.x = mix(lerpBuff.x, lerpBuff.y, voxPosWorld.z);
+	return lerpBuff.x;
+}
 float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 {	
 	// Start tracing (stateless start from root (dense))
@@ -204,7 +244,6 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 		return 0;
 
 	// Tripolation is different if its sparse or dense
-	// Fetch from 3D Tex here
 	if(depth <= dimDepth.w)
 	{
 		// TODO:
@@ -225,28 +264,117 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 										svoLevelOffset[i - dimDepth.w] +
 										nodeIndex];
 
-			// Node check
-			// If valued node go deeper else return no occlusion
-			if(newNodeIndex == 0xFFFFFFFF) return 0;
-			else nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
+			// Node check (Empty node also not leaf)
+			// Means object does not
+			if(newNodeIndex == 0xFFFFFFFF)
+			{
+				//nodeIndex -= CalculateLevelChildId(voxPos, i);
+				//uint matLoc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
+				//return TripolateOcclusion(worldPos, i, matLoc);
+				return 0;
+			}
+			else
+			{
+				// Node has value
+				// Go deeper
+				nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
+			}
 		}
 		// Finally At requested level
+		// BackTrack From Child
+		nodeIndex -= CalculateLevelChildId(voxPos, depth);
 		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] +
 					  nodeIndex;
-		return UnpackOcclusion(svoMaterial[matLoc].x);
+
+		//return UnpackOcclusion(svoMaterial[matLoc].x);
+		return TripolateOcclusion(worldPos, depth, matLoc); 
 	}
 }
 
-void SumPixelOcclusion(inout float totalConeOcclusion)
-{
+//float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
+//{	
+//	// Start tracing (stateless start from root (dense))
+//	ivec3 voxPos = LevelVoxId(worldPos, dimDepth.y);
 
+//	// Cull if out of bounds
+//	if(any(lessThan(voxPos, ivec3(0))) ||
+//	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
+//		return 0;
+
+//	// Tripolation is different if its sparse or dense
+//	// Fetch from 3D Tex here
+//	if(depth <= dimDepth.w)
+//	{
+//		// TODO:
+//		return 0.0f;
+//	}
+//	else
+//	{
+//		ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
+//		uint nodeIndex = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
+//								 denseVox.y * dimDepth.z + 
+//								 denseVox.x];
+//		if(nodeIndex == 0xFFFFFFFF) return 0.0f;
+//		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
+//		for(uint i = dimDepth.w + 1; i < depth; i++)
+//		{
+//			// Fetch Next Level
+//			uint newNodeIndex = svoNode[offsetCascade.y +
+//										svoLevelOffset[i - dimDepth.w] +
+//										nodeIndex];
+
+//			// Node check
+//			// If valued node go deeper else return no occlusion
+//			if(newNodeIndex == 0xFFFFFFFF) return 1.0f;
+//			else nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
+//		}
+//		// Finally At requested level
+//		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] +
+//					  nodeIndex;
+//		return UnpackOcclusion(svoMaterial[matLoc].x);
+//	}
+//}
+
+void SumPixelData(inout vec4 coneColorOcc)
+{
+	// Use Surface Shared Mem since allocation may reduce occupancy
+	// (probably will reduce on kepler (or previous) cards we are on around 6kb limit)
+
+	// Transactions are between warp level adjacent values 
+	// so barrier shouldnt be necessary
+	uvec2 localId = gl_LocalInvocationID.xy;
+	uvec2 pixId = uvec2(localId.y, localId.x / CONE_COUNT);
+	uint pixelConeId = localId.x % CONE_COUNT;
+
+	// left ones share their data
+	if(pixelConeId >= (CONE_COUNT / 2))
+	{
+		surface[pixId.y][pixId.x][pixelConeId - (CONE_COUNT / 2)] = packUnorm4x8(coneColorOcc);
+	}
+	
+	// right ones reduce
+	if(pixelConeId < (CONE_COUNT / 2)) 
+	{
+		// Lerp it at the middle (weighted avg)
+		vec4 neigbour = unpackUnorm4x8(surface[pixId.y][pixId.x][pixelConeId]);
+		coneColorOcc = mix(coneColorOcc, neigbour, 0.5f);
+	}
+
+	if(pixelConeId == 1) 
+		surface[pixId.y][pixId.x][0] = packUnorm4x8(coneColorOcc);
+	
+	if(pixelConeId == 0) 
+	{
+		vec4 neigbour = unpackUnorm4x8(surface[pixId.y][pixId.x][0]);
+		coneColorOcc = mix(coneColorOcc, neigbour, 0.5f);
+	}
 }
 
 void StoreSurface(in vec3 edgeMin, in vec3 edgeMax)
 {
 	//uint nodeDepth = SpanToDepth(uint(round(diameter / worldPosSpan.w)));;
-	float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
-	float currentVoxelSize = worldPosSpan.w * depthMultiplier;
+	//float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
+	//float currentVoxelSize = worldPosSpan.w * depthMultiplier;
 
 	// Fetch Surface
 	// Each Pixel needs to fetch 3x3 coverage points
@@ -273,10 +401,10 @@ float SampleSurface(in vec3 position)
 {
 	// Determine ratios of the sampling points
 	// Average samples according to this position
-			
+	return 0.0f;			
 }
 
-layout (local_size_x = BLOCK_SIZE_XY, local_size_y = BLOCK_SIZE_XY, local_size_z = 1) in;
+layout (local_size_x = BLOCK_SIZE_X, local_size_y = BLOCK_SIZE_Y, local_size_z = 1) in;
 void main(void)
 {
 	// Thread Logic is per cone per pixel
@@ -286,6 +414,15 @@ void main(void)
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
 	vec2 gBuffUV = vec2(pixelId + vec2(0.5f) - viewport.xy) / viewport.zw;
+
+
+	// DEBUG
+	//float z = texture(gBuffDepth, gBuffUV).x;
+	//float n = 0.15f;
+	//float f = 600.0f;
+	//float c = (2.0 * n) / (f + n - z * (f - n));
+	//vec3 worldPos = vec3(c);
+
 	vec3 worldPos = DepthToWorld(gBuffUV);
 	vec3 worldNorm = UnpackNormalGBuff(texture(gBuffNormal, gBuffUV).xy);
 
@@ -295,7 +432,7 @@ void main(void)
 	vec3 diff = abs(worldPos - gridCenter) / (worldPosSpan.w * (dimDepth.x >> offsetCascade.x));
 	uvec3 cascades = findMSB(uvec3(diff)) + 1;
 	uint cascadeNo = uint(max(cascades.x, max(cascades.y, cascades.z)));
-	float cascadeSpan = worldPos.Span.w * (0x1 << cascadeNo);
+	float cascadeSpan = worldPosSpan.w * (0x1 << cascadeNo);
 
 	// Find Edge vectors from normal
 	// [(-z-y) / x, 1, 1] is perpendicular (unless normal is X axis)
@@ -308,24 +445,27 @@ void main(void)
 	vec3 edgeMin = normalize(worldNorm - ortho1 * coneParams1.y - ortho2 * coneParams1.y);
 	vec3 edgeMax = normalize(worldNorm + ortho1 * coneParams1.y + ortho2 * coneParams1.y);
 	vec3 coneDir = normalize(worldNorm + 
-							 ortho1 * coneParams1.z * CONE_ORTHO_FACTOR[globalId.x % CONE_COUNT] + 
-							 ortho2 * coneParams1.z * CONE_ORTHO_FACTOR[globalId.x % CONE_COUNT]);
+							 ortho1 * coneParams1.z * CONE_ORTHO[globalId.x % CONE_COUNT].x + 
+							 ortho2 * coneParams1.z * CONE_ORTHO[globalId.x % CONE_COUNT].y);
 
 	// Previous surface point and occlusion data
 	float totalConeOcclusion = 0.0f;
-	float prevOccValue = 0.0f;
+	float prevOcclusion = 0.0f;
 	float prevSurfPoint = 0.0f;
 
 	// Start sampling towards that direction
 	// Loop Traverses until MaxDistance Exceeded
 	// March distance is variable per iteration
-	float marchDistance = gripSpanSize;
-	for(float traversedDistance = gripSpanSize;
+	float marchDistance = cascadeSpan;
+	for(float traversedDistance = cascadeSpan;
 		traversedDistance <= coneParams1.x;
 		traversedDistance += marchDistance)
 	{
-		float diameter = max(gripSpanSize, coneParams1.z * 2.0f * traversedDistance);
-		
+		// Current Cone Sample Diameter
+		// and its corresponding depth
+		float diameter = max(cascadeSpan, coneParams1.z * 2.0f * traversedDistance);
+		uint nodeDepth = SpanToDepth(uint(round(diameter / worldPosSpan.w)));
+
 		// Determine Coverage Span of the surface 
 		// (wrt cone angle and distance from pixel)
 		// And Store 3x3 voxels
@@ -334,16 +474,28 @@ void main(void)
 		vec3 surfMax = edgeMax * surfacePoint;
 		StoreSurface(surfMin, surfMax);
 		
-		// start sampling from that surface (interpolate
-		float surfOcclusion = SampleSurface(coneDir * traversedDistance);
+		// start sampling from that surface (interpolate)
+		//float surfOcclusion = SampleSurface(coneDir * traversedDistance);
+		float surfOcclusion = FetchSVOOcclusion(worldPos + coneDir * traversedDistance,
+												nodeDepth);
+
+		
+
+		// Omit if %100 occuluded in closer ranges
+		// Since its not always depth pos aligned with voxel pos
+		bool isOmitDistance = (surfOcclusion > 0.0f) &&
+							  (traversedDistance < (1.732f * cascadeSpan));
+		surfOcclusion = isOmitDistance ? 0.0f : surfOcclusion;
 
 		// than interpolate with your previous surface's value to simulate quadlinear interpolation
-		float ratio = (traversedDistance - prevSurfPoint) / (surfacePoint - prevSurfPoint)
+		float ratio = (traversedDistance - prevSurfPoint) / (surfacePoint - prevSurfPoint);
 		float nodeOcclusion = mix(prevOcclusion, surfOcclusion, ratio);
+		//float nodeOcclusion = surfOcclusion;
 		
 		// do AO calculations from this value (or values)
 		// Correction Term to prevent intersecting samples error
-		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDist / currentVoxelSize);
+		float diameterVoxelSize = worldPosSpan.w * (0x1 << (dimDepth.y - nodeDepth));
+		//nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDistance / diameterVoxelSize);
 		
 		// Occlusion falloff (linear)
 		nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
@@ -357,17 +509,21 @@ void main(void)
 		prevSurfPoint = surfacePoint;
 
 		// Advance sample point (from sampling diameter)
-		marchDist = diameter * coneParams1.w;
+		marchDistance = diameter * coneParams1.w;
 	}
-	totalConeOcclusion *= dot(worldNorm, coneDir);
+	// Cos tetha multiplication
+	totalConeOcclusion *= dot(worldNorm, coneDir) + coneParams2.x;
 	
 	// Sum occlusion data
 	// CosTetha multiplicatio
-	SumPixelOcclusion(totalConeOcclusion);
-	totalConeOcclusion *= 0.25f + coneParams2.x;
+	vec4 result = vec4(totalConeOcclusion);
+	SumPixelData(result);
 	
 	// All Done!
-	if(globalId.x % CONE_COUNT == 0)
-		imageStore(liTex, ivec2(pixelId), 
-				   vec4(vec3(1.0f - totalConeOcclusion), 0.0f));		
+	if(globalId.x % CONE_COUNT == 0) 
+		imageStore(liTex, ivec2(pixelId), 1.0f - result);
+		////imageStore(liTex, ivec2(pixelId), vec4(vec3(1.0f - totalConeOcclusion), 0.0f));
+		//imageStore(liTex, ivec2(pixelId), vec4(worldPos, 0.0f));
+		////imageStore(liTex, ivec2(pixelId), vec4(worldNorm, 0.0f));
+	
 }

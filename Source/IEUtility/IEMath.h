@@ -15,6 +15,7 @@ namespace IEMath
 	const float PISqr = PI * PI;
 	const float InvPI = 1.0f / PI;
 	const float InvPISqr = 1.0f / (PI * PI);
+	const float Sqrt2 = 1.4142135f;
 
 	// E Stuff
 	const float E = 3.14159265f;

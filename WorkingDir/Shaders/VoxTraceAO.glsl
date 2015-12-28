@@ -31,7 +31,6 @@
 
 // Static cone count for faster implementation (prob i'll switch shaders instead of dynamically writing it)
 #define CONE_COUNT 4		// Total cone count
-#define TRACE_RATIO 1
 #define SQRT3 1.732f
 
 uniform vec2 CONE_ID_MAP[ 4 ] = 
@@ -142,11 +141,12 @@ uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
 
 vec3 UnpackColor(in uint colorPacked)
 {
-	vec3 color;
-	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
-	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
-	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
-	return color;
+	//vec3 color;
+	//color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
+	//color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
+	//color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
+	//return color;
+	return unpackUnorm4x8(colorPacked).xyz;
 }
 
 vec3 UnpackNormalGBuff(in uvec2 norm)
@@ -173,32 +173,6 @@ vec3 UnpackNormalSVO(in uint voxNormPosY)
 float UnpackOcclusion(in uint colorPacked)
 {
 	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
-}
-
-vec3 InterpolatePos(in vec3 worldPos)
-{
-	// Interpolate position if gBufferTex > traceTex
-	if(TRACE_RATIO == 1) return worldPos;
-	else
-	{
-		// TODO: Implement
-		// Use sibling cone threads and shared memory to reduce neigbouring pixels
-		// dimensional difference has to be power of two
-		return worldPos;
-	}
-}
-
-vec3 InterpolateNormal(in vec3 worldNormal)
-{
-	
-	if(TRACE_RATIO == 1) return worldNormal;
-	else
-	{
-		// TODO: Implement
-		// Use sibling cone threads and shared memory to reduce neigbouring pixels
-		// dimensional difference has to be power of two
-		return worldNormal;
-	}
 }
 
 float TripolateOcclusion(in vec3 worldPos,
@@ -340,8 +314,6 @@ void main(void)
 	vec2 gBuffUV = vec2(pixelId + vec2(0.5f) - viewport.xy) / viewport.zw;
 	vec3 worldPos = DepthToWorld(gBuffUV);
 	vec3 worldNorm = UnpackNormalGBuff(texture(gBuffNormal, gBuffUV).xy);
-	worldPos = InterpolatePos(worldPos); 
-	worldNorm = InterpolateNormal(worldNorm);
 
 	// Determine cascade
 	vec3 gridCenter = worldPosSpan.xyz + worldPosSpan.w * (dimDepth.x >> 1);
@@ -355,7 +327,7 @@ void main(void)
 	// get and arbitrarty perpendicaular vector towards normal (N dot A = 0)
 	// [(-z-y) / x, 1, 1] is one of those vectors (unless normal is X axis)
 	vec3 ortho1 = normalize(vec3(-(worldNorm.z + worldNorm.y) / worldNorm.x, 1.0f, 1.0f));
-	if(worldNorm.x == 1.0f) ortho1 = vec3(0.0f, 1.0f, 0.0f);
+	ortho1 = mix(ortho1, vec3(0.0f, 1.0f, 0.0f), floor(worldNorm.x));
 	vec3 ortho2 = normalize(cross(worldNorm, ortho1));
 
 	// Determine your cone's direction
@@ -425,7 +397,9 @@ void main(void)
 	// Logic Change (image write)
 	if(globalId.x % CONE_COUNT == 0)
 	{
-		imageStore(liTex, ivec2(pixelId), vec4(vec3(1.0f - totalConeOcclusion), 0.0f));
+		//imageStore(liTex, ivec2(pixelId), vec4(vec3(1.0f - totalConeOcclusion), 0.0f));
+		imageStore(liTex, ivec2(pixelId), vec4(worldPos, 0.0f));
+		//imageStore(liTex, ivec2(pixelId), vec4(worldNorm, 0.0f));
 		//imageStore(liTex, ivec2(pixelId), vec4(coneDir, 0.0f));
 	}
 		

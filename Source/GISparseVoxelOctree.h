@@ -59,6 +59,21 @@ struct SVOTraceData
 	uint4 offsetCascade;
 };
 
+struct SVOConeParams
+{
+	// x max traverse distance
+	// y tangent(ConeAngle)
+	// z tangent(ConeAngle / 2)
+	// w sample ratio
+	float4 coneParams1;
+
+	// x is intensity factor
+	// y sqrt2 (to determine surface lengths)
+	// z empty
+	// w empty
+	float4 coneParams2;
+};
+
 struct InvFrameTransform;
 
 class GISparseVoxelOctree
@@ -84,6 +99,7 @@ class GISparseVoxelOctree
 
 		// Rendering Helpers
 		StructuredBuffer<SVOTraceData>			svoTraceData;
+		StructuredBuffer<SVOConeParams>			svoConeParams;
 
 		// SVO Ptrs
 		CSVOMaterial*							dSVOMaterial;
@@ -115,6 +131,7 @@ class GISparseVoxelOctree
 		Shader									computeVoxTraceWorld;
 		Shader									computeVoxTraceDeferred;
 		Shader									computeAO;
+		Shader									computeAOSurf;
 
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
@@ -151,6 +168,12 @@ class GISparseVoxelOctree
 																 float coneAngle,
 																 float maxDistance,
 																 float sampleDistanceRatio);
+		double									AmbientOcclusionSurf(DeferredRenderer& dRenderer,
+																	 const Camera& camera,
+																	 float coneAngle,
+																	 float maxDistance,
+																	 float sampleDistanceRatio,
+																	 float intensityFactor);
 
 		double									DebugTraceSVO(DeferredRenderer&,
 															  const Camera& camera,

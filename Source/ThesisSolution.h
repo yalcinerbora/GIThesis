@@ -51,6 +51,22 @@ enum ThesisRenderScheme
 	GI_END,
 };
 
+class AOBar
+{
+	public:
+	TwBar* bar;
+	float angleDegree;
+	float sampleFactor;
+	float maxDistance;
+	float intensity;
+	bool hidden;
+
+	AOBar();
+	~AOBar();
+
+	void HideBar(bool);
+};
+
 struct VoxelObjectCache
 {
 	StructuredBuffer<ObjGridInfo>			objectGridInfo;
@@ -193,6 +209,7 @@ class ThesisSolution : public SolutionI
 		static const size_t		MaxVoxelCacheSize1024;
 		static const size_t		MaxVoxelCacheSize512;
 
+		AOBar					aoBar;
 		void					LevelIncrement();
 		void					LevelDecrement();
 		void					TraceTypeInc();

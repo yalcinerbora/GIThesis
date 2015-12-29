@@ -25,6 +25,51 @@ const TwEnumVal ThesisSolution::renderSchemeVals[] =
 	{ GI_VOXEL_CACHE512, "Render Voxel Cache 512" }
 };
 
+AOBar::AOBar()
+ : angleDegree(10.0f)
+ , sampleFactor(1.0f)
+ , maxDistance(50.0f)
+ , intensity(1.0f)
+ , bar(nullptr)
+ , hidden(true)
+{
+	bar = TwNewBar("AOBar");
+	TwDefine(" AOBar visible = false ");
+	TwAddVarRW(bar, "cAngle", TW_TYPE_FLOAT, &angleDegree,
+			   " label='Cone Angle' help='Cone Angle' "
+			   " min=1.0 max=90.0 step= 0.01 ");
+	TwAddVarRW(bar, "sFactor", TW_TYPE_FLOAT, &sampleFactor,
+			   " label='Sample Factor' help='Adjusts Sampling Rate' "
+			   " min=0.5 max=10.0 step=0.01 ");
+	TwAddVarRW(bar, "maxDist", TW_TYPE_FLOAT, &maxDistance,
+			   " label='Max Distance' help='Maximum Cone Trace Distance' "
+			   " min=10.0 max=300.0 step=0.1 ");
+	TwAddVarRW(bar, "intensity", TW_TYPE_FLOAT, &intensity,
+			   " label='Intensity' help='Occlusion Intensity' "
+			   " min=0.5 max=5.0 step=0.01 ");
+	TwDefine(" AOBar valueswidth=fit ");
+	TwDefine(" AOBar position='20 500' ");
+	TwDefine(" AOBar size='220 100' ");
+}
+
+void AOBar::HideBar(bool hide)
+{
+	if(hide != hidden)
+	{
+		if(hide)
+			TwDefine(" AOBar visible=false ");
+		else
+			TwDefine(" AOBar visible=true ");
+		hidden = hide;
+	}
+}
+
+AOBar::~AOBar()
+{
+	if(bar) TwDeleteBar(bar);
+	bar = nullptr;
+}
+
 ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& intialCamPos)
 	: currentScene(nullptr)
 	, dRenderer(dRenderer)
@@ -553,6 +598,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		voxelCaches[i].voxOctreeSize = static_cast<double>(voxelCaches[i].voxOctreeCount * sizeof(uint32_t) * 4) / 1024 / 1024;
 	}
 
+
+	aoBar.HideBar(true);
 	// Here check TW Bar if user wants to render voxels
 	switch(renderScheme)
 	{
@@ -564,6 +611,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		}
 		case GI_LIGHT_INTENSITY:
 		{
+			aoBar.HideBar(false);
+				
 	//		dRenderer.Render(*currentScene, mainRenderCamera);
 	//		dRenderer.ShowLIBuffer(mainRenderCamera);
 		
@@ -578,10 +627,10 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			(
 				dRenderer,
 				mainRenderCamera,
-				IEMath::ToRadians(25.0f),
-				75.0f,
-				1.0f,
-				1.2f
+				IEMath::ToRadians(aoBar.angleDegree),
+				aoBar.maxDistance,
+				aoBar.sampleFactor,
+				aoBar.intensity
 			);
 
 			break;

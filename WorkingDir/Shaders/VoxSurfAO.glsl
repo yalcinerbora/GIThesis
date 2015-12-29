@@ -227,18 +227,7 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 
 			// Node check
 			// If valued node go deeper else return no occlusion
-			if(newNodeIndex == 0xFFFFFFFF)
-			{
-				// we may be asking too deep of a value thus check
-				// if depth > 0
-				if(depth > dimDepth.y - offsetCascade.x + 1)
-				{
-					depth = i;
-					break;
-				}
-				else
-					return 0.0f;
-			}
+			if(newNodeIndex == 0xFFFFFFFF) return 0.0f;
 			else nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
 		}
 		// Finally At requested level
@@ -361,16 +350,16 @@ void main(void)
 	float totalConeOcclusion = 0.0f;
 	float prevOcclusion = 0.0f;
 	float prevSurfPoint = 0.0f;
-	
+
 	// Initally Start the cone away from the surface since 
 	// voxel system and polygon system are not %100 aligned
-	//worldPos += coneDir * cascadeSpan * coneParams2.z;
+	worldPos += coneDir * cascadeSpan * coneParams2.z;
 
 	// Start sampling towards that direction
 	// Loop Traverses until MaxDistance Exceeded
 	// March distance is variable per iteration
 	float marchDistance = cascadeSpan;
-	for(float traversedDistance = 0;//cascadeSpan;
+	for(float traversedDistance = cascadeSpan;
 		traversedDistance <= coneParams1.x;
 		traversedDistance += marchDistance)
 	{
@@ -399,8 +388,8 @@ void main(void)
 
 		// than interpolate with your previous surface's value to simulate quadlinear interpolation
 		float ratio = (traversedDistance - prevSurfPoint) / (surfacePoint - prevSurfPoint);
-		//float nodeOcclusion = mix(prevOcclusion, surfOcclusion, ratio);
-		float nodeOcclusion = surfOcclusion;
+		float nodeOcclusion = mix(prevOcclusion, surfOcclusion, ratio);
+		//float nodeOcclusion = surfOcclusion;
 		
 		// do AO calculations from this value (or values)
 		// Correction Term to prevent intersecting samples error
@@ -408,8 +397,8 @@ void main(void)
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDistance / diameterVoxelSize);
 		
 		// Occlusion falloff (linear)
-		//nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
-		nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
+		nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
+		//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
 
 		// Average total occlusion value
 		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;

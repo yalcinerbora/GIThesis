@@ -69,7 +69,7 @@ struct SVOConeParams
 
 	// x is intensity factor
 	// y sqrt2 (to determine surface lengths)
-	// z empty
+	// z sqrt3 (worst case diagonal factor)
 	// w empty
 	float4 coneParams2;
 };

@@ -578,10 +578,10 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			(
 				dRenderer,
 				mainRenderCamera,
-				IEMath::ToRadians(15.0f),
+				IEMath::ToRadians(25.0f),
 				75.0f,
 				1.0f,
-				1.1f
+				1.2f
 			);
 
 			break;

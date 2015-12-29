@@ -98,7 +98,7 @@ U_CONE_PARAMS uniform ConeTraceParameters
 
 	// x intensity
 	// y sqrt2
-	// z empty
+	// z sqrt3
 	// w empty
 	vec4 coneParams2;
 };
@@ -219,22 +219,37 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 								 denseVox.x];
 		if(nodeIndex == 0xFFFFFFFF) return 0.0f;
 		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
+
 		for(uint i = dimDepth.w + 1; i < depth; i++)
 		{
 			// Fetch Next Level
-			uint newNodeIndex = svoNode[offsetCascade.y +
-										svoLevelOffset[i - dimDepth.w] +
-										nodeIndex];
+			uint newNodeIndex = svoNode[offsetCascade.y + svoLevelOffset[i - dimDepth.w] + nodeIndex];
 
 			// Node check
 			// If valued node go deeper else return no occlusion
-			if(newNodeIndex == 0xFFFFFFFF) return 0.0f;
+			if(newNodeIndex == 0xFFFFFFFF)
+			{
+				// we may be asking too deep of a value thus check
+				// if depth > 0
+				if(depth > dimDepth.y - offsetCascade.x + 1)
+				{
+					depth = i;
+					break;
+				}
+				else
+					return 0.0f;
+			}
 			else nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
 		}
 		// Finally At requested level
-		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] +
-					  nodeIndex;
-		return UnpackOcclusion(svoMaterial[matLoc].x);
+		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] + nodeIndex;
+		if(depth != dimDepth.y)
+			return UnpackOcclusion(svoMaterial[matLoc].x);
+		else
+		{
+			float occ = UnpackOcclusion(svoMaterial[matLoc].x);
+			return ceil(occ);
+		}
 	}
 }
 
@@ -263,7 +278,7 @@ void SumPixelData(inout vec4 coneColorOcc)
 		coneColorOcc = mix(coneColorOcc, neigbour, 0.5f);
 	}
 
-	if(pixelConeId == 1) 
+	if(pixelConeId == 1)
 		surface[pixId.y][pixId.x][0] = packUnorm4x8(coneColorOcc);
 	
 	if(pixelConeId == 0) 
@@ -327,7 +342,7 @@ void main(void)
 	uvec3 cascades = findMSB(uvec3(diff)) + 1;
 	uint cascadeNo = uint(max(cascades.x, max(cascades.y, cascades.z)));
 	float cascadeSpan = worldPosSpan.w * (0x1 << cascadeNo);
-
+	
 	// Find Edge vectors from normal
 	// [(-z-y) / x, 1, 1] is perpendicular (unless normal is X axis)
 	// handle special case where normal is (1.0f, 0.0f, 0.0f)
@@ -347,16 +362,15 @@ void main(void)
 	float prevOcclusion = 0.0f;
 	float prevSurfPoint = 0.0f;
 	
-	
-	//worldPos += coneDir * cascadeSpan * coneParams2.y * 1.2f;
-		
-
+	// Initally Start the cone away from the surface since 
+	// voxel system and polygon system are not %100 aligned
+	//worldPos += coneDir * cascadeSpan * coneParams2.z;
 
 	// Start sampling towards that direction
 	// Loop Traverses until MaxDistance Exceeded
 	// March distance is variable per iteration
 	float marchDistance = cascadeSpan;
-	for(float traversedDistance = cascadeSpan;
+	for(float traversedDistance = 0;//cascadeSpan;
 		traversedDistance <= coneParams1.x;
 		traversedDistance += marchDistance)
 	{
@@ -380,9 +394,8 @@ void main(void)
 
 		// Omit if %100 occuluded in closer ranges
 		// Since its not always depth pos aligned with voxel pos
-//		bool isOmitDistance = (surfOcclusion > 0.0f) &&
-//							  (traversedDistance < (1.732f * cascadeSpan));
-//		surfOcclusion = isOmitDistance ? 0.0f : surfOcclusion;
+	//	bool isOmitDistance = (surfOcclusion > 0.9f) && (traversedDistance < (coneParams2.z * worldPosSpan.w * (0x1 << offsetCascade.x - 1)));
+	//	surfOcclusion = isOmitDistance ? 0.0f : surfOcclusion;		
 
 		// than interpolate with your previous surface's value to simulate quadlinear interpolation
 		float ratio = (traversedDistance - prevSurfPoint) / (surfacePoint - prevSurfPoint);
@@ -395,8 +408,8 @@ void main(void)
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDistance / diameterVoxelSize);
 		
 		// Occlusion falloff (linear)
-		nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
-		//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
+		//nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
+		nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
 
 		// Average total occlusion value
 		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;

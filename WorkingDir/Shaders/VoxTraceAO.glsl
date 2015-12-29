@@ -268,7 +268,6 @@ float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
 		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] +
 					  nodeIndex;
 
-		//return UnpackOcclusion(svoMaterial[matLoc].x);
 		return TripolateOcclusion(worldPos, depth, matLoc); 
 	}
 }
@@ -339,7 +338,7 @@ void main(void)
 	float coneDiameterRatio = tan(coneAngle * 0.5f) * 2.0f;
 
 	float gripSpanSize = worldPosSpan.w * (0x1 <<  cascadeNo);
-	worldPos += coneDir * gripSpanSize;
+	//worldPos += coneDir * gripSpanSize;
 
 	// Start sampling towards that direction
 	float totalConeOcclusion = 0.0f;
@@ -397,8 +396,8 @@ void main(void)
 	// Logic Change (image write)
 	if(globalId.x % CONE_COUNT == 0)
 	{
-		//imageStore(liTex, ivec2(pixelId), vec4(vec3(1.0f - totalConeOcclusion), 0.0f));
-		imageStore(liTex, ivec2(pixelId), vec4(worldPos, 0.0f));
+		imageStore(liTex, ivec2(pixelId), vec4(vec3(1.0f - totalConeOcclusion), 0.0f));
+		//imageStore(liTex, ivec2(pixelId), vec4(worldPos, 0.0f));
 		//imageStore(liTex, ivec2(pixelId), vec4(worldNorm, 0.0f));
 		//imageStore(liTex, ivec2(pixelId), vec4(coneDir, 0.0f));
 	}

@@ -499,7 +499,7 @@ double GISparseVoxelOctree::AmbientOcclusionSurf(DeferredRenderer& dRenderer,
 	svoConeParams.CPUData()[0] =
 	{
 		{maxDistance, std::tan(coneAngle), std::tan(coneAngle * 0.5f), sampleDistanceRatio},
-		{intensityFactor, IEMath::Sqrt2, 0.0f, 0.0f}
+		{intensityFactor, IEMath::Sqrt2, IEMath::Sqrt3, 0.0f}
 	};
 	svoConeParams.SendData();
 

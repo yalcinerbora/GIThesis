@@ -16,9 +16,10 @@ namespace IEMath
 	const float InvPI = 1.0f / PI;
 	const float InvPISqr = 1.0f / (PI * PI);
 	const float Sqrt2 = 1.4142135f;
+	const float Sqrt3 = 1.7320508f;
 
 	// E Stuff
-	const float E = 3.14159265f;
+	const float E = 2.7182818f;
 	const float InvE = 1.0f / E;
 
 	inline float CosF(float radians)

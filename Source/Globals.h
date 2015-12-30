@@ -71,6 +71,7 @@ static const TwStructMember lightMembers[] =
 #define T_SHADOW 3
 #define T_INTENSITY 3
 #define T_SHADOW_DIR 4
+#define T_DENSE_NODE 5
 
 #define I_COLOR_FB 2
 #define I_LIGHT_INENSITY 2

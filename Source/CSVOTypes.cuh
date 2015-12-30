@@ -21,6 +21,7 @@ static_assert(GI_NODE_THREAD_COUNT <= 8, "GI_NODE_THREAD_COUNT should be at most
 // --
 // last 4 byte is used for color
 typedef unsigned int CSVONode;
+typedef unsigned int CSVONeigIndex;
 typedef unsigned int CSVOColor;
 
 typedef uint64_t CSVOMaterial;

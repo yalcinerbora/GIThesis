@@ -15,11 +15,14 @@
 #include "CSVOTypes.cuh"
 #include "Shader.h"
 
+#define GI_DENSE_TEX_COUNT 3
 #define GI_DENSE_LEVEL 6
 #define GI_DENSE_SIZE 64
 #define GI_DENSE_SIZE_CUBE (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)
 
 static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
+static_assert(GI_DENSE_LEVEL - GI_DENSE_TEX_COUNT > 0, "DENSE_TEX_COUNT_MISMATCH");
+static_assert(GI_DENSE_TEX_COUNT > 1, "Dense Count has to be bigger");
 
 class GICudaAllocator;
 class DeferredRenderer;
@@ -79,20 +82,23 @@ struct InvFrameTransform;
 class GISparseVoxelOctree
 {
 	private:
+		// Allocator References
 		std::vector<GICudaAllocator*>			allocators;			// Page Allocators
 		std::vector<const CVoxelGrid*>			allocatorGrids;		// Allocator's Responsible Grids
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
 
-		// Texture copied from dSVO dense every frame
-		cudaTextureObject_t						tSVODense;
-		cudaArray_t								denseArray;
-
-		// SVO Data
+		// SVO Data (Sparse)
+		StructuredBuffer<CSVONeigIndex>			svoNeigbourBuffer;
 		StructuredBuffer<CSVONode>				svoNodeBuffer;
 		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
 		StructuredBuffer<uint32_t>				svoLevelOffsets;
+		// SVO Data (Dense)
+		GLuint									svoDenseNode;
+		std::vector<GLuint>						svoDenseMat;
+		GLuint									nodeSampler;
+		GLuint									materialSampler;
 
 		// Light Intensity Texture (for SVO GI)
 		GLuint									liTexture;
@@ -101,19 +107,20 @@ class GISparseVoxelOctree
 		StructuredBuffer<SVOTraceData>			svoTraceData;
 		StructuredBuffer<SVOConeParams>			svoConeParams;
 
-		// SVO Ptrs
+		// SVO Ptrs Cuda
 		CSVOMaterial*							dSVOMaterial;
-		CSVONode*								dSVODense;
+		CSVONeigIndex*							dSVONeigbour;
 		CSVONode*								dSVOSparse;
+		CSVONode*								dSVODense;
 		uint32_t*								dSVOOffsets;
+		cudaArray_t								dSVODenseNodeArray;
+		std::vector<cudaArray_t>				dSVODenseMatArray;
+		cudaTextureObject_t						tSVODenseNode;
+		cudaSurfaceObject_t						sSVODenseNode;
+		std::vector<cudaSurfaceObject_t>		sSVODenseMat;
 
-		// SVO Mat indices
-		uint32_t								matSparseOffset;
-
-
-
-
-		GLuint									sparsePtrDenseTex;
+	
+		//GLuint									sparsePtrDenseTex;
 
 
 		// Atomic counter and svo level start locations
@@ -124,8 +131,11 @@ class GISparseVoxelOctree
 		
 		// Interop Data
 		cudaGraphicsResource_t					svoNodeResource;
+		cudaGraphicsResource_t					svoNeigbourResource;
 		cudaGraphicsResource_t					svoLevelOffsetResource;
 		cudaGraphicsResource_t					svoMaterialResource;
+		cudaGraphicsResource_t					svoDenseNodeResource;
+		std::vector<cudaGraphicsResource_t>		svoDenseTexResource;
 		
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;
@@ -133,6 +143,14 @@ class GISparseVoxelOctree
 		Shader									computeAO;
 		Shader									computeAOSurf;
 
+
+		void									CreateSurfFromArray(cudaArray_t&,
+																	cudaSurfaceObject_t&);
+		void									CreateTexFromArray(cudaArray_t&,
+																   cudaTextureObject_t&);
+		void									CopyFromBufferToTex(cudaArray_t&, unsigned int* dPtr);
+
+		//
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
 															   unsigned int allocatorIndex);

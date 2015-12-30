@@ -23,9 +23,11 @@
 #define U_INVFTRANSFORM layout(std140, binding = 1)
 #define U_SVO_CONSTANTS layout(std140, binding = 3)
 
+#define T_DENSE_NODE layout(binding = 5)
+
 #define FLT_MAX 3.402823466e+38F
 #define EPSILON 0.00001f
-#define SQRT_3	1.732051f
+#define SQRT_3 1.73205f
 
 #define RENDER_TYPE_COLOR 0
 #define RENDER_TYPE_OCCLUSION 1
@@ -86,6 +88,7 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 
 // Textures
 uniform I_COLOR_FB image2D fbo;
+uniform T_DENSE_NODE usampler3D tSVODense;
 
 // Functions
 ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
@@ -219,14 +222,13 @@ float FindMarchLength(out vec3 outData,
 		if(i == dimDepth.w)
 		{
 			ivec3 denseVox = LevelVoxId(marchPos, dimDepth.w);
-			currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
-								  denseVox.y * dimDepth.z + 
-								  denseVox.x];
+			vec3 texCoord = vec3(denseVox) / dimDepth.z;
+			currentNode = texture(tSVODense, texCoord).x;
 		}
 		else
 		{
-			currentNode = svoNode[offsetCascade.y +
-								  svoLevelOffset[i - dimDepth.w] +
+			currentNode = svoNode[offsetCascade.y + 
+								  svoLevelOffset[i - dimDepth.w] + 
 								  nodeIndex];
 		}
 
@@ -247,14 +249,14 @@ float FindMarchLength(out vec3 outData,
 			}
 			else
 			{
-				// Dense Fetch
-				uint levelOffset = uint((1.0f - pow(8.0f, i)) / 
-										(1.0f - 8.0f));
-				uint levelDim = dimDepth.z >> (dimDepth.w - i);
-				ivec3 levelVoxId = LevelVoxId(marchPos, i);
-				loc = levelOffset + levelDim * levelDim * levelVoxId.z + 
-					  levelDim * levelVoxId.y + 
-					  levelVoxId.x;
+				//// Dense Fetch
+				//uint levelOffset = uint((1.0f - pow(8.0f, i)) / 
+				//						(1.0f - 8.0f));
+				//uint levelDim = dimDepth.z >> (dimDepth.w - i);
+				//ivec3 levelVoxId = LevelVoxId(marchPos, i);
+				//loc = levelOffset + levelDim * levelDim * levelVoxId.z + 
+				//	  levelDim * levelVoxId.y + 
+				//	  levelVoxId.x;
 			}
 			if(renderType == RENDER_TYPE_COLOR)
 				outData = UnpackColor(svoMaterial[loc].x);				

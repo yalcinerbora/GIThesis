@@ -23,6 +23,7 @@
 
 #define T_NORMAL layout(binding = 1)
 #define T_DEPTH layout(binding = 2)
+#define T_DENSE_NODE layout(binding = 5)
 
 #define CONE_COUNT 4
 #define BLOCK_SIZE_X 32
@@ -108,6 +109,7 @@ uniform I_LIGHT_INENSITY image2D liTex;
 
 uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
+uniform T_DENSE_NODE usampler3D tSVODense;
 
 // Surfaces traced by each pixel
 shared uvec2 surface [BLOCK_SIZE_Y][(BLOCK_SIZE_X / CONE_COUNT) * SURF_DIM_XY * SURF_DIM_XY];
@@ -214,9 +216,9 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 	else
 	{
 		ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
-		uint nodeIndex = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
-								 denseVox.y * dimDepth.z + 
-								 denseVox.x];
+		vec3 texCoord = vec3(denseVox) / dimDepth.z;
+		unsigned int nodeIndex = texture(tSVODense, texCoord).x;
+
 		if(nodeIndex == 0xFFFFFFFF) return 0.0f;
 		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
 

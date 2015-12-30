@@ -18,9 +18,9 @@ const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*//*360;*//*450;*/
 GISparseVoxelOctree::GISparseVoxelOctree()
 	: svoNodeBuffer(512)
 	, svoMaterialBuffer(512)
+	, svoNeigbourBuffer(512)
 	, svoLevelOffsets(32)
 	, dSVOConstants(1)
-	, tSVODense(0)
 	, computeVoxTraceWorld(ShaderType::COMPUTE, "Shaders/VoxTraceWorld.glsl")
 	, computeVoxTraceDeferred(ShaderType::COMPUTE, "Shaders/VoxTraceDeferred.glsl")
 	, computeAO(ShaderType::COMPUTE, "Shaders/VoxTraceAO.glsl")
@@ -30,7 +30,15 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, svoNodeResource(nullptr)
 	, svoLevelOffsetResource(nullptr)
 	, svoMaterialResource(nullptr)
+	, svoNeigbourResource(nullptr)
+	, svoDenseNodeResource(nullptr)
+	, tSVODenseNode(0)
+	, sSVODenseNode(0)
+	, dSVODenseNodeArray(nullptr)
 	, liTexture(0)
+	, svoDenseMat(GI_DENSE_TEX_COUNT, 0)
+	, sSVODenseMat(GI_DENSE_TEX_COUNT, 0)
+	, dSVODenseMatArray(GI_DENSE_TEX_COUNT, nullptr)
 {
 	svoTraceData.AddData({});
 	svoConeParams.AddData({});
@@ -39,16 +47,64 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	glGenTextures(1, &liTexture);
 	glBindTexture(GL_TEXTURE_2D, liTexture);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TraceWidth, TraceHeight);
+	
+	// Dense Tex
+	glGenTextures(1, &svoDenseNode);
+	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
+	glTexStorage3D(GL_TEXTURE_3D, 1, GL_R32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
+	CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseNodeResource, svoDenseNode, GL_TEXTURE_3D, 
+											cudaGraphicsRegisterFlagsSurfaceLoadStore));
+
+	// Mat Texture Binds
+	svoDenseMat.resize(GI_DENSE_TEX_COUNT, 0);
+	glGenTextures(GI_DENSE_TEX_COUNT, svoDenseMat.data());
+	svoDenseTexResource.resize(GI_DENSE_TEX_COUNT, nullptr);
+	for(unsigned int i = 0; i < GI_DENSE_TEX_COUNT; i++)
+	{
+		GLsizei size = GI_DENSE_SIZE >> (GI_DENSE_TEX_COUNT - i - 1);
+		glBindTexture(GL_TEXTURE_3D, svoDenseMat[i]);
+		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RG32UI, size, size, size);
+		CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseTexResource[i], svoDenseMat[i], GL_TEXTURE_3D, 
+												cudaGraphicsRegisterFlagsSurfaceLoadStore));
+	}
+
+	// Flat Sampler for Node Index Fetch
+	glGenSamplers(1, &nodeSampler);
+	glSamplerParameteri(nodeSampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glSamplerParameteri(nodeSampler, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glSamplerParameteri(nodeSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glSamplerParameteri(nodeSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glSamplerParameteri(nodeSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	// Trilinear Sample for Material Fetch
+	glGenSamplers(1, &materialSampler);
+	glSamplerParameteri(materialSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glSamplerParameteri(materialSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glSamplerParameteri(materialSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glSamplerParameteri(materialSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glSamplerParameteri(materialSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 }
 
 GISparseVoxelOctree::~GISparseVoxelOctree()
 {
 	if(svoNodeResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNodeResource));
 	if(svoMaterialResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoMaterialResource));
+	if(svoNeigbourResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNeigbourResource));
 	if(svoLevelOffsetResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoLevelOffsetResource));
-	if(tSVODense) CUDA_CHECK(cudaDestroyTextureObject(tSVODense));
-	if(denseArray) CUDA_CHECK(cudaFreeArray(denseArray));
+	for(unsigned int i = 0; i < GI_DENSE_TEX_COUNT; i++)
+	{
+		if(svoDenseTexResource[i]) CUDA_CHECK(cudaGraphicsUnregisterResource(svoDenseTexResource[i]));
+		if(sSVODenseMat[i]) CUDA_CHECK(cudaDestroySurfaceObject(sSVODenseMat[i]));
+	}
+	if(svoDenseNodeResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoDenseNodeResource));
+	if(tSVODenseNode) CUDA_CHECK(cudaDestroyTextureObject(tSVODenseNode));
+	if(sSVODenseNode) CUDA_CHECK(cudaDestroySurfaceObject(sSVODenseNode));
+
 	if(liTexture) glDeleteTextures(1, &liTexture);
+	if(svoDenseNode) glDeleteTextures(1, &svoDenseNode);
+	glDeleteTextures(static_cast<GLsizei>(svoDenseMat.size()), svoDenseMat.data());
+	if(nodeSampler) glDeleteSamplers(1, &nodeSampler);
+	if(materialSampler) glDeleteSamplers(1, &materialSampler);
 }
 
 void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators,
@@ -75,20 +131,16 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 	dSVOLevelTotalSizes.Resize(sparseNodeCount);
 	dSVOLevelSizes.Resize(sparseNodeCount);
 	hSVOLevelSizes.resize(sparseNodeCount);
-	
-	svoNodeBuffer.Resize(totalAlloc + GI_DENSE_SIZE_CUBE);
 	svoLevelOffsets.Resize(sparseNodeCount);
 
-	dSVODense = nullptr;
-	dSVOSparse = nullptr;
-
-	// Mat Tree holds up to level 0
-	matSparseOffset = static_cast<unsigned int>((1.0 - std::pow(8.0f, GI_DENSE_LEVEL + 1)) / 
-												(1.0f - 8.0f));
-	svoMaterialBuffer.Resize(totalAlloc + matSparseOffset);
+	// Sparse Portion
+	svoNodeBuffer.Resize(totalAlloc + GI_DENSE_SIZE_CUBE);
+	svoNeigbourBuffer.Resize(totalAlloc);
+	svoMaterialBuffer.Resize(totalAlloc);
 	
 	// Register
 	if(svoNodeResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNodeResource));
+	if(svoNodeResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNeigbourResource));
 	if(svoMaterialResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoMaterialResource));
 	if(svoLevelOffsetResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoLevelOffsetResource));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoNodeResource, 
@@ -97,6 +149,10 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoMaterialResource, 
 											svoMaterialBuffer.getGLBuffer(), 
+											cudaGLMapFlagsWriteDiscard));
+
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoNeigbourResource,
+											svoNeigbourBuffer.getGLBuffer(), 
 											cudaGLMapFlagsWriteDiscard));
 
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoLevelOffsetResource,
@@ -113,7 +169,9 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 	glBindBuffer(GL_COPY_WRITE_BUFFER, svoMaterialBuffer.getGLBuffer());
 	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero);
 
-	
+	glBindBuffer(GL_COPY_WRITE_BUFFER, svoNeigbourBuffer.getGLBuffer());
+	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero);
+
 	dSVOLevelSizes.Memset(0x00, 0, dSVOLevelSizes.Size());
 	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
 	std::copy(levelCounts + GI_DENSE_LEVEL, 
@@ -145,20 +203,27 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 						  sizeof(CSVOConstants), 
 						  cudaMemcpyHostToDevice));
 
+}
 
-	cudaChannelFormatDesc fd = cudaCreateChannelDesc<unsigned int>();
-	if(denseArray) CUDA_CHECK(cudaFreeArray(denseArray));
-	CUDA_CHECK(cudaMalloc3DArray(&denseArray,
-								 &fd,
-								 {GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE},
-								 cudaArrayDefault));
+void GISparseVoxelOctree::CreateSurfFromArray(cudaArray_t& arr, cudaSurfaceObject_t& surf)
+{
+	// Texture of SVO Dense
+	cudaResourceDesc resDesc = {};
+	resDesc.resType = cudaResourceTypeArray;
+	resDesc.res.array.array = arr;
 
+	if(surf != 0) CUDA_CHECK(cudaDestroySurfaceObject(surf));
+	CUDA_CHECK(cudaCreateSurfaceObject(&surf, &resDesc));
+}
+
+void GISparseVoxelOctree::CreateTexFromArray(cudaArray_t& arr, cudaTextureObject_t& tex)
+{
 	// Texture of SVO Dense
 	cudaResourceDesc resDesc = {};
 	cudaTextureDesc texDesc = {};
 	resDesc.resType = cudaResourceTypeArray;
-	resDesc.res.array.array = denseArray;
-	
+	resDesc.res.array.array = arr;
+
 	texDesc.addressMode[0] = cudaAddressModeWrap;
 	texDesc.addressMode[1] = cudaAddressModeWrap;
 	texDesc.addressMode[2] = cudaAddressModeWrap;
@@ -166,8 +231,25 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 	texDesc.readMode = cudaReadModeElementType;
 	texDesc.normalizedCoords = 0;
 
-	if(tSVODense != 0) CUDA_CHECK(cudaDestroyTextureObject(tSVODense));
-	CUDA_CHECK(cudaCreateTextureObject(&tSVODense, &resDesc, &texDesc, nullptr));
+	if(tex != 0) CUDA_CHECK(cudaDestroyTextureObject(tex));
+	CUDA_CHECK(cudaCreateTextureObject(&tex, &resDesc, &texDesc, nullptr));
+}
+
+void GISparseVoxelOctree::CopyFromBufferToTex(cudaArray_t& arr, unsigned int* devPtr)
+{
+	// Copy Dense to Texture
+	cudaMemcpy3DParms params = {0};
+	params.dstArray = arr;
+	params.srcPtr =
+	{
+		devPtr,
+		GI_DENSE_SIZE * sizeof(unsigned int),
+		GI_DENSE_SIZE,
+		GI_DENSE_SIZE
+	};
+	params.extent = {GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE};
+	params.kind = cudaMemcpyDeviceToDevice;
+	CUDA_CHECK(cudaMemcpy3D(&params));
 }
 
 void GISparseVoxelOctree::ConstructDense()
@@ -228,7 +310,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 		SVOReconstructDetermineNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(
 			dSVOSparse,
-			tSVODense,
+			tSVODenseNode,
 			allocators[i]->GetVoxelPagesDevice(),
 			dSVOOffsets,
 
@@ -272,7 +354,7 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 			allocators[i]->GetVoxelPagesDevice(),
 			allocators[i]->GetObjRenderCacheDevice(),
 
-			matSparseOffset,
+			0,
 			i,
 			*dSVOConstants.Data()
 		);
@@ -283,26 +365,15 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 						  dSVOLevelSizes.Data(),
 						  hSVOLevelSizes.size() * sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
+
+	CopyFromBufferToTex(dSVODenseNodeArray, dSVODense);
 }
 
 void GISparseVoxelOctree::ConstructLevelByLevel()
 {
 	// Start with constructing dense
 	ConstructDense();
-
-	// Copy Dense to Texture
-	cudaMemcpy3DParms params = { 0 };
-	params.dstArray = denseArray;
-	params.srcPtr =
-	{
-		dSVODense,
-		GI_DENSE_SIZE * sizeof(unsigned int),
-		GI_DENSE_SIZE,
-		GI_DENSE_SIZE
-	};
-	params.extent = { GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE };
-	params.kind = cudaMemcpyDeviceToDevice;
-	CUDA_CHECK(cudaMemcpy3D(&params));
+	CopyFromBufferToTex(dSVODenseNodeArray, dSVODense);
 
 	// Construct Levels
 	for(unsigned int i = GI_DENSE_LEVEL + 1; i < allocatorGrids[0]->depth; i++)
@@ -342,7 +413,7 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 			// Const SVO Data
 			dSVOSparse,
 			dSVOOffsets,
-			tSVODense,
+			tSVODenseNode,
 
 			// Page Data
 			allocators[i]->GetVoxelPagesDevice(),
@@ -351,7 +422,7 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 			allocators[i]->GetObjRenderCacheDevice(),
 
 			// Constants
-			matSparseOffset,
+			0,
 			i,
 			*dSVOConstants.Data()
 		);
@@ -360,7 +431,7 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 
 	// Now use leaf nodes to average upper nodes
 	// Start bottom up
-	for(int i = hSVOConstants.totalDepth - 1; i >= static_cast<int>(hSVOConstants.denseDepth); i--)
+	for(int i = hSVOConstants.totalDepth - 1; i > static_cast<int>(hSVOConstants.denseDepth); i--)
 	{
 		unsigned int arrayIndex = i - GI_DENSE_LEVEL;
 		unsigned int levelDim = GI_DENSE_SIZE >> (GI_DENSE_LEVEL - i);
@@ -382,7 +453,7 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 			*(dSVOOffsets + arrayIndex + 1),
 
 			levelSize,
-			matSparseOffset,
+			0,
 			i,
 			*dSVOConstants.Data()
 		);
@@ -393,19 +464,31 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 
 double GISparseVoxelOctree::UpdateSVO()
 {
-	CUDA_CHECK(cudaProfilerStart());
-
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoNodeResource));
+	CUDA_CHECK(cudaGraphicsMapResources(1, &svoNeigbourResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoLevelOffsetResource));
+	CUDA_CHECK(cudaGraphicsMapResources(1, &svoDenseNodeResource));
+	CUDA_CHECK(cudaGraphicsMapResources(static_cast<int>(svoDenseTexResource.size()),
+										svoDenseTexResource.data()));
 	
 	size_t size;
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVODense), 
 													 &size, svoNodeResource));
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVOMaterial),
 													 &size, svoMaterialResource));
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVONeigbour),
+													 &size, svoNeigbourResource));
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVOOffsets),
 													&size, svoLevelOffsetResource));
+	CUDA_CHECK(cudaGraphicsSubResourceGetMappedArray(&dSVODenseNodeArray, svoDenseNodeResource, 0, 0));
+	CreateSurfFromArray(dSVODenseNodeArray, sSVODenseNode);
+	CreateTexFromArray(dSVODenseNodeArray, tSVODenseNode);
+	for(unsigned int i = 0; i < GI_DENSE_TEX_COUNT; i++)
+	{
+		CUDA_CHECK(cudaGraphicsSubResourceGetMappedArray(&dSVODenseMatArray[i], svoDenseTexResource[i], 0, 0));
+		CreateSurfFromArray(dSVODenseMatArray[i], sSVODenseMat[i]);
+	}
 	dSVOSparse = dSVODense + GI_DENSE_SIZE_CUBE;
 
 	CudaTimer timer;
@@ -414,7 +497,7 @@ double GISparseVoxelOctree::UpdateSVO()
 	// Reset Atomic Counter since we reconstruct every frame
 	uint32_t usedNodeCount = hSVOLevelSizes.back() + svoLevelOffsets.CPUData().back();
 	CUDA_CHECK(cudaMemset(dSVODense, 0xFF, sizeof(CSVONode) * (usedNodeCount + GI_DENSE_SIZE_CUBE)));
-	CUDA_CHECK(cudaMemset(dSVOMaterial, 0x00, sizeof(CSVOMaterial) * (usedNodeCount + matSparseOffset)));
+	CUDA_CHECK(cudaMemset(dSVOMaterial, 0x00, sizeof(CSVOMaterial) * (usedNodeCount)));
 
 	dSVOLevelSizes.Memset(0x00, 0, dSVOLevelSizes.Size());
 	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
@@ -449,9 +532,12 @@ double GISparseVoxelOctree::UpdateSVO()
 	timer.Stop();
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNodeResource));
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNeigbourResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoLevelOffsetResource));
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoDenseNodeResource));
+	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(svoDenseTexResource.size()),
+										  svoDenseTexResource.data()));
 
-	CUDA_CHECK(cudaProfilerStop());
 	return timer.ElapsedMilliS();
 }
 
@@ -488,8 +574,8 @@ double GISparseVoxelOctree::AmbientOcclusionSurf(DeferredRenderer& dRenderer,
 		{dim, depth, GI_DENSE_SIZE, GI_DENSE_LEVEL},
 		{
 			static_cast<unsigned int>(allocators.size()),
-			GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE,
-			matSparseOffset,
+			GI_DENSE_SIZE_CUBE,
+			0,
 			0
 		}
 	};
@@ -572,8 +658,8 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 		{dim, depth, GI_DENSE_SIZE, GI_DENSE_LEVEL},
 		{
 			static_cast<unsigned int>(allocators.size()),
-			GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE,
-			matSparseOffset,
+			GI_DENSE_SIZE_CUBE,
+			0,
 			0
 		}
 	};
@@ -646,7 +732,7 @@ double GISparseVoxelOctree::DebugDeferredSVO(DeferredRenderer& dRenderer,
 		{
 			static_cast<unsigned int>(allocators.size()),
 			GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE,
-			matSparseOffset,
+			0,
 			renderLevel
 		}
 	};
@@ -714,8 +800,8 @@ double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
 		{dim, depth, GI_DENSE_SIZE, GI_DENSE_LEVEL},
 		{
 			static_cast<unsigned int>(allocators.size()), 
-			GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE,
-			matSparseOffset,
+			GI_DENSE_SIZE_CUBE,
+			0,
 			renderLevel
 		}
 	};
@@ -735,7 +821,10 @@ double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
 
 	// Images
 	glBindImageTexture(I_COLOR_FB, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
-
+	glActiveTexture(GL_TEXTURE0 + T_DENSE_NODE);
+	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
+	glBindSampler(T_DENSE_NODE, nodeSampler);
+	
 	// Dispatch
 	uint2 gridSize;
 	gridSize.x = (TraceWidth + 16 - 1) / 16;

@@ -25,6 +25,7 @@
 
 #define T_NORMAL layout(binding = 1)
 #define T_DEPTH layout(binding = 2)
+#define T_DENSE_NODE layout(binding = 5)
 
 #define BLOCK_SIZE_X 16
 #define BLOCK_SIZE_Y 16
@@ -100,6 +101,7 @@ uniform I_LIGHT_INENSITY image2D liTex;
 
 uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
+uniform T_DENSE_NODE usampler3D tSVODense;
 
 // Functions
 vec3 DepthToWorld(vec2 gBuffUV)
@@ -234,9 +236,9 @@ float SampleSVOOcclusion(in vec3 worldPos, in uint depth)
 	else
 	{
 		ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
-		uint nodeIndex = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
-								 denseVox.y * dimDepth.z + 
-								 denseVox.x];
+		vec3 texCoord = vec3(denseVox) / dimDepth.z;
+		unsigned int nodeIndex = texture(tSVODense, texCoord).x;
+
 		if(nodeIndex == 0xFFFFFFFF) return 0;
 		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
 		for(uint i = dimDepth.w + 1; i < depth; i++)

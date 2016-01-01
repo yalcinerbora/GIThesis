@@ -22,7 +22,7 @@
 
 static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
 static_assert(GI_DENSE_LEVEL - GI_DENSE_TEX_COUNT > 0, "DENSE_TEX_COUNT_MISMATCH");
-static_assert(GI_DENSE_TEX_COUNT > 1, "Dense Count has to be bigger");
+static_assert(GI_DENSE_TEX_COUNT >= 1, "Dense Count has to be atleast 1");
 
 class GICudaAllocator;
 class DeferredRenderer;
@@ -96,7 +96,7 @@ class GISparseVoxelOctree
 		StructuredBuffer<uint32_t>				svoLevelOffsets;
 		// SVO Data (Dense)
 		GLuint									svoDenseNode;
-		std::vector<GLuint>						svoDenseMat;
+		GLuint									svoDenseMat;
 		GLuint									nodeSampler;
 		GLuint									materialSampler;
 
@@ -118,11 +118,7 @@ class GISparseVoxelOctree
 		cudaTextureObject_t						tSVODenseNode;
 		cudaSurfaceObject_t						sSVODenseNode;
 		std::vector<cudaSurfaceObject_t>		sSVODenseMat;
-
-	
-		//GLuint									sparsePtrDenseTex;
-
-
+		
 		// Atomic counter and svo level start locations
 		CudaVector<uint32_t>					dSVOLevelTotalSizes;
 		std::vector<uint32_t>					hSVOLevelTotalSizes;
@@ -135,7 +131,7 @@ class GISparseVoxelOctree
 		cudaGraphicsResource_t					svoLevelOffsetResource;
 		cudaGraphicsResource_t					svoMaterialResource;
 		cudaGraphicsResource_t					svoDenseNodeResource;
-		std::vector<cudaGraphicsResource_t>		svoDenseTexResource;
+		cudaGraphicsResource_t					svoDenseTexResource;
 		
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;

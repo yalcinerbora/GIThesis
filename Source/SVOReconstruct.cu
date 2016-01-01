@@ -343,10 +343,11 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 }
 
 __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
+										  cudaSurfaceObject_t sDenseMat,
 
 										  const CSVONode* gSVODense,
 										  const CSVONode* gSVOSparse,
-
+										  
 										  const unsigned int& gSVOLevelOffset,
 										  const unsigned int& gSVONextLevelOffset,
 
@@ -373,28 +374,21 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	// Read Sibling Materials
 	CSVOMaterial parentMat = 0;
 	CSVONode node = 0xFFFFFFFF;
-	if(currentLevel < svoConstants.denseDepth)
+	// Coalesced Parent Load (Warp Level)
+	if(laneId < parentPerWarp)
 	{
-		// Todo Dense Children mat fetch
-	}
-	else if(currentLevel >= svoConstants.denseDepth)
-	{
-		// Coalesced Parent Load (Warp Level)
-		if(laneId < parentPerWarp)
-		{
-			// Coalesced Fetch
-			const CSVONode* n = (currentLevel == svoConstants.denseDepth) ? gSVODense : gSVOSparse;
-			node = n[gSVOLevelOffset + warpLinearId];
+		// Coalesced Fetch
+		const CSVONode* n = (currentLevel == svoConstants.denseDepth) ? gSVODense : gSVOSparse;
+		node = n[gSVOLevelOffset + warpLinearId];
 
-			// Only fetch parent when its contributes to the average
-			bool fetchParentMat = ((svoConstants.totalDepth - currentLevel) < svoConstants.numCascades);// || (node != 0xFFFFFFFF);
-			parentMat = fetchParentMat ? gSVOMat[matOffset + gSVOLevelOffset + warpLinearId] : 0;
-		}
-
-		// Shuffle each parent to actual users
-		if(GI_NODE_THREAD_COUNT != 1) node = __shfl(node, laneId / GI_NODE_THREAD_COUNT);
-		if(GI_NODE_THREAD_COUNT != 1) parentMat = __shfl(parentMat, laneId / GI_NODE_THREAD_COUNT);
+		// Only fetch parent when its contributes to the average
+		bool fetchParentMat = ((svoConstants.totalDepth - currentLevel) < svoConstants.numCascades);// || (node != 0xFFFFFFFF);
+		parentMat = fetchParentMat ? gSVOMat[matOffset + gSVOLevelOffset + warpLinearId] : 0;
 	}
+
+	// Shuffle each parent to actual users
+	if(GI_NODE_THREAD_COUNT != 1) node = __shfl(node, laneId / GI_NODE_THREAD_COUNT);
+	if(GI_NODE_THREAD_COUNT != 1) parentMat = __shfl(parentMat, laneId / GI_NODE_THREAD_COUNT);
 
 	// Average Portion
 	// Material Data
@@ -490,15 +484,23 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	if(GI_NODE_THREAD_COUNT != 1) matAvg = __shfl(matAvg, laneId * GI_NODE_THREAD_COUNT);
 	if(laneId < parentPerWarp && matAvg != 0)
 	{
-		colorAvg.w = 1.0f;
-		if(currentLevel > svoConstants.denseDepth)
-			gSVOMat[matOffset + gSVOLevelOffset + warpLinearId] = matAvg;
-		else
+		if(currentLevel == svoConstants.denseDepth)
 		{
-			unsigned int levelOffset = static_cast<unsigned int>((1.0f - powf(8.0f, currentLevel)) /
-																 (1.0f - 8.0f));
-			gSVOMat[levelOffset + warpLinearId] = matAvg;
+			int3 dim =
+			{
+				static_cast<int>(globalId % svoConstants.denseDim),
+				static_cast<int>((globalId / svoConstants.denseDim) % svoConstants.denseDim),
+				static_cast<int>(globalId / (svoConstants.denseDim * svoConstants.denseDim))
+			};
+			uint2 data =
+			{
+				static_cast<unsigned int>(matAvg & 0x00000000FFFFFFFF),
+				static_cast<unsigned int>(matAvg >> 32)
+			};
+			surf3Dwrite(data, sDenseMat, dim.x * sizeof(uint2), dim.y, dim.z);
 		}
+		else
+			gSVOMat[matOffset + gSVOLevelOffset + warpLinearId] = matAvg;
 	}
 }
 

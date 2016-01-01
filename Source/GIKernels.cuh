@@ -164,6 +164,7 @@ extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 												  const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
+												 cudaSurfaceObject_t sDenseMat,
 
 												 const CSVONode* gSVODense,
 												 const CSVONode* gSVOSparse,

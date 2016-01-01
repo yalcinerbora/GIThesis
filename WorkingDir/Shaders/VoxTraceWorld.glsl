@@ -24,6 +24,7 @@
 #define U_SVO_CONSTANTS layout(std140, binding = 3)
 
 #define T_DENSE_NODE layout(binding = 5)
+#define T_DENSE_MAT layout(binding = 6)
 
 #define FLT_MAX 3.402823466e+38F
 #define EPSILON 0.00001f
@@ -89,12 +90,18 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 // Textures
 uniform I_COLOR_FB image2D fbo;
 uniform T_DENSE_NODE usampler3D tSVODense;
+uniform T_DENSE_MAT usampler3D tSVOMat;
 
 // Functions
 ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
 {
 	ivec3 result = ivec3(floor((worldPoint - worldPosSpan.xyz) / worldPosSpan.w));
 	return result >> (dimDepth.y - depth);
+}
+
+vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
+{
+	return (worldPoint - worldPosSpan.xyz) / (worldPosSpan.w * float((0x1 << (dimDepth.y - depth))));
 }
 
 vec3 PixelToWorld()
@@ -244,30 +251,36 @@ float FindMarchLength(out vec3 outData,
 			if(i > dimDepth.w)
 			{
 				// Sparse Fetch
-				loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] +
-					  nodeIndex;
+				loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
+
+				if(renderType == RENDER_TYPE_COLOR)
+					outData = UnpackColor(svoMaterial[loc].x);		
+				else if(renderType == RENDER_TYPE_OCCLUSION)
+				{
+					outData = vec3(UnpackOcclusion(svoMaterial[loc].x));
+					if(i == dimDepth.y) outData = ceil(outData);
+				}
+				else if(renderType == RENDER_TYPE_NORMAL)
+					outData = UnpackNormal(svoMaterial[loc].y);
 			}
 			else
 			{
-				//// Dense Fetch
-				//uint levelOffset = uint((1.0f - pow(8.0f, i)) / 
-				//						(1.0f - 8.0f));
-				//uint levelDim = dimDepth.z >> (dimDepth.w - i);
-				//ivec3 levelVoxId = LevelVoxId(marchPos, i);
-				//loc = levelOffset + levelDim * levelDim * levelVoxId.z + 
-				//	  levelDim * levelVoxId.y + 
-				//	  levelVoxId.x;
+				// Dense Fetch
+				uint mipId = dimDepth.w - i;
+				uint levelDim = dimDepth.z >> mipId;
+				vec3 levelUV = LevelVoxIdF(marchPos, i) / float(levelDim);
+				
+				if(renderType == RENDER_TYPE_COLOR)
+					outData = UnpackColor(textureLod(tSVOMat, levelUV, float(mipId)).x);
+				else if(renderType == RENDER_TYPE_OCCLUSION)
+				{
+					outData = vec3(UnpackOcclusion(textureLod(tSVOMat, levelUV, float(mipId)).x));
+					if(i == dimDepth.y) outData = ceil(outData);
+				}
+				else if(renderType == RENDER_TYPE_NORMAL)
+					outData = UnpackNormal(textureLod(tSVOMat, levelUV, float(mipId)).y);
 			}
-			if(renderType == RENDER_TYPE_COLOR)
-				outData = UnpackColor(svoMaterial[loc].x);				
-			else if(renderType == RENDER_TYPE_OCCLUSION)
-			{
-				outData = vec3(UnpackOcclusion(svoMaterial[loc].x));
-				if(i == dimDepth.y) outData = ceil(outData);
-			}
-			else if(renderType == RENDER_TYPE_NORMAL)
-				outData = UnpackNormal(svoMaterial[loc].y);
-			if(all(notEqual(outData, vec3(0.0f)))) return 0.0f;
+			if(any(notEqual(outData, vec3(0.0f)))) return 0.0f;
 		}
 
 		// Node check

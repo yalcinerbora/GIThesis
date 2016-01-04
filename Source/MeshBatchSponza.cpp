@@ -44,6 +44,9 @@ void MeshBatchSponza::Update(double elapsedS)
 	rotationFunctor(torusMid, torusMidSpeed * elapsedS, IEVector3::Zaxis);
 	rotationFunctor(torusLarge, torusLargeSpeed * elapsedS, IEVector3::Zaxis);
 
+	//
+	rotationFunctor(sphereGreen, torusLargeSpeed * elapsedS, IEVector3::Yaxis);
+
 	// Cube Rotation
 	static const float cubeSpeedRGB = 130.123f;
 	static const float cubeSpeedRGW = 100.123f;

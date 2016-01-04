@@ -82,14 +82,8 @@ LU_MTRANSFORM_INDEX buffer ModelTransformID
 };
 
 vec3 UnpackNormal(in uint voxNormPosY)
-{
-	vec3 result;
-	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
-	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
-	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
-	result.z *= sign(int(voxNormPosY));
-	
-	return result;
+{	
+	return unpackSnorm4x8(voxNormPosY).xyz;
 }
 
 uvec4 UnpackVoxelDataAndObjId(in uint voxNormPosX, in uint voxIdsX)

@@ -13,7 +13,7 @@
 #define U_OBJ_TYPE layout(location = 6)
 #define U_IS_MIP layout(location = 7)
 
-#define I_VOX_READ layout(rgba16ui, binding = 2) restrict
+#define I_VOX_READ layout(rg32ui, binding = 2) restrict
 
 // I-O
 U_OBJ_TYPE uniform uint objType;
@@ -56,16 +56,8 @@ LU_OBJECT_GRID_INFO buffer GridInfo
 
 uniform I_VOX_READ uimage3D voxelData;
 
-uint MergeColor(uvec2 colorShort2)
-{
-	uint result;
-	result = colorShort2.y << 16;
-	result |= colorShort2.x;
-	return result;
-}
-
 uvec2 PackVoxelNormPos(in uvec3 voxCoord,
-					   in uvec2 normal,
+					   in uint normal,
 					   in uint isMip)
 {
 	uvec2 result = uvec2(0);
@@ -78,12 +70,8 @@ uvec2 PackVoxelNormPos(in uvec3 voxCoord,
 	value |= voxCoord.x;
 	result.x = value;
 
-	// Normal is Already Packed (X16Y15Z1 format)
-	value = 0;
-	value |= normal.y << 16;
-	value |= normal.x;
-	result.y = value;
-
+	// Normal is Already Packed (XYZ8 SNROM format)
+	result.y = normal;
 	return result;
 }
 
@@ -113,21 +101,21 @@ void main(void)
 		voxId.y < (voxDim.y) &&
 		voxId.z < (voxDim.z))
 	{
-		uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
+		uvec2 voxData = imageLoad(voxelData, ivec3(voxId)).xy;
 
 		// Empty Normal Means its vox is empty
-		if(voxData.x != 0xFFFF ||
-			voxData.y != 0xFFFF)
+		if(voxData.x != 0xFFFFFFFF ||
+			voxData.y != 0xFFFFFFFF)
 		{
 			uint index = atomicAdd(writeIndex, 1);
 			if(index <= maxSize)
 			{
-				voxelArrayRender[index].color = MergeColor(voxData.zw);
-				voxelNormPos[index] = PackVoxelNormPos(voxId, voxData.xy, isMip);
+				voxelArrayRender[index].color = voxData.y;
+				voxelNormPos[index] = PackVoxelNormPos(voxId, voxData.x, isMip);
 				voxelIds[index] = PackVoxelIds(objId, objType, index);
 			}
 			// Reset Color For next iteration
-			imageStore(voxelData, ivec3(voxId), uvec4(0xFFFF));
+			imageStore(voxelData, ivec3(voxId), uvec4(0xFFFFFFFF));
 		}
 	}
 }

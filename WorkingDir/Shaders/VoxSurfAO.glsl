@@ -235,10 +235,10 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 		// Finally At requested level
 		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] + nodeIndex;
 		if(depth != dimDepth.y)
-			return UnpackOcclusion(svoMaterial[matLoc].x);
+			return UnpackOcclusion(svoMaterial[matLoc].y);
 		else
 		{
-			float occ = UnpackOcclusion(svoMaterial[matLoc].x);
+			float occ = UnpackOcclusion(svoMaterial[matLoc].y);
 			return ceil(occ);
 		}
 	}

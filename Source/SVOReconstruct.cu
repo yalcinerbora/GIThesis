@@ -26,26 +26,27 @@ inline __device__ CSVOMaterial Average(const CSVOMaterial& material,
 	CSVOColor avgColorPacked;
 	CVoxelNorm avgNormalPacked;
 	UnpackSVOMaterial(avgColorPacked, avgNormalPacked, material);
-	float4 avgColor = UnpackSVOColorCount(avgColorPacked);
-	float3 avgNormal = ExpandOnlyNormal(avgNormalPacked);
+	float4 avgColor = UnpackSVOColor(avgColorPacked);
+	float4 avgNormal = UnpackNormCount(avgNormalPacked);
 
 	// Averaging (color.w is number of nodes)
-	assert(avgColor.w < 255.0f);
-	float ratio = avgColor.w / (avgColor.w + 1.0f);
+	assert(avgNormal.w < 255.0f);
+	float ratio = avgNormal.w / (avgNormal.w + 1.0f);
 
 	// New Color Average
-	avgColor.x = (ratio * avgColor.x) + (colorUnpack.x / (avgColor.w + 1.0f));
-	avgColor.y = (ratio * avgColor.y) + (colorUnpack.y / (avgColor.w + 1.0f));
-	avgColor.z = (ratio * avgColor.z) + (colorUnpack.z / (avgColor.w + 1.0f));
+	avgColor.x = (ratio * avgColor.x) + (colorUnpack.x / (avgNormal.w + 1.0f));
+	avgColor.y = (ratio * avgColor.y) + (colorUnpack.y / (avgNormal.w + 1.0f));
+	avgColor.z = (ratio * avgColor.z) + (colorUnpack.z / (avgNormal.w + 1.0f));
+	avgColor.w = (ratio * avgColor.w) + (colorUnpack.w / (avgNormal.w + 1.0f));
 
 	// New Normal Average
-	avgNormal.x = (ratio * avgNormal.x) + (normalUnpack.x / (avgColor.w + 1.0f));
-	avgNormal.y = (ratio * avgNormal.y) + (normalUnpack.y / (avgColor.w + 1.0f));
-	avgNormal.z = (ratio * avgNormal.z) + (normalUnpack.z / (avgColor.w + 1.0f));
-	avgColor.w += 1.0f;
+	avgNormal.x = (ratio * avgNormal.x) + (normalUnpack.x / (avgNormal.w + 1.0f));
+	avgNormal.y = (ratio * avgNormal.y) + (normalUnpack.y / (avgNormal.w + 1.0f));
+	avgNormal.z = (ratio * avgNormal.z) + (normalUnpack.z / (avgNormal.w + 1.0f));
+	avgNormal.w += 1.0f;
 
-	avgColorPacked = PackSVOColorCount(avgColor);
-	avgNormalPacked = PackOnlyVoxNorm(avgNormal);
+	avgColorPacked = PackSVOColor(avgColor);
+	avgNormalPacked = PackNormCount(avgNormal);
 	return PackSVOMaterial(avgColorPacked, avgNormalPacked);
 }
 
@@ -54,12 +55,14 @@ inline __device__ CSVOMaterial AtomicColorNormalAvg(CSVOMaterial* gMaterial,
 													CVoxelNorm voxelNormal)
 {
 	float4 colorUnpack = UnpackSVOColor(color);
-	float3 normalUnpack = ExpandOnlyNormal(voxelNormal);
+	float4 normalUnpack = ExpandOnlyNormal(voxelNormal);
 	CSVOMaterial assumed, old = *gMaterial;
 	do
 	{
 		assumed = old;
-		old = atomicCAS(gMaterial, assumed, Average(assumed, colorUnpack, normalUnpack));
+		old = atomicCAS(gMaterial, assumed, Average(assumed, 
+													colorUnpack, 
+													{normalUnpack.x, normalUnpack.y, normalUnpack.z}));
 	}
 	while(assumed != old);
 	return old;
@@ -394,7 +397,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	// Material Data
 	unsigned int count = 0;
 	float4 colorAvg = {0.0f, 0.0f, 0.0f, 0.0f};
-	float3 normalAvg = {0.0f, 0.0f, 0.0f};
+	float4 normalAvg = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	// Average Yours
 	#pragma unroll
@@ -408,16 +411,18 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			CVoxelNorm normalPacked;
 			UnpackSVOMaterial(colorPacked, normalPacked, mat);
 			float4 color = UnpackSVOColor(colorPacked);
-			float3 normal = ExpandOnlyNormal(normalPacked);
+			float4 normal = ExpandOnlyNormal(normalPacked);
 
 			colorAvg.x += color.x;
 			colorAvg.y += color.y;
 			colorAvg.z += color.z;
-			colorAvg.w += (currentLevel == (svoConstants.totalDepth - 1)) ? 1.0f : color.w;
+			colorAvg.w += color.w;
+			
 
 			normalAvg.x += normal.x;
 			normalAvg.y += normal.y;
 			normalAvg.z += normal.z;
+			normalAvg.w += (currentLevel == (svoConstants.totalDepth - 1)) ? 1.0f : normalAvg.w;
 
 			count++;
 		}
@@ -432,11 +437,12 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			CVoxelNorm normalPacked;
 			UnpackSVOMaterial(colorPacked, normalPacked, parentMat);
 			float4 color = UnpackSVOColor(colorPacked);
-			float3 normal = ExpandOnlyNormal(normalPacked);
+			float4 normal = ExpandOnlyNormal(normalPacked);
 
 			colorAvg.x += 8 * color.x;
 			colorAvg.y += 8 * color.y;
 			colorAvg.z += 8 * color.z;
+			colorAvg.w += 8 * color.w;
 
 			normalAvg.x += 8 * normal.x;
 			normalAvg.y += 8 * normal.y;
@@ -472,11 +478,12 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		colorAvg.x *= countInv;
 		colorAvg.y *= countInv;
 		colorAvg.z *= countInv;
-		colorAvg.w *= 0.125f;
+		colorAvg.w *= countInv;
 
 		normalAvg.x *= countInv;
 		normalAvg.y *= countInv;
 		normalAvg.z *= countInv;
+		normalAvg.w *= 0.125f;
 	}
 	if(parentMat != 0) colorAvg.w = 1.0f;	// Opaque
 	

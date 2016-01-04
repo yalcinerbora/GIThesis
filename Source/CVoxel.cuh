@@ -19,18 +19,18 @@ inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 	return result;
 }
 
-inline __device__ float3 ExpandOnlyNormal(const unsigned int packedVoxY)
+inline __device__ float4 ExpandOnlyNormal(const unsigned int packedVoxY)
 {
-	float3 result;
-	result.x = ((static_cast<float>(packedVoxY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
-	result.y = ((static_cast<float>((packedVoxY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
-	result.z = sqrtf(fabsf(1.0f - (result.x * result.x + result.y * result.y)));
-	result.z *= (packedVoxY >> 31 == 1) ? -1.0f : 1.0f;
+	float4 result;
+	result.x = static_cast<float>((packedVoxY >>  0) & 0xFF) / 0x7F;
+	result.y = static_cast<float>((packedVoxY >>  8) & 0xFF) / 0x7F;
+	result.z = static_cast<float>((packedVoxY >> 16) & 0xFF) / 0x7F;
+	result.w = static_cast<float>((packedVoxY >> 24) & 0xFF) / 0x7F;
 	return result;
 }
 
 inline __device__ void ExpandNormalPos(uint3& voxPos,
-									   float3& normal,
+									   float4& normal,
 									   bool& isMip,
 									   const CVoxelNormPos& packedVoxNormalPos)
 {
@@ -88,19 +88,19 @@ inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
 	return packed;
 }
 
-inline __device__ unsigned int PackOnlyVoxNorm(const float3& normal)
+inline __device__ unsigned int PackOnlyVoxNorm(const float4& normal)
 {
-	// (x,y components packed NORM int with 16/15 bit repectively, MSB is sign of z
 	unsigned int value = 0;
-	value |= __float_as_uint(normal.z) & 0x80000000;
-	value |= static_cast<unsigned int>((normal.y * 0.5f + 0.5f) * 0x7FFF) << 16;
-	value |= static_cast<unsigned int>((normal.x * 0.5f + 0.5f) * 0xFFFF);
+	value |= static_cast<unsigned int>(normal.w * 0x7F) << 24;
+	value |= static_cast<unsigned int>(normal.z * 0x7F) << 16;
+	value |= static_cast<unsigned int>(normal.y * 0x7F) << 8;
+	value |= static_cast<unsigned int>(normal.x * 0x7F) << 0;
 	return value;
 }
 
 inline __device__ void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
 										const uint3& voxPos,
-										const float3& normal,
+										const float4& normal,
 										const bool isMip)
 {
 	// First word holds span ratio and voxel position (relative to AABB or Grid)

@@ -183,15 +183,15 @@ float TripolateOcclusion(in vec3 worldPos,
 {
 	// Bigass fetch (its fast tho L1 cache doing work! on GPU!!!)
 	vec4 first, last;
-	first.x = UnpackOcclusion(svoMaterial[matLoc + 0].x);
-	first.y = UnpackOcclusion(svoMaterial[matLoc + 1].x);
-	first.z = UnpackOcclusion(svoMaterial[matLoc + 2].x);
-	first.w = UnpackOcclusion(svoMaterial[matLoc + 3].x);
+	first.x = UnpackOcclusion(svoMaterial[matLoc + 0].y);
+	first.y = UnpackOcclusion(svoMaterial[matLoc + 1].y);
+	first.z = UnpackOcclusion(svoMaterial[matLoc + 2].y);
+	first.w = UnpackOcclusion(svoMaterial[matLoc + 3].y);
 
-	last.x = UnpackOcclusion(svoMaterial[matLoc + 4].x);
-	last.y = UnpackOcclusion(svoMaterial[matLoc + 5].x);
-	last.z = UnpackOcclusion(svoMaterial[matLoc + 6].x);
-	last.w = UnpackOcclusion(svoMaterial[matLoc + 7].x);
+	last.x = UnpackOcclusion(svoMaterial[matLoc + 4].y);
+	last.y = UnpackOcclusion(svoMaterial[matLoc + 5].y);
+	last.z = UnpackOcclusion(svoMaterial[matLoc + 6].y);
+	last.w = UnpackOcclusion(svoMaterial[matLoc + 7].y);
 
 	// Last level AO value is invalid (it used as avg count)
 	if(depth == dimDepth.y)

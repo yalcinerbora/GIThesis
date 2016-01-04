@@ -18,7 +18,7 @@
 #define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict readonly
 
 #define T_COLOR layout(binding = 0)
-#define I_VOX_WRITE layout(rgba16ui, binding = 2) restrict writeonly
+#define I_VOX_WRITE layout(rg32ui, binding = 2) restrict writeonly
 #define U_OBJ_ID layout(location = 4)
 
 // Input
@@ -54,30 +54,16 @@ LU_OBJECT_GRID_INFO buffer GridInfo
 	} objectGridInfo[];
 };
 
-uvec2 PackColor(vec3 color) 
+uint PackColor(in vec3 color, in float specularity) 
 {
-	uvec2 result;
-	color *= vec3(255.0f);
-    result.x = uint(color.g) << 8;
-	result.x |= uint(color.r);
-	result.y = uint(/*color.a*/0) << 16;
-	result.y |= uint(color.b) << 0;
-    
-    return result;
+	// 8bit xyzw UNORM
+	return packUnorm4x8(vec4(color, specularity));
 }
 
-uvec2 PackNormal(in vec3 normal)
+uint PackNormal(in vec3 normal)
 {
-	// 1615 XY Format
-	// 32 bit format LS 16 bits are X
-	// MSB is the sign of Z
-	// Rest is Y
-	// both x and y is SNORM types
-	uvec2 result = uvec2(0);
-	result.x = uint((normal.x * 0.5f + 0.5f) * 0xFFFF);
-	result.y = uint((normal.y * 0.5f + 0.5f) * 0x7FFF);
-	result.y |= (floatBitsToUint(normal.z) >> 16) & 0x00008000;
-	return result;
+	// 8bit xyz SNORM
+	return packSnorm4x8(vec4(normal, 0.0f));
 }
 
 void main(void)
@@ -90,5 +76,7 @@ void main(void)
 
 	// TODO: Average the voxel results
 	// At the moment it is overwrite
-	imageStore(voxelData, ivec3(voxelCoord), uvec4(PackNormal(fNormal.xyz), PackColor(color))); 
+	imageStore(voxelData, 
+			   ivec3(voxelCoord), 
+			   uvec4(PackNormal(fNormal.xyz), PackColor(color, 1.0f), 0.0f, 0.0f));
 }

@@ -142,18 +142,12 @@ vec3 UnpackColor(in uint colorPacked)
 
 vec3 UnpackNormal(in uint voxNormPosY)
 {
-	vec3 result;
-	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
-	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
-	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
-	result.z *= sign(int(voxNormPosY));
-	
-	return result;
+	return unpackSnorm4x8(voxNormPosY).xyz;
 }
 
-float UnpackOcclusion(in uint colorPacked)
+float UnpackOcclusion(in uint normPacked)
 {
-	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
+	return float((normPacked & 0xFF000000) >> 24) / 255.0f;
 }
 
 float IntersectDistance(in vec3 relativePos, 
@@ -257,7 +251,7 @@ float FindMarchLength(out vec3 outData,
 					outData = UnpackColor(svoMaterial[loc].x);		
 				else if(renderType == RENDER_TYPE_OCCLUSION)
 				{
-					outData = vec3(UnpackOcclusion(svoMaterial[loc].x));
+					outData = vec3(UnpackOcclusion(svoMaterial[loc].y));
 					if(i == dimDepth.y) outData = ceil(outData);
 				}
 				else if(renderType == RENDER_TYPE_NORMAL)

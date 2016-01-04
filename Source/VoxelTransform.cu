@@ -177,8 +177,10 @@ __global__ void VoxelTransform(// Voxel Pages
 	// Fetch NormalPos from cache
 	uint3 voxPos;
 	float3 normal;
+	float4 normalWithOcc;
 	bool isMip;
-	ExpandNormalPos(voxPos, normal, isMip, gVoxNormPosCacheData[objectId.y][renderLoc]);
+	ExpandNormalPos(voxPos, normalWithOcc, isMip, gVoxNormPosCacheData[objectId.y][renderLoc]);
+	normal = {normalWithOcc.x, normalWithOcc.y, normalWithOcc.z};
 
 	// Fetch AABB min, transform and span
 	float4 objAABBMin = gObjectAABB[objectId.y][objectId.x].min;
@@ -259,7 +261,8 @@ __global__ void VoxelTransform(// Voxel Pages
 
 		// Write to page
 		uint2 packedVoxNormPos;
-		PackVoxelNormPos(packedVoxNormPos, voxPos, normal, isMip);
+		normalWithOcc = {normal.x, normal.y, normal.z, 0.0f};
+		PackVoxelNormPos(packedVoxNormPos, voxPos, normalWithOcc, isMip);
 		gVoxelData[pageId].dGridVoxPos[pageLocalId] = packedVoxNormPos.x;
 		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = packedVoxNormPos.y;
 	}

@@ -15,7 +15,7 @@
 #define U_TOTAL_VOX_DIM layout(location = 3)
 #define U_OBJ_ID layout(location = 4)
 
-#define I_VOX_READ layout(rgba16ui, binding = 2) restrict readonly
+#define I_VOX_READ layout(rg32ui, binding = 2) restrict readonly
 
 // Input
 
@@ -45,6 +45,7 @@ void main(void)
 {
 	// Init smem
 	if(all(equal(gl_LocalInvocationID, uvec3(0)))) sLocalVoxCount = 0;
+	//memoryBarrierShared();
 	barrier();
 
 	uvec3 voxId = gl_GlobalInvocationID.xyz;
@@ -57,11 +58,12 @@ void main(void)
 	uvec4 voxData = imageLoad(voxelData, ivec3(voxId));
 
 	// Empty Normal Means its vox is empty
-	if(voxData.x != 0xFFFF ||
-		voxData.y != 0xFFFF)
+	if(voxData.x != 0xFFFFFFFF ||
+		voxData.y != 0xFFFFFFFF)
 	{
 		atomicAdd(sLocalVoxCount, 1);
 	}
+	//memoryBarrierShared();
 	barrier();
 
 	// Leader of the block will write to global Atomic

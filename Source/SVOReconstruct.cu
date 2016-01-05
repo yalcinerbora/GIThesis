@@ -375,7 +375,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	if(globalParentId > levelNodeCount) return;
 
 	// Read Sibling Materials
-	CSVOMaterial parentMat = 0;
+	CSVOMaterial parentMat = 0x0000000000000000;
 	CSVONode node = 0xFFFFFFFF;
 	// Coalesced Parent Load (Warp Level)
 	if(laneId < parentPerWarp)
@@ -385,7 +385,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		node = n[gSVOLevelOffset + warpLinearId];
 
 		// Only fetch parent when its contributes to the average
-		bool fetchParentMat = ((svoConstants.totalDepth - currentLevel) < svoConstants.numCascades);// || (node != 0xFFFFFFFF);
+		bool fetchParentMat = ((svoConstants.totalDepth - currentLevel) < svoConstants.numCascades);
 		parentMat = fetchParentMat ? gSVOMat[matOffset + gSVOLevelOffset + warpLinearId] : 0;
 	}
 
@@ -418,11 +418,10 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			colorAvg.z += color.z;
 			colorAvg.w += color.w;
 			
-
 			normalAvg.x += normal.x;
 			normalAvg.y += normal.y;
 			normalAvg.z += normal.z;
-			normalAvg.w += (currentLevel == (svoConstants.totalDepth - 1)) ? 1.0f : normalAvg.w;
+			normalAvg.w += (currentLevel == (svoConstants.totalDepth - 1)) ? ceil(normal.w) : normal.w;
 
 			count++;
 		}
@@ -465,6 +464,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		normalAvg.x += __shfl_down(normalAvg.x, offset, GI_NODE_THREAD_COUNT);
 		normalAvg.y += __shfl_down(normalAvg.y, offset, GI_NODE_THREAD_COUNT);
 		normalAvg.z += __shfl_down(normalAvg.z, offset, GI_NODE_THREAD_COUNT);
+		normalAvg.w += __shfl_down(normalAvg.w, offset, GI_NODE_THREAD_COUNT);
 
 		count += __shfl_down(count, offset, GI_NODE_THREAD_COUNT);
 	}
@@ -485,7 +485,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		normalAvg.z *= countInv;
 		normalAvg.w *= 0.125f;
 	}
-	if(parentMat != 0) colorAvg.w = 1.0f;	// Opaque
+	if(parentMat != 0) normalAvg.w = 1.0f;	// Opaque
 	
 	CSVOMaterial matAvg = PackSVOMaterial(PackSVOColor(colorAvg), PackOnlyVoxNorm(normalAvg));
 	if(GI_NODE_THREAD_COUNT != 1) matAvg = __shfl(matAvg, laneId * GI_NODE_THREAD_COUNT);
@@ -509,6 +509,93 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		else
 			gSVOMat[matOffset + gSVOLevelOffset + warpLinearId] = matAvg;
 	}
+}
+
+__global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatChild,
+										  cudaSurfaceObject_t sDenseMatParent,
+
+										  const unsigned int parentSize)
+{ 
+	// Linear Id
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int parentId = globalId / GI_DENSE_WORKER_PER_PARENT;
+
+	// 3D Id
+	char3 idMap = voxLookup[globalId % GI_DENSE_WORKER_PER_PARENT];
+	uint3 parentId3D =
+	{
+		static_cast<unsigned int>(parentId % parentSize),
+		static_cast<unsigned int>((parentId / parentSize) % parentSize),
+		static_cast<unsigned int>(parentId / (parentSize * parentSize))
+	};
+	uint3 childId3D =
+	{
+		parentId3D.x * 2 + idMap.x,
+		parentId3D.y * 2 + idMap.y,
+		parentId3D.z * 2 + idMap.z
+	};
+
+	// 3D Fetch
+	uint2 data;
+	surf3Dread(&data, sDenseMatChild,
+			   childId3D.x * sizeof(uint2),
+			   childId3D.y,
+			   childId3D.z);
+	
+	// Data
+	unsigned int count = (data.x == 0 && data.y == 0) ? 0 : 1;
+	float4 color = UnpackSVOColor(data.x);
+	float4 normal = ExpandOnlyNormal(data.y);
+
+	if(count == 1)
+		return;
+
+	// Average	
+	#pragma unroll
+	for(int offset = GI_DENSE_WORKER_PER_PARENT / 2; offset > 0; offset /= 2)
+	{	
+		color.x += __shfl_down(color.x, offset, GI_DENSE_WORKER_PER_PARENT);
+		color.y += __shfl_down(color.y, offset, GI_DENSE_WORKER_PER_PARENT);
+		color.z += __shfl_down(color.z, offset, GI_DENSE_WORKER_PER_PARENT);
+		color.w += __shfl_down(color.w, offset, GI_DENSE_WORKER_PER_PARENT);
+
+		normal.x += __shfl_down(normal.x, offset, GI_DENSE_WORKER_PER_PARENT);
+		normal.y += __shfl_down(normal.y, offset, GI_DENSE_WORKER_PER_PARENT);
+		normal.z += __shfl_down(normal.z, offset, GI_DENSE_WORKER_PER_PARENT);
+		normal.w += __shfl_down(normal.w, offset, GI_DENSE_WORKER_PER_PARENT);
+
+		count += __shfl_down(count, offset, GI_DENSE_WORKER_PER_PARENT);
+	}
+
+	float countInv = 1.0f / ((count != 0) ? float(count) : 1.0f);
+	color.x *= countInv;
+	color.y *= countInv;
+	color.z *= countInv;
+	color.w *= countInv;
+
+	normal.x *= countInv;
+	normal.y *= countInv;
+	normal.z *= countInv;
+	normal.w *= 0.125f;
+
+	// DEBUG
+	color.x = 0.0f;
+	color.y = 0.0f;
+	color.z = 1.0f;
+	color.w = 1.0f;
+
+	normal.x = 1.0f;
+	normal.y = 1.0f;
+	normal.z = 1.0f;
+	normal.w = 0.125f;
+
+	data.x = PackSVOColor(color);
+	data.y = PackOnlyVoxNorm(normal);
+	if(globalId % GI_DENSE_WORKER_PER_PARENT == 0)
+		surf3Dwrite(data, sDenseMatParent, 
+					parentId3D.x * sizeof(uint2), 
+					parentId3D.y, 
+					parentId3D.z);
 }
 
 __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,

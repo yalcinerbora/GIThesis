@@ -76,7 +76,7 @@ U_SVO_CONSTANTS uniform SVOConstants
 	// x is cascade count
 	// y is node sparse offet
 	// z is material sparse offset
-	// w is renderLevel
+	// w is dense mat tex min level
 	uvec4 offsetCascade;
 };
 

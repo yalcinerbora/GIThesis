@@ -43,9 +43,9 @@ inline __device__ float4 UnpackSVOColor(const CSVOColor& node)
 inline __device__ float4 UnpackNormCount(const CVoxelNorm& normal)
 {
 	float4 result;
-	result.x = static_cast<float>((normal >> 0) & 0xFF) / 0x7F;
-	result.y = static_cast<float>((normal >> 8) & 0xFF) / 0x7F;
-	result.z = static_cast<float>((normal >> 16) & 0xFF) / 0x7F;
+	result.x = static_cast<float>(static_cast<char>((normal >> 0) & 0xFF)) / 0x7F;
+	result.y = static_cast<float>(static_cast<char>((normal >> 8) & 0xFF)) / 0x7F;
+	result.z = static_cast<float>(static_cast<char>((normal >> 16) & 0xFF)) / 0x7F;
 	result.w = static_cast<float>((normal >> 24) & 0xFF);
 	return result;
 }
@@ -65,9 +65,9 @@ inline __device__ CVoxelNorm PackNormCount(const float4 normal)
 	// (x,y components packed NORM int with 16/15 bit repectively, MSB is sign of z
 	unsigned int value = 0;
 	value |= static_cast<unsigned int>(normal.w) << 24;
-	value |= static_cast<unsigned int>(normal.z * 0x7F) << 16;
-	value |= static_cast<unsigned int>(normal.y * 0x7F) << 8;
-	value |= static_cast<unsigned int>(normal.x * 0x7F) << 0;
+	value |= (static_cast<int>(normal.z * 0x7F) & 0xFF) << 16;
+	value |= (static_cast<int>(normal.y * 0x7F) & 0xFF) << 8;
+	value |= (static_cast<int>(normal.x * 0x7F) & 0xFF) << 0;
 	return value;
 }
 

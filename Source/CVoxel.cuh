@@ -22,10 +22,10 @@ inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 inline __device__ float4 ExpandOnlyNormal(const unsigned int packedVoxY)
 {
 	float4 result;
-	result.x = static_cast<float>((packedVoxY >>  0) & 0xFF) / 0x7F;
-	result.y = static_cast<float>((packedVoxY >>  8) & 0xFF) / 0x7F;
-	result.z = static_cast<float>((packedVoxY >> 16) & 0xFF) / 0x7F;
-	result.w = static_cast<float>((packedVoxY >> 24) & 0xFF) / 0x7F;
+	result.x = static_cast<float>(static_cast<char>((packedVoxY >>  0) & 0xFF)) / 0x7F;
+	result.y = static_cast<float>(static_cast<char>((packedVoxY >>  8) & 0xFF)) / 0x7F;
+	result.z = static_cast<float>(static_cast<char>((packedVoxY >> 16) & 0xFF)) / 0x7F;
+	result.w = static_cast<float>((packedVoxY & 0xFF000000) >> 24) / 255.0f;
 	return result;
 }
 
@@ -91,10 +91,10 @@ inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
 inline __device__ unsigned int PackOnlyVoxNorm(const float4& normal)
 {
 	unsigned int value = 0;
-	value |= static_cast<unsigned int>(normal.w * 0x7F) << 24;
-	value |= static_cast<unsigned int>(normal.z * 0x7F) << 16;
-	value |= static_cast<unsigned int>(normal.y * 0x7F) << 8;
-	value |= static_cast<unsigned int>(normal.x * 0x7F) << 0;
+	value |= static_cast<unsigned int>(normal.w * 255.0f) << 24;
+	value |= (static_cast<int>(normal.z * 0x7F) & 0xFF) << 16;
+	value |= (static_cast<int>(normal.y * 0x7F) & 0xFF) << 8;
+	value |= (static_cast<int>(normal.x * 0x7F) & 0xFF) << 0;
 	return value;
 }
 

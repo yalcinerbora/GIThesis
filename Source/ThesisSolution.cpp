@@ -429,15 +429,15 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene,
 void ThesisSolution::LevelIncrement()
 {
 	svoRenderLevel++;
-	svoRenderLevel = std::min(svoRenderLevel, voxelOctree.SVOConsts().totalDepth);
-	//GI_LOG("Level %d", svoRenderLevel);
+	svoRenderLevel = std::min(svoRenderLevel, voxelOctree.MaxLevel());
+	GI_LOG("Level %d", svoRenderLevel);
 }
 
 void ThesisSolution::LevelDecrement()
 {
 	svoRenderLevel--;
-	svoRenderLevel = std::max(svoRenderLevel, voxelOctree.SVOConsts().denseDepth);
-	//GI_LOG("Level %d", svoRenderLevel);
+	svoRenderLevel = std::max(svoRenderLevel, voxelOctree.MinLevel());
+	GI_LOG("Level %d", svoRenderLevel);
 }
 
 void ThesisSolution::TraceTypeInc()

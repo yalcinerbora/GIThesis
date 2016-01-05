@@ -458,7 +458,23 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 		);
 		CUDA_KERNEL_CHECK();
 	}
-	// Call once for all lower levels
+	
+	// Dense Reduction
+	for(int i = 1; i < GI_DENSE_TEX_COUNT; i++)
+	{
+		uint32_t levelSize = GI_DENSE_SIZE >> i;
+		uint32_t levelSizeCube = levelSize * levelSize * levelSize;
+			
+		uint32_t grid = ((levelSizeCube * GI_DENSE_WORKER_PER_PARENT) + GI_THREAD_PER_BLOCK - 1) / 
+						GI_THREAD_PER_BLOCK;
+		
+		SVOReconstructAverageNode<<<grid, GI_THREAD_PER_BLOCK>>>
+		(
+			sSVODenseMat[i - 1],
+			sSVODenseMat[i],
+			levelSize
+		);
+	}
 }
 
 double GISparseVoxelOctree::UpdateSVO()
@@ -740,7 +756,7 @@ double GISparseVoxelOctree::DebugDeferredSVO(DeferredRenderer& dRenderer,
 			static_cast<unsigned int>(allocators.size()),
 			GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE,
 			0,
-			renderLevel
+			GI_DENSE_LEVEL - GI_DENSE_TEX_COUNT + 1
 		}
 	};
 	svoTraceData.SendData();
@@ -748,6 +764,7 @@ double GISparseVoxelOctree::DebugDeferredSVO(DeferredRenderer& dRenderer,
 	// Shaders
 	computeVoxTraceDeferred.Bind();
 	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(type));
+	glUniform1ui(U_FETCH_LEVEL, static_cast<GLuint>(renderLevel));
 
 	// Buffers
 	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);
@@ -760,6 +777,12 @@ double GISparseVoxelOctree::DebugDeferredSVO(DeferredRenderer& dRenderer,
 	// Images
 	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	glBindImageTexture(I_COLOR_FB, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glActiveTexture(GL_TEXTURE0 + T_DENSE_NODE);
+	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
+	glBindSampler(T_DENSE_NODE, nodeSampler);
+	glActiveTexture(GL_TEXTURE0 + T_DENSE_MAT);
+	glBindTexture(GL_TEXTURE_3D, svoDenseMat);
+	glBindSampler(T_DENSE_MAT, materialSampler);
 
 	// Dispatch
 	uint2 gridSize;
@@ -809,7 +832,7 @@ double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
 			static_cast<unsigned int>(allocators.size()), 
 			GI_DENSE_SIZE_CUBE,
 			0,
-			renderLevel
+			GI_DENSE_LEVEL - GI_DENSE_TEX_COUNT + 1
 		}
 	};
 	svoTraceData.SendData();
@@ -817,6 +840,7 @@ double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
 	// Shaders
 	computeVoxTraceWorld.Bind();
 	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(type));
+	glUniform1ui(U_FETCH_LEVEL, static_cast<GLuint>(renderLevel));
 
 	// Buffers
 	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);
@@ -870,6 +894,16 @@ uint64_t GISparseVoxelOctree::MemoryUsage() const
 		totalBytes += sizeof(CSVOMaterial) * texSize * texSize * texSize;
 	}
 	return totalBytes;
+}
+
+uint32_t GISparseVoxelOctree::MinLevel() const
+{
+	return hSVOConstants.denseDepth - GI_DENSE_TEX_COUNT + 1;
+}
+
+uint32_t GISparseVoxelOctree::MaxLevel() const
+{
+	return hSVOConstants.totalDepth;
 }
 
 const CSVOConstants& GISparseVoxelOctree::SVOConsts() const

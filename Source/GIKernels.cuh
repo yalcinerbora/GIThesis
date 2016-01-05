@@ -177,6 +177,11 @@ extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 												 const unsigned int currentLevel,
 												 const CSVOConstants& svoConstants);
 
+extern __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatChild,
+												 cudaSurfaceObject_t sDenseMatParent,
+
+												 const unsigned int parentSize);
+
 extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 									  CSVONode* gSVOSparse,
 									  CSVONode* gSVODense,

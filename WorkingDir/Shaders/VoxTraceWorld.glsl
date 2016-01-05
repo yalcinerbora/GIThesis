@@ -18,6 +18,7 @@
 #define LU_SVO_LEVEL_OFFSET layout(std430, binding = 2) readonly
 
 #define U_RENDER_TYPE layout(location = 0)
+#define U_FETCH_LEVEL layout(location = 1)
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
@@ -36,6 +37,7 @@
 
 // Uniforms
 U_RENDER_TYPE uniform uint renderType;
+U_FETCH_LEVEL uniform uint fetchLevel;
 
 LU_SVO_NODE buffer SVONode
 { 
@@ -67,7 +69,7 @@ U_SVO_CONSTANTS uniform SVOConstants
 	// x is cascade count
 	// y is node sparse offet
 	// z is material sparse offset
-	// w is renderLevel
+	// w is dense mat tex min level
 	uvec4 offsetCascade;
 };
 
@@ -147,7 +149,8 @@ vec3 UnpackNormal(in uint voxNormPosY)
 
 float UnpackOcclusion(in uint normPacked)
 {
-	return float((normPacked & 0xFF000000) >> 24) / 255.0f;
+	return unpackUnorm4x8(normPacked).w;
+	//return float((normPacked & 0xFF000000) >> 24) / 255.0f;
 }
 
 float IntersectDistance(in vec3 relativePos, 
@@ -203,7 +206,6 @@ float FindMarchLength(out vec3 outData,
 					  in vec3 dir)
 {
 	ivec3 voxPos = LevelVoxId(marchPos, dimDepth.y);
-
 	// Cull if out of bounds
 	if(any(lessThan(voxPos, ivec3(0))) ||
 	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
@@ -213,6 +215,25 @@ float FindMarchLength(out vec3 outData,
 		// Out of bounds means its cannot come towards the grid
 		// directly cull
 		return FLT_MAX;
+	}
+
+	//	 Check Dense
+	if(fetchLevel <= dimDepth.w &&
+	   fetchLevel >= offsetCascade.w)
+	{
+		// Dense Fetch
+		uint mipId = dimDepth.w - fetchLevel;
+		uint levelDim = dimDepth.z >> mipId;
+		vec3 levelUV = LevelVoxIdF(marchPos, fetchLevel) / float(levelDim);
+				
+		if(renderType == RENDER_TYPE_COLOR)
+			outData = UnpackColor(textureLod(tSVOMat, levelUV, float(mipId)).x);
+		else if(renderType == RENDER_TYPE_OCCLUSION)
+			outData = vec3(UnpackOcclusion(textureLod(tSVOMat, levelUV, float(mipId)).y));
+
+		else if(renderType == RENDER_TYPE_NORMAL)
+			outData = UnpackNormal(textureLod(tSVOMat, levelUV, float(mipId)).y);
+		if(any(notEqual(outData, vec3(0.0f)))) return 0.0f;
 	}
 
 	// Start tracing (stateless start from root (dense))
@@ -235,10 +256,10 @@ float FindMarchLength(out vec3 outData,
 
 
 		// Color Check
-		if((i < offsetCascade.w &&
+		if((i < fetchLevel &&
 		   i > (dimDepth.y - offsetCascade.x) &&
 		   currentNode == 0xFFFFFFFF) ||
-		   i == offsetCascade.w)
+		   i == fetchLevel)
 		{
 			// Mid Leaf Level
 			uint loc;
@@ -268,7 +289,7 @@ float FindMarchLength(out vec3 outData,
 					outData = UnpackColor(textureLod(tSVOMat, levelUV, float(mipId)).x);
 				else if(renderType == RENDER_TYPE_OCCLUSION)
 				{
-					outData = vec3(UnpackOcclusion(textureLod(tSVOMat, levelUV, float(mipId)).x));
+					outData = vec3(UnpackOcclusion(textureLod(tSVOMat, levelUV, float(mipId)).y));
 					if(i == dimDepth.y) outData = ceil(outData);
 				}
 				else if(renderType == RENDER_TYPE_NORMAL)

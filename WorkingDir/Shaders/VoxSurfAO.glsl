@@ -69,7 +69,7 @@ U_SVO_CONSTANTS uniform SVOConstants
 	// x is cascade count
 	// y is node sparse offet
 	// z is material sparse offset
-	// w is renderLevel
+	// w is dense mat tex min level
 	uvec4 offsetCascade;
 };
 
@@ -185,7 +185,8 @@ vec3 UnpackNormalSVO(in uint voxNormPosY)
 
 float UnpackOcclusion(in uint colorPacked)
 {
-	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
+	return unpackUnorm4x8(colorPacked).w;
+	//return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
 }
 
 void SampleSurface()

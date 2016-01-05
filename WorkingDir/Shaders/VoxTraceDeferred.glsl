@@ -17,18 +17,21 @@
 #define LU_SVO_LEVEL_OFFSET layout(std430, binding = 2) readonly
 
 #define U_RENDER_TYPE layout(location = 0)
+#define U_FETCH_LEVEL layout(location = 1)
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
 #define U_SVO_CONSTANTS layout(std140, binding = 3)
 
 #define T_DEPTH layout(binding = 2)
+#define T_DENSE_NODE layout(binding = 5)
+#define T_DENSE_MAT layout(binding = 6)
 
 // Ratio Between TraceBuffer and GBuffer
 #define TRACE_RATIO 1
 
 #define RENDER_TYPE_COLOR 0
-#define RENDER_TYPE_OCCULUSION 1
+#define RENDER_TYPE_OCCLUSION 1
 #define RENDER_TYPE_NORMAL 2
 
 #define FLT_MAX 3.402823466e+38F
@@ -37,6 +40,7 @@
 
 // Buffers
 U_RENDER_TYPE uniform uint renderType;
+U_FETCH_LEVEL uniform uint fetchLevel;
 
 LU_SVO_NODE buffer SVONode
 { 
@@ -68,7 +72,7 @@ U_SVO_CONSTANTS uniform SVOConstants
 	// x is cascade count
 	// y is node sparse offet
 	// z is material sparse offset
-	// w is renderLevel
+	// w is dense mat tex min level
 	uvec4 offsetCascade;
 };
 
@@ -91,6 +95,8 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 // Textures
 uniform I_COLOR_FB image2D traceTex;
 uniform T_DEPTH sampler2D gBuffDepth;
+uniform T_DENSE_NODE usampler3D tSVODense;
+uniform T_DENSE_MAT usampler3D tSVOMat;
 
 // Functions
 vec3 DepthToWorld(vec2 gBuffUV)
@@ -189,18 +195,13 @@ vec3 UnpackColor(in uint colorPacked)
 
 vec3 UnpackNormalSVO(in uint voxNormPosY)
 {
-	vec3 result;
-	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
-	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
-	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
-	result.z *= sign(int(voxNormPosY));
-	
-	return result;
+	return unpackSnorm4x8(voxNormPosY).xyz;
 }
 
 float UnpackOcculusion(in uint colorPacked)
 {
-	return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
+	return unpackUnorm4x8(colorPacked).w;
+	//return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
 }
 
 uint SampleSVO(in vec3 worldPos)
@@ -215,6 +216,24 @@ uint SampleSVO(in vec3 worldPos)
 		return 0;
 	}
 
+	// Check Dense
+	if(fetchLevel <= dimDepth.w &&
+	   fetchLevel >= offsetCascade.w)
+	{
+		// Dense Fetch
+		uint mipId = dimDepth.w - fetchLevel;
+		uint levelDim = dimDepth.z >> mipId;
+		vec3 levelUV = LevelVoxId(worldPos, fetchLevel) / float(levelDim);
+				
+		if(renderType == RENDER_TYPE_COLOR)
+			return textureLod(tSVOMat, levelUV, float(mipId)).x;
+		else if(renderType == RENDER_TYPE_OCCLUSION)
+			return textureLod(tSVOMat, levelUV, float(mipId)).y;
+		else if(renderType == RENDER_TYPE_NORMAL)
+			return textureLod(tSVOMat, levelUV, float(mipId)).y;
+	}
+
+	// Sparse Check
 	unsigned int nodeIndex = 0;
 	for(unsigned int i = dimDepth.w; i <= dimDepth.y; i++)
 	{
@@ -222,9 +241,8 @@ uint SampleSVO(in vec3 worldPos)
 		if(i == dimDepth.w)
 		{
 			ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
-			currentNode = svoNode[denseVox.z * dimDepth.z * dimDepth.z +
-								  denseVox.y * dimDepth.z + 
-								  denseVox.x];
+			vec3 texCoord = vec3(denseVox) / dimDepth.z;
+			currentNode = texture(tSVODense, texCoord).x;
 		}
 		else
 		{
@@ -234,42 +252,25 @@ uint SampleSVO(in vec3 worldPos)
 		}
 		
 		// Color Check
-		if((i < offsetCascade.w &&
+		if((i < fetchLevel &&
 		   i > (dimDepth.y - offsetCascade.x) &&
 		   currentNode == 0xFFFFFFFF) ||
-		   i == offsetCascade.w)
+		   i == fetchLevel)
 		{
 			// Mid Leaf Level
-			uint loc;
-			if(i > dimDepth.w)
-			{
-				// Sparse Fetch
-				loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] +
-					  nodeIndex;
-			}
-			else
-			{
-				// Dense Fetch
-				uint levelOffset = uint((1.0f - pow(8.0f, i)) / 
-										(1.0f - 8.0f));
-				uint levelDim = dimDepth.z >> (dimDepth.w - i);
-				ivec3 levelVoxId = LevelVoxId(worldPos, i);
-				loc = levelOffset + levelDim * levelDim * levelVoxId.z + 
-					  levelDim * levelVoxId.y + 
-					  levelVoxId.x;
-			}
+			uint loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
 			if(renderType == RENDER_TYPE_COLOR)
 				return svoMaterial[loc].x;
-			else if(renderType == RENDER_TYPE_OCCULUSION)
+			else if(renderType == RENDER_TYPE_OCCLUSION)
 			{
 				if(i == dimDepth.y)
 				{
-					float occ = UnpackOcculusion(svoMaterial[loc].x);
+					float occ = UnpackOcculusion(svoMaterial[loc].y);
 					occ = ceil(occ);
 					return uint(occ * 255.0f) << 24;
 				}
 				else
-					return svoMaterial[loc].x;
+					return svoMaterial[loc].y;
 			}
 			else if(renderType == RENDER_TYPE_NORMAL)
 				return svoMaterial[loc].y;
@@ -325,7 +326,7 @@ void main(void)
 		{
 			color = UnpackColor(data);
 		}
-		else if(renderType == RENDER_TYPE_OCCULUSION)
+		else if(renderType == RENDER_TYPE_OCCLUSION)
 		{
 			color = vec3(1.0f - UnpackOcculusion(data));
 		}

@@ -70,9 +70,7 @@ void main(void)
 	if(renderType == RENDER_TYPE_COLOR)
 		fColor = voxColor.rgb;
 	else if(renderType == RENDER_TYPE_NORMAL)
-	{
 		fColor = UnpackNormal(voxNormPos.y);
-	}
 
 	// Voxels are in world space
 	// Need to determine the scale and relative position wrt the grid

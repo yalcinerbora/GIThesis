@@ -14,6 +14,7 @@ Sparse voxel octree types that used in cuda funcs
 static_assert(GI_NODE_THREAD_COUNT <= 8, "GI_NODE_THREAD_COUNT should be at most 8");
 // TODO constexpr stataic assert that cehcks if this is pwer of two
 
+#define GI_DENSE_WORKER_PER_PARENT 8
 
 // first int has
 // first 24 bit is children index

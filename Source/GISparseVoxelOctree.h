@@ -200,5 +200,7 @@ class GISparseVoxelOctree
 
 		uint64_t								MemoryUsage() const;
 		const CSVOConstants&					SVOConsts() const;
+		uint32_t								MinLevel() const;
+		uint32_t								MaxLevel() const;
 };
 #endif //__GICUDASPARSEVOXELOCTREE_H__

@@ -2,12 +2,11 @@
 /*	
 	**Voxel Ambient Occulusion Compute Shader**
 	
-	File Name	: VoxSurfAO.vert
+	File Name	: VoxAO.glsl
 	Author		: Bora Yalciner
 	Description	:
 
 		Ambient Occulusion approximation using SVO
-		Uses Surface tracing in order to interpolate
 */
 
 #define I_LIGHT_INENSITY layout(rgba8, binding = 2) restrict writeonly
@@ -24,11 +23,11 @@
 #define T_NORMAL layout(binding = 1)
 #define T_DEPTH layout(binding = 2)
 #define T_DENSE_NODE layout(binding = 5)
+#define T_DENSE_MAT layout(binding = 6)
 
 #define CONE_COUNT 4
 #define BLOCK_SIZE_X 32
 #define BLOCK_SIZE_Y 8
-#define SURF_DIM_XY 3 // 3 * 3 coverage points
 
 // Uniforms
 uniform vec2 CONE_ORTHO[4] = 
@@ -110,9 +109,10 @@ uniform I_LIGHT_INENSITY image2D liTex;
 uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
 uniform T_DENSE_NODE usampler3D tSVODense;
+uniform T_DENSE_MAT usampler3D tSVOMat;
 
 // Surfaces traced by each pixel
-shared uvec2 surface [BLOCK_SIZE_Y][(BLOCK_SIZE_X / CONE_COUNT) * SURF_DIM_XY * SURF_DIM_XY];
+shared uvec2 surface [BLOCK_SIZE_Y][(BLOCK_SIZE_X / CONE_COUNT) * (CONE_COUNT / 2)];
 
 // Functions
 vec3 DepthToWorld(vec2 gBuffUV)
@@ -136,6 +136,11 @@ ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
 {
 	ivec3 result = ivec3(floor((worldPoint - worldPosSpan.xyz) / worldPosSpan.w));
 	return result >> (dimDepth.y - depth);
+}
+
+vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
+{
+	return (worldPoint - worldPosSpan.xyz) / (worldPosSpan.w * float((0x1 << (dimDepth.y - depth))));
 }
 
 uint SpanToDepth(in uint number)
@@ -189,13 +194,6 @@ float UnpackOcclusion(in uint colorPacked)
 	//return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
 }
 
-void SampleSurface()
-{
-	// Samples the Surface
-	// Each thread responsible for 2 nodes
-	// 
-}
-
 // SVO Fetch
 float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 {	
@@ -209,10 +207,18 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 
 	// Tripolation is different if its sparse or dense
 	// Fetch from 3D Tex here
-	if(depth <= dimDepth.w)
+	if(depth < offsetCascade.w)
 	{
-		// TODO:
+		// Not every voxel level is available
 		return 0.0f;
+	}
+	else if(depth <= dimDepth.w)
+	{
+		// Dense Fetch
+		uint mipId = dimDepth.w - depth;
+		uint levelDim = dimDepth.z >> mipId;
+		vec3 levelUV = LevelVoxIdF(worldPos, depth) / float(levelDim);
+		return UnpackOcclusion(textureLod(tSVOMat, levelUV, float(mipId)).y);
 	}
 	else
 	{
@@ -280,40 +286,6 @@ void SumPixelData(inout vec4 coneColorOcc)
 	}
 }
 
-void StoreSurface(in vec3 edgeMin, in vec3 edgeMax)
-{
-	//uint nodeDepth = SpanToDepth(uint(round(diameter / worldPosSpan.w)));;
-	//float depthMultiplier =  0x1 << (dimDepth.y - nodeDepth);
-	//float currentVoxelSize = worldPosSpan.w * depthMultiplier;
-
-	// Fetch Surface
-	// Each Pixel needs to fetch 3x3 coverage points
-	// 4 threads used for each pixel
-	// 2 for each pixel + 1
-	// Always fetch surfaces bigger than cone coverage
-	// Surfaces should be flat for better sampling and consistency between pixels
-	// Surfaces should be higher than the actual point in order to interpolate accrately
-
-	// uvec2 each holds unom8 types
-	// first uint holds color + occlusion
-	// second uint holds normal
-
-
-	// Atm can only store 2 vecs (4 on maxwell)
-	//
-
-	// Sample Depth Buffers of each light that will be involved in GI
-	// Calculate Light Intensity of each coverage point and store
-
-}
-
-float SampleSurface(in vec3 position)
-{
-	// Determine ratios of the sampling points
-	// Average samples according to this position
-	return 0.0f;			
-}
-
 layout (local_size_x = BLOCK_SIZE_X, local_size_y = BLOCK_SIZE_Y, local_size_z = 1) in;
 void main(void)
 {
@@ -343,8 +315,6 @@ void main(void)
 	vec3 ortho2 = normalize(cross(worldNorm, ortho1));
 
 	// Find Corner points of the surface
-	vec3 edgeMin = normalize(worldNorm - ortho1 * coneParams1.y - ortho2 * coneParams1.y);
-	vec3 edgeMax = normalize(worldNorm + ortho1 * coneParams1.y + ortho2 * coneParams1.y);
 	vec3 coneDir = normalize(worldNorm + 
 							 ortho1 * coneParams1.z * CONE_ORTHO[globalId.x % CONE_COUNT].x + 
 							 ortho2 * coneParams1.z * CONE_ORTHO[globalId.x % CONE_COUNT].y);
@@ -375,10 +345,7 @@ void main(void)
 		// (wrt cone angle and distance from pixel)
 		// And Store 3x3 voxels
 		float surfacePoint = (traversedDistance + diameter * 0.5f);
-		vec3 surfMin = edgeMin * surfacePoint;
-		vec3 surfMax = edgeMax * surfacePoint;
-		StoreSurface(surfMin, surfMax);
-		
+				
 		// start sampling from that surface (interpolate)
 		//float surfOcclusion = SampleSurface(coneDir * traversedDistance);
 		float surfOcclusion = FetchSVOOcclusion(worldPos + coneDir * traversedDistance,
@@ -386,13 +353,12 @@ void main(void)
 
 		// Omit if %100 occuluded in closer ranges
 		// Since its not always depth pos aligned with voxel pos
-	//	bool isOmitDistance = (surfOcclusion > 0.9f) && (traversedDistance < (coneParams2.z * worldPosSpan.w * (0x1 << offsetCascade.x - 1)));
-	//	surfOcclusion = isOmitDistance ? 0.0f : surfOcclusion;		
+//		bool isOmitDistance = (surfOcclusion > 0.9f) && (traversedDistance < (coneParams2.z * worldPosSpan.w * (0x1 << offsetCascade.x - 1)));
+//		surfOcclusion = isOmitDistance ? 0.0f : surfOcclusion;		
 
 		// than interpolate with your previous surface's value to simulate quadlinear interpolation
 		float ratio = (traversedDistance - prevSurfPoint) / (surfacePoint - prevSurfPoint);
 		float nodeOcclusion = mix(prevOcclusion, surfOcclusion, ratio);
-		//float nodeOcclusion = surfOcclusion;
 		
 		// do AO calculations from this value (or values)
 		// Correction Term to prevent intersecting samples error
@@ -400,8 +366,8 @@ void main(void)
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDistance / diameterVoxelSize);
 		
 		// Occlusion falloff (linear)
-		nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
-		//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
+		//nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
+		nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
 
 		// Average total occlusion value
 		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;
@@ -417,7 +383,7 @@ void main(void)
 	totalConeOcclusion *= dot(worldNorm, coneDir) * coneParams2.x;
 	
 	// Sum occlusion data
-	// CosTetha multiplicatio
+	// CosTetha multiplication
 	vec4 result = vec4(totalConeOcclusion);
 	SumPixelData(result);
 	

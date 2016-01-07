@@ -40,7 +40,7 @@ inline __device__ void ExpandNormalPos(uint3& voxPos,
 	normal = ExpandOnlyNormal(packedVoxNormalPos.y);
 }
 
-inline  __device__ ushort2 ExpandOnlyObjId(const unsigned int packVoxIdX)
+inline __device__ ushort2 ExpandOnlyObjId(const unsigned int packVoxIdX)
 {
 	ushort2 result;
 	result.x = (packVoxIdX & 0x0000FFFF);

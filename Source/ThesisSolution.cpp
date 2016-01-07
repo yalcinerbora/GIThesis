@@ -26,10 +26,10 @@ const TwEnumVal ThesisSolution::renderSchemeVals[] =
 };
 
 AOBar::AOBar()
- : angleDegree(10.0f)
+ : angleDegree(30.0f)
  , sampleFactor(1.0f)
- , maxDistance(50.0f)
- , intensity(1.0f)
+ , maxDistance(250.0f)
+ , intensity(1.7f)
  , bar(nullptr)
  , hidden(true)
 {
@@ -606,7 +606,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		case GI_DEFERRED:
 		{
 			dRenderer.Render(*currentScene, mainRenderCamera);
-		//	dRenderer.ShowColorGBuffer(mainRenderCamera);
+			dRenderer.ShowColorGBuffer(mainRenderCamera);
 			break;
 		}
 		case GI_LIGHT_INTENSITY:
@@ -617,13 +617,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	//		dRenderer.ShowLIBuffer(mainRenderCamera);
 		
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
-			//debugVoxTransferTime = voxelOctree.AmbientOcclusion(dRenderer,
-			//													mainRenderCamera,
-			//													IEMath::ToRadians(15.0f),
-			//													75.0f,
-			//													1.0f);
-
-			debugVoxTransferTime = voxelOctree.AmbientOcclusionSurf
+			debugVoxTransferTime = voxelOctree.AmbientOcclusion
 			(
 				dRenderer,
 				mainRenderCamera,

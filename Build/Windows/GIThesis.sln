@@ -6,6 +6,10 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GIThesis", "GIThesis\GIThesis.vcxproj", "{94B71C19-CC4A-4562-ADB1-63AC79E31CB9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shaders", "Shaders", "{67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\EdgeDetect.glsl = ..\..\WorkingDir\Shaders\EdgeDetect.glsl
+		..\..\WorkingDir\Shaders\Gauss32.glsl = ..\..\WorkingDir\Shaders\Gauss32.glsl
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxelRelated", "VoxelRelated", "{E1A6E462-843D-4491-90A8-8137B528F211}"
 	ProjectSection(SolutionItems) = preProject
@@ -48,8 +52,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TODO List", "TODO List", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxTrace", "VoxTrace", "{411BEC89-FDE7-42D4-A363-8AD320B28DAF}"
 	ProjectSection(SolutionItems) = preProject
-		..\..\WorkingDir\Shaders\VoxSurfAO.glsl = ..\..\WorkingDir\Shaders\VoxSurfAO.glsl
-		..\..\WorkingDir\Shaders\VoxTraceAO.glsl = ..\..\WorkingDir\Shaders\VoxTraceAO.glsl
+		..\..\WorkingDir\Shaders\VoxAO.glsl = ..\..\WorkingDir\Shaders\VoxAO.glsl
 		..\..\WorkingDir\Shaders\VoxTraceDeferred.glsl = ..\..\WorkingDir\Shaders\VoxTraceDeferred.glsl
 		..\..\WorkingDir\Shaders\VoxTraceGI.glsl = ..\..\WorkingDir\Shaders\VoxTraceGI.glsl
 		..\..\WorkingDir\Shaders\VoxTraceWorld.glsl = ..\..\WorkingDir\Shaders\VoxTraceWorld.glsl

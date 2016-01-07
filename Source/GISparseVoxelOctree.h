@@ -15,7 +15,7 @@
 #include "CSVOTypes.cuh"
 #include "Shader.h"
 
-#define GI_DENSE_TEX_COUNT 3
+#define GI_DENSE_TEX_COUNT 4
 #define GI_DENSE_LEVEL 6
 #define GI_DENSE_SIZE 64
 #define GI_DENSE_SIZE_CUBE (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)
@@ -90,7 +90,6 @@ class GISparseVoxelOctree
 		CudaVector<CSVOConstants>				dSVOConstants;
 
 		// SVO Data (Sparse)
-		StructuredBuffer<CSVONeigIndex>			svoNeigbourBuffer;
 		StructuredBuffer<CSVONode>				svoNodeBuffer;
 		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
 		StructuredBuffer<uint32_t>				svoLevelOffsets;
@@ -99,9 +98,12 @@ class GISparseVoxelOctree
 		GLuint									svoDenseMat;
 		GLuint									nodeSampler;
 		GLuint									materialSampler;
+		GLuint									gaussSampler;
 
 		// Light Intensity Texture (for SVO GI)
 		GLuint									liTexture;
+		GLuint									gaussTex;
+		GLuint									edgeTex;
 
 		// Rendering Helpers
 		StructuredBuffer<SVOTraceData>			svoTraceData;
@@ -109,7 +111,6 @@ class GISparseVoxelOctree
 
 		// SVO Ptrs Cuda
 		CSVOMaterial*							dSVOMaterial;
-		CSVONeigIndex*							dSVONeigbour;
 		CSVONode*								dSVOSparse;
 		CSVONode*								dSVODense;
 		uint32_t*								dSVOOffsets;
@@ -127,7 +128,6 @@ class GISparseVoxelOctree
 		
 		// Interop Data
 		cudaGraphicsResource_t					svoNodeResource;
-		cudaGraphicsResource_t					svoNeigbourResource;
 		cudaGraphicsResource_t					svoLevelOffsetResource;
 		cudaGraphicsResource_t					svoMaterialResource;
 		cudaGraphicsResource_t					svoDenseNodeResource;
@@ -137,8 +137,8 @@ class GISparseVoxelOctree
 		Shader									computeVoxTraceWorld;
 		Shader									computeVoxTraceDeferred;
 		Shader									computeAO;
-		Shader									computeAOSurf;
-
+		Shader									computeGauss32;
+		Shader									computeEdge;
 
 		void									CreateSurfFromArray(cudaArray_t&,
 																	cudaSurfaceObject_t&);
@@ -177,17 +177,12 @@ class GISparseVoxelOctree
 		// Traces entire scene with the given ray params
 		// Writes results to intensity texture
 		// Uses GBuffer to create inital rays (free camera to first bounce)
-		double									AmbientOcclusion(DeferredRenderer&,
+		double									AmbientOcclusion(DeferredRenderer& dRenderer,
 																 const Camera& camera,
 																 float coneAngle,
 																 float maxDistance,
-																 float sampleDistanceRatio);
-		double									AmbientOcclusionSurf(DeferredRenderer& dRenderer,
-																	 const Camera& camera,
-																	 float coneAngle,
-																	 float maxDistance,
-																	 float sampleDistanceRatio,
-																	 float intensityFactor);
+																 float sampleDistanceRatio,
+																 float intensityFactor);
 
 		double									DebugTraceSVO(DeferredRenderer&,
 															  const Camera& camera,

@@ -65,8 +65,10 @@ static const TwStructMember lightMembers[] =
 #define IN_LIGHT_INDEX 1
 
 // Textures (Bind Uniforms)
+#define T_IN 0
 #define T_COLOR 0
 #define T_NORMAL 1
+#define T_EDGE 1
 #define T_DEPTH 2
 #define T_SHADOW 3
 #define T_INTENSITY 3
@@ -74,14 +76,18 @@ static const TwStructMember lightMembers[] =
 #define T_DENSE_NODE 5
 #define T_DENSE_MAT 6
 
+#define I_OUT 0
 #define I_COLOR_FB 2
 #define I_LIGHT_INENSITY 2
 #define I_VOX_READ 2
 #define I_VOX_WRITE 2
 
 #define U_RENDER_TYPE 0
+#define U_TRESHOLD 0
+#define U_DIRECTION 0
 #define U_MAX_DISTANCE 0
 #define U_CONE_ANGLE 1
+#define U_NEAR_FAR 1
 #define U_FETCH_LEVEL 1
 #define U_SAMPLE_DISTANCE 2
 #define U_IMAGE_SIZE 3

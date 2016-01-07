@@ -102,7 +102,7 @@ inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int&
 			*reinterpret_cast<volatile CSVONode*>(gNode) = location;
 			old = location;
 		}
-		__threadfence();	// This is important somehow compiler changes this and makes infinite loop on smae warp threads
+		__threadfence();	// This is important somehow compiler changes this and makes infinite loop on same warp threads
 	}
 	return old;
 }
@@ -547,9 +547,6 @@ __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatChild,
 	float4 color = UnpackSVOColor(data.x);
 	float4 normal = ExpandOnlyNormal(data.y);
 
-	if(count == 1)
-		return;
-
 	// Average	
 	#pragma unroll
 	for(int offset = GI_DENSE_WORKER_PER_PARENT / 2; offset > 0; offset /= 2)
@@ -567,6 +564,7 @@ __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatChild,
 		count += __shfl_down(count, offset, GI_DENSE_WORKER_PER_PARENT);
 	}
 
+	// Division
 	float countInv = 1.0f / ((count != 0) ? float(count) : 1.0f);
 	color.x *= countInv;
 	color.y *= countInv;
@@ -578,24 +576,16 @@ __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatChild,
 	normal.z *= countInv;
 	normal.w *= 0.125f;
 
-	// DEBUG
-	color.x = 0.0f;
-	color.y = 0.0f;
-	color.z = 1.0f;
-	color.w = 1.0f;
-
-	normal.x = 1.0f;
-	normal.y = 1.0f;
-	normal.z = 1.0f;
-	normal.w = 0.125f;
-
 	data.x = PackSVOColor(color);
 	data.y = PackOnlyVoxNorm(normal);
-	if(globalId % GI_DENSE_WORKER_PER_PARENT == 0)
-		surf3Dwrite(data, sDenseMatParent, 
-					parentId3D.x * sizeof(uint2), 
-					parentId3D.y, 
+	if(globalId % GI_DENSE_WORKER_PER_PARENT == 0 &&
+	   count != 0)
+	{
+		surf3Dwrite(data, sDenseMatParent,
+					parentId3D.x * sizeof(uint2),
+					parentId3D.y,
 					parentId3D.z);
+	}
 }
 
 __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
@@ -668,9 +658,10 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 			if(i == svoConstants.denseDepth)
 			{
 				uint3 levelVoxId = CalculateLevelVoxId(voxelPos, i, svoConstants.totalDepth);
-				node = gSVODense + svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
-					svoConstants.denseDim * levelVoxId.y +
-					levelVoxId.x;
+				node = gSVODense + 
+					   svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+					   svoConstants.denseDim * levelVoxId.y +
+					   levelVoxId.x;
 			}
 			else
 			{

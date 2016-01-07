@@ -18,29 +18,31 @@ const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*//*360;*//*450;*/
 GISparseVoxelOctree::GISparseVoxelOctree()
 	: svoNodeBuffer(512)
 	, svoMaterialBuffer(512)
-	, svoNeigbourBuffer(512)
 	, svoLevelOffsets(32)
 	, dSVOConstants(1)
 	, computeVoxTraceWorld(ShaderType::COMPUTE, "Shaders/VoxTraceWorld.glsl")
 	, computeVoxTraceDeferred(ShaderType::COMPUTE, "Shaders/VoxTraceDeferred.glsl")
-	, computeAO(ShaderType::COMPUTE, "Shaders/VoxTraceAO.glsl")
-	, computeAOSurf(ShaderType::COMPUTE, "Shaders/VoxSurfAO.glsl")
+	, computeAO(ShaderType::COMPUTE, "Shaders/VoxAO.glsl")
+	, computeGauss32(ShaderType::COMPUTE, "Shaders/Gauss32.glsl")
+	, computeEdge(ShaderType::COMPUTE, "Shaders/EdgeDetect.glsl")
 	, svoTraceData(1)
 	, svoConeParams(1)
 	, svoNodeResource(nullptr)
 	, svoLevelOffsetResource(nullptr)
 	, svoMaterialResource(nullptr)
-	, svoNeigbourResource(nullptr)
 	, svoDenseNodeResource(nullptr)
 	, tSVODenseNode(0)
 	, sSVODenseNode(0)
 	, dSVODenseNodeArray(nullptr)
 	, liTexture(0)
+	, gaussTex(0)
+	, edgeTex(0)
 	, svoDenseMat(0)
 	, sSVODenseMat(GI_DENSE_TEX_COUNT, 0)
 	, dSVODenseMatArray(GI_DENSE_TEX_COUNT, nullptr)
 	, nodeSampler(0)
 	, materialSampler(0)
+	, gaussSampler(0)
 {
 	svoTraceData.AddData({});
 	svoConeParams.AddData({});
@@ -49,13 +51,24 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	glGenTextures(1, &liTexture);
 	glBindTexture(GL_TEXTURE_2D, liTexture);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TraceWidth, TraceHeight);
+
+	// Gauss Intermediary Tex
+	glGenTextures(1, &gaussTex);
+	glBindTexture(GL_TEXTURE_2D, gaussTex);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TraceWidth, TraceHeight);
+
+	// Edge Map Tex
+	glGenTextures(1, &edgeTex);
+	glBindTexture(GL_TEXTURE_2D, edgeTex);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TraceWidth, TraceHeight);
 	
 	// Dense Tex
 	glGenTextures(1, &svoDenseNode);
 	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
 	glTexStorage3D(GL_TEXTURE_3D, 1, GL_R32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
 	CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseNodeResource, svoDenseNode, GL_TEXTURE_3D, 
-											cudaGraphicsRegisterFlagsSurfaceLoadStore));
+											cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
+											//cudaGraphicsRegisterFlagsWriteDiscard*/));
 
 	// Mat Texture Binds
 	// Mipped 3D tex
@@ -63,7 +76,8 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	glBindTexture(GL_TEXTURE_3D, svoDenseMat);
 	glTexStorage3D(GL_TEXTURE_3D, GI_DENSE_TEX_COUNT, GL_RG32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
 	CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseTexResource, svoDenseMat, GL_TEXTURE_3D,
-										   cudaGraphicsRegisterFlagsSurfaceLoadStore));
+										   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
+										   //cudaGraphicsRegisterFlagsWriteDiscard));
 	
 	// Flat Sampler for Node Index Fetch
 	glGenSamplers(1, &nodeSampler);
@@ -80,13 +94,22 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	glSamplerParameteri(materialSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glSamplerParameteri(materialSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glSamplerParameteri(materialSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	// Bilinear Sample for Gauss Fetch (Out of bounds are zero)
+	GLfloat col[] = {0.0f, 0.0f, 0.0f, 0.0f};
+	glGenSamplers(1, &gaussSampler);
+	glSamplerParameteri(gaussSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glSamplerParameteri(gaussSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glSamplerParameteri(gaussSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glSamplerParameteri(gaussSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glSamplerParameteri(gaussSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+	glSamplerParameterfv(gaussSampler, GL_TEXTURE_BORDER_COLOR, col);
 }
 
 GISparseVoxelOctree::~GISparseVoxelOctree()
 {
 	if(svoNodeResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNodeResource));
 	if(svoMaterialResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoMaterialResource));
-	if(svoNeigbourResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNeigbourResource));
 	if(svoLevelOffsetResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoLevelOffsetResource));
 	if(svoDenseTexResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoDenseTexResource));
 	for(unsigned int i = 0; i < GI_DENSE_TEX_COUNT; i++)
@@ -98,10 +121,13 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 	if(sSVODenseNode) CUDA_CHECK(cudaDestroySurfaceObject(sSVODenseNode));
 
 	if(liTexture) glDeleteTextures(1, &liTexture);
+	if(gaussTex) glDeleteTextures(1, &gaussTex);
+	if(edgeTex) glDeleteTextures(1, &edgeTex);
 	if(svoDenseNode) glDeleteTextures(1, &svoDenseNode);
 	if(svoDenseMat) glDeleteTextures(1, &svoDenseMat);
 	if(nodeSampler) glDeleteSamplers(1, &nodeSampler);
 	if(materialSampler) glDeleteSamplers(1, &materialSampler);
+	if(materialSampler) glDeleteSamplers(1, &gaussSampler);
 }
 
 void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators,
@@ -132,26 +158,18 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 
 	// Sparse Portion
 	svoNodeBuffer.Resize(totalAlloc + GI_DENSE_SIZE_CUBE);
-	svoNeigbourBuffer.Resize(totalAlloc);
 	svoMaterialBuffer.Resize(totalAlloc);
 	
 	// Register
 	if(svoNodeResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNodeResource));
-	if(svoNodeResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNeigbourResource));
 	if(svoMaterialResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoMaterialResource));
 	if(svoLevelOffsetResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoLevelOffsetResource));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoNodeResource, 
 											svoNodeBuffer.getGLBuffer(), 
 											cudaGLMapFlagsWriteDiscard));
-
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoMaterialResource, 
 											svoMaterialBuffer.getGLBuffer(), 
 											cudaGLMapFlagsWriteDiscard));
-
-	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoNeigbourResource,
-											svoNeigbourBuffer.getGLBuffer(), 
-											cudaGLMapFlagsWriteDiscard));
-
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoLevelOffsetResource,
 											svoLevelOffsets.getGLBuffer(),
 											cudaGLMapFlagsReadOnly));
@@ -164,9 +182,6 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &allOne);
 
 	glBindBuffer(GL_COPY_WRITE_BUFFER, svoMaterialBuffer.getGLBuffer());
-	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero);
-
-	glBindBuffer(GL_COPY_WRITE_BUFFER, svoNeigbourBuffer.getGLBuffer());
 	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero);
 
 	dSVOLevelSizes.Memset(0x00, 0, dSVOLevelSizes.Size());
@@ -458,7 +473,7 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 		);
 		CUDA_KERNEL_CHECK();
 	}
-	
+	cudaDeviceSynchronize();
 	// Dense Reduction
 	for(int i = 1; i < GI_DENSE_TEX_COUNT; i++)
 	{
@@ -474,6 +489,8 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 			sSVODenseMat[i],
 			levelSize
 		);
+
+		
 	}
 }
 
@@ -481,11 +498,11 @@ double GISparseVoxelOctree::UpdateSVO()
 {
 	// Clear Mat Texture
 	GLuint ff[2] = {0x00000000, 0x00000000};
-	glClearTexImage(svoDenseMat, 0, GL_RG_INTEGER, GL_UNSIGNED_INT, &ff);
+	for(unsigned int i = 0; i < GI_DENSE_TEX_COUNT; i++)
+		glClearTexImage(svoDenseMat, i, GL_RG_INTEGER, GL_UNSIGNED_INT, &ff);
 
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoNodeResource));
-	CUDA_CHECK(cudaGraphicsMapResources(1, &svoNeigbourResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoLevelOffsetResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoDenseNodeResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoDenseTexResource));
@@ -495,8 +512,6 @@ double GISparseVoxelOctree::UpdateSVO()
 													 &size, svoNodeResource));
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVOMaterial),
 													 &size, svoMaterialResource));
-	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVONeigbour),
-													 &size, svoNeigbourResource));
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVOOffsets),
 													&size, svoLevelOffsetResource));
 	CUDA_CHECK(cudaGraphicsSubResourceGetMappedArray(&dSVODenseNodeArray, svoDenseNodeResource, 0, 0));
@@ -544,13 +559,12 @@ double GISparseVoxelOctree::UpdateSVO()
 	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
 	//}
 	//unsigned int total = std::accumulate(hSVOLevelSizes.begin(),
-	//									   hSVOLevelSizes.end(), 0);
+	//									 hSVOLevelSizes.end(), 0);
 	//GI_LOG("Total : %d", total);
 
 	timer.Stop();
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNodeResource));
-	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNeigbourResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoLevelOffsetResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoDenseNodeResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoDenseTexResource));
@@ -558,12 +572,12 @@ double GISparseVoxelOctree::UpdateSVO()
 	return timer.ElapsedMilliS();
 }
 
-double GISparseVoxelOctree::AmbientOcclusionSurf(DeferredRenderer& dRenderer,
-												 const Camera& camera,
-												 float coneAngle,
-												 float maxDistance,
-												 float sampleDistanceRatio,
-												 float intensityFactor)
+double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
+											 const Camera& camera,
+											 float coneAngle,
+											 float maxDistance,
+											 float sampleDistanceRatio,
+											 float intensityFactor)
 {
 	// Light Intensity Texture
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
@@ -607,7 +621,7 @@ double GISparseVoxelOctree::AmbientOcclusionSurf(DeferredRenderer& dRenderer,
 	svoConeParams.SendData();
 
 	// Shaders
-	computeAOSurf.Bind();
+	computeAO.Bind();
 
 	// Buffers
 	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);
@@ -625,6 +639,9 @@ double GISparseVoxelOctree::AmbientOcclusionSurf(DeferredRenderer& dRenderer,
 	glActiveTexture(GL_TEXTURE0 + T_DENSE_NODE);
 	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
 	glBindSampler(T_DENSE_NODE, nodeSampler);
+	glActiveTexture(GL_TEXTURE0 + T_DENSE_MAT);
+	glBindTexture(GL_TEXTURE_3D, svoDenseMat);
+	glBindSampler(T_DENSE_MAT, materialSampler);
 	
 	// Dispatch
 	uint2 gridSize;
@@ -632,90 +649,47 @@ double GISparseVoxelOctree::AmbientOcclusionSurf(DeferredRenderer& dRenderer,
 	gridSize.y = (TraceHeight + 8 - 1) / 8;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
 
-	// Render to window
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-	dRenderer.ShowTexture(camera, liTexture);
-
-	// Timer
-	GLuint64 timeElapsed = 0;
-	glEndQuery(GL_TIME_ELAPSED);
-	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
-
-	// I have to unbind the compute shader or weird things happen
-	Shader::Unbind(ShaderType::COMPUTE);
-	return timeElapsed / 1000000.0;
-}
-
-double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
-											 const Camera& camera,
-											 float coneAngle,
-											 float maxDistance,
-											 float sampleDistanceRatio)
-{
-	// Light Intensity Texture
-	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-	glClearTexImage(liTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
-
-	// Update FrameTransform Matrices 
-	// And its inverse realted buffer
-	//assert(TraceWidth == DeferredRenderer::gBuffWidth);
-	//assert(TraceHeight == DeferredRenderer::gBuffHeight);
-	dRenderer.RefreshInvFTransform(camera, TraceWidth, TraceHeight);
-	dRenderer.GetFTransform().Update(camera.generateTransform());
-
-	// Timing Voxelization Process
-	GLuint queryID;
-	glGenQueries(1, &queryID);
-	glBeginQuery(GL_TIME_ELAPSED, queryID);
-
-	// Set Cascade Trace Data
-	float3 pos = allocatorGrids[0]->position;
-	uint32_t dim = allocatorGrids[0]->dimension.x * (0x1 << (allocators.size() - 1));
-	uint32_t depth = allocatorGrids[0]->depth + static_cast<uint32_t>(allocators.size()) - 1;
-	svoTraceData.CPUData()[0] =
-	{
-		{pos.x, pos.y, pos.z, allocatorGrids.back()->span},
-		{dim, depth, GI_DENSE_SIZE, GI_DENSE_LEVEL},
-		{
-			static_cast<unsigned int>(allocators.size()),
-			GI_DENSE_SIZE_CUBE,
-			0,
-			0
-		}
-	};
-	svoTraceData.SendData();
-
-	// Shaders
-	computeAO.Bind();
-	glUniform1f(U_CONE_ANGLE, coneAngle);
-	glUniform1f(U_MAX_DISTANCE, maxDistance);
-	glUniform1f(U_SAMPLE_DISTANCE, sampleDistanceRatio);
-
-	// Buffers
-	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);
-	svoMaterialBuffer.BindAsShaderStorageBuffer(LU_SVO_MATERIAL);
-	svoLevelOffsets.BindAsShaderStorageBuffer(LU_SVO_LEVEL_OFFSET);
-	dRenderer.GetInvFTransfrom().BindAsUniformBuffer(U_INVFTRANSFORM);
-	dRenderer.GetFTransform().Bind();
-	svoTraceData.BindAsUniformBuffer(U_SVO_CONSTANTS);
-
-	// Images
+	// Detect Edge
+	computeEdge.Bind();
+	glUniform2f(U_TRESHOLD, 0.007f, 0.4f);
+	glUniform2f(U_NEAR_FAR, camera.near, camera.far);
 	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
-	glBindImageTexture(I_LIGHT_INENSITY, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
-	glActiveTexture(GL_TEXTURE0 + T_DENSE_NODE);
-	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
-	glBindSampler(T_DENSE_NODE, nodeSampler);
-
-	// Dispatch
-	uint2 gridSize;
-	gridSize.x = (TraceWidth * 4 + 16 - 1) / 16;
+	glBindImageTexture(I_OUT, edgeTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	
+	gridSize.x = (TraceWidth + 16 - 1) / 16;
 	gridSize.y = (TraceHeight + 16 - 1) / 16;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
-
-	// Render to window
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-	dRenderer.ShowTexture(camera, liTexture);
+
+	dRenderer.ShowTexture(camera, edgeTex);
+
+	//// Edge Aware Gauss
+	//computeGauss32.Bind();
+	//glActiveTexture(GL_TEXTURE0 + T_EDGE);
+	//glBindTexture(GL_TEXTURE_2D, svoDenseMat);
+	//glBindSampler(T_EDGE, gaussSampler);
+
+	//// Call #1
+	//glActiveTexture(GL_TEXTURE0 + T_IN);
+	//glBindTexture(GL_TEXTURE_2D, liTexture);
+	//glBindSampler(T_EDGE, gaussSampler);
+	//glBindImageTexture(I_OUT, gaussTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	//glUniform1ui(U_DIRECTION, 0);
+	//glDispatchCompute(gridSize.x, gridSize.y, 1);
+	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//// Call #2
+	//glActiveTexture(GL_TEXTURE0 + T_IN);
+	//glBindTexture(GL_TEXTURE_2D, gaussTex);
+	//glBindSampler(T_EDGE, gaussSampler);
+	//glBindImageTexture(I_OUT, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	//glUniform1ui(U_DIRECTION, 1);
+	//glDispatchCompute(gridSize.x, gridSize.y, 1);
+	//
+	//// Render to window
+	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	//dRenderer.ShowTexture(camera, liTexture);
 
 	// Timer
 	GLuint64 timeElapsed = 0;
@@ -883,7 +857,6 @@ uint64_t GISparseVoxelOctree::MemoryUsage() const
 {
 	uint64_t totalBytes = 0;
 	totalBytes += svoNodeBuffer.Capacity() * sizeof(CSVONode);
-	totalBytes += svoNeigbourBuffer.Capacity() * sizeof(CSVONeigIndex);
 	totalBytes += svoMaterialBuffer.Capacity() * sizeof(CSVOMaterial);
 	totalBytes += dSVOLevelSizes.Size() * sizeof(unsigned int);
 	totalBytes += sizeof(unsigned int);

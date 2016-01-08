@@ -626,12 +626,12 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 	// Put the color value to the each node corners of the interpolate nodes
 	// TODO Mark Dynamic objects and expand those in here
-	for(unsigned int i = 0; i < 1; i++)
+	for(unsigned int j = 0; j < 8; j++)
 	{
 		int3 voxSigned;
-		voxSigned.x = static_cast<int>(voxelUnpacked.x) + (voxLookup[i].x * splitId.x);
-		voxSigned.y = static_cast<int>(voxelUnpacked.y) + (voxLookup[i].y * splitId.y);
-		voxSigned.z = static_cast<int>(voxelUnpacked.z) + (voxLookup[i].z * splitId.z);
+		voxSigned.x = static_cast<int>(voxelUnpacked.x) + (voxLookup[j].x * splitId.x);
+		voxSigned.y = static_cast<int>(voxelUnpacked.y) + (voxLookup[j].y * splitId.y);
+		voxSigned.z = static_cast<int>(voxelUnpacked.z) + (voxLookup[j].z * splitId.z);
 															
 		// It may be out of bounds
 		int totalDim = 0x1 << (svoConstants.totalDepth - (svoConstants.numCascades - 1));
@@ -678,19 +678,21 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 		}
 
 		// We are at bottom of the location can write colors (---)
-		ushort2 objectId;
-		CVoxelObjectType objType;
-		unsigned int voxelId;
-		ExpandVoxelIds(voxelId, objectId, objType, gVoxelData[pageId].dGridVoxIds[pageLocalId]);
+		//if(j == 0)
+		{
+			ushort2 objectId;
+			CVoxelObjectType objType;
+			unsigned int voxelId;
+			ExpandVoxelIds(voxelId, objectId, objType, gVoxelData[pageId].dGridVoxIds[pageLocalId]);
 
-		CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
-		CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
-		AtomicColorNormalAvg(gSVOMat + matSparseOffset +
-							 gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] +
-							 location,
-							 voxelColorPacked,
-							 voxelNormPacked);
-
+			CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
+			CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
+			AtomicColorNormalAvg(gSVOMat + matSparseOffset +
+								 gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] +
+								 location,
+								 voxelColorPacked,
+								 voxelNormPacked);
+		}
 		//// Non atmoic overwrite
 		//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
 		//		svoConstants.denseDepth] +

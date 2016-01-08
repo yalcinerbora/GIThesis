@@ -194,6 +194,46 @@ float UnpackOcclusion(in uint colorPacked)
 	//return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
 }
 
+float InterpolateOcclusion(in vec3 worldPos,
+						   in uint depth,
+						   in uint matLoc)
+{
+	// Bigass fetch (its fast tho L1 cache doing work! on GPU!!!)
+	vec4 first, last;
+	first.x = UnpackOcclusion(svoMaterial[matLoc + 0].y);
+	first.y = UnpackOcclusion(svoMaterial[matLoc + 1].y);
+	first.z = UnpackOcclusion(svoMaterial[matLoc + 2].y);
+	first.w = UnpackOcclusion(svoMaterial[matLoc + 3].y);
+
+	last.x = UnpackOcclusion(svoMaterial[matLoc + 4].y);
+	last.y = UnpackOcclusion(svoMaterial[matLoc + 5].y);
+	last.z = UnpackOcclusion(svoMaterial[matLoc + 6].y);
+	last.w = UnpackOcclusion(svoMaterial[matLoc + 7].y);
+
+	// Last level AO value is invalid (it used as avg count)
+	if(depth == dimDepth.y)
+	{
+		first = ceil(first);
+		last = ceil(last);
+	}
+
+	ivec3 voxPosLevel = LevelVoxId(worldPos, depth - 1);
+	vec3 voxPosWorld = worldPosSpan.xyz + vec3(voxPosLevel) * (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
+	voxPosWorld = (worldPos - voxPosWorld) / (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
+
+	vec4 lerpBuff;
+	lerpBuff.x = mix(first.x, first.y, voxPosWorld.x);
+	lerpBuff.y = mix(first.z, first.w, voxPosWorld.x);
+	lerpBuff.z = mix(last.x, last.y, voxPosWorld.x);
+	lerpBuff.w = mix(last.z, last.w, voxPosWorld.x);
+
+	lerpBuff.x = mix(lerpBuff.x, lerpBuff.y, voxPosWorld.y);
+	lerpBuff.y = mix(lerpBuff.z, lerpBuff.w, voxPosWorld.y);
+
+	lerpBuff.x = mix(lerpBuff.x, lerpBuff.y, voxPosWorld.z);
+	return lerpBuff.x;
+}
+
 // SVO Fetch
 float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 {	
@@ -240,14 +280,21 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 			else nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
 		}
 		// Finally At requested level
-		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] + nodeIndex;
-		if(depth != dimDepth.y)
-			return UnpackOcclusion(svoMaterial[matLoc].y);
-		else
-		{
-			float occ = UnpackOcclusion(svoMaterial[matLoc].y);
-			return ceil(occ);
-		}
+		// Finally At requested level
+		// BackTrack From Child
+		nodeIndex -= CalculateLevelChildId(voxPos, depth);
+		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] +
+					  nodeIndex;
+		return InterpolateOcclusion(worldPos, depth, matLoc); 
+
+		//uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] + nodeIndex;
+		//if(depth != dimDepth.y)
+		//	return UnpackOcclusion(svoMaterial[matLoc].y);
+		//else
+		//{
+		//	float occ = UnpackOcclusion(svoMaterial[matLoc].y);
+		//	return ceil(occ);
+		//}
 	}
 }
 
@@ -326,7 +373,7 @@ void main(void)
 
 	// Initally Start the cone away from the surface since 
 	// voxel system and polygon system are not %100 aligned
-	worldPos += coneDir * cascadeSpan * coneParams2.z;
+	worldPos += coneDir * cascadeSpan * coneParams2.z * 2;
 
 	// Start sampling towards that direction
 	// Loop Traverses until MaxDistance Exceeded

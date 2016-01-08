@@ -10,8 +10,8 @@
 #include <cuda_gl_interop.h>
 
 const size_t ThesisSolution::InitialObjectGridSize = 256;
-const float ThesisSolution::CascadeSpan = 0.6f;//2.0f;
-const uint32_t ThesisSolution::CascadeDim = 512;//128;
+const float ThesisSolution::CascadeSpan = 0.6f;//1.0f;
+const uint32_t ThesisSolution::CascadeDim = 512;//256;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 

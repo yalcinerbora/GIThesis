@@ -19,6 +19,8 @@
 #define BLOCK_SIZE_X 16
 #define BLOCK_SIZE_Y 16
 
+#define KERNEL_SIZE_HALF 5
+
 // Uniforms
 uniform U_DIRECTION uint direction;
 
@@ -28,30 +30,22 @@ uniform vec2 DIRECTION_VECTOR[2] =
 	vec2(1.0f, 0.0f)
 };
 
-uniform float WEIGHTS[9] = 
+uniform float WEIGHTS[KERNEL_SIZE_HALF] = 
 {
-	1.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f
+	0.382928f,
+	0.241732f,
+	0.060598f,
+	0.005977f,
+	0.000229f
 };
 
-uniform float OFFSETS[9] = 
+uniform float OFFSETS[KERNEL_SIZE_HALF] = 
 {
 	0.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f,
-	0.0f
+	1.0f,
+	2.0f,
+	3.0f,
+	4.0f
 };
 
 uniform I_OUT image2D imgOut;
@@ -76,7 +70,7 @@ void main(void)
 	// Vertical or Horizontal Pass
 	bvec2 foundEdge = bvec2(false);
 	vec3 fragOut = texture(tIn, uv).xyz * WEIGHTS[0];
-    for(int i = 1; i < 9; i++) 
+    for(int i = 1; i < KERNEL_SIZE_HALF; i++) 
 	{
 		vec2 uvOffset = vec2(OFFSETS[i]) * DIRECTION_VECTOR[direction] / vec2(imageSize(imgOut).xy);
 		if(!foundEdge.x)

@@ -60,7 +60,7 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	// Edge Map Tex
 	glGenTextures(1, &edgeTex);
 	glBindTexture(GL_TEXTURE_2D, edgeTex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TraceWidth, TraceHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RG8, TraceWidth, TraceHeight);
 	
 	// Dense Tex
 	glGenTextures(1, &svoDenseNode);
@@ -96,7 +96,7 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	glSamplerParameteri(materialSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 	// Bilinear Sample for Gauss Fetch (Out of bounds are zero)
-	GLfloat col[] = {0.0f, 0.0f, 0.0f, 0.0f};
+	GLfloat col[] = {1.0f, 1.0f, 1.0f, 0.0f};
 	glGenSamplers(1, &gaussSampler);
 	glSamplerParameteri(gaussSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glSamplerParameteri(gaussSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -540,7 +540,7 @@ double GISparseVoxelOctree::UpdateSVO()
 	if(CudaInit::CapabilityMajor() >= 5)
 	{
 		ConstructFullAtomic();
-		AverageNodes(true);
+		//AverageNodes(true);
 	}
 		
 	else
@@ -649,20 +649,20 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 	gridSize.y = (TraceHeight + 8 - 1) / 8;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
 
-	// Detect Edge
-	computeEdge.Bind();
-	glUniform2f(U_TRESHOLD, 0.007f, 0.4f);
-	glUniform2f(U_NEAR_FAR, camera.near, camera.far);
-	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
-	dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
-	glBindImageTexture(I_OUT, edgeTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
-	
-	gridSize.x = (TraceWidth + 16 - 1) / 16;
-	gridSize.y = (TraceHeight + 16 - 1) / 16;
-	glDispatchCompute(gridSize.x, gridSize.y, 1);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	//// Detect Edge
+	//computeEdge.Bind();
+	//glUniform2f(U_TRESHOLD, 0.007f, IEMath::CosF(IEMath::ToRadians(20.0f)));
+	//glUniform2f(U_NEAR_FAR, camera.near, camera.far);
+	//dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
+	//dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
+	//glBindImageTexture(I_OUT, edgeTex, 0, false, 0, GL_WRITE_ONLY, GL_RG8);
+	//
+	//gridSize.x = (TraceWidth + 16 - 1) / 16;
+	//gridSize.y = (TraceHeight + 16 - 1) / 16;
+	//glDispatchCompute(gridSize.x, gridSize.y, 1);
+	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	dRenderer.ShowTexture(camera, edgeTex);
+	//dRenderer.ShowTexture(camera, edgeTex);
 
 	//// Edge Aware Gauss
 	//computeGauss32.Bind();
@@ -670,7 +670,7 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 	//glBindTexture(GL_TEXTURE_2D, svoDenseMat);
 	//glBindSampler(T_EDGE, gaussSampler);
 
-	//// Call #1
+	//// Call #1 (Vertical)
 	//glActiveTexture(GL_TEXTURE0 + T_IN);
 	//glBindTexture(GL_TEXTURE_2D, liTexture);
 	//glBindSampler(T_EDGE, gaussSampler);
@@ -679,17 +679,17 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 	//glDispatchCompute(gridSize.x, gridSize.y, 1);
 	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	//// Call #2
+	//// Call #2 (Horizontal)
 	//glActiveTexture(GL_TEXTURE0 + T_IN);
 	//glBindTexture(GL_TEXTURE_2D, gaussTex);
 	//glBindSampler(T_EDGE, gaussSampler);
 	//glBindImageTexture(I_OUT, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 	//glUniform1ui(U_DIRECTION, 1);
 	//glDispatchCompute(gridSize.x, gridSize.y, 1);
-	//
-	//// Render to window
-	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-	//dRenderer.ShowTexture(camera, liTexture);
+
+	// Render to window
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	dRenderer.ShowTexture(camera, liTexture);
 
 	// Timer
 	GLuint64 timeElapsed = 0;
@@ -857,7 +857,7 @@ uint64_t GISparseVoxelOctree::MemoryUsage() const
 {
 	uint64_t totalBytes = 0;
 	totalBytes += svoNodeBuffer.Capacity() * sizeof(CSVONode);
-	totalBytes += svoMaterialBuffer.Capacity() * sizeof(CSVOMaterial);
+	totalBytes += svoMaterialBuffer.Capacity() * sizeof(CSVOMaterial2);
 	totalBytes += dSVOLevelSizes.Size() * sizeof(unsigned int);
 	totalBytes += sizeof(unsigned int);
 	totalBytes += GI_DENSE_SIZE_CUBE * sizeof(CSVONode);	// Dense Tex

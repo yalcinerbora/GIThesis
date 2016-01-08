@@ -9,7 +9,7 @@
 	Depth and Normal Aware Edge Detection
 */
 
-#define I_OUT layout(rgba8, binding = 0) restrict writeonly
+#define I_OUT layout(rg8, binding = 0) restrict writeonly
 
 #define T_NORMAL layout(binding = 1)
 #define T_DEPTH layout(binding = 2)

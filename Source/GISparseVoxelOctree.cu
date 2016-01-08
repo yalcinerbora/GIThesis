@@ -540,7 +540,7 @@ double GISparseVoxelOctree::UpdateSVO()
 	if(CudaInit::CapabilityMajor() >= 5)
 	{
 		ConstructFullAtomic();
-		//AverageNodes(true);
+		AverageNodes(true);
 	}
 		
 	else

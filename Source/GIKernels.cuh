@@ -168,7 +168,9 @@ extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 
 												 const CSVONode* gSVODense,
 												 const CSVONode* gSVOSparse,
+												 const unsigned int* gNodeID,
 
+												 const unsigned int* gLevelOffsets,
 												 const unsigned int& gSVOLevelOffset,
 												 const unsigned int& gSVONextLevelOffset,
 
@@ -185,6 +187,7 @@ extern __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatCh
 extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 									  CSVONode* gSVOSparse,
 									  CSVONode* gSVODense,
+									  unsigned int* gNodeId,
 									  unsigned int* gLevelAllocators,
 
 									  const unsigned int* gLevelOffsets,

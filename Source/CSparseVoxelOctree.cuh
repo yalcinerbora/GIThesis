@@ -111,9 +111,9 @@ inline __device__ uint3 CalculateLevelVoxId(const uint3& voxelPos,
 											const unsigned int totalDepth)
 {
 	uint3 levelVoxelId;
-	levelVoxelId.x = (voxelPos.x >> (totalDepth - levelDepth));
-	levelVoxelId.y = (voxelPos.y >> (totalDepth - levelDepth));
-	levelVoxelId.z = (voxelPos.z >> (totalDepth - levelDepth));
+	levelVoxelId.x = voxelPos.x >> (totalDepth - levelDepth);
+	levelVoxelId.y = voxelPos.y >> (totalDepth - levelDepth);
+	levelVoxelId.z = voxelPos.z >> (totalDepth - levelDepth);
 	return levelVoxelId;
 }
 
@@ -153,6 +153,29 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 							(expandedVoxId.z & rightBitMask);
 	}
 	return expandedVoxId;
+}
+
+inline __device__ uint3 ExpandNodeIdToDepth(const uint3& nodeId,
+											const unsigned int level,
+											const unsigned int numCascades,
+											const unsigned int totalLevel)
+{
+	uint3 result;
+	if(totalLevel - level < numCascades)
+	{
+		unsigned int cascadeNo = numCascades - (totalLevel - level) - 1;
+		result = ExpandToSVODepth(nodeId,
+								  cascadeNo,
+								  numCascades,
+								  totalLevel);
+	}
+	else
+	{
+		result.x = nodeId.x << (totalLevel - level);
+		result.y = nodeId.y << (totalLevel - level);
+		result.z = nodeId.z << (totalLevel - level);
+	}
+	return result;
 }
 
 inline __device__ unsigned int CalculateChildIndex(const unsigned char childrenBits,

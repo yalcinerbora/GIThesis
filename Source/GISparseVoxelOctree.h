@@ -88,6 +88,7 @@ class GISparseVoxelOctree
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
+		CudaVector<unsigned int>				dNodeIds;
 
 		// SVO Data (Sparse)
 		StructuredBuffer<CSVONode>				svoNodeBuffer;

@@ -159,6 +159,7 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 	// Sparse Portion
 	svoNodeBuffer.Resize(totalAlloc + GI_DENSE_SIZE_CUBE);
 	svoMaterialBuffer.Resize(totalAlloc);
+	dNodeIds.Resize(totalAlloc);
 	
 	// Register
 	if(svoNodeResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNodeResource));
@@ -357,6 +358,7 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 			dSVOMaterial,
 			dSVOSparse,
 			dSVODense,
+			dNodeIds.Data(),
 			dSVOLevelSizes.Data(),
 
 			dSVOOffsets,
@@ -377,6 +379,22 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 						  dSVOLevelSizes.Data(),
 						  hSVOLevelSizes.size() * sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
+
+	// Tag Materials that have parents
+	for(unsigned int i = 0; i < allocators.size() - 1; i++)
+	{
+		unsigned int arrayIndex = i - GI_DENSE_LEVEL;
+		uint32_t gridSize = hSVOLevelSizes[hSVOConstants.denseDepth + i] + (GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+
+		//SVOReconstructParentMaterial(dSVOMaterial,
+
+		//							 dSVOSparse,
+
+		//							 *(dSVOOffsets + arrayIndex),
+
+		//							 );
+	}
+
 
 	CopyFromBufferToTex(dSVODenseNodeArray, dSVODense);
 }
@@ -462,7 +480,9 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 
 			dSVODense,
 			dSVOSparse,
+			dNodeIds.Data(),
 
+			dSVOOffsets,
 			*(dSVOOffsets + arrayIndex),
 			*(dSVOOffsets + arrayIndex + 1),
 
@@ -473,7 +493,7 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 		);
 		CUDA_KERNEL_CHECK();
 	}
-	cudaDeviceSynchronize();
+	
 	// Dense Reduction
 	for(int i = 1; i < GI_DENSE_TEX_COUNT; i++)
 	{
@@ -857,7 +877,8 @@ uint64_t GISparseVoxelOctree::MemoryUsage() const
 {
 	uint64_t totalBytes = 0;
 	totalBytes += svoNodeBuffer.Capacity() * sizeof(CSVONode);
-	totalBytes += svoMaterialBuffer.Capacity() * sizeof(CSVOMaterial2);
+	totalBytes += svoMaterialBuffer.Capacity() * sizeof(CSVOMaterial);
+	totalBytes += dNodeIds.Size() * sizeof(unsigned int);
 	totalBytes += dSVOLevelSizes.Size() * sizeof(unsigned int);
 	totalBytes += sizeof(unsigned int);
 	totalBytes += GI_DENSE_SIZE_CUBE * sizeof(CSVONode);	// Dense Tex

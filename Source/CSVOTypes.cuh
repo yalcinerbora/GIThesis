@@ -26,12 +26,6 @@ typedef unsigned int CSVOColor;
 
 typedef uint64_t CSVOMaterial;
 
-struct CSVOMaterial2
-{
-	float4 f55;
-	float4 f;
-};
-
 //struct CSVOMaterial
 //{
 //	unsigned int color;		

@@ -396,6 +396,55 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 
 }
 
+extern __global__ void SVOParentHalf(CSVOMaterial* gSVOMat,
+									 const CSVONode* gSVOSparse,
+									 const unsigned int& gSVOLevelOffset,
+									 const unsigned int levelNodeCount,
+									 const unsigned int matOffset)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	// Cull if out of range
+	if(globalId > levelNodeCount) return;
+
+	// Read
+	CSVONode node = gSVOSparse[gSVOLevelOffset + globalId];
+	CSVOMaterial mat = gSVOMat[matOffset + gSVOLevelOffset + globalId];
+
+	if(mat == 0x0000000000000000) return;
+
+	//
+	CSVOColor colorPacked;
+	CVoxelNorm normalPacked;
+	UnpackSVOMaterial(colorPacked, normalPacked, mat);
+	float4 normal = ExpandOnlyNormal(normalPacked);
+	float4 color = UnpackSVOColor(colorPacked);
+	
+	// Check if This Required to be halved
+	if(node == 0xFFFFFFFF)
+	{
+		// Does not have a child no need to be halved
+		// However we need to set its opacity to 1	
+		normal.w = 1.0f;
+	}
+	else
+	{
+		// Have children
+		// Half the parent for incoming reduction
+		color.x *= 0.5f;
+		color.y *= 0.5f;
+		color.z *= 0.5f;
+		color.w *= 0.5f;
+
+		normal.x *= 0.5f;
+		normal.y *= 0.5f;
+		normal.z *= 0.5f;
+
+		normal.w = 0.5f;
+	}
+	mat = PackSVOMaterial(colorPacked, PackOnlyVoxNorm(normal));
+	gSVOMat[matOffset + gSVOLevelOffset + globalId] = mat;
+}
+
 __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 										  cudaSurfaceObject_t sDenseMat,
 
@@ -413,38 +462,20 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 										  const CSVOConstants& svoConstants)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int globalParentId = globalId / GI_NODE_THREAD_COUNT;
-
-	// Warp Level Fetch
-	unsigned int warpId = threadIdx.x / warpSize;
-	unsigned int laneId = threadIdx.x % warpSize;
-	unsigned int parentPerWarp = warpSize / GI_NODE_THREAD_COUNT;
-
-	// Linear ID
-	unsigned int warpLinearId = (blockIdx.x * (blockDim.x / GI_NODE_THREAD_COUNT)) + warpId * parentPerWarp + laneId;
-	unsigned int localNodeChildId = threadIdx.x % GI_NODE_THREAD_COUNT;
 
 	// Cull if out of range
-	if(globalParentId > levelNodeCount) return;
+	if(globalId > levelNodeCount) return;
 
 	// Read Sibling Materials
-	CSVOMaterial parentMat = 0x0000000000000000;
-	CSVONode node = 0xFFFFFFFF;
-	// Coalesced Parent Load (Warp Level)
-	if(laneId < parentPerWarp)
-	{
-		// Coalesced Fetch
-		const CSVONode* n = (currentLevel == svoConstants.denseDepth) ? gSVODense : gSVOSparse;
-		node = n[gSVOLevelOffset + warpLinearId];
+	const CSVONode* n = (currentLevel == svoConstants.denseDepth) ? gSVODense : gSVOSparse;
+	CSVONode node = n[gSVOLevelOffset + globalId];
 
-		// Only fetch parent when its contributes to the average
-		bool fetchParentMat = ((svoConstants.totalDepth - currentLevel) < svoConstants.numCascades);
-		parentMat = fetchParentMat ? gSVOMat[matOffset + gSVOLevelOffset + warpLinearId] : 0;
-	}
+	// Cull if there is no children
+	if(node == 0xFFFFFFFF) return;
 
-	// Shuffle each parent to actual users
-	if(GI_NODE_THREAD_COUNT != 1) node = __shfl(node, laneId / GI_NODE_THREAD_COUNT);
-	if(GI_NODE_THREAD_COUNT != 1) parentMat = __shfl(parentMat, laneId / GI_NODE_THREAD_COUNT);
+	// Only fetch parent when there
+	bool fetchParentMat = ((svoConstants.totalDepth - currentLevel) < svoConstants.numCascades);
+	CSVOMaterial parentMat = fetchParentMat ? gSVOMat[matOffset + gSVOLevelOffset + globalId] : 0;
 
 	// Average Portion
 	// Material Data
@@ -452,83 +483,60 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	float4 colorAvg = {0.0f, 0.0f, 0.0f, 0.0f};
 	float4 normalAvg = {0.0f, 0.0f, 0.0f, 0.0f};
 
-	// Average Yours
+	// Average
 	#pragma unroll
-	for(unsigned int i = 0; i < (8 / GI_NODE_THREAD_COUNT); i++)
+	for(unsigned int i = 0; i < 8; i++)
 	{
-		unsigned int nodeId = node + localNodeChildId;
-		CSVOMaterial mat = (node != 0xFFFFFFFF) ? gSVOMat[matOffset + gSVONextLevelOffset + nodeId + i * GI_NODE_THREAD_COUNT] : 0;
-		if(mat != 0)
-		{
-			CSVOColor colorPacked;
-			CVoxelNorm normalPacked;
-			UnpackSVOMaterial(colorPacked, normalPacked, mat);
-			float4 color = UnpackSVOColor(colorPacked);
-			float4 normal = ExpandOnlyNormal(normalPacked);
+		unsigned int nodeId = node + i;
+		CSVOMaterial mat = gSVOMat[matOffset + gSVONextLevelOffset + nodeId];
+		if(mat == 0x0000000000000000) continue;
+		
+		CSVOColor colorPacked;
+		CVoxelNorm normalPacked;
+		UnpackSVOMaterial(colorPacked, normalPacked, mat);
+		float4 color = UnpackSVOColor(colorPacked);
+		float4 normal = ExpandOnlyNormal(normalPacked);
 
-			colorAvg.x += color.x;
-			colorAvg.y += color.y;
-			colorAvg.z += color.z;
-			colorAvg.w += color.w;
+		colorAvg.x += color.x;
+		colorAvg.y += color.y;
+		colorAvg.z += color.z;
+		colorAvg.w += color.w;
 			
-			normalAvg.x += normal.x;
-			normalAvg.y += normal.y;
-			normalAvg.z += normal.z;
-			normalAvg.w += (currentLevel == (svoConstants.totalDepth - 1)) ? ceil(normal.w) : normal.w;
+		normalAvg.x += normal.x;
+		normalAvg.y += normal.y;
+		normalAvg.z += normal.z;
+		normalAvg.w += (currentLevel == (svoConstants.totalDepth - 1)) ? ceil(normal.w) : normal.w;
 
-			count++;
-		}
-	}
-
-	// Average Between Threads ( Warp Transfer is ideal here)
-	#pragma unroll
-	for(int offset = GI_NODE_THREAD_COUNT / 2; offset > 0; offset /= 2)
-	{
-		colorAvg.x += __shfl_down(colorAvg.x, offset, GI_NODE_THREAD_COUNT);
-		colorAvg.y += __shfl_down(colorAvg.y, offset, GI_NODE_THREAD_COUNT);
-		colorAvg.z += __shfl_down(colorAvg.z, offset, GI_NODE_THREAD_COUNT);
-		colorAvg.w += __shfl_down(colorAvg.w, offset, GI_NODE_THREAD_COUNT);
-
-		normalAvg.x += __shfl_down(normalAvg.x, offset, GI_NODE_THREAD_COUNT);
-		normalAvg.y += __shfl_down(normalAvg.y, offset, GI_NODE_THREAD_COUNT);
-		normalAvg.z += __shfl_down(normalAvg.z, offset, GI_NODE_THREAD_COUNT);
-		normalAvg.w += __shfl_down(normalAvg.w, offset, GI_NODE_THREAD_COUNT);
-
-		count += __shfl_down(count, offset, GI_NODE_THREAD_COUNT);
+		count++;
 	}
 
 	// Divide by Count
-	if(threadIdx.x % GI_NODE_THREAD_COUNT == 0)
-	{
-		// Divide by Count
-		float countInv = 1.0f / static_cast<float>(count);
-		//if(parentMat != 0) countInv *= 0.25f;
-		//else countInv *= 0.125f;
+	float countInv = 1.0f / static_cast<float>(count);
+	if(parentMat != 0) countInv *= 0.5f;
 
-		colorAvg.x *= countInv;
-		colorAvg.y *= countInv;
-		colorAvg.z *= countInv;
-		colorAvg.w *= countInv;
+	colorAvg.x *= countInv;
+	colorAvg.y *= countInv;
+	colorAvg.z *= countInv;
+	colorAvg.w *= countInv;
 
-		normalAvg.x *= countInv;
-		normalAvg.y *= countInv;
-		normalAvg.z *= countInv;
-		normalAvg.w *= 0.125f;// *0.125f;
-	}
-	if(parentMat != 0) normalAvg.w = 1.0f;// 0.25f;	// Opaque
-	
+	normalAvg.x *= countInv;
+	normalAvg.y *= countInv;
+	normalAvg.z *= countInv;
+	normalAvg.w *= 0.125f;
+	normalAvg.w = (parentMat == 0) ? normalAvg.w : 0.5f;
+
+	// Pack and Store	
 	CSVOMaterial matAvg = PackSVOMaterial(PackSVOColor(colorAvg), PackOnlyVoxNorm(normalAvg));
-	if(GI_NODE_THREAD_COUNT != 1) matAvg = __shfl(matAvg, laneId * GI_NODE_THREAD_COUNT);
-	if(laneId < parentPerWarp && matAvg != 0)
+	if(matAvg != 0)
 	{
 		// Directly Write here interpolation occurs differently there
 		if(currentLevel == svoConstants.denseDepth)
 		{
 			int3 dim =
 			{
-				static_cast<int>(warpLinearId % svoConstants.denseDim),
-				static_cast<int>((warpLinearId / svoConstants.denseDim) % svoConstants.denseDim),
-				static_cast<int>(warpLinearId / (svoConstants.denseDim * svoConstants.denseDim))
+				static_cast<int>(globalId % svoConstants.denseDim),
+				static_cast<int>((globalId / svoConstants.denseDim) % svoConstants.denseDim),
+				static_cast<int>(globalId / (svoConstants.denseDim * svoConstants.denseDim))
 			};
 			uint2 data =
 			{
@@ -544,7 +552,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			UnpackSVOMaterial(color, normal, matAvg);
 
 			// Fetch LocalPos From Pos Array
-			unsigned int voxelPosPacked = gNodeID[gSVOLevelOffset + warpLinearId];
+			unsigned int voxelPosPacked = gNodeID[gSVOLevelOffset + globalId];
 
 			// Expand and move
 			uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);			
@@ -554,11 +562,11 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			splitId.z = (static_cast<int>(voxelUnpacked.z & 0x00000001) * 2 - 1);
 
 			// This is the node that we now the position of
-			//AtomicMatAdd(gSVOMat + gSVOLevelOffset + warpLinearId,
-			//			 color, normal);
+			AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
+						 color, normal);
 
-			// Put the color value to the each node corners of the interpolate nodes
-			for(unsigned int j = 0; j < 1; j++)
+			// Average with the neigbours now
+			for(unsigned int j = 1; j < 1; j++)
 			{
 				int3 voxSigned;
 				voxSigned.x = static_cast<int>(voxelUnpacked.x) + (voxLookup[j].x * splitId.x);
@@ -578,8 +586,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 				voxelPos.y = static_cast<unsigned int>(voxSigned.y);
 				voxelPos.z = static_cast<unsigned int>(voxSigned.z);
 
-				uint3 voxelNode = ExpandNodeIdToDepth(voxelPos,
-													  currentLevel,
+				uint3 voxelNode = ExpandNodeIdToDepth(voxelPos, currentLevel,
 													  svoConstants.numCascades,
 													  svoConstants.totalDepth);
 			
@@ -815,10 +822,11 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 								voxelNormPacked);
 
 		// Write this Id also
-		gNodeIds[gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location] = 
-			PackOnlyVoxPos(CalculateLevelVoxId(voxelPos, 
-											   cascadeMaxLevel + 1,
-											   svoConstants.totalDepth), false);
+		if(cascadeMaxLevel + 1 != svoConstants.totalDepth)
+			gNodeIds[gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location] = 
+				PackOnlyVoxPos(CalculateLevelVoxId(voxelPos, 
+												   cascadeMaxLevel + 1,
+												   svoConstants.totalDepth), false);
 
 		//// Non atmoic overwrite
 		//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -

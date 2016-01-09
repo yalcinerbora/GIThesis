@@ -380,22 +380,6 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 						  hSVOLevelSizes.size() * sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
 
-	// Tag Materials that have parents
-	for(unsigned int i = 0; i < allocators.size() - 1; i++)
-	{
-		unsigned int arrayIndex = i - GI_DENSE_LEVEL;
-		uint32_t gridSize = hSVOLevelSizes[hSVOConstants.denseDepth + i] + (GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
-
-		//SVOReconstructParentMaterial(dSVOMaterial,
-
-		//							 dSVOSparse,
-
-		//							 *(dSVOOffsets + arrayIndex),
-
-		//							 );
-	}
-
-
 	CopyFromBufferToTex(dSVODenseNodeArray, dSVODense);
 }
 
@@ -472,6 +456,19 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 		uint32_t gridSize = ((levelSize * GI_NODE_THREAD_COUNT) + GI_THREAD_PER_BLOCK - 1) /
 							GI_THREAD_PER_BLOCK;
 		
+		// KC Parent Half
+		if(i > static_cast<int>(hSVOConstants.totalDepth - hSVOConstants.numCascades))
+		{
+			SVOParentHalf<<<gridSize, GI_THREAD_PER_BLOCK>>>
+			(
+				dSVOMaterial,
+				dSVOSparse,
+				*(dSVOOffsets + arrayIndex),
+				levelSize,
+				0
+			);
+		}
+
 		// Average Level
 		SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(

@@ -5,6 +5,7 @@
 #include "Macros.h"
 #include "Camera.h"
 #include "Globals.h"
+#include "CDebug.cuh"
 #include "IEUtility/IEMath.h"
 #include "DeferredRenderer.h"
 
@@ -453,8 +454,7 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 														levelDim * levelDim * levelDim;
 		if(levelSize == 0) continue;
 
-		uint32_t gridSize = ((levelSize * GI_NODE_THREAD_COUNT) + GI_THREAD_PER_BLOCK - 1) /
-							GI_THREAD_PER_BLOCK;
+		uint32_t gridSize = (levelSize + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 		
 		// KC Parent Half
 		if(i > static_cast<int>(hSVOConstants.totalDepth - hSVOConstants.numCascades))
@@ -468,6 +468,18 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 				0
 			);
 		}
+
+		//DebugCheckNodeId<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		//(
+		//	dSVOSparse,
+		//	dSVODense,
+		//	dNodeIds.Data(),
+		//	dSVOOffsets,
+		//	*(dSVOOffsets + arrayIndex),
+		//	levelSize,
+		//	i,
+		//	*dSVOConstants.Data()
+		//);
 
 		// Average Level
 		SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
@@ -551,6 +563,9 @@ double GISparseVoxelOctree::UpdateSVO()
 
 	dSVOLevelSizes.Memset(0x00, 0, dSVOLevelSizes.Size());
 	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
+
+	// DEBUG
+	dNodeIds.Memset(0xFF, 0, dNodeIds.Size());
 
 	// Maxwell is faster with fully atomic code (CAS Locks etc.)
 	// However kepler sucks(660ti) (100ms compared to 5ms) 

@@ -7,14 +7,9 @@ Sparse voxel octree types that used in cuda funcs
 #ifndef __CSVOTYPES_H__
 #define __CSVOTYPES_H__
 
-// When averaging how many threads will be used per parent
-// HAS TO BE POW OF TWO
-#define GI_NODE_THREAD_COUNT 1
-
-static_assert(GI_NODE_THREAD_COUNT <= 8, "GI_NODE_THREAD_COUNT should be at most 8");
-// TODO constexpr stataic assert that cehcks if this is pwer of two
-
 #define GI_DENSE_WORKER_PER_PARENT 8
+
+#include <cstdint>
 
 // first int has
 // first 24 bit is children index

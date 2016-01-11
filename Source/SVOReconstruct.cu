@@ -74,7 +74,7 @@ inline __device__ CSVOMaterial AddMat(const CSVOMaterial& material,
 	avgNormal.w += normalUnpack.w;
 
 	avgColorPacked = PackSVOColor(avgColor);
-	avgNormalPacked = PackNormCount(avgNormal);
+	avgNormalPacked = PackOnlyVoxNorm(avgNormal);
 	return PackSVOMaterial(avgColorPacked, avgNormalPacked);
 }
 
@@ -424,7 +424,9 @@ extern __global__ void SVOParentHalf(CSVOMaterial* gSVOMat,
 	{
 		// Does not have a child no need to be halved
 		// However we need to set its opacity to 1	
-		normal.w = 1.0f;
+		// Opacity byte is used to hold atomic average counter
+		// If it have atleast 1 voxel it should have full opacity
+		normal.w = ceil(normal.w);
 	}
 	else
 	{
@@ -438,10 +440,9 @@ extern __global__ void SVOParentHalf(CSVOMaterial* gSVOMat,
 		normal.x *= 0.5f;
 		normal.y *= 0.5f;
 		normal.z *= 0.5f;
-
 		normal.w = 0.5f;
 	}
-	mat = PackSVOMaterial(colorPacked, PackOnlyVoxNorm(normal));
+	mat = PackSVOMaterial(PackSVOColor(color), PackOnlyVoxNorm(normal));
 	gSVOMat[matOffset + gSVOLevelOffset + globalId] = mat;
 }
 
@@ -489,7 +490,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	{
 		unsigned int nodeId = node + i;
 		CSVOMaterial mat = gSVOMat[matOffset + gSVONextLevelOffset + nodeId];
-		if(mat == 0x0000000000000000) continue;
+		if(mat == 0) continue;
 		
 		CSVOColor colorPacked;
 		CVoxelNorm normalPacked;
@@ -562,11 +563,11 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			splitId.z = (static_cast<int>(voxelUnpacked.z & 0x00000001) * 2 - 1);
 
 			// This is the node that we now the position of
-			AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
-						 color, normal);
+			//AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
+			//			 color, normal);
 
 			// Average with the neigbours now
-			for(unsigned int j = 1; j < 1; j++)
+			for(unsigned int j = 0; j < 1; j++)
 			{
 				int3 voxSigned;
 				voxSigned.x = static_cast<int>(voxelUnpacked.x) + (voxLookup[j].x * splitId.x);
@@ -612,20 +613,31 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 					location = *node;
 					//assert(location != 0xFFFFFFFF);
 
-					//if(warpLinearId % 7717 == 0)
 					if(location == 0xFFFFFFFF)
 					{
+						return;
+					}
+
+					/*if(location == 0xFFFFFFFF)
+					{
+						uint3 checkId = CalculateLevelVoxId(voxelNode, i, svoConstants.totalDepth);
+
 						printf("SplitId : %d, %d, %d\n"
 							   "voxelPos : %d, %d, %d\n"
 							   "voxelNode : %d, %d, %d\n"
+							   "voxUnpacked" : %d, %d, %d\n"
+							   "checkId : %d, %d, %d\n"
 							   "level: %d\n"
+							   "notFoundOn: %d\n"
 							   "------------\n",
 							   splitId.z, splitId.y, splitId.x,
 							   voxelNode.z, voxelNode.y, voxelNode.x,
 							   voxelPos.z, voxelPos.y, voxelPos.x,
-							   currentLevel);
+							   voxelUnpacked.x, voxelUnpacked.y, voxelUnpacked.z,
+							   checkId.x, checkId.y, checkId.z,
+							   currentLevel, i);
 						assert(false);
-					}
+					}*/
 
 					// Offset child
 					unsigned int childId = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
@@ -796,7 +808,12 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 			}
 
 			// Allocate (or acquire) next location
+			//unsigned int bitmask = (0x1 << (svoConstants.totalDepth - svoConstants.numCascades + 1)) - 1;
+			unsigned int bitmask = 0x0000001FF;
 			uint3 levelId = CalculateLevelVoxId(voxelPos, i, svoConstants.totalDepth);
+			levelId.x &= bitmask;
+			levelId.y &= bitmask;
+			levelId.z &= bitmask;
 			location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1],
 										  i == svoConstants.denseDepth,
 										  gNodeIds + gLevelOffsets[levelIndex] + location,
@@ -823,10 +840,19 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 		// Write this Id also
 		if(cascadeMaxLevel + 1 != svoConstants.totalDepth)
-			gNodeIds[gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location] = 
-				PackOnlyVoxPos(CalculateLevelVoxId(voxelPos, 
-												   cascadeMaxLevel + 1,
-												   svoConstants.totalDepth), false);
+		{
+			//unsigned int bitmask = (0x1 << (svoConstants.totalDepth - svoConstants.numCascades + 1)) - 1;
+			unsigned int bitmask = 0x0000001FF;
+			uint3 levelId = CalculateLevelVoxId(voxelPos, cascadeMaxLevel + 1, svoConstants.totalDepth);
+			levelId.x &= bitmask;
+			levelId.y &= bitmask;
+			levelId.z &= bitmask;
+
+			gNodeIds[gLevelOffsets[cascadeMaxLevel + 1 - 
+								   svoConstants.denseDepth] + 
+								   location] =  PackOnlyVoxPos(levelId, false);
+		}
+
 
 		//// Non atmoic overwrite
 		//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -

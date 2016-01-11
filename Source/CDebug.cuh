@@ -14,6 +14,8 @@ struct CAABB;
 typedef CAABB CObjectAABB;
 struct CObjectTransform;
 struct CVoxelGrid;
+typedef unsigned int CSVONode;
+struct CSVOConstants;
 
 // Debug Kernel that checks that we allocated unqiuely
 // Each segment compares its id with all other segments
@@ -35,5 +37,16 @@ __global__ void DebugCheckSegmentAlloc(const CVoxelGrid& gGridInfo,
 
 									   const CObjectAABB* gObjectAABB,
 									   const CObjectTransform* gObjTransforms);
+
+// Checks if the written Node Id can be used to traverse the pointing node
+extern __global__ void DebugCheckNodeId(const CSVONode* gSVODense,
+										const CSVONode* gSVOSparse,
+
+										const unsigned int* gNodeIds,
+										const unsigned int* gSVOLevelOffsets,
+										const unsigned int& gSVOLevelOffset,
+										const unsigned int levelNodeCount,
+										const unsigned int currentLevel,
+										const CSVOConstants& svoConstants);
 
 #endif //__CDEBUG_H__

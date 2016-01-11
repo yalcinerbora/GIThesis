@@ -29,7 +29,7 @@ AOBar::AOBar()
  : angleDegree(30.0f)
  , sampleFactor(1.0f)
  , maxDistance(250.0f)
- , intensity(1.7f)
+ , intensity(1.15f)
  , bar(nullptr)
  , hidden(true)
 {

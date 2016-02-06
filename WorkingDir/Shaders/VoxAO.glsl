@@ -280,7 +280,6 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 			else nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
 		}
 		// Finally At requested level
-		// Finally At requested level
 		// BackTrack From Child
 		nodeIndex -= CalculateLevelChildId(voxPos, depth);
 		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] +

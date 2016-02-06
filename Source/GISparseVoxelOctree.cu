@@ -581,18 +581,18 @@ double GISparseVoxelOctree::UpdateSVO()
 		AverageNodes(false);
 	}
 	
-	//// DEBUG
-	//GI_LOG("-------------------------------------------");
-	//GI_LOG("Tree Node Data");
-	//unsigned int i;
-	//for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
-	//{
-	//	if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE_CUBE);
-	//	else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
-	//}
-	//unsigned int total = std::accumulate(hSVOLevelSizes.begin(),
-	//									 hSVOLevelSizes.end(), 0);
-	//GI_LOG("Total : %d", total);
+	// DEBUG
+	GI_LOG("-------------------------------------------");
+	GI_LOG("Tree Node Data");
+	unsigned int i;
+	for(i = 0; i <= allocatorGrids[0]->depth - GI_DENSE_LEVEL + allocators.size() - 1; i++)
+	{
+		if(i == 0) GI_LOG("#%d Dense : %d", GI_DENSE_LEVEL + i, GI_DENSE_SIZE_CUBE);
+		else GI_LOG("#%d Level : %d", GI_DENSE_LEVEL + i, hSVOLevelSizes[i]);
+	}
+	unsigned int total = std::accumulate(hSVOLevelSizes.begin(),
+										 hSVOLevelSizes.end(), 0);
+	GI_LOG("Total : %d", total);
 
 	timer.Stop();
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoMaterialResource));

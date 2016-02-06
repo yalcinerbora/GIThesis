@@ -38,9 +38,11 @@ class MeshBatchStatic : public MeshBatchI
 		// Static Files
 		static const char*		sponzaFileName;
 		static const char*		cornellboxFileName;
+		static const char*		sibernikFileName;
 		
 		static size_t			sponzaVoxelSizes[];
 		static size_t			cornellVoxelSizes[];
+		static size_t			sibernikVoxelSizes[];
 
 		// Interface
 		void					Update(double elapsedS) override;

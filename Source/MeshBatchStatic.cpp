@@ -33,6 +33,7 @@ MeshBatchStatic::MeshBatchStatic(const char* sceneFileName,
 // Static Files
 const char* MeshBatchStatic::sponzaFileName = "sponza.gfg";
 const char*	MeshBatchStatic::cornellboxFileName = "cornell.gfg";
+const char* MeshBatchStatic::sibernikFileName = "sibernik.gfg";
 
 size_t MeshBatchStatic::sponzaVoxelSizes[] = 
 {
@@ -45,6 +46,13 @@ size_t MeshBatchStatic::cornellVoxelSizes[] =
 	static_cast<size_t>(1024 * 1024 * 1.5f),
 	static_cast<size_t>(1024 * 1024 * 2.0f),
 	static_cast<size_t>(1024 * 1024 * 1.5f)
+};
+
+size_t MeshBatchStatic::sibernikVoxelSizes[] =
+{
+	static_cast<size_t>(1024 * 1024 * 1.0f),
+	static_cast<size_t>(1024 * 1024 * 2.2f),
+	static_cast<size_t>(1024 * 1024 * 4.0f)
 };
 
 // Interface

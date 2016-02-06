@@ -101,6 +101,33 @@ int main()
 			IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
 		}
 	};
+	Light sibernikLights[] =
+	{
+		// Directional Light
+		// White Color
+		// Diretly Comes from Front Door
+		{
+			{0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL)},
+			{IEMath::SinF(IEMath::ToRadians(45.0f)), -IEMath::CosF(IEMath::ToRadians(45.0f)), 0.0f, std::numeric_limits<float>::infinity()},
+			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
+		},
+		//Point Lights
+		{
+			{-250.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
+			{0.0f, 0.0f, 0.0f, 1000.0f},
+			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
+		},
+		{
+			{0.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
+			{0.0f, 0.0f, 0.0f, 1000.0f},
+			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
+		},
+		{
+			{200.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
+			{0.0f, 0.0f, 0.0f, 1000.0f},
+			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
+		}
+	};
 	Light cornellLights[] =
 	{
 		// Area Light
@@ -135,6 +162,11 @@ int main()
 	MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
 								  ThesisSolution::CascadeSpan,
 								  {MeshBatchCube::rotatingCubeVoxelSizes, GI_CASCADE_COUNT});
+	
+	// Sibernik Scene
+	MeshBatchStatic sibernikStatic(MeshBatchStatic::sibernikFileName,
+								   ThesisSolution::CascadeSpan,
+								   {MeshBatchStatic::sibernikVoxelSizes, GI_CASCADE_COUNT});
 
 	// Scene Interfaces
 	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic};
@@ -154,9 +186,17 @@ int main()
 					 Array32<Light>{sponzaLights, 1},
 					 Scene::cubeSceneTotalSize,
 					 Scene::cubeSceneLevelSizes);
+
+	MeshBatchI* sibernikBatches[] = {&sibernikStatic};
+	Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
+				   Array32<Light>{sibernikLights, 4},
+				   Scene::sibernikSceneTotalSize,
+				   Scene::sibernikSceneLevelSizes);
+
 	scenes.push_back(&crySponza);
 	scenes.push_back(&cornellBox);
 	scenes.push_back(&cubeRotate);
+	scenes.push_back(&sibernik);
 
 	// Solutions
 	EmptyGISolution emptySolution(deferredRenderer);

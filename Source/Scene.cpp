@@ -67,10 +67,27 @@ const uint32_t Scene::cubeSceneLevelSizes[] =
 	300 * 1024,
 };
 
+const uint32_t Scene::sibernikSceneLevelSizes[] =
+{
+	1,
+	8,
+	64,
+	512,
+	1024,
+	8192,
+	145 * 1024,
+	220 * 1024,
+	400 * 1024,
+	2000 * 1024,
+	4000 * 1024,
+	4000 * 1024
+};
+
 //const uint32_t Scene::sponzaSceneTotalSize = 4175 * 1024;
 const uint32_t Scene::sponzaSceneTotalSize = 7800 * 1024;
 const uint32_t Scene::cornellSceneTotalSize = 3190 * 1024;
 const uint32_t Scene::cubeSceneTotalSize = 421 * 1024;
+const uint32_t Scene::sibernikSceneTotalSize = 10800 * 1024;
 
 static_assert(sizeof(Scene::sponzaSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
 static_assert(sizeof(Scene::cornellSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");

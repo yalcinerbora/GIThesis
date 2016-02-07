@@ -53,3 +53,12 @@ WorkingDir/
 !Lib/**/*.dvlib
 !Lib/**/*.dll
 !Lib/**/*.pch
+
+# Latex Thesis Output Files
+ThesisMsc/**/*.pdf
+ThesisMsc/**/*.log
+ThesisMsc/**/*.aux
+ThesisMsc/**/*.lof
+ThesisMsc/**/*.lot
+ThesisMsc/**/*.toc
+ThesisMsc/**/*.gz

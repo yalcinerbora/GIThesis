@@ -97,8 +97,8 @@ inline __device__ CSVOMaterial AtomicColorNormalAvg(CSVOMaterial* gMaterial,
 }
 
 inline __device__ CSVOMaterial AtomicMatAdd(CSVOMaterial* gMaterial,
-											CSVOColor color,
-											CVoxelNorm voxelNormal)
+											const CSVOColor& color,
+											const CVoxelNorm& voxelNormal)
 {
 	float4 colorUnpack = UnpackSVOColor(color);
 	float4 normalUnpack = ExpandOnlyNormal(voxelNormal);
@@ -412,7 +412,7 @@ extern __global__ void SVOParentHalf(CSVOMaterial* gSVOMat,
 
 	if(mat == 0x0000000000000000) return;
 
-	//
+	// Unpack and Half the Material
 	CSVOColor colorPacked;
 	CVoxelNorm normalPacked;
 	UnpackSVOMaterial(colorPacked, normalPacked, mat);
@@ -440,7 +440,7 @@ extern __global__ void SVOParentHalf(CSVOMaterial* gSVOMat,
 		normal.x *= 0.5f;
 		normal.y *= 0.5f;
 		normal.z *= 0.5f;
-		normal.w = 0.5f;
+		normal.w = 1.0f;
 	}
 	mat = PackSVOMaterial(PackSVOColor(color), PackOnlyVoxNorm(normal));
 	gSVOMat[matOffset + gSVOLevelOffset + globalId] = mat;
@@ -474,7 +474,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	// Cull if there is no children
 	if(node == 0xFFFFFFFF) return;
 
-	// Only fetch parent when there
+	// Only fetch parent when there is one
 	bool fetchParentMat = ((svoConstants.totalDepth - currentLevel) < svoConstants.numCascades);
 	CSVOMaterial parentMat = fetchParentMat ? gSVOMat[matOffset + gSVOLevelOffset + globalId] : 0;
 
@@ -512,7 +512,8 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	}
 
 	// Divide by Count
-	float countInv = 1.0f / static_cast<float>(count);
+	float nominator = (currentLevel == svoConstants.denseDepth) ? 1.0f : 0.125f;
+	float countInv = nominator / static_cast<float>(count);
 	if(parentMat != 0) countInv *= 0.5f;
 
 	colorAvg.x *= countInv;
@@ -523,16 +524,18 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	normalAvg.x *= countInv;
 	normalAvg.y *= countInv;
 	normalAvg.z *= countInv;
-	normalAvg.w *= 0.125f;
-	normalAvg.w = (parentMat == 0) ? normalAvg.w : 0.5f;
+	normalAvg.w *= 0.125f * 0.125f;
+	normalAvg.w = (parentMat == 0) ? normalAvg.w : 0.125f;
 
 	// Pack and Store	
-	CSVOMaterial matAvg = PackSVOMaterial(PackSVOColor(colorAvg), PackOnlyVoxNorm(normalAvg));
-	if(matAvg != 0)
+	CSVOColor colorPacked = PackSVOColor(colorAvg);
+	CVoxelNorm normPacked = PackOnlyVoxNorm(normalAvg);
+	if(count != 0)
 	{
-		// Directly Write here interpolation occurs differently there
 		if(currentLevel == svoConstants.denseDepth)
 		{
+			// Directly Write here interpolation occurs differently there
+			CSVOMaterial matAvg = PackSVOMaterial(colorPacked, normPacked);
 			int3 dim =
 			{
 				static_cast<int>(globalId % svoConstants.denseDim),
@@ -548,103 +551,16 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		}
 		else
 		{
-			CSVOColor color;
-			CVoxelNorm normal;
-			UnpackSVOMaterial(color, normal, matAvg);
+			// gSVOMat[gSVOLevelOffset + globalId] = matAvg;
+			/*AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
+						 colorPacked, normPacked);*/
 
-			// Fetch LocalPos From Pos Array
-			unsigned int voxelPosPacked = gNodeID[gSVOLevelOffset + globalId];
-
-			// Expand and move
-			uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);			
-			int3 splitId;
-			splitId.x = (static_cast<int>(voxelUnpacked.x & 0x00000001) * 2 - 1);
-			splitId.y = (static_cast<int>(voxelUnpacked.y & 0x00000001) * 2 - 1);
-			splitId.z = (static_cast<int>(voxelUnpacked.z & 0x00000001) * 2 - 1);
-
-			// This is the node that we now the position of
-			//AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
-			//			 color, normal);
-
-			// Average with the neigbours now
-			for(unsigned int j = 0; j < 1; j++)
+			// Add other neigbours
+			#pragma unroll
+			for(unsigned int i = 0; i < 8; i++)
 			{
-				int3 voxSigned;
-				voxSigned.x = static_cast<int>(voxelUnpacked.x) + (voxLookup[j].x * splitId.x);
-				voxSigned.y = static_cast<int>(voxelUnpacked.y) + (voxLookup[j].y * splitId.y);
-				voxSigned.z = static_cast<int>(voxelUnpacked.z) + (voxLookup[j].z * splitId.z);
-
-				// It may be out of bounds
-				int totalDim = min(0x1 << (svoConstants.totalDepth - (svoConstants.numCascades - 1)),
-								   0x1 << currentLevel);
-				if(voxSigned.x <= 0 || voxSigned.x > totalDim ||
-				   voxSigned.y <= 0 || voxSigned.y > totalDim ||
-				   voxSigned.z <= 0 || voxSigned.z > totalDim)
-				   continue;
-
-				uint3 voxelPos;
-				voxelPos.x = static_cast<unsigned int>(voxSigned.x);
-				voxelPos.y = static_cast<unsigned int>(voxSigned.y);
-				voxelPos.z = static_cast<unsigned int>(voxSigned.z);
-
-				uint3 voxelNode = ExpandNodeIdToDepth(voxelPos, currentLevel,
-													  svoConstants.numCascades,
-													  svoConstants.totalDepth);
-			
-				unsigned int location;
-				for(unsigned int i = svoConstants.denseDepth; i <= currentLevel - 1; i++)
-				{
-					unsigned int levelIndex = i - svoConstants.denseDepth;
-					const CSVONode* node = nullptr;
-					if(i == svoConstants.denseDepth)
-					{
-						uint3 levelVoxId = CalculateLevelVoxId(voxelNode, i, svoConstants.totalDepth);
-						node = gSVODense +
-								svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
-								svoConstants.denseDim * levelVoxId.y +
-								levelVoxId.x;
-					}
-					else
-					{
-						node = gSVOSparse + gLevelOffsets[levelIndex] + location;
-					}
-
-					// Acq next location
-					location = *node;
-					//assert(location != 0xFFFFFFFF);
-
-					if(location == 0xFFFFFFFF)
-					{
-						return;
-					}
-
-					/*if(location == 0xFFFFFFFF)
-					{
-						uint3 checkId = CalculateLevelVoxId(voxelNode, i, svoConstants.totalDepth);
-
-						printf("SplitId : %d, %d, %d\n"
-							   "voxelPos : %d, %d, %d\n"
-							   "voxelNode : %d, %d, %d\n"
-							   "voxUnpacked" : %d, %d, %d\n"
-							   "checkId : %d, %d, %d\n"
-							   "level: %d\n"
-							   "notFoundOn: %d\n"
-							   "------------\n",
-							   splitId.z, splitId.y, splitId.x,
-							   voxelNode.z, voxelNode.y, voxelNode.x,
-							   voxelPos.z, voxelPos.y, voxelPos.x,
-							   voxelUnpacked.x, voxelUnpacked.y, voxelUnpacked.z,
-							   checkId.x, checkId.y, checkId.z,
-							   currentLevel, i);
-						assert(false);
-					}*/
-
-					// Offset child
-					unsigned int childId = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
-					location += childId;
-				}
-				AtomicMatAdd(gSVOMat + gSVOLevelOffset + location,
-							 color, normal);
+				AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
+							 colorPacked, normPacked);
 			}
 		}	
 	}

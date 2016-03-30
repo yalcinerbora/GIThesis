@@ -62,3 +62,6 @@ ThesisMsc/**/*.lof
 ThesisMsc/**/*.lot
 ThesisMsc/**/*.toc
 ThesisMsc/**/*.gz
+*.bbl
+*.blg
+*.tdo

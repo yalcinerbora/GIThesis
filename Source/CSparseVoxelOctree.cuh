@@ -12,6 +12,7 @@ Designed for fast reconstruction from its bottom
 #include "CVoxel.cuh"
 #include "CSVOTypes.cuh"
 #include <cassert>
+#include <cstdio>
 
 //inline __device__ void UnpackNode(unsigned int& childrenIndex,
 //								  unsigned char& childrenBit,
@@ -155,26 +156,79 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
 	return expandedVoxId;
 }
 
-inline __device__ uint3 ExpandNodeIdToDepth(const uint3& nodeId,
-											const unsigned int level,
-											const unsigned int numCascades,
-											const unsigned int totalLevel)
+inline __device__ unsigned int PackNodeId(const uint3& localVoxelPos,
+										  const unsigned int level,
+										  const unsigned int numCascades,
+										  const unsigned int totalLevel)
 {
-	uint3 result;
-	if(totalLevel - level < numCascades)
+	// Pack Level
+	unsigned int packLevel = totalLevel - numCascades + 1;
+	unsigned int packMaskLow = (0x1 << packLevel - 1) - 1;
+
+	// Shift to Level
+	uint3 voxId = CalculateLevelVoxId(localVoxelPos, level, totalLevel);
+
+	// We need to pack stuff in order to open it properly
+	unsigned int lastBit;
+	if(level > packLevel)
 	{
-		unsigned int cascadeNo = numCascades - (totalLevel - level) - 1;
-		result = ExpandToSVODepth(nodeId,
-								  cascadeNo,
-								  numCascades,
-								  totalLevel);
+		// Flip the "packLevel"th bit
+		// Zero out the left of it
+		lastBit = voxId.x >> (packLevel - 1) & 0x1u;
+		lastBit = 1 - lastBit;
+		voxId.x = (lastBit << (packLevel - 1)) | (voxId.x & packMaskLow);
+		
+		lastBit = voxId.y >> (packLevel - 1) & 0x1u;
+		lastBit = 1 - lastBit;
+		voxId.y = (lastBit << (packLevel - 1)) | (voxId.y & packMaskLow);
+
+		lastBit = voxId.z >> (packLevel - 1) & 0x1u;
+		lastBit = 1 - lastBit;
+		voxId.z = (lastBit << (packLevel - 1)) | (voxId.z & packMaskLow);
 	}
-	else
+	
+	assert(voxId.x < (0x1u << min(level, packLevel)));
+	assert(voxId.y < (0x1u << min(level, packLevel)));
+	assert(voxId.z < (0x1u << min(level, packLevel)));
+	return PackOnlyVoxPos(voxId, false);
+}
+
+inline __device__ uint3 UnpackNodeId(const unsigned int nodePacked,
+									 const unsigned int level,
+									 const unsigned int numCascades,
+									 const unsigned int totalLevel)
+{
+	uint3 nodeId = ExpandOnlyVoxPos(nodePacked);
+	unsigned int packLevel = totalLevel - numCascades + 1;
+	unsigned int cascadeNo = fmaxf(level, packLevel) - packLevel;
+
+	assert(nodeId.x < (0x1u << min(level, packLevel)));
+	assert(nodeId.y < (0x1u << min(level, packLevel)));
+	assert(nodeId.z < (0x1u << min(level, packLevel)));
+
+	uint3 result = ExpandToSVODepth(nodeId, cascadeNo, numCascades, totalLevel);
+
+	result.x >>= (numCascades - cascadeNo - 1);
+	result.y >>= (numCascades - cascadeNo - 1);
+	result.z >>= (numCascades - cascadeNo - 1);
+
+	if(result.x >= (0x1 << level) ||
+	   result.y >= (0x1 << level) ||
+	   result.z >= (0x1 << level))
 	{
-		result.x = nodeId.x << (totalLevel - level);
-		result.y = nodeId.y << (totalLevel - level);
-		result.z = nodeId.z << (totalLevel - level);
+		printf("voxelNode : %d, %d, %d\n"
+			   "node : %d\n"
+			   "nodeId : %d, %d, %d\n"
+			   "------------\n",
+			   result.x, result.y, result.z,
+			   nodePacked,
+			   nodeId.x, nodeId.y, nodeId.z
+			   );
+		assert(false);
 	}
+	assert(result.x < (0x1 << level));
+	assert(result.y < (0x1 << level));
+	assert(result.z < (0x1 << level));
 	return result;
 }
 
@@ -184,4 +238,4 @@ inline __device__ unsigned int CalculateChildIndex(const unsigned char childrenB
 	assert((childrenBits & childBit) != 0);	
 	return __popc(childrenBits & (childBit - 1));
 }
-#endif //__CSPARSEVOXELOCTREE_H__
+#endif //__CSPARSEVOXELOCTREE_H__ 

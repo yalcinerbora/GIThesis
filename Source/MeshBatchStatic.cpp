@@ -50,9 +50,9 @@ size_t MeshBatchStatic::cornellVoxelSizes[] =
 
 size_t MeshBatchStatic::sibernikVoxelSizes[] =
 {
-	static_cast<size_t>(1024 * 1024 * 1.0f),
+	static_cast<size_t>(1024 * 1024 * 4.2f),
 	static_cast<size_t>(1024 * 1024 * 2.2f),
-	static_cast<size_t>(1024 * 1024 * 4.0f)
+	static_cast<size_t>(1024 * 1024 * 0.7f)
 };
 
 // Interface

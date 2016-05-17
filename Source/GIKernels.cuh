@@ -193,7 +193,7 @@ extern __global__ void SVOParentHalf(CSVOMaterial* gSVOMat,
 extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 									  CSVONode* gSVOSparse,
 									  CSVONode* gSVODense,
-									  unsigned int* gNodeId,
+									  unsigned int* gNodeIds,
 									  unsigned int* gLevelAllocators,
 
 									  const unsigned int* gLevelOffsets,

@@ -583,7 +583,7 @@ void DeferredRenderer::RefreshInvFTransform(const Camera& camera,
 		ft.view.Inverse() * ft.projection.Inverse(),
 		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascadeLength(camera.far, 0)),
 		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
-		{0, 0, width, height},
+		{0, 0, static_cast<unsigned int>(width), static_cast<unsigned int>(height)},
 		{ depthRange[0], depthRange[1], 0.0f, 0.0f }
 	};
 	invFrameTransform.SendData();

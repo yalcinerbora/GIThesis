@@ -41,7 +41,6 @@ __global__ void DebugCheckSegmentAlloc(const CVoxelGrid& gGridInfo,
 // Checks if the written Node Id can be used to traverse the pointing node
 extern __global__ void DebugCheckNodeId(const CSVONode* gSVODense,
 										const CSVONode* gSVOSparse,
-
 										const unsigned int* gNodeIds,
 										const unsigned int* gSVOLevelOffsets,
 										const unsigned int& gSVOLevelOffset,

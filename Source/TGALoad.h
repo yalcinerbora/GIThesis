@@ -28,7 +28,7 @@ bool LoadTGAFile(TGAFILE *tgaFile, const char *filename)
 	unsigned char colorSwap;
 
 	// Open the TGA file.
-	filePtr = fopen(filename, "rb");
+	fopen_s(&filePtr, filename, "rb");
 	if(filePtr == NULL)
 	{
 		return false;

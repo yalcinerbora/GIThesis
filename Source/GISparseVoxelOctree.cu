@@ -467,40 +467,45 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 				levelSize,
 				0
 			);
+			CUDA_KERNEL_CHECK();
 		}
 
-		//DebugCheckNodeId<<<gridSize, GI_THREAD_PER_BLOCK>>>
-		//(
-		//	dSVOSparse,
-		//	dSVODense,
-		//	dNodeIds.Data(),
-		//	dSVOOffsets,
-		//	*(dSVOOffsets + arrayIndex),
-		//	levelSize,
-		//	i,
-		//	*dSVOConstants.Data()
-		//);
+		if(i != GI_DENSE_LEVEL)
+		{
+			DebugCheckNodeId<<<gridSize, GI_THREAD_PER_BLOCK>>>
+			(
+				dSVODense,
+				dSVOSparse,
+				dNodeIds.Data(),
+				dSVOOffsets,
+				*(dSVOOffsets + arrayIndex),
+				levelSize,
+				i,
+				*dSVOConstants.Data()
+			);
+			CUDA_KERNEL_CHECK();
+		}
 
-		// Average Level
-		SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
-		(
-			dSVOMaterial,
-			sSVODenseMat[0],
+	//	// Average Level
+	//	SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	//	(
+	//		dSVOMaterial,
+	//		sSVODenseMat[0],
 
-			dSVODense,
-			dSVOSparse,
-			dNodeIds.Data(),
+	//		dSVODense,
+	//		dSVOSparse,
+	//		dNodeIds.Data(),
 
-			dSVOOffsets,
-			*(dSVOOffsets + arrayIndex),
-			*(dSVOOffsets + arrayIndex + 1),
+	//		dSVOOffsets,
+	//		*(dSVOOffsets + arrayIndex),
+	//		*(dSVOOffsets + arrayIndex + 1),
 
-			levelSize,
-			0,
-			i,
-			*dSVOConstants.Data()
-		);
-		CUDA_KERNEL_CHECK();
+	//		levelSize,
+	//		0,
+	//		i,
+	//		*dSVOConstants.Data()
+	//	);
+	//	CUDA_KERNEL_CHECK();
 	}
 	
 	// Dense Reduction
@@ -570,15 +575,42 @@ double GISparseVoxelOctree::UpdateSVO()
 	if(CudaInit::CapabilityMajor() >= 5)
 	{
 		ConstructFullAtomic();
+
+		//DEBUG
+		//const size_t size = 500000;
+		//dNodeIds.DumpToFile("NODEIDSSSS", 0, size);
+
+		//std::vector<unsigned int> cpuData;
+		//cpuData.resize(size);
+		//CUDA_CHECK(cudaMemcpy(cpuData.data(),
+		//					  dSVOSparse,
+		//					  size * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+		//std::ofstream fOut;
+		//fOut.open("NODES");
+		//for(const CSVONode& data : cpuData)
+		//	fOut << "0x" << std::hex << data << std::endl;
+		//fOut.close();
+
+		//std::vector<unsigned int> offsetData;
+		//offsetData.resize(svoLevelOffsets.Count());
+		//CUDA_CHECK(cudaMemcpy(offsetData.data(),
+		//					  dSVOOffsets,
+		//					  svoLevelOffsets.Count() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+
+		//fOut.open("OFFSETSSS");
+		//for(const unsigned int& data : offsetData)
+		//	fOut << data << std::endl;
+		//fOut.close();
+
 		AverageNodes(true);
 	}
-		
 	else
 	{
 		ConstructLevelByLevel();
 		AverageNodes(false);
 	}
-	
+	timer.Stop();
+
 	//// DEBUG
 	//GI_LOG("-------------------------------------------");
 	//GI_LOG("Tree Node Data");
@@ -591,8 +623,7 @@ double GISparseVoxelOctree::UpdateSVO()
 	//unsigned int total = std::accumulate(hSVOLevelSizes.begin(),
 	//									 hSVOLevelSizes.end(), 0);
 	//GI_LOG("Total : %d", total);
-
-	timer.Stop();
+	
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNodeResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoLevelOffsetResource));

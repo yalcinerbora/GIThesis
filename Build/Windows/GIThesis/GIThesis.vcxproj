@@ -56,6 +56,8 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;GI_DEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <DisableIntelLangExtensions>true</DisableIntelLangExtensions>
+      <Cpp0xSupport>true</Cpp0xSupport>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -86,6 +88,8 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;NDEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <DisableIntelLangExtensions>true</DisableIntelLangExtensions>
+      <Cpp0xSupport>true</Cpp0xSupport>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

@@ -485,7 +485,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	float4 normalAvg = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	// Average
-#pragma unroll
+	#pragma unroll
 	for(unsigned int i = 0; i < 8; i++)
 	{
 		unsigned int nodeId = node + i;
@@ -552,7 +552,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 	else
 	{
 		AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
-						colorPacked, normPacked);
+					 colorPacked, normPacked);
 
 		// Add other neigbours
 		unsigned int voxelPosPacked = gNodeID[gSVOLevelOffset + globalId];
@@ -565,62 +565,100 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		splitId.y = static_cast<int>(voxelUnpacked.y & 0x00000001) * 2 - 1;
 		splitId.z = static_cast<int>(voxelUnpacked.z & 0x00000001) * 2 - 1;
 			
-		for(unsigned int j = 1; j < 8; j++)
-		{
-			int3 voxSigned;
-			voxSigned.x = static_cast<int>(voxelUnpacked.x) + (voxLookup[j].x * splitId.x);
-			voxSigned.y = static_cast<int>(voxelUnpacked.y) + (voxLookup[j].y * splitId.y);
-			voxSigned.z = static_cast<int>(voxelUnpacked.z) + (voxLookup[j].z * splitId.z);
+		//for(unsigned int j = 1; j < 8; j++)
+		//{
+		//	int3 voxSigned;
+		//	voxSigned.x = static_cast<int>(voxelUnpacked.x) + (voxLookup[j].x * splitId.x);
+		//	voxSigned.y = static_cast<int>(voxelUnpacked.y) + (voxLookup[j].y * splitId.y);
+		//	voxSigned.z = static_cast<int>(voxelUnpacked.z) + (voxLookup[j].z * splitId.z);
 
-			// It may be out of bounds
-			int totalDim = 0x1 << currentLevel;
-			if(voxSigned.x < 0 || voxSigned.x >= totalDim ||
-			   voxSigned.y < 0 || voxSigned.y >= totalDim ||
-			   voxSigned.z < 0 || voxSigned.z >= totalDim)
-			   continue;
+		//	// It may be out of bounds
+		//	int totalDim = 0x1 << currentLevel;
+		//	if(voxSigned.x < 0 || voxSigned.x >= totalDim ||
+		//	   voxSigned.y < 0 || voxSigned.y >= totalDim ||
+		//	   voxSigned.z < 0 || voxSigned.z >= totalDim)
+		//	   continue;
 
-			uint3 vox;
-			vox.x = static_cast<unsigned int>(voxSigned.x);
-			vox.y = static_cast<unsigned int>(voxSigned.y);
-			vox.z = static_cast<unsigned int>(voxSigned.z);
+		//	uint3 vox;
+		//	vox.x = static_cast<unsigned int>(voxSigned.x);
+		//	vox.y = static_cast<unsigned int>(voxSigned.y);
+		//	vox.z = static_cast<unsigned int>(voxSigned.z);
 
-			vox.x <<= (svoConstants.totalDepth - currentLevel);
-			vox.y <<= (svoConstants.totalDepth - currentLevel);
-			vox.z <<= (svoConstants.totalDepth - currentLevel);
+		//	vox.x <<= (svoConstants.totalDepth - currentLevel);
+		//	vox.y <<= (svoConstants.totalDepth - currentLevel);
+		//	vox.z <<= (svoConstants.totalDepth - currentLevel);
 
-			// Traverse to this node
-			bool skipped = false;
-			unsigned int location;
-			for(unsigned int i = svoConstants.denseDepth; i < currentLevel; i++)
-			{
-				unsigned int levelIndex = i - svoConstants.denseDepth;
-				const CSVONode* node = nullptr;
-				if(i == svoConstants.denseDepth)
-				{
-					uint3 levelVoxId = CalculateLevelVoxId(vox, i, svoConstants.totalDepth);
-					node = gSVODense +
-							svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
-							svoConstants.denseDim * levelVoxId.y +
-							levelVoxId.x;
-				}
-				else
-				{
-					node = gSVOSparse + gLevelOffsets[levelIndex] + location;
-				}
-				location = *node;
+		//	// Traverse to this node
+		//	uint3 levelVoxId = CalculateLevelVoxId(vox, svoConstants.denseDepth, svoConstants.totalDepth);
+		//	CSVONode location = gSVODense[svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+		//								  svoConstants.denseDim * levelVoxId.y +
+		//								  levelVoxId.x];
+		//	//assert(location != 0xFFFFFFFF);
+		//	if(location == 0xFFFFFFFF && j == 1)
+		//	{
+		//		printf("Dense\n"
+		//			   "VoxId %d %d %d\n"
+		//			   "VoxStored %u %u %u\n"
+		//			   "j %u\n"
+		//			   "level %u\n",
+		//			   vox.x, vox.y, vox.z,
+		//			   voxSigned.x, voxSigned.y, voxSigned.z,
+		//			   j, currentLevel);
+		//		continue;
+		//	}
 
-				//assert(location != 0xFFFFFFFF);
-				if(location == 0xFFFFFFFF)
-				{
-					skipped = true;
-					break;
-				}
-				// Offset child
-				unsigned int childId = CalculateLevelChildId(vox, i + 1, svoConstants.totalDepth);
-				location += childId;
-			}
-			AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
-						 colorPacked, normPacked);
+		//	location += CalculateLevelChildId(vox, svoConstants.denseDepth + 1, svoConstants.totalDepth);
+		//	for(unsigned int i = svoConstants.denseDepth + 1; i < currentLevel; i++)
+		//	{
+		//		unsigned int levelIndex = i - svoConstants.denseDepth;
+		//		const CSVONode node = gSVOSparse[gLevelOffsets[levelIndex] + location];
+		//		//assert(node != 0xFFFFFFFF);
+		//		if(node == 0xFFFFFFFF && j == 1)
+		//		{
+		//			printf("Sparse\n"
+		//				   "VoxId %d %d %d\n"
+		//				   "VoxStored %u %u %u\n"
+		//				   "j %u\n"
+		//				   "level %u\n",
+		//				   vox.x, vox.y, vox.z,
+		//				   voxSigned.x, voxSigned.y, voxSigned.z,
+		//				   j, currentLevel);
+		//			continue;
+		//		}
+
+		//		// Offset child
+		//		unsigned int childId = CalculateLevelChildId(vox, i + 1, svoConstants.totalDepth);
+		//		location = node + childId;
+		//	}
+			//AtomicMatAdd(gSVOMat + gSVOLevelOffset + location,
+			//			 colorPacked, normPacked);
+
+			//unsigned int location;
+			//for(unsigned int i = svoConstants.denseDepth; i < currentLevel; i++)
+			//{
+			//	unsigned int levelIndex = i - svoConstants.denseDepth;
+			//	const CSVONode* node = nullptr;
+			//	if(i == svoConstants.denseDepth)
+			//	{
+			//		uint3 levelVoxId = CalculateLevelVoxId(vox, i, svoConstants.totalDepth);
+			//		node = gSVODense +
+			//			svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+			//			svoConstants.denseDim * levelVoxId.y +
+			//			levelVoxId.x;
+			//	}
+			//	else
+			//	{
+			//		node = gSVOSparse + gLevelOffsets[levelIndex] + location;
+			//	}
+			//	location = *node;
+			//	assert(location != 0xFFFFFFFF);
+
+			//	// Offset child
+			//	unsigned int childId = CalculateLevelChildId(vox, i + 1, svoConstants.totalDepth);
+			//	location += childId;
+			//}
+			//AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
+			//			 colorPacked, normPacked);
 //
 //				if(!skipped)
 //				{
@@ -632,7 +670,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 //					AtomicMatAdd(gSVOMat + gSVOLevelOffset + globalId,
 //								 colorPacked, normPacked);
 //				}
-		}
+		//}
 	}
 }
 
@@ -769,8 +807,7 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 		vox.x = static_cast<unsigned int>(voxSigned.x);
 		vox.y = static_cast<unsigned int>(voxSigned.y);
 		vox.z = static_cast<unsigned int>(voxSigned.z);
-		uint3 voxelPos = ExpandToSVODepth(vox,
-										  cascadeNo,
+		uint3 voxelPos = ExpandToSVODepth(vox, cascadeNo,
 										  svoConstants.numCascades,
 										  svoConstants.totalDepth);
 
@@ -796,9 +833,6 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 			// Allocate (or acquire) next location
 			unsigned int levelNodeId = PackNodeId(voxelPos, i, svoConstants.numCascades, svoConstants.totalDepth);
 			assert(levelNodeId != 0xFFFFFFFF);
-			//if(i != svoConstants.denseDepth)
-			//	*(gNodeIds + gLevelOffsets[levelIndex] + location) = levelNodeId;
-
 			location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1],
 										  i == svoConstants.denseDepth,
 										  gNodeIds + gLevelOffsets[levelIndex] + location,

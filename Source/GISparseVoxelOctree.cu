@@ -486,26 +486,27 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 			CUDA_KERNEL_CHECK();
 		}
 
-	//	// Average Level
-	//	SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
-	//	(
-	//		dSVOMaterial,
-	//		sSVODenseMat[0],
+		// Average Level
+		if(i == 9)
+		SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		(
+			dSVOMaterial,
+			sSVODenseMat[0],
 
-	//		dSVODense,
-	//		dSVOSparse,
-	//		dNodeIds.Data(),
+			dSVODense,
+			dSVOSparse,
+			dNodeIds.Data(),
 
-	//		dSVOOffsets,
-	//		*(dSVOOffsets + arrayIndex),
-	//		*(dSVOOffsets + arrayIndex + 1),
+			dSVOOffsets,
+			*(dSVOOffsets + arrayIndex),
+			*(dSVOOffsets + arrayIndex + 1),
 
-	//		levelSize,
-	//		0,
-	//		i,
-	//		*dSVOConstants.Data()
-	//	);
-	//	CUDA_KERNEL_CHECK();
+			levelSize,
+			0,
+			i,
+			*dSVOConstants.Data()
+		);
+		CUDA_KERNEL_CHECK();
 	}
 	
 	// Dense Reduction

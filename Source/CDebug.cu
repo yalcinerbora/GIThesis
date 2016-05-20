@@ -19,8 +19,6 @@ __global__ void DebugCheckNodeId(const CSVONode* gSVODense,
 {
 	const unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 
-	if(globalId == 0) printf("OFFSET %d\n", gSVOLevelOffset);
-
 	// Cull if out of range
 	if(globalId > levelNodeCount) return;
 	
@@ -32,22 +30,6 @@ __global__ void DebugCheckNodeId(const CSVONode* gSVODense,
 
 	// Read Node Adress (we will compare this)
 	const unsigned int nodeId = gNodeIds[gSVOLevelOffset + globalId];
-
-	// If node is allocated
-	// it has to have a node adress
-	//assert(node != 0xFFFFFFFF && nodeId != 0xFFFFFFFF);
-	//if(node != 0xFFFFFFFF && nodeId == 0xFFFFFFFF &
-	//   gSVOLevelOffset + globalId <= 350000)
-	//{
-	//	printf("level: %d\n"
-	//		   "globalID %d\n"
-	//		   "node %X\n"
-	//		   "nodeId %X\n"
-	//		   "offset %d\n", 
-	//		   currentLevel, gSVOLevelOffset + globalId,
-	//		   node, nodeId, gSVOLevelOffset);		
-	//}
-	//return;
 
 	uint3 voxNode = UnpackNodeId(nodeId, currentLevel,
 								 svoConstants.numCascades,
@@ -63,49 +45,17 @@ __global__ void DebugCheckNodeId(const CSVONode* gSVODense,
 								  svoConstants.denseDim * levelVoxId.y +
 								  levelVoxId.x];
 	assert(location != 0xFFFFFFFF);
-	//if(location == 0xFFFFFFFF)
-	//{
-	//	printf("voxelNode : %d, %d, %d\n"
-	//		   "checkId : %d, %d, %d\n"
-	//		   "nodeIdPack : 0x%X\n"
-	//		   "Call Level: %d\n"
-	//		   "notFoundOn: %d\n"
-	//		   "------------\n", 
-	//		   voxNode.x, voxNode.y, voxNode.z,
-	//		   levelVoxId.x, levelVoxId.y, levelVoxId.z,
-	//		   nodeId, currentLevel, svoConstants.denseDepth);
-	//	//assert(false);
-	//}
-
 	location += CalculateLevelChildId(voxNode, svoConstants.denseDepth + 1, svoConstants.totalDepth);
 	for(unsigned int i = svoConstants.denseDepth + 1; i <= currentLevel; i++)
 	{
 		unsigned int levelIndex = i - svoConstants.denseDepth;
 		const CSVONode node = gSVOSparse[gSVOLevelOffsets[levelIndex] + location];		
 		assert(node != 0xFFFFFFFF);
-		//if(node == 0xFFFFFFFF)
-		//{
-		//	uint3 checkId = CalculateLevelVoxId(voxNode, i, svoConstants.totalDepth);
-
-		//	printf("voxelNode : %d, %d, %d\n"
-		//		   "checkId : %d, %d, %d\n"
-		//		   "Call Level: %d\n"
-		//		   "notFoundOn: %d\n"
-		//		   "------------\n",
-		//		   voxNode.x, voxNode.y, voxNode.z,
-		//		   levelVoxId.x, levelVoxId.y, levelVoxId.z,
-		//		   currentLevel, i);
-		//	assert(false);
-		//}
 
 		// Offset child
 		unsigned int childId = CalculateLevelChildId(voxNode, i + 1, svoConstants.totalDepth);
 		location = node + childId;
 	}
-
-	//// Assertion
-	//unsigned int levelIndex = currentLevel - svoConstants.denseDepth;
-	//assert(globalId == gSVOSparse[gSVOLevelOffsets[levelIndex] + location]);
 }
 
 __global__ void DebugCheckUniqueAlloc(ushort2* gObjectAllocLocations,

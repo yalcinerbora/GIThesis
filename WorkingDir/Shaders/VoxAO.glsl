@@ -269,7 +269,8 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 		if(nodeIndex == 0xFFFFFFFF) return 0.0f;
 		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
 
-		for(uint i = dimDepth.w + 1; i < depth; i++)
+		uint i;
+		for(i = dimDepth.w + 1; i < depth; i++)
 		{
 			// Fetch Next Level
 			uint newNodeIndex = svoNode[offsetCascade.y + svoLevelOffset[i - dimDepth.w] + nodeIndex];
@@ -277,23 +278,23 @@ float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
 			// Node check
 			// If valued node go deeper else return no occlusion
 			if(newNodeIndex == 0xFFFFFFFF) return 0.0f;
-			else nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
+			nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
 		}
 		// Finally At requested level
 		// BackTrack From Child
-		nodeIndex -= CalculateLevelChildId(voxPos, depth);
-		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] +
-					  nodeIndex;
-		return InterpolateOcclusion(worldPos, depth, matLoc); 
+		//nodeIndex -= CalculateLevelChildId(voxPos, i);
+		//uint matLoc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] +
+		//			  nodeIndex;
+		//return InterpolateOcclusion(worldPos, i, matLoc); 
 
-		//uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] + nodeIndex;
-		//if(depth != dimDepth.y)
-		//	return UnpackOcclusion(svoMaterial[matLoc].y);
-		//else
-		//{
-		//	float occ = UnpackOcclusion(svoMaterial[matLoc].y);
-		//	return ceil(occ);
-		//}
+		uint matLoc = offsetCascade.z + svoLevelOffset[depth - dimDepth.w] + nodeIndex;
+		if(depth != dimDepth.y)
+			return UnpackOcclusion(svoMaterial[matLoc].y);
+		else
+		{
+			float occ = UnpackOcclusion(svoMaterial[matLoc].y);
+			return ceil(occ);
+		}
 	}
 }
 
@@ -386,6 +387,8 @@ void main(void)
 		// and its corresponding depth
 		float diameter = max(cascadeSpan, coneParams1.z * 2.0f * traversedDistance);
 		uint nodeDepth = SpanToDepth(uint(round(diameter / worldPosSpan.w)));
+		//nodeDepth = 6;
+
 
 		// Determine Coverage Span of the surface 
 		// (wrt cone angle and distance from pixel)

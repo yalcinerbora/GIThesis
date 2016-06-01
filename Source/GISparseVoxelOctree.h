@@ -88,7 +88,6 @@ class GISparseVoxelOctree
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
-		CudaVector<unsigned int>				dNodeIds;
 
 		// SVO Data (Sparse)
 		StructuredBuffer<CSVONode>				svoNodeBuffer;
@@ -140,6 +139,7 @@ class GISparseVoxelOctree
 		Shader									computeAO;
 		Shader									computeGauss32;
 		Shader									computeEdge;
+		Shader									computeAOSurf;
 
 		void									CreateSurfFromArray(cudaArray_t&,
 																	cudaSurfaceObject_t&);

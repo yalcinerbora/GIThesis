@@ -22,6 +22,7 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, svoLevelOffsets(32)
 	, dSVOConstants(1)
 	, computeVoxTraceWorld(ShaderType::COMPUTE, "Shaders/VoxTraceWorld.glsl")
+	, computeVoxTraceDeferredLerp(ShaderType::COMPUTE, "Shaders/VoxTraceDeferredLerp.glsl")
 	, computeVoxTraceDeferred(ShaderType::COMPUTE, "Shaders/VoxTraceDeferred.glsl")
 	, computeAO(ShaderType::COMPUTE, "Shaders/VoxAO.glsl")
 	, computeGauss32(ShaderType::COMPUTE, "Shaders/Gauss32.glsl")
@@ -375,6 +376,48 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 		);
 		CUDA_KERNEL_CHECK();
 	}
+
+	//// Copy Highest level data
+	//CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data() + (hSVOConstants.totalDepth - GI_DENSE_LEVEL),
+	//					  dSVOLevelSizes.Data() + (hSVOConstants.totalDepth - GI_DENSE_LEVEL), 
+	//					  sizeof(uint32_t),
+	//					  cudaMemcpyDeviceToHost));
+
+
+	//for(int i = hSVOConstants.totalDepth - 1; 
+	//	i > static_cast<int>(hSVOConstants.denseDepth); 
+	//	i--)
+	//{
+	//	unsigned int arrayIndex = i - GI_DENSE_LEVEL;
+
+	//	// Copy the level node count here
+	//	// We copy for each iteration since node count will increase in the lower levels
+	//	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data() + arrayIndex,
+	//						  dSVOLevelSizes.Data() + arrayIndex,
+	//						  sizeof(uint32_t),
+	//						  cudaMemcpyDeviceToHost));
+
+	//	uint32_t gridSize = (hSVOLevelSizes[arrayIndex] * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
+	//						 GI_THREAD_PER_BLOCK;
+
+	//	SVOReconstruct<<<gridSize, GI_THREAD_PER_BLOCK>>>
+	//	(
+	//		dSVOSparse,
+	//		dSVODense,
+	//		dNodeIds.Data(),
+	//		dSVOLevelSizes.Data(),
+
+	//		*(dSVOOffsets + arrayIndex),
+	//		dSVOOffsets,
+	//		dSVOLevelTotalSizes.Data(),
+
+	//		hSVOLevelSizes[arrayIndex],
+	//		i,
+	//		*dSVOConstants.Data()
+	//	);		
+	//	CUDA_KERNEL_CHECK();
+	//}
+
 	// Copy Level Sizes
 	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data(),
 						  dSVOLevelSizes.Data(),
@@ -486,26 +529,26 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 			CUDA_KERNEL_CHECK();
 		}
 
-	//	// Average Level
-	//	SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
-	//	(
-	//		dSVOMaterial,
-	//		sSVODenseMat[0],
+		// Average Level
+		SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
+		(
+			dSVOMaterial,
+			sSVODenseMat[0],
 
-	//		dSVODense,
-	//		dSVOSparse,
-	//		dNodeIds.Data(),
+			dSVODense,
+			dSVOSparse,
+			dNodeIds.Data(),
 
-	//		dSVOOffsets,
-	//		*(dSVOOffsets + arrayIndex),
-	//		*(dSVOOffsets + arrayIndex + 1),
+			dSVOOffsets,
+			*(dSVOOffsets + arrayIndex),
+			*(dSVOOffsets + arrayIndex + 1),
 
-	//		levelSize,
-	//		0,
-	//		i,
-	//		*dSVOConstants.Data()
-	//	);
-	//	CUDA_KERNEL_CHECK();
+			levelSize,
+			0,
+			i,
+			*dSVOConstants.Data()
+		);
+		CUDA_KERNEL_CHECK();
 	}
 	
 	// Dense Reduction
@@ -797,7 +840,8 @@ double GISparseVoxelOctree::DebugDeferredSVO(DeferredRenderer& dRenderer,
 	svoTraceData.SendData();
 
 	// Shaders
-	computeVoxTraceDeferred.Bind();
+	//computeVoxTraceDeferred.Bind();
+	computeVoxTraceDeferredLerp.Bind();
 	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(type));
 	glUniform1ui(U_FETCH_LEVEL, static_cast<GLuint>(renderLevel));
 

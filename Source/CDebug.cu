@@ -19,8 +19,6 @@ __global__ void DebugCheckNodeId(const CSVONode* gSVODense,
 {
 	const unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 
-	if(globalId == 0) printf("OFFSET %d\n", gSVOLevelOffset);
-
 	// Cull if out of range
 	if(globalId > levelNodeCount) return;
 	

@@ -15,9 +15,9 @@
 #include "CSVOTypes.cuh"
 #include "Shader.h"
 
-#define GI_DENSE_TEX_COUNT 4
-#define GI_DENSE_LEVEL 6
-#define GI_DENSE_SIZE 64
+#define GI_DENSE_TEX_COUNT 5
+#define GI_DENSE_LEVEL 7
+#define GI_DENSE_SIZE 128
 #define GI_DENSE_SIZE_CUBE (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)
 
 static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
@@ -137,6 +137,7 @@ class GISparseVoxelOctree
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;
 		Shader									computeVoxTraceDeferred;
+		Shader									computeVoxTraceDeferredLerp;
 		Shader									computeAO;
 		Shader									computeGauss32;
 		Shader									computeEdge;

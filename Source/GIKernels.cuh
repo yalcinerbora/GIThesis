@@ -207,5 +207,18 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 									  const unsigned int cascadeNo,
 									  const CSVOConstants& svoConstants);
 
+extern __global__ void SVOReconstruct(CSVONode* gSVOSparse,
+									  CSVONode* gSVODense,
+									  unsigned int* gNodeIds,
+									  unsigned int* gLevelAllocators,
+
+									  const unsigned int& gSVOLevelOffset,
+									  const unsigned int* gLevelOffsets,
+									  const unsigned int* gLevelTotalSizes,
+
+									  const unsigned int levelNodeCount,
+									  const unsigned int levelNo,
+									  const CSVOConstants& svoConstants);
+
 
 #endif //__GIKERNELS_H__

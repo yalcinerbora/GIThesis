@@ -2,7 +2,7 @@
 /*	
 	**Voxel Raytrace Compute Shader**
 	
-	File Name	: VoxTraceWorld.vert
+	File Name	: VoxTraceWorld.glsl
 	Author		: Bora Yalciner
 	Description	:
 

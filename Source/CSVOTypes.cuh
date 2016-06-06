@@ -10,6 +10,7 @@ Sparse voxel octree types that used in cuda funcs
 #define GI_DENSE_WORKER_PER_PARENT 8
 
 #include <cstdint>
+#include <cuda_fp16.h>
 
 // first int has
 // first 24 bit is children index

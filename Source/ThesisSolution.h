@@ -10,7 +10,7 @@ Solution implementtion
 #include <vector>
 #include <list>
 #include <AntTweakBar.h>
-#include "SolutionI.h"
+#include "EmptyGISolution.h"
 #include "Shader.h"
 #include "FrameTransformBuffer.h"
 #include "GICudaVoxelScene.h"
@@ -129,13 +129,9 @@ struct SceneVoxCache
 	SceneVoxCache(const SceneVoxCache&) = delete;
 };
 
-class ThesisSolution : public SolutionI
+class ThesisSolution : public EmptyGISolution
 {
 	private:
-		SceneI*					currentScene;
-
-		DeferredRenderer&		dRenderer;
-
 		// Voxel Render Shaders
 		Shader					vertexDebugVoxel;
 		Shader					vertexDebugWorldVoxel;
@@ -169,7 +165,6 @@ class ThesisSolution : public SolutionI
 		// GUI								
 		TwBar*								bar;
 		bool								giOn;
-		double								frameTime;
 		double								ioTime;
 		double								transformTime;
 		double								svoTime;
@@ -234,7 +229,7 @@ class ThesisSolution : public SolutionI
 		void					Init(SceneI&) override;
 		void					Release() override;
 		void					Frame(const Camera&) override;
-		void					SetFPS(double fpsMS) override;
+		
 
 		static void				LevelIncrement(void*);
 		static void				LevelDecrement(void*);

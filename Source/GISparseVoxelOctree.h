@@ -14,10 +14,11 @@
 #include "GICudaVoxelScene.h"
 #include "CSVOTypes.cuh"
 #include "Shader.h"
+#include "SceneI.h"
 
 #define GI_DENSE_TEX_COUNT 4
-#define GI_DENSE_LEVEL 6
-#define GI_DENSE_SIZE 64
+#define GI_DENSE_LEVEL 7
+#define GI_DENSE_SIZE 128
 #define GI_DENSE_SIZE_CUBE (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)
 
 static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
@@ -136,7 +137,9 @@ class GISparseVoxelOctree
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;
 		Shader									computeVoxTraceDeferred;
+		Shader									computeVoxTraceDeferredLerp;
 		Shader									computeAO;
+		Shader									computeGI;
 		Shader									computeGauss32;
 		Shader									computeEdge;
 		Shader									computeAOSurf;
@@ -184,6 +187,13 @@ class GISparseVoxelOctree
 																 float maxDistance,
 																 float sampleDistanceRatio,
 																 float intensityFactor);
+		double									GlobalIllumination(DeferredRenderer& dRenderer,
+																   const Camera& camera,
+																   SceneI& scene,
+																   float coneAngle,
+																   float maxDistance,
+																   float sampleDistanceRatio,
+																   float intensityFactor);
 
 		double									DebugTraceSVO(DeferredRenderer&,
 															  const Camera& camera,

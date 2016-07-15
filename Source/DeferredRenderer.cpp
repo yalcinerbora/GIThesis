@@ -18,8 +18,9 @@ const float DeferredRenderer::postProcessTriData[6] =
 
 DeferredRenderer::DeferredRenderer()
 	: gBuffer(gBuffWidth, gBuffHeight)
-	, vertexGBufferWrite(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert")
-	, fragmentGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag")
+	, vertGBufferSkeletal(ShaderType::VERTEX, "Shaders/GWriteSkeletal.vert")
+	, vertGBufferWrite(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert")
+	, fragGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag")
 	, vertDPass(ShaderType::VERTEX, "Shaders/DPass.vert")
 	, vertLightPass(ShaderType::VERTEX, "Shaders/LightPass.vert")
 	, fragLightPass(ShaderType::FRAGMENT, "Shaders/LightPass.frag")
@@ -31,6 +32,7 @@ DeferredRenderer::DeferredRenderer()
 	, geomAreaShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapA.geom")
 	, geomDirShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapD.geom")
 	, geomPointShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapP.geom")
+	, computeHierZ(ShaderType::COMPUTE, "Shaders/HierZ.glsl")
 	, lightIntensityTex(0)
 	, lightIntensityFBO(0)
 	, invFrameTransform(1)
@@ -92,9 +94,9 @@ DeferredRenderer::DeferredRenderer()
 	glSamplerParameteri(linearSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
+	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+	//glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	//glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
@@ -187,10 +189,11 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 {
 	fragShadowMap.Bind();
 	vertShadowMap.Bind();
+	unsigned int lightCount = static_cast<unsigned int>(scene.getSceneLights().lightsGPU.CPUData().size());
 
 	// State
 	// Rendering with polygon offset to eliminate shadow acne
-	glColorMask(false, false, false, false);
+	glColorMask(true, false, false, false);
 	glDepthMask(true);
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
@@ -200,7 +203,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glViewport(0, 0, SceneLights::shadowMapWH, SceneLights::shadowMapWH);
 
 	// Render From Dir of the light	with proper view params
-	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
+	for(unsigned int i = 0; i < lightCount; i++)
 	{
 		const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
 		// Determine light type
@@ -246,6 +249,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 
 					// To eliminate shadow shimmering only change pixel sized frusutm changes
 					IEVector3 unitPerTexel = (2.0f * IEVector3(radius, radius, radius)) / IEVector3(static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH));
+					unitPerTexel *= static_cast<float>(1 << (SceneLights::mipSampleCount));
 					IEVector3 translatedOrigin = view * IEVector3::ZeroVector;
 					IEVector3 texelTranslate;
 					texelTranslate.setX(fmod(translatedOrigin.getX(), unitPerTexel.getX()));
@@ -288,11 +292,12 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	scene.getSceneLights().lightViewProjMatrices.BindAsShaderStorageBuffer(LU_LIGHT_MATRIX);
 
 	// Render Loop
-	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
+	for(unsigned int i = 0; i < lightCount; i++)
 	{
 		// FBO Bind and render calls
 		glBindFramebuffer(GL_FRAMEBUFFER, scene.getSceneLights().shadowMapFBOs[i]);
 		glClear(GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT);
 
 		if(!scene.getSceneLights().lightShadowCast[i])
 			continue;
@@ -339,6 +344,34 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 			//}
 		}
 	}
+
+	glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
+	glFlush();
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// Hierarchical z-buffers
+	GLuint lightTex = scene.getSceneLights().shadowMapArrayView;
+	computeHierZ.Bind();
+	for(unsigned int i = 0; i < SceneLights::shadowMipCount - 1; i++)
+	{
+		// Reduce Entire Level at once
+		// TODO:
+		GLuint depthSize = SceneLights::shadowMapWH >> (i + 1);
+		GLuint totalPixelCount = (depthSize * depthSize) * lightCount * 6;
+		
+		glUniform1ui(U_DEPTH_SIZE, depthSize);
+		glUniform1ui(U_PIX_COUNT, totalPixelCount);
+		
+		glBindImageTexture(I_DEPTH_READ, lightTex, i, true, 0, GL_READ_ONLY, GL_R32F);
+		glBindImageTexture(I_DEPTH_WRITE, lightTex, i + 1, true, 0, GL_WRITE_ONLY, GL_R32F);
+				
+		// Dispatch
+		unsigned int gridSize = (totalPixelCount + 256 - 1) / 256;
+		glDispatchCompute(gridSize, 1, 1);
+
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	}
+
 	glDisable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(0.0f, 0.0f);
 }
@@ -364,8 +397,8 @@ void DeferredRenderer::GPass(SceneI& scene,
 
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);
-	vertexGBufferWrite.Bind();
-	fragmentGBufferWrite.Bind();
+	vertGBufferWrite.Bind();
+	fragGBufferWrite.Bind();
 
 	// DrawCall
 	// Draw Batches
@@ -393,24 +426,21 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 {
 	// Light pass
 	// Texture Binds
-	glActiveTexture(GL_TEXTURE0 + T_SHADOW);
-	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, scene.getSceneLights().lightShadowMaps);
-	glActiveTexture(GL_TEXTURE0 + T_SHADOW_DIR);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, scene.getSceneLights().shadowMapArrayView);
 	gBuffer.BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
 	gBuffer.BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
 	gBuffer.BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	glBindSampler(T_COLOR, flatSampler);
 	glBindSampler(T_NORMAL, flatSampler);
 	glBindSampler(T_DEPTH, flatSampler);
-	glBindSampler(T_SHADOW, shadowMapSampler);
-	glBindSampler(T_SHADOW_DIR, shadowMapSampler);
+
+	// ShadowMap Binds
+	BindShadowMaps(scene);
+	BindLightBuffers(scene);
 
 	// Buffer Binds
 	FrameTransformBufferData ft = camera.generateTransform();
 	cameraTransform.Update(ft);
 	cameraTransform.Bind();
-	scene.getSceneLights().lightsGPU.BindAsShaderStorageBuffer(LU_LIGHT);
 
 	// Inverse Frame Transforms
 	invFrameTransform.BindAsUniformBuffer(U_INVFTRANSFORM);
@@ -426,6 +456,8 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	Shader::Unbind(ShaderType::GEOMETRY);
 	vertLightPass.Bind();
 	fragLightPass.Bind();
+	glUniform1ui(U_SHADOW_MIP_COUNT, static_cast<GLuint>(SceneLights::mipSampleCount));
+	glUniform1ui(U_SHADOW_MAP_WH, static_cast<GLuint>(SceneLights::shadowMapWH));
 
 	// Open Additive Blending
 	// Intensity of different lights will be added
@@ -599,7 +631,7 @@ void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
 	GPass(scene, camera);
 }
 
-void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
+void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool unlit)
 {
 	// Shadow Map Generation
 	GenerateShadowMaps(scene, camera);
@@ -607,6 +639,13 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
 	// GPass
 	PopulateGBuffer(scene, camera);
 	
+	// Unlit
+	if(unlit)
+	{
+		ShowColorGBuffer(camera);
+		return;
+	}
+
 	// Light Pass
 	LightPass(scene, camera);
 	
@@ -659,4 +698,20 @@ void DeferredRenderer::ShowColorGBuffer(const Camera& camera)
 void DeferredRenderer::ShowLIBuffer(const Camera& camera)
 {
 	ShowTexture(camera, lightIntensityTex);
+}
+
+void DeferredRenderer::BindShadowMaps(SceneI& scene)
+{
+	glActiveTexture(GL_TEXTURE0 + T_SHADOW);
+	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, scene.getSceneLights().lightShadowMaps);
+	glBindSampler(T_SHADOW, shadowMapSampler);
+	glActiveTexture(GL_TEXTURE0 + T_SHADOW_DIR);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, scene.getSceneLights().shadowMapArrayView);
+	glBindSampler(T_SHADOW_DIR, shadowMapSampler);
+}
+
+void DeferredRenderer::BindLightBuffers(SceneI& scene)
+{
+	scene.getSceneLights().lightsGPU.BindAsShaderStorageBuffer(LU_LIGHT);
+	scene.getSceneLights().lightViewProjMatrices.BindAsShaderStorageBuffer(LU_LIGHT_MATRIX);
 }

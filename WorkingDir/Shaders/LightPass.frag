@@ -14,6 +14,9 @@
 
 #define OUT_COLOR layout(location = 0)
 
+#define U_SHADOW_MIP_COUNT layout(location = 0)
+#define U_SHADOW_MAP_WH layout(location = 1)
+
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
 
@@ -40,6 +43,9 @@ layout(early_fragment_tests) in;
 out OUT_COLOR vec4 fboColor;
 
 // Uniforms
+U_SHADOW_MIP_COUNT uniform uint shadowMipCount;
+U_SHADOW_MAP_WH uniform uint shadowMapWH;
+
 U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
@@ -85,8 +91,10 @@ LU_LIGHT buffer LightParams
 uniform T_COLOR sampler2D gBuffColor;
 uniform T_NORMAL usampler2D gBuffNormal;
 uniform T_DEPTH sampler2D gBuffDepth;
-uniform T_SHADOW samplerCubeArrayShadow shadowMaps;
-uniform T_SHADOW_DIR sampler2DArrayShadow shadowMapsDir;
+//uniform T_SHADOW samplerCubeArrayShadow shadowMaps;
+//uniform T_SHADOW_DIR sampler2DArrayShadow shadowMapsDir;
+uniform T_SHADOW samplerCubeArray shadowMaps;
+uniform T_SHADOW_DIR sampler2DArray shadowMapsDir;
 
 vec3 DepthToWorld()
 {
@@ -165,6 +173,71 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 	return vec4(lightVec, depth);
 }
 
+float textureShadowLod(in sampler2DArray depths, 
+					   in vec3 uv, 
+					   in float lod, 
+					   in float compareDepth)
+{
+    return step(compareDepth, textureLod(depths, uv, lod).r);
+}
+
+float textureShadowLodLerp(in sampler2DArray depths,
+						   in vec2 size,
+						   in vec3 uv, 
+					       in float lod, 
+						   in float compareDepth)
+{
+    vec2 texelSize = vec2(1.0) / size;
+    vec2 f = fract(uv.xy * size + 0.5);
+    vec2 centroidUV = floor(uv.xy * size + 0.5) / size;
+
+    float lb = textureShadowLod(depths, vec3(centroidUV + texelSize * vec2(0.0, 0.0), uv.z), lod, compareDepth);
+    float lt = textureShadowLod(depths, vec3(centroidUV + texelSize * vec2(0.0, 1.0), uv.z), lod, compareDepth);
+    float rb = textureShadowLod(depths, vec3(centroidUV + texelSize * vec2(1.0, 0.0), uv.z), lod, compareDepth);
+    float rt = textureShadowLod(depths, vec3(centroidUV + texelSize * vec2(1.0, 1.0), uv.z), lod, compareDepth);
+    float a = mix(lb, lt, f.y);
+    float b = mix(rb, rt, f.y);
+    float c = mix(a, b, f.x);
+    return c;
+}
+
+float ShadowSample(in vec4 shadowUV)
+{
+	// Shadow new hier
+	float shadowIntensity = 1.0f;
+	for(uint i = 0; i < shadowMipCount; i++)
+	{
+		if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+		{			
+			vec3 uv = vec3(shadowUV.xy, float(fIndex * 6) + shadowUV.z);
+			vec2 size = vec2(float(shadowMapWH >> i));
+		
+			float lodIntensity = 0.0f;
+			for(int x = -1; x <= 1; x++){
+			for(int y = -1; y <= 1; y++)
+			{
+				vec2 off = vec2(x,y)/size;
+				lodIntensity += textureShadowLodLerp(shadowMapsDir, 
+													 size, 
+													 vec3(uv.xy + off, uv.z), 
+													 i, 
+													 shadowUV.w);
+			}}
+			lodIntensity /= 9.0f;
+			lodIntensity = (1.0f - lodIntensity) * ((i == 0) ? 1.0f : 0.5f);
+			//lodIntensity = (1.0f - lodIntensity);
+			shadowIntensity -= lodIntensity / float(1 << i);
+			
+		}
+		else
+		{
+			float depth = textureLod(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), float(i)).x;
+			shadowIntensity -= ((step(depth, shadowUV.w)) / (float(1 << i)));
+		}
+	}
+	return max(0.0f, shadowIntensity);
+}
+
 vec3 PhongBDRF(in vec3 worldPos)
 {
 	vec3 lightIntensity = vec3(0.0f);
@@ -233,11 +306,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 		return vec3(0.0f);
 
 	// Check Light Occulusion (ShadowMap)
-	float shadowIntensity = 1.0f;
-	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
-		shadowIntensity = texture(shadowMapsDir, vec4(shadowUV.xy, float(fIndex * 6 + shadowUV.z), shadowUV.w));
-	else
-		shadowIntensity = texture(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), shadowUV.w);
+	float shadowIntensity = ShadowSample(shadowUV);
 	
 	////DEBUG	
 	//// Cascade Check

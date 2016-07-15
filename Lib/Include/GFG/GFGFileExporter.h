@@ -95,12 +95,19 @@ class GFGFileExporter
 		uint32_t			AddSkeleton(const std::vector<uint32_t>& parentHierarcy,
 										const std::vector<GFGTransform>& transforms);
 		uint32_t			AddMaterial(GFGMaterialLogic logic,
-										std::vector<GFGTexturePath>* textureList = nullptr,
-										std::vector<GFGUniformData>* uniformList = nullptr,
-										std::vector<uint8_t>* texturePathData = nullptr,
-										std::vector<uint8_t>* uniformData = nullptr);
+										const std::vector<GFGTexturePath>* textureList = nullptr,
+										const std::vector<GFGUniformData>* uniformList = nullptr,
+										const std::vector<uint8_t>* texturePathData = nullptr,
+										const std::vector<uint8_t>* uniformData = nullptr);
 		uint32_t			AddNode(const GFGTransform& transform,
 									uint32_t parent);
+		uint32_t			AddAnimation(GFGAnimationLayout layout,
+										 GFGAnimType type,
+										 GFGQuatInterpType interpType,
+										 GFGQuatLayout quatLayout,
+										 uint32_t skeletonIndex,
+										 uint32_t keyCount,
+										 const std::vector<uint8_t>& animationData);
 
 		void				Write(GFGFileWriterI&);
 		void				Clear();

@@ -5,9 +5,9 @@
 #ifndef __MESHBATCHCUBE_H__
 #define __MESHBATCHCUBE_H__
 
-#include "MeshBatchStatic.h"
+#include "MeshBatch.h"
 
-class MeshBatchCube : public MeshBatchStatic
+class MeshBatchCube : public MeshBatch
 {
 	private:
 
@@ -27,5 +27,4 @@ class MeshBatchCube : public MeshBatchStatic
 		void					Update(double elapsedS) override;
 		VoxelObjectType			MeshType() const override;
 };
-
 #endif //__MESHBATCHCUBE_H__

@@ -5,7 +5,7 @@
 MeshBatchCube::MeshBatchCube(const char* sceneFileName,
 							 float minVoxSpan,
 							 const Array32<size_t> maxVoxelCounts)
-	: MeshBatchStatic(sceneFileName, minVoxSpan, maxVoxelCounts)
+	: MeshBatch(sceneFileName, minVoxSpan, maxVoxelCounts, false)
 {}
 
 const char* MeshBatchCube::rotatingCubeFileName = "rainbowCube.gfg";

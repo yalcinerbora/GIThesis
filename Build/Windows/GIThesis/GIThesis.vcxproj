@@ -114,6 +114,7 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\Source\Animator.cpp" />
     <ClCompile Include="..\..\..\Source\CudaInit.cpp" />
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
     <ClCompile Include="..\..\..\Source\DeferredRenderer.cpp" />
@@ -123,6 +124,7 @@
     <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
+    <ClInclude Include="..\..\..\Source\Animator.h" />
     <ClInclude Include="..\..\..\Source\Averager.h" />
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
@@ -147,8 +149,10 @@
     <ClCompile Include="..\..\..\Source\MayaInput.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchCornell.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchCube.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchNyra.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchSponza.cpp" />
-    <ClCompile Include="..\..\..\Source\MeshBatchStatic.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatch.cpp" />
     <ClCompile Include="..\..\..\Source\Scene.cpp" />
     <ClCompile Include="..\..\..\Source\SceneLights.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
@@ -165,8 +169,10 @@
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchCornell.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchCube.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchNyra.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchSponza.h" />
-    <ClInclude Include="..\..\..\Source\MeshBatchStatic.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatch.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchI.h" />
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />

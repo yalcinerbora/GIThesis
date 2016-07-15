@@ -21,30 +21,86 @@ struct VAO
 	float vNormal[3];
 	float vUV[2];
 };
+struct VAOSkel
+{
+	float	vPos[3];
+	float	vNormal[3];
+	float	vUV[2];
+	uint8_t	vWeight[4];
+	uint8_t	vWIndex[4];
+};
 #pragma pack(pop)
 
-static const VertexElement element[] =
+// VertexData
+#define IN_POS 0
+#define IN_NORMAL 1
+#define IN_UV 2
+#define IN_TRANS_INDEX 3
+#define IN_WEIGHT 4
+#define IN_WEIGHT_INDEX 5
+#define IN_LIGHT_INDEX 1
+
+static const VertexElement elementStatic[] =
 {
 	{
-		0,
+		IN_POS,
 		GPUDataType::FLOAT,
 		3,
 		offsetof(struct VAO, vPos),
 		sizeof(VAO)
 	},
 	{
-		1,
+		IN_NORMAL,
 		GPUDataType::FLOAT,
 		3,
 		offsetof(struct VAO, vNormal),
 		sizeof(VAO)
 	},
 	{
-		2,
+		IN_UV,
 		GPUDataType::FLOAT,
 		2,
 		offsetof(struct VAO, vUV),
 		sizeof(VAO)
+	}
+};
+
+static const VertexElement elementSkeletal[] =
+{
+	{
+		IN_POS,
+		GPUDataType::FLOAT,
+		3,
+		offsetof(struct VAOSkel, vPos),
+		sizeof(VAOSkel)
+	},
+	{
+		IN_NORMAL,
+		GPUDataType::FLOAT,
+		3,
+		offsetof(struct VAOSkel, vNormal),
+		sizeof(VAOSkel)
+	},
+	{
+		IN_UV,
+		GPUDataType::FLOAT,
+		2,
+		offsetof(struct VAOSkel, vUV),
+		sizeof(VAOSkel)
+	},
+	{
+		IN_WEIGHT,
+		GPUDataType::UINT8,
+		4,
+		offsetof(struct VAOSkel, vWeight),
+		sizeof(VAOSkel)
+	},
+	{
+		IN_WEIGHT_INDEX,
+		GPUDataType::UINT8,
+		4,
+		offsetof(struct VAOSkel, vWIndex),
+		sizeof(VAOSkel)
 	}
 };
 
@@ -57,12 +113,6 @@ static const TwStructMember lightMembers[] =
 };
 
 // Generic Binding Points
-// VertexData
-#define IN_POS 0
-#define IN_NORMAL 1
-#define IN_UV 2
-#define IN_TRANS_INDEX 3
-#define IN_LIGHT_INDEX 1
 
 // Textures (Bind Uniforms)
 #define T_IN 0
@@ -81,15 +131,22 @@ static const TwStructMember lightMembers[] =
 #define I_LIGHT_INENSITY 2
 #define I_VOX_READ 2
 #define I_VOX_WRITE 2
+#define I_DEPTH_READ 0
+#define I_DEPTH_WRITE 1
 
 #define U_RENDER_TYPE 0
+#define U_SHADOW_MIP_COUNT 0
 #define U_TRESHOLD 0
 #define U_DIRECTION 0
 #define U_MAX_DISTANCE 0
+#define U_DEPTH_SIZE 0
+#define U_SHADOW_MAP_WH 1
 #define U_CONE_ANGLE 1
 #define U_NEAR_FAR 1
 #define U_FETCH_LEVEL 1
+#define U_PIX_COUNT 1
 #define U_SAMPLE_DISTANCE 2
+#define U_LIGHT_INDEX 2
 #define U_IMAGE_SIZE 3
 #define U_TOTAL_VOX_DIM 3
 #define U_OBJ_ID 4
@@ -109,18 +166,20 @@ static const TwStructMember lightMembers[] =
 #define U_CONE_PARAMS 4
 
 // Large Uniform
-#define LU_SVO_NODE 0
+#define LU_SVO_NODE 2
+#define LU_LIGHT_MATRIX 0
 #define LU_VOXEL_NORM_POS 0
-#define LU_SVO_MATERIAL 1
+#define LU_SVO_MATERIAL 3
 #define LU_VOXEL_RENDER 1
+#define LU_LIGHT 1
 #define LU_OBJECT_GRID_INFO 2
-#define LU_SVO_LEVEL_OFFSET 2
+#define LU_SVO_LEVEL_OFFSET 4
 #define LU_VOXEL_IDS 3
 #define LU_AABB 3
 #define LU_MTRANSFORM 4
 #define LU_INDEX_CHECK 4
 #define LU_MTRANSFORM_INDEX 5
-#define LU_LIGHT 1
-#define LU_LIGHT_MATRIX 0
+
+
 
 #endif //__GLOBALS_H__

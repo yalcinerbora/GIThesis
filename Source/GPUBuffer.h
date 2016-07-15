@@ -68,10 +68,12 @@ class GPUBuffer
 		bool						AddMesh(DrawPointIndexed& result,
 											const uint8_t data[],
 											const uint8_t indexData[],
+											size_t vertexStride,
 											size_t vertexCount,
 											size_t indexCount);
 		
-		bool						IsSuitedGFGMesh(const GFGMeshHeader &);
+		bool						IsSuitedGFGMesh(const GFGMeshHeader&);
+		bool						IsSuitedGFGMeshSkeletal(const GFGMeshHeader&);
 		bool						HasEnoughSpaceFor(uint64_t vertexCount,
 													  uint64_t indexCount);
 

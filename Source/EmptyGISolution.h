@@ -25,9 +25,6 @@ struct TwLightCallbackLookup
 class EmptyGISolution : public SolutionI
 {
 	private:
-		SceneI*					currentScene;
-		DeferredRenderer&		dRenderer;
-
 		TwBar*					bar;
 		double					frameTime;
 
@@ -55,6 +52,11 @@ class EmptyGISolution : public SolutionI
 		static void TW_CALL		SetLightRadius(const void *value, void *clientData);
 
 	protected:
+		DeferredRenderer&		dRenderer;
+		SceneI*					currentScene;
+
+		bool					directLighting;
+		
 	public:
 								EmptyGISolution(DeferredRenderer&);
 								~EmptyGISolution() = default;

@@ -71,9 +71,7 @@ AOBar::~AOBar()
 }
 
 ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& intialCamPos)
-	: currentScene(nullptr)
-	, dRenderer(dRenderer)
-	, vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
+	: vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
 	, vertexDebugWorldVoxel(ShaderType::VERTEX, "Shaders/VoxRenderWorld.vert")
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 	, vertexVoxelizeObject(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert")
@@ -90,6 +88,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, voxelColorBuffer(512)
 	, voxelOctree()
 	, traceType(0)
+	, EmptyGISolution(dRenderer)
 {
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, GI_END);
 	gridInfoBuffer.AddData({});
@@ -116,8 +115,8 @@ void ThesisSolution::Init(SceneI& s)
 		voxelScenes[i].Reset();
 		voxelCaches.emplace_back();
 	}
-	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
-	currentScene = &s;
+
+	EmptyGISolution::Init(s);
 
 	// Voxelization
 	// and Voxel Cache Creation
@@ -179,9 +178,7 @@ void ThesisSolution::Init(SceneI& s)
 	bar = TwNewBar("ThesisGI");
 	TwDefine(" ThesisGI refresh=0.01 ");
 
-	// FPS Show
-	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
-			   " label='Frame(ms)' precision=2 help='Frame Time in milliseconds.' ");
+	// Stuff
 	TwAddVarRW(bar, "rendering", renderType,
 			   &renderScheme,
 			   " label='Render' help='Change what to show on screen' ");
@@ -228,6 +225,7 @@ void ThesisSolution::Init(SceneI& s)
 
 void ThesisSolution::Release()
 {
+	EmptyGISolution::Release();
 	if(bar) TwDeleteBar(bar);
 	bar = nullptr;
 }
@@ -605,7 +603,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	{
 		case GI_DEFERRED:
 		{
-			dRenderer.Render(*currentScene, mainRenderCamera);
+			dRenderer.Render(*currentScene, mainRenderCamera, !directLighting);
 			dRenderer.ShowColorGBuffer(mainRenderCamera);
 			break;
 		}
@@ -617,10 +615,21 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	//		dRenderer.ShowLIBuffer(mainRenderCamera);
 		
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
-			debugVoxTransferTime = voxelOctree.AmbientOcclusion
+			//debugVoxTransferTime = voxelOctree.AmbientOcclusion
+			//(
+			//	dRenderer,
+			//	mainRenderCamera,
+			//	IEMath::ToRadians(aoBar.angleDegree),
+			//	aoBar.maxDistance,
+			//	aoBar.sampleFactor,
+			//	aoBar.intensity
+			//);
+
+			debugVoxTransferTime = voxelOctree.GlobalIllumination
 			(
 				dRenderer,
 				mainRenderCamera,
+				*currentScene,
 				IEMath::ToRadians(aoBar.angleDegree),
 				aoBar.maxDistance,
 				aoBar.sampleFactor,
@@ -686,7 +695,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 
 			// Start Render
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			glClear(GL_COLOR_BUFFER_BIT |
+			glClear(GL_COLOR_BUFFER_BIT | 
 					GL_DEPTH_BUFFER_BIT);
 			
 			
@@ -741,15 +750,11 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	}
 }
 
-void ThesisSolution::SetFPS(double fpsMS)
-{
-	frameTime = fpsMS;
-}
-
 void ThesisSolution::LevelIncrement(void* solPtr)
 {
 	static_cast<ThesisSolution*>(solPtr)->LevelIncrement();
 }
+
 void ThesisSolution::LevelDecrement(void* solPtr)
 {
 	static_cast<ThesisSolution*>(solPtr)->LevelDecrement();

@@ -13,9 +13,9 @@
 */
 #define I_LIGHT_INENSITY layout(rgba8, binding = 2) restrict writeonly
 
-#define LU_SVO_NODE layout(std430, binding = 0) readonly
-#define LU_SVO_MATERIAL layout(std430, binding = 1) readonly
-#define LU_SVO_LEVEL_OFFSET layout(std430, binding = 2) readonly
+#define LU_SVO_NODE layout(std430, binding = 2) readonly
+#define LU_SVO_MATERIAL layout(std430, binding = 3) readonly
+#define LU_SVO_LEVEL_OFFSET layout(std430, binding = 4) readonly
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)

@@ -41,8 +41,9 @@ class DeferredRenderer
 	private:
 		static const float		postProcessTriData[6];
 
-		Shader					vertexGBufferWrite;
-		Shader					fragmentGBufferWrite;
+		Shader					vertGBufferSkeletal;
+		Shader					vertGBufferWrite;
+		Shader					fragGBufferWrite;
 		Shader					vertDPass;
 
 		Shader					vertLightPass;
@@ -52,6 +53,8 @@ class DeferredRenderer
 		Shader					fragLightApply;
 		Shader					fragPPGeneric;
 
+		
+
 		// Shader for shadowmap
 		Shader					fragShadowMap;
 		Shader					vertShadowMap;
@@ -59,6 +62,8 @@ class DeferredRenderer
 		Shader					geomAreaShadowMap;
 		Shader					geomPointShadowMap;
 		Shader					geomDirShadowMap;
+
+		Shader					computeHierZ;
 
 		GBuffer					gBuffer;
 		FrameTransformBuffer	cameraTransform;
@@ -111,7 +116,7 @@ class DeferredRenderer
 														 GLsizei width,
 														 GLsizei height);
 
-		void						Render(SceneI&, const Camera&);
+		void						Render(SceneI&, const Camera&, bool unlit);
 		void						PopulateGBuffer(SceneI&, const Camera&);
 
 		// Directly Renders Buffers
@@ -120,5 +125,8 @@ class DeferredRenderer
 		void						ShowTexture(const Camera& camera, GLuint tex);
 		
 		void						AddToLITexture(GLuint texture);
+
+		void						BindShadowMaps(SceneI&);
+		void						BindLightBuffers(SceneI&);
 };
 #endif //__DEFERREDRENDERER_H__

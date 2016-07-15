@@ -108,6 +108,7 @@ EmptyGISolution::EmptyGISolution(DeferredRenderer& defferedRenderer)
 	: currentScene(nullptr)
 	, dRenderer(defferedRenderer)
 	, bar(nullptr)
+	, directLighting(true)
 {}
 
 bool EmptyGISolution::IsCurrentScene(SceneI& scene)
@@ -120,12 +121,15 @@ void EmptyGISolution::Init(SceneI& s)
 	currentScene = &s;
 
 	// Bar Creation
-	bar = TwNewBar("EmptyGI");
-	TwDefine(" EmptyGI refresh=0.01 ");
+	bar = TwNewBar("Ligths");
+	TwDefine(" Ligths refresh=0.01 ");
 
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
 			   " label='Frame(ms)' help='Frame Time in milliseconds..' ");
+	TwAddVarRW(bar, "directLightOn", TW_TYPE_BOOLCPP,
+			   &directLighting,
+			   " label='Direct Light' help='Direct Ligting On Off' ");
 	TwAddSeparator(bar, NULL, NULL);
 		
 	std::string name;
@@ -216,15 +220,15 @@ void EmptyGISolution::Init(SceneI& s)
 					   params.c_str());
 		}
 
-		params = " EmptyGI/Light#" + std::to_string(i);
+		params = " Ligths/Light#" + std::to_string(i);
 		params+= " group = 'Lights' ";
 		TwDefine(params.c_str()); 
-		params = " EmptyGI/Light#" + std::to_string(i);
+		params = " Ligths/Light#" + std::to_string(i);
 		params += " opened=false ";
 		TwDefine(params.c_str());
 	}
-	TwDefine(" EmptyGI size='300 250' ");
-	TwDefine(" EmptyGI valueswidth=180 ");
+	TwDefine(" Ligths size='220 200' ");
+	TwDefine(" Ligths valueswidth=75 ");
 }
 
 void EmptyGISolution::Release()
@@ -236,7 +240,7 @@ void EmptyGISolution::Release()
 
 void EmptyGISolution::Frame(const Camera& mainRenderCamera)
 {
-	dRenderer.Render(*currentScene, mainRenderCamera);
+	dRenderer.Render(*currentScene, mainRenderCamera, !directLighting);
 }
 
 void EmptyGISolution::SetFPS(double fpsMS)

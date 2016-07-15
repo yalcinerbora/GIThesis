@@ -9,6 +9,7 @@
 #include "MayaInput.h"
 
 #include "DeferredRenderer.h"
+#include "Animator.h"
 
 #include "EmptyGISolution.h"
 #include "ThesisSolution.h"
@@ -19,6 +20,7 @@
 #include "Macros.h"
 #include "CudaInit.h"
 
+#include "MeshBatchSkeletal.h"
 #include "MeshBatchCornell.h"
 #include "MeshBatchSponza.h"
 #include "MeshBatchCube.h"
@@ -142,61 +144,84 @@ int main()
 		}
 	};
 
+	// Animator
+	Animator anim;
+
+
 	// Sponza Scene
-	MeshBatchStatic crySponzaStatic(MeshBatchStatic::sponzaFileName,
-									ThesisSolution::CascadeSpan / 0.19f,
-									{MeshBatchStatic::sponzaVoxelSizes, GI_CASCADE_COUNT});
-	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
-									  ThesisSolution::CascadeSpan,
-									  {MeshBatchSponza::sponzaDynamicVoxelSizes, GI_CASCADE_COUNT});
+	//MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
+	//						  ThesisSolution::CascadeSpan / 0.19f,
+	//						  {MeshBatch::sponzaVoxelSizes, GI_CASCADE_COUNT},
+	//						  false);
+	//MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
+	//								  ThesisSolution::CascadeSpan,
+	//								  {MeshBatchSponza::sponzaDynamicVoxelSizes, GI_CASCADE_COUNT});
 
-	// Cornell Box Scene
-	MeshBatchStatic cornellStatic(MeshBatchStatic::cornellboxFileName,
-								  ThesisSolution::CascadeSpan,
-								  {MeshBatchStatic::cornellVoxelSizes, GI_CASCADE_COUNT});
-	MeshBatchCornell cornellDynamic(MeshBatchCornell::cornellDynamicFileName,
-									ThesisSolution::CascadeSpan,
-									{MeshBatchCornell::cornellDynamicVoxelSizes, GI_CASCADE_COUNT});
+	//// Cornell Box Scene
+	//MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
+	//						ThesisSolution::CascadeSpan,
+	//						{MeshBatch::cornellVoxelSizes, GI_CASCADE_COUNT},
+	//						false);
+	//MeshBatchCornell cornellDynamic(MeshBatchCornell::cornellDynamicFileName,
+	//								ThesisSolution::CascadeSpan,
+	//								{MeshBatchCornell::cornellDynamicVoxelSizes, GI_CASCADE_COUNT});
 
-	// Cube Scene
-	MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
+	//// Cube Scene
+	//MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
+	//							  ThesisSolution::CascadeSpan,
+	//							  {MeshBatchCube::rotatingCubeVoxelSizes, GI_CASCADE_COUNT});
+	//
+	//// Sibernik Scene
+	//MeshBatch sibernikStatic(MeshBatch::sibernikFileName,
+	//						 ThesisSolution::CascadeSpan,
+	//						 {MeshBatch::sibernikVoxelSizes, GI_CASCADE_COUNT},
+	//						 false);
+
+
+	// Tinman Solo Scene
+	MeshBatchSkeletal tinManBatch(MeshBatchSkeletal::tinmanFileName,
 								  ThesisSolution::CascadeSpan,
-								  {MeshBatchCube::rotatingCubeVoxelSizes, GI_CASCADE_COUNT});
-	
-	// Sibernik Scene
-	MeshBatchStatic sibernikStatic(MeshBatchStatic::sibernikFileName,
-								   ThesisSolution::CascadeSpan,
-								   {MeshBatchStatic::sibernikVoxelSizes, GI_CASCADE_COUNT});
+								  {MeshBatchSkeletal::tinmanVoxelSizes, GI_CASCADE_COUNT},
+								  anim);
 
 	// Scene Interfaces
-	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic};
-	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 2},
-					Array32<Light>{sponzaLights, 4},
-					Scene::sponzaSceneTotalSize,
-					Scene::sponzaSceneLevelSizes);
+	//MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic};
+	//Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 2},
+	//				Array32<Light>{sponzaLights, 1},
+	//				Scene::sponzaSceneTotalSize,
+	//				Scene::sponzaSceneLevelSizes);
 
-	MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
-	Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
-					 Array32<Light>{cornellLights, 1},
-					 Scene::cornellSceneTotalSize,
-					 Scene::cornellSceneLevelSizes);
+	//MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
+	//Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
+	//				 Array32<Light>{cornellLights, 1},
+	//				 Scene::cornellSceneTotalSize,
+	//				 Scene::cornellSceneLevelSizes);
 
-	MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
-	Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
-					 Array32<Light>{sponzaLights, 1},
-					 Scene::cubeSceneTotalSize,
-					 Scene::cubeSceneLevelSizes);
+	//MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
+	//Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
+	//				 Array32<Light>{sponzaLights, 1},
+	//				 Scene::cubeSceneTotalSize,
+	//				 Scene::cubeSceneLevelSizes);
 
-	MeshBatchI* sibernikBatches[] = {&sibernikStatic};
-	Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
-				   Array32<Light>{sibernikLights, 4},
-				   Scene::sibernikSceneTotalSize,
-				   Scene::sibernikSceneLevelSizes);
+	//MeshBatchI* sibernikBatches[] = {&sibernikStatic};
+	//Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
+	//			   Array32<Light>{sibernikLights, 4},
+	//			   Scene::sibernikSceneTotalSize,
+	//			   Scene::sibernikSceneLevelSizes);
 
-	scenes.push_back(&crySponza);
-	scenes.push_back(&cornellBox);
-	scenes.push_back(&cubeRotate);
-	scenes.push_back(&sibernik);
+	MeshBatchI* tinmanBatches[] = {&tinManBatch};
+	Scene tinman(Array32<MeshBatchI*>{tinmanBatches, 1},
+				 Array32<Light>{sponzaLights, 1},
+				 Scene::tinmanSceneTotalSize,
+				 Scene::tinmanSceneLevelSizes);
+
+	// Scenes
+	//scenes.push_back(&crySponza);
+	//scenes.push_back(&cornellBox);
+	//scenes.push_back(&sibernik);
+	// Test Scenes
+	//scenes.push_back(&cubeRotate);
+	scenes.push_back(&tinman);
 
 	// Solutions
 	EmptyGISolution emptySolution(deferredRenderer);

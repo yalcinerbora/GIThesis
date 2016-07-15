@@ -5,9 +5,9 @@
 #ifndef __MESHBATCHSPONZA_H__
 #define __MESHBATCHSPONZA_H__
 
-#include "MeshBatchStatic.h"
+#include "MeshBatch.h"
 
-class MeshBatchSponza : public MeshBatchStatic
+class MeshBatchSponza : public MeshBatch
 {
 	private:
 	

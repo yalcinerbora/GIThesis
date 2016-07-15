@@ -4,7 +4,7 @@
 MeshBatchSponza::MeshBatchSponza(const char* sceneFileName,
 								 float minVoxSpan,
 								 const Array32<size_t> maxVoxelCounts)
-	: MeshBatchStatic(sceneFileName, minVoxSpan, maxVoxelCounts)
+	: MeshBatch(sceneFileName, minVoxSpan, maxVoxelCounts, false)
 {}
 
 // Static Files

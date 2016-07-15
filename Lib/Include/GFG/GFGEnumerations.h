@@ -434,7 +434,7 @@ static const size_t GFGDataTypeByteSize[]
 									// holds 8 16 bit integer values
 };
 
-static_assert((sizeof(GFGDataTypeByteSize) / sizeof(size_t)) == static_cast<size_t>(GFGDataType::END),
+static_assert((sizeof(GFGDataTypeByteSize) / sizeof(size_t)) == static_cast<size_t>(GFGDataType::END), 
 			  "\'GFGDataType\' enum and its size array does not have same amount of elements.");
 
 enum class GFGTopology : uint32_t
@@ -442,7 +442,7 @@ enum class GFGTopology : uint32_t
 	TRIANGLE,
 	TRIANGLE_STRIP,
 	LINE,
-	POINT,
+	POINT
 };
 
 enum class GFGDirection

@@ -5,9 +5,9 @@
 #ifndef __MESHBATCHCORNELL_H__
 #define __MESHBATCHCORNELL_H__
 
-#include "MeshBatchStatic.h"
+#include "MeshBatch.h"
 
-class MeshBatchCornell : public MeshBatchStatic
+class MeshBatchCornell : public MeshBatch
 {
 	private:
 

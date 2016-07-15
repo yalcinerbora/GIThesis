@@ -135,6 +135,8 @@ inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int&
 
 	// much cooler version can be warp level exchange intrinsics
 	// which slightly reduces atomic pressure on the single node (on lower tree levels atleast)
+	if(*gNode < 0xFFFFFFFE) return *gNode;
+
 	CSVONode old = 0xFFFFFFFE;
 	while(old == 0xFFFFFFFE)
 	{

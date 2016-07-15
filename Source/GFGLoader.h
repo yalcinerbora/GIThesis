@@ -9,6 +9,7 @@ Helper Class that loads GFG directly to the buffer
 
 #include "GFG/GFGFileLoader.h"
 #include "Material.h"
+#include "StructuredBuffer.h"
 
 class GPUBuffer;
 class DrawBuffer;
@@ -34,7 +35,12 @@ namespace GFGLoader
 	GFGLoadError	LoadGFG(BatchParams& params,
 							GPUBuffer& buffer,
 							DrawBuffer& drawBuffer,
-							const char* gfgFilename);
+							const char* gfgFilename,
+							bool isSkeletal);
+	GFGLoadError	LoadAnim(StructuredBuffer<IEVector4>& animKeys,
+							 StructuredBuffer<GFGTransform>& bindPose,
+							 StructuredBuffer<uint32_t>& jointHier,
+							 const char* gfgFileName);
 };
 
 #endif //__GFGLOADER_H__

@@ -109,8 +109,8 @@ class GFGFileLoader
 		// Skeleton Does not have data segment
 
 		// Animation Importing
-		GFGFileError					AnimationKeyframeData(GFGTransform data[], uint32_t animIndex);
-		GFGFileError					AllAnimationKeyframeData(GFGTransform data[]);
+		GFGFileError					AnimationKeyframeData(uint8_t data[], uint32_t animIndex);
+		GFGFileError					AllAnimationKeyframeData(uint8_t data[]);
 
 		// Data Byte Sizes
 		uint64_t						MeshVertexDataSize(uint32_t meshIndex) const;

@@ -153,7 +153,7 @@ class GFGHeader
 
 		// Transform
 		GFGTransformList				transformData;
-		GFGTransformList				bonetransformData;
+		GFGTransformList				bonetransformData;			// This should be "bind pose"
 
 		// Utility
 		void							CalculateDataOffsets();

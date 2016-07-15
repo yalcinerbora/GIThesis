@@ -39,5 +39,4 @@ class MeshBatchI
 	virtual float				MinSpan() const = 0; // Minimum voxel span used in vox generation
 	
 };
-
 #endif //__MESHBATCHI_H__

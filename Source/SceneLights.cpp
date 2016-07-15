@@ -11,6 +11,8 @@
 const GLsizei SceneLights::shadowMapWH = 1024;
 
 const uint32_t SceneLights::numShadowCascades = 4;
+const uint32_t SceneLights::shadowMipCount = 8;
+const uint32_t SceneLights::mipSampleCount = 3;
 const char* SceneLights::lightAOIFileName = "lightAOI.gfg";
 GLuint SceneLights::lightShapeBuffer = 0;
 GLuint SceneLights::lightShapeIndexBuffer = 0;
@@ -66,7 +68,7 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	lightViewProjMatrices.RecieveData(6 * lights.length);
 	glGenTextures(1, &lightShadowMaps);
 	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, lightShadowMaps);
-	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, 1, GL_DEPTH_COMPONENT32F, shadowMapWH, shadowMapWH, 6 * lights.length);
+	glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, shadowMipCount, GL_R32F, shadowMapWH, shadowMapWH, 6 * lights.length);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 	
@@ -75,20 +77,26 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	glGenFramebuffers(lights.length, shadowMapFBOs.data());
 	glGenTextures(lights.length, shadowMapViews.data());
 
+	// Depth Tex Helper
+	glGenTextures(1, &shadowMapCubeDepth);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMapCubeDepth);
+	glTexStorage2D(GL_TEXTURE_CUBE_MAP, 1, GL_DEPTH_COMPONENT32F, shadowMapWH, shadowMapWH);
+
 	// Interpret CubemapTexture Array as 2D Texture
 	// Used for Directional Lights (each cube side is a cascade)
 	glGenTextures(1, &shadowMapArrayView);
-	glTextureView(shadowMapArrayView, GL_TEXTURE_2D_ARRAY, lightShadowMaps, GL_DEPTH_COMPONENT32F,
-				  0, 1, 0, 6 * lights.length);
+	glTextureView(shadowMapArrayView, GL_TEXTURE_2D_ARRAY, lightShadowMaps, GL_R32F,
+				  0, shadowMipCount, 0, 6 * lights.length);
 
 	for(unsigned int i = 0; i < lights.length; i++)
 	{
 		lightsGPU.AddData(lights.arr[i]);
 		lightShadowCast.push_back(true);
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBOs[i]);
-		glTextureView(shadowMapViews[i], GL_TEXTURE_CUBE_MAP, lightShadowMaps, GL_DEPTH_COMPONENT32F,
+		glTextureView(shadowMapViews[i], GL_TEXTURE_CUBE_MAP, lightShadowMaps, GL_R32F,
 					  0, 1, 6 * i, 6);
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMapViews[i], 0);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, shadowMapViews[i], 0);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMapCubeDepth, 0);
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 	}		
 	lightsGPU.SendData();
@@ -196,9 +204,9 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 
 	// Index
 	glBindVertexBuffer(1, lightIndexBuffer.getGLBuffer(), 0, sizeof(uint32_t));
+	glVertexBindingDivisor(1, 1);
 	glEnableVertexAttribArray(IN_LIGHT_INDEX);
 	glVertexAttribIFormat(IN_LIGHT_INDEX, 1, GL_UNSIGNED_INT, 0);
-	glVertexAttribDivisor(IN_LIGHT_INDEX, 1);
 	glVertexAttribBinding(IN_LIGHT_INDEX, 1);
 
 	assert(lightsGPU.CPUData().size() == lightShadowCast.size());
@@ -206,6 +214,7 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 
 SceneLights::~SceneLights()
 {
+	glDeleteTextures(1, &shadowMapCubeDepth);
 	glDeleteTextures(1, &lightShadowMaps);
 	glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()), shadowMapFBOs.data());
 	glDeleteTextures(static_cast<GLsizei>(shadowMapViews.size()), shadowMapViews.data());

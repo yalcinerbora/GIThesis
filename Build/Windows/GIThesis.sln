@@ -27,6 +27,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42F0F4B2-2641-411B-8938-15FBF14395FA}"
 	ProjectSection(SolutionItems) = preProject
 		..\..\WorkingDir\Shaders\DPass.vert = ..\..\WorkingDir\Shaders\DPass.vert
+		..\..\WorkingDir\Shaders\DPassSkeletal.vert = ..\..\WorkingDir\Shaders\DPassSkeletal.vert
 		..\..\WorkingDir\Shaders\GWriteGeneric.frag = ..\..\WorkingDir\Shaders\GWriteGeneric.frag
 		..\..\WorkingDir\Shaders\GWriteGeneric.vert = ..\..\WorkingDir\Shaders\GWriteGeneric.vert
 		..\..\WorkingDir\Shaders\GWriteSkeletal.vert = ..\..\WorkingDir\Shaders\GWriteSkeletal.vert
@@ -45,6 +46,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShadowMaps", "ShadowMaps", 
 		..\..\WorkingDir\Shaders\ShadowMapA.geom = ..\..\WorkingDir\Shaders\ShadowMapA.geom
 		..\..\WorkingDir\Shaders\ShadowMapD.geom = ..\..\WorkingDir\Shaders\ShadowMapD.geom
 		..\..\WorkingDir\Shaders\ShadowMapP.geom = ..\..\WorkingDir\Shaders\ShadowMapP.geom
+		..\..\WorkingDir\Shaders\ShadowMapSkeletal.vert = ..\..\WorkingDir\Shaders\ShadowMapSkeletal.vert
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TODO List", "TODO List", "{70BD11C4-7CFB-446B-BA3A-F51BB0ED082B}"
@@ -60,13 +62,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxTrace", "VoxTrace", "{41
 		..\..\WorkingDir\Shaders\VoxTraceDeferred.glsl = ..\..\WorkingDir\Shaders\VoxTraceDeferred.glsl
 		..\..\WorkingDir\Shaders\VoxTraceDeferredLerp.glsl = ..\..\WorkingDir\Shaders\VoxTraceDeferredLerp.glsl
 		..\..\WorkingDir\Shaders\VoxTraceWorld.glsl = ..\..\WorkingDir\Shaders\VoxTraceWorld.glsl
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Animation", "Animation", "{6DBDF423-7BC6-4F7D-A597-6123577A7407}"
-	ProjectSection(SolutionItems) = preProject
-		..\..\WorkingDir\Shaders\Animate.glsl = ..\..\WorkingDir\Shaders\Animate.glsl
-		..\..\WorkingDir\Shaders\GenInvBindPose.glsl = ..\..\WorkingDir\Shaders\GenInvBindPose.glsl
-		..\..\WorkingDir\Shaders\InterpAnimation.glsl = ..\..\WorkingDir\Shaders\InterpAnimation.glsl
 	EndProjectSection
 EndProject
 Global
@@ -88,6 +83,5 @@ Global
 		{42F0F4B2-2641-411B-8938-15FBF14395FA} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{CEC68846-BCA8-4FEC-9016-2B716037C75A} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{411BEC89-FDE7-42D4-A363-8AD320B28DAF} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
-		{6DBDF423-7BC6-4F7D-A597-6123577A7407} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 	EndGlobalSection
 EndGlobal

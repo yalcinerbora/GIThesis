@@ -79,7 +79,6 @@ class IEVector4
 		// Logic
 		bool					operator==(const IEVector4&) const;
 		bool					operator!=(const IEVector4&) const;
-
 };
 
 // Requirements of Vector4

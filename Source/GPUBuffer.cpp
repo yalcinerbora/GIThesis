@@ -41,15 +41,27 @@ GPUBuffer::GPUBuffer(const Array32<const VertexElement> elements)
 	{
 		const VertexElement& current = elements.arr[i];
 		glEnableVertexAttribArray(current.inputPosition);
-		glVertexAttribFormat(current.inputPosition,
-							 current.typeCount,
-							 static_cast<GLenum>(current.type),
-							 GL_FALSE,
-							 static_cast<GLuint>(current.offset));
-		glVertexAttribBinding(current.inputPosition, 0);
-		vElements.insert(vElements.begin(), elements.arr[i]);
-	}
 
+		if((current.type != GPUDataType::FLOAT &&
+			current.type != GPUDataType::DOUBLE) &&
+			!current.isNormInt)
+		{
+			glVertexAttribIFormat(current.inputPosition,
+								  current.typeCount,
+								  static_cast<GLenum>(current.type),
+								  static_cast<GLuint>(current.offset));
+		}
+		else
+		{
+			glVertexAttribFormat(current.inputPosition,
+								 current.typeCount,
+								 static_cast<GLenum>(current.type),
+								 (current.isNormInt) ? GL_TRUE : GL_FALSE,
+								 static_cast<GLuint>(current.offset));
+		}
+		glVertexAttribBinding(current.inputPosition, 0);
+		vElements.insert(vElements.end(), elements.arr[i]);
+	}
 	GI_LOG("GPU\tVertex Definition Created. VAO ID: %d", vao);
 }
 

@@ -28,7 +28,7 @@
 #define U_FTRANSFORM layout(std140, binding = 0)
 
 #define LU_MTRANSFORM layout(std430, binding = 4)
-#define LU_JOINT_TRANS layout(std430, binding = 5)
+#define LU_JOINT_TRANS layout(std430, binding = 6)
 
 #define JOINT_PER_VERTEX 4
 
@@ -36,8 +36,8 @@
 in IN_POS vec3 vPos;
 in IN_NORMAL vec3 vNormal;
 in IN_UV vec2 vUV;
-in IN_WEIGHT_INDEX uvec4 vWIndex;
 in IN_WEIGHT vec4 vWeight;
+in IN_WEIGHT_INDEX uvec4 vWIndex;
 in IN_TRANS_INDEX uint vTransIndex;
 
 // Output
@@ -65,23 +65,44 @@ LU_MTRANSFORM buffer ModelTransform
 
 LU_JOINT_TRANS buffer JointTransforms
 {
-	mat4 jointTransforms[];
+	struct
+	{
+		mat4 final;
+		mat4 finalRot;
+	} jointTransforms[];
+};
+
+uniform vec3 DEBUG_COLORS[4] = 
+{
+	vec3( 1.0f, 0.0f, 0.0f),
+	vec3( 0.0f, 1.0f, 0.0f),
+	vec3( 0.0f, 0.0f, 1.0f),
+	vec3( 1.0f, 1.0f, 0.0f)
 };
 
 void main(void)
 {
 	// Animations
-	vec4 vertPos = vec4(0.0f);
-	vec4 vertNorm = vec4(0.0f);
-	for(uint i = 0; i < JOINT_PER_VERTEX; i++)
-	{
-		vertPos += (jointTransforms[vWIndex[i]] * vec4(vPos, 1.0f)) * vWeight[i];
-		vertNorm += (jointTransforms[vWIndex[i]] * vec4(vNormal, 0.0f)) * vWeight[i];
-	}
+	vec4 pos = vec4(0.0f);
+	pos += (jointTransforms[vWIndex[0]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[0];
+	pos += (jointTransforms[vWIndex[1]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[1];
+	pos += (jointTransforms[vWIndex[2]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[2];
+	pos += (jointTransforms[vWIndex[3]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[3];
+
+	vec3 norm = vec3(0.0f);	
+	norm += (mat3(jointTransforms[vWIndex[0]].finalRot) * mat3(modelTransforms[vTransIndex].modelRotation) * vNormal) * vWeight[0];
+	norm += (mat3(jointTransforms[vWIndex[1]].finalRot) * mat3(modelTransforms[vTransIndex].modelRotation) * vNormal) * vWeight[1];
+	norm += (mat3(jointTransforms[vWIndex[2]].finalRot) * mat3(modelTransforms[vTransIndex].modelRotation) * vNormal) * vWeight[2];
+	norm += (mat3(jointTransforms[vWIndex[3]].finalRot) * mat3(modelTransforms[vTransIndex].modelRotation) * vNormal) * vWeight[3];
 	
 	// Rasterizer
 	fUV = vUV;
-	fNormal = mat3(modelTransforms[vTransIndex].modelRotation) * vertNorm.xyz;
-	gl_Position = projection * view * modelTransforms[vTransIndex].model * 
-				  vec4(vertPos.xyz, 1.0f);
+	fNormal = norm;
+	gl_Position = projection * view * pos;
+
+	//fNormal = mat3(modelTransforms[vTransIndex].modelRotation) * norm;
+	//gl_Position = projection * view * modelTransforms[vTransIndex].model * pos;
+
+	//fNormal = mat3(modelTransforms[vTransIndex].modelRotation) * vNormal;
+	//gl_Position = projection * view * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f);
 }

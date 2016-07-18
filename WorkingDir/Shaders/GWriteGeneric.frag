@@ -5,7 +5,6 @@
 	File Name	: GWriteGeneric.frag 
 	Author		: Bora Yalciner
 	Description	:
-
 		Basic G-buffer write shader...
 		Basis of Defferred Shading (Not Optimized)
 		Gbuffer is unoptimized
@@ -78,7 +77,6 @@ void main(void)
 	File Name	: AGenericMaterial.frag 
 	Author		: Bora Yalciner
 	Description	:
-
 		Simple Color Map Material
 		Has to be appended and compiled at the end of the "GWriteGeneric.frag" shader
 		in order to be used

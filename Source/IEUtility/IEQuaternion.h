@@ -7,7 +7,7 @@ Column Major Vector Matrix
 #ifndef __IE_QUATERNION_H__
 #define __IE_QUATERNION_H__
 
-#define SLERP_TO_LERP_SWITCH_THRESHOLD 0.01f
+#define SLERP_TO_LERP_SWITCH_THRESHOLD 0.05f
 
 #include <algorithm>
 #include <cassert>

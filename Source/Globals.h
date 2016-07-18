@@ -45,6 +45,7 @@ static const VertexElement elementStatic[] =
 	{
 		IN_POS,
 		GPUDataType::FLOAT,
+		false,
 		3,
 		offsetof(struct VAO, vPos),
 		sizeof(VAO)
@@ -52,6 +53,7 @@ static const VertexElement elementStatic[] =
 	{
 		IN_NORMAL,
 		GPUDataType::FLOAT,
+		false,
 		3,
 		offsetof(struct VAO, vNormal),
 		sizeof(VAO)
@@ -59,6 +61,7 @@ static const VertexElement elementStatic[] =
 	{
 		IN_UV,
 		GPUDataType::FLOAT,
+		false,
 		2,
 		offsetof(struct VAO, vUV),
 		sizeof(VAO)
@@ -70,6 +73,7 @@ static const VertexElement elementSkeletal[] =
 	{
 		IN_POS,
 		GPUDataType::FLOAT,
+		false,
 		3,
 		offsetof(struct VAOSkel, vPos),
 		sizeof(VAOSkel)
@@ -77,6 +81,7 @@ static const VertexElement elementSkeletal[] =
 	{
 		IN_NORMAL,
 		GPUDataType::FLOAT,
+		false,
 		3,
 		offsetof(struct VAOSkel, vNormal),
 		sizeof(VAOSkel)
@@ -84,6 +89,7 @@ static const VertexElement elementSkeletal[] =
 	{
 		IN_UV,
 		GPUDataType::FLOAT,
+		false,
 		2,
 		offsetof(struct VAOSkel, vUV),
 		sizeof(VAOSkel)
@@ -91,6 +97,7 @@ static const VertexElement elementSkeletal[] =
 	{
 		IN_WEIGHT,
 		GPUDataType::UINT8,
+		true,
 		4,
 		offsetof(struct VAOSkel, vWeight),
 		sizeof(VAOSkel)
@@ -98,6 +105,7 @@ static const VertexElement elementSkeletal[] =
 	{
 		IN_WEIGHT_INDEX,
 		GPUDataType::UINT8,
+		false,
 		4,
 		offsetof(struct VAOSkel, vWIndex),
 		sizeof(VAOSkel)
@@ -179,6 +187,7 @@ static const TwStructMember lightMembers[] =
 #define LU_MTRANSFORM 4
 #define LU_INDEX_CHECK 4
 #define LU_MTRANSFORM_INDEX 5
+#define LU_JOINT_TRANS 6
 
 
 

@@ -10,6 +10,8 @@ Helper Class that loads GFG directly to the buffer
 #include "GFG/GFGFileLoader.h"
 #include "Material.h"
 #include "StructuredBuffer.h"
+#include "IEUtility/IEQuaternion.h"
+#include "IEUtility/IEMatrix4x4.h"
 
 class GPUBuffer;
 class DrawBuffer;
@@ -37,9 +39,12 @@ namespace GFGLoader
 							DrawBuffer& drawBuffer,
 							const char* gfgFilename,
 							bool isSkeletal);
-	GFGLoadError	LoadAnim(StructuredBuffer<IEVector4>& animKeys,
-							 StructuredBuffer<GFGTransform>& bindPose,
-							 StructuredBuffer<uint32_t>& jointHier,
+	GFGLoadError	LoadAnim(GFGAnimationHeader& header,
+							 std::vector<IEVector3>& hipTranslations,
+							 std::vector<float>& keyTimes,
+							 std::vector<std::vector<IEQuaternion>>& jointKeys,
+							 std::vector<GFGTransform>& bindPose,
+							 std::vector<uint32_t>& jointHierarchy,
 							 const char* gfgFileName);
 };
 

@@ -5,6 +5,7 @@
 #include "Camera.h"
 #include "RectPrism.h"
 #include "DrawBuffer.h"
+#include "MeshBatchSkeletal.h"
 
 const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920;*//*2560;*///3840;
 const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*//*1440;*///2160;
@@ -22,6 +23,7 @@ DeferredRenderer::DeferredRenderer()
 	, vertGBufferWrite(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert")
 	, fragGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag")
 	, vertDPass(ShaderType::VERTEX, "Shaders/DPass.vert")
+	, vertDPassSkeletal(ShaderType::VERTEX, "Shaders/DPassSkeletal.vert")
 	, vertLightPass(ShaderType::VERTEX, "Shaders/LightPass.vert")
 	, fragLightPass(ShaderType::FRAGMENT, "Shaders/LightPass.frag")
 	, vertPPGeneric(ShaderType::VERTEX, "Shaders/PProcessGeneric.vert")
@@ -29,6 +31,7 @@ DeferredRenderer::DeferredRenderer()
 	, fragPPGeneric(ShaderType::FRAGMENT, "Shaders/PProcessGeneric.frag")
 	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
 	, vertShadowMap(ShaderType::VERTEX, "Shaders/ShadowMap.vert")
+	, vertShadowMapSkeletal(ShaderType::VERTEX, "Shaders/ShadowMapSkeletal.vert")
 	, geomAreaShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapA.geom")
 	, geomDirShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapD.geom")
 	, geomPointShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapP.geom")
@@ -188,7 +191,6 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 										  const Camera& camera)
 {
 	fragShadowMap.Bind();
-	vertShadowMap.Bind();
 	unsigned int lightCount = static_cast<unsigned int>(scene.getSceneLights().lightsGPU.CPUData().size());
 
 	// State
@@ -306,6 +308,17 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 		Array32<MeshBatchI*> batches = scene.getBatches();
 		for(unsigned int j = 0; j < batches.length; j++)
 		{
+			if(batches.arr[j]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+			{
+				vertShadowMapSkeletal.Bind();
+				auto batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[j]);
+				batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
+			}
+			else
+			{
+				vertShadowMap.Bind();
+			}
+
 			GPUBuffer& currentGPUBuffer = batches.arr[j]->getGPUBuffer();
 			DrawBuffer& currentDrawBuffer = batches.arr[j]->getDrawBuffer();
 
@@ -376,8 +389,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glPolygonOffset(0.0f, 0.0f);
 }
 
-void DeferredRenderer::GPass(SceneI& scene,
-							 const Camera& camera)
+void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 {
 	gBuffer.BindAsFBO();
 	gBuffer.AlignViewport();
@@ -397,7 +409,6 @@ void DeferredRenderer::GPass(SceneI& scene,
 
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);
-	vertGBufferWrite.Bind();
 	fragGBufferWrite.Bind();
 
 	// DrawCall
@@ -405,6 +416,17 @@ void DeferredRenderer::GPass(SceneI& scene,
 	Array32<MeshBatchI*> batches = scene.getBatches();
 	for(unsigned int i = 0; i < batches.length; i++)
 	{
+		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+		{
+			vertGBufferSkeletal.Bind();
+			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[i]);
+			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
+		}
+		else
+		{
+			vertGBufferWrite.Bind();
+		}
+
 		GPUBuffer& currentGPUBuffer = batches.arr[i]->getGPUBuffer();
 		DrawBuffer& currentDrawBuffer = batches.arr[i]->getDrawBuffer();
 
@@ -500,19 +522,27 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 	
 	// Shaders
 	fragShadowMap.Bind();
-	vertDPass.Bind();
 	Shader::Unbind(ShaderType::GEOMETRY);
 
 	// Camera Transform
 	cameraTransform.Update(camera.generateTransform());
 	cameraTransform.Bind();
 
-	
-	
 	// Draw Batches
 	Array32<MeshBatchI*> batches = scene.getBatches();
 	for(unsigned int i = 0; i < batches.length; i++)
 	{
+		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+		{
+			vertDPassSkeletal.Bind();
+			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[i]);
+			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
+		}
+		else
+		{
+			vertDPass.Bind();
+		}
+
 		GPUBuffer& currentGPUBuffer = batches.arr[i]->getGPUBuffer();
 		DrawBuffer& currentDrawBuffer = batches.arr[i]->getDrawBuffer();
 

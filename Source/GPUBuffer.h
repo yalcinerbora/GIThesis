@@ -34,6 +34,7 @@ struct VertexElement
 {
 	uint32_t			inputPosition;		
 	GPUDataType			type;
+	bool				isNormInt;
 	uint32_t			typeCount;			
 	uint32_t			offset;				
 	uint32_t			stride;				

@@ -107,3 +107,18 @@ float MeshBatch::MinSpan() const
 {
 	return minSpan;
 }
+
+void MeshBatch::GenTransformMatrix(IEMatrix4x4& transform,
+								   IEMatrix4x4& rotation,
+								   const GFGTransform& gfgTransform)
+{
+	transform = IEMatrix4x4::IdentityMatrix;
+	transform = IEMatrix4x4::Rotate(gfgTransform.rotate[0], IEVector3::Xaxis) * transform;
+	transform = IEMatrix4x4::Rotate(gfgTransform.rotate[1], IEVector3::Yaxis) * transform;
+	transform = IEMatrix4x4::Rotate(gfgTransform.rotate[2], IEVector3::Zaxis) * transform;
+
+	rotation = transform;
+
+	transform = IEMatrix4x4::Scale(gfgTransform.scale[0], gfgTransform.scale[1], gfgTransform.scale[2]) * transform;
+	transform = IEMatrix4x4::Translate({gfgTransform.translate[0], gfgTransform.translate[1], gfgTransform.translate[2]}) * transform;
+}

@@ -216,40 +216,20 @@ IEVector3 IEQuaternion::ApplyRotation(const IEVector3& vector)
 
 IEQuaternion IEQuaternion::NLerp(const IEQuaternion& start, const IEQuaternion& end, float percent)
 {
-	if(percent >= 1.0f)
-		return end;
-	if(percent <= 0.0f)
-		return start;
+	percent = IEFunctions::Clamp(percent, 0.0f, 1.0f);
 	return (start + percent * (end - start)).Normalize();
 }
 
 IEQuaternion IEQuaternion::SLerp(const IEQuaternion& start, const IEQuaternion& end, float percent)
 {
-	IEQuaternion result;
-	float startWeight, endWeight, difference;
-
-	if(percent >= 1.0f)
-		return end;
-	if(percent <= 0.0f)
-		return start;
-
-    difference = start.DotProduct(end);
-	if (difference > IEMath::AbsF(1.0f - SLERP_TO_LERP_SWITCH_THRESHOLD))
+	percent = IEFunctions::Clamp(percent, 0.0f, 1.0f);
+	float cosTetha = start.DotProduct(end);
+	if(IEMath::AbsF(cosTetha) < (1.0f - SLERP_TO_LERP_SWITCH_THRESHOLD))
 	{
 		// SLerp
-		// Theta is angle between quats
-		float theta, sinTehtaInv;
-		theta = IEMath::ACosF(IEMath::AbsF(difference));
-		sinTehtaInv = 1.0f / IEMath::SinF(theta);
-
-		startWeight = (IEMath::SinF(theta * (1.0f - percent)) * sinTehtaInv);
-		endWeight = (sin(theta * percent) * sinTehtaInv);
-
-		result.x = (start.x * startWeight) + (end.x * endWeight);
-		result.y = (start.y * startWeight) + (end.y * endWeight);
-		result.z = (start.z * startWeight) + (end.z * endWeight);
-		result.w = (start.w * startWeight) + (end.w * endWeight);
-		return result.Normalize();
+		float angle = IEMath::ACosF(cosTetha);
+		return (start * IEMath::SinF(angle * (1.0f - percent)) +
+				end * IEMath::SinF(angle * percent)) / IEMath::SinF(angle);
 	}
 	else
 	{

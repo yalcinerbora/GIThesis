@@ -615,14 +615,17 @@ IEMatrix4x4 IEMatrix4x4::Rotate(const IEQuaternion& quat)
 	result.v[4]  =         (2.0f * (xy - zw));
 	result.v[8]  =         (2.0f * (xz + yw));
 	result.v[12] = 0.0f;
+
 	result.v[1]  =         (2.0f * (xy + zw));
 	result.v[5]  = (1.0f - (2.0f * (xx + zz)));
 	result.v[9]  =         (2.0f * (yz - xw));
 	result.v[13] = 0.0f;
+
 	result.v[2]  =         (2.0f * (xz - yw));
 	result.v[6]  =         (2.0f * (yz + xw));
 	result.v[10] = (1.0f - (2.0f * (xx + yy)));
 	result.v[14] = 0.0f;
+
 	result.v[3]	 = 0.0f;
 	result.v[7]  = 0.0f;
 	result.v[11] = 0.0f;

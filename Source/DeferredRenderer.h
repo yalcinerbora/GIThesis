@@ -45,6 +45,7 @@ class DeferredRenderer
 		Shader					vertGBufferWrite;
 		Shader					fragGBufferWrite;
 		Shader					vertDPass;
+		Shader					vertDPassSkeletal;
 
 		Shader					vertLightPass;
 		Shader					fragLightPass;
@@ -58,6 +59,7 @@ class DeferredRenderer
 		// Shader for shadowmap
 		Shader					fragShadowMap;
 		Shader					vertShadowMap;
+		Shader					vertShadowMapSkeletal;
 
 		Shader					geomAreaShadowMap;
 		Shader					geomPointShadowMap;

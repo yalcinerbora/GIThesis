@@ -98,9 +98,6 @@
     <ClCompile Include="..\..\..\Source\MeshBatchNyra.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\Animator.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
@@ -312,9 +309,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatchNyra.h">
       <Filter>MeshBatch</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\Animator.h">
-      <Filter>Scene</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h">
       <Filter>MeshBatch</Filter>

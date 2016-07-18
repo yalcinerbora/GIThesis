@@ -9,6 +9,8 @@
 #include "GPUBuffer.h"
 #include "DrawBuffer.h"
 
+struct GFGTransform;
+
 struct BatchParams
 {
 	size_t				materialCount;
@@ -60,6 +62,10 @@ class MeshBatch : public MeshBatchI
 		size_t					PolyCount() const override;
 
 		float					MinSpan() const override;
+
+		static void				GenTransformMatrix(IEMatrix4x4& transform,
+												   IEMatrix4x4& rotation,
+												   const GFGTransform& gfgTransform);
 };
 
 #endif //__MESHBATCHSTATIC_H__

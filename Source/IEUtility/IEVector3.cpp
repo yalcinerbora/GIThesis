@@ -11,24 +11,28 @@ const IEVector3 IEVector3::Yaxis = IEVector3(0.0f, 1.0f, 0.0f);
 const IEVector3 IEVector3::Zaxis = IEVector3(0.0f, 0.0f, 1.0f);
 const IEVector3 IEVector3::ZeroVector = IEVector3(0.0f, 0.0f, 0.0f);
 
-IEVector3::IEVector3() : x(0.0f),
-							y(0.0f),
-							z(0.0f)
+IEVector3::IEVector3() 
+	: x(0.0f)
+	, y(0.0f)
+	, z(0.0f)
 {}
 
-IEVector3::IEVector3(float xx, float yy, float zz) : x(xx),
-													y(yy),
-													z(zz)
+IEVector3::IEVector3(float xx, float yy, float zz) 
+	: x(xx)
+	, y(yy)
+	, z(zz)
 {}
 
-IEVector3::IEVector3(const float v[]) : x(v[0]),
-									y(v[1]),
-									z(v[2])
+IEVector3::IEVector3(const float v[]) 
+	: x(v[0])
+	, y(v[1])
+	, z(v[2])
 {}
 
-IEVector3::IEVector3(const IEVector4& cp) : x(cp.getX()),
-											y(cp.getY()),
-											z(cp.getZ())
+IEVector3::IEVector3(const IEVector4& cp) 
+	: x(cp.getX())
+	, y(cp.getY())
+	, z(cp.getZ())
 {}
 
 void IEVector3::operator+=(const IEVector3& vector)

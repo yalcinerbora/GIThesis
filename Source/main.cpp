@@ -9,7 +9,6 @@
 #include "MayaInput.h"
 
 #include "DeferredRenderer.h"
-#include "Animator.h"
 
 #include "EmptyGISolution.h"
 #include "ThesisSolution.h"
@@ -144,18 +143,14 @@ int main()
 		}
 	};
 
-	// Animator
-	Animator anim;
-
-
 	// Sponza Scene
-	//MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
-	//						  ThesisSolution::CascadeSpan / 0.19f,
-	//						  {MeshBatch::sponzaVoxelSizes, GI_CASCADE_COUNT},
-	//						  false);
-	//MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
-	//								  ThesisSolution::CascadeSpan,
-	//								  {MeshBatchSponza::sponzaDynamicVoxelSizes, GI_CASCADE_COUNT});
+	MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
+							  ThesisSolution::CascadeSpan / 0.19f,
+							  {MeshBatch::sponzaVoxelSizes, GI_CASCADE_COUNT},
+							  false);
+	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
+									  ThesisSolution::CascadeSpan,
+									  {MeshBatchSponza::sponzaDynamicVoxelSizes, GI_CASCADE_COUNT});
 
 	//// Cornell Box Scene
 	//MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
@@ -179,17 +174,19 @@ int main()
 
 
 	// Tinman Solo Scene
-	MeshBatchSkeletal tinManBatch(MeshBatchSkeletal::tinmanFileName,
+	MeshBatchSkeletal tinManBatch(//MeshBatchSkeletal::tinmanFileName,
+								  //MeshBatchSkeletal::snakeFileName,
+								  MeshBatchSkeletal::nyraFileName,
 								  ThesisSolution::CascadeSpan,
-								  {MeshBatchSkeletal::tinmanVoxelSizes, GI_CASCADE_COUNT},
-								  anim);
+								  {MeshBatchSkeletal::tinmanVoxelSizes, GI_CASCADE_COUNT});
+	tinManBatch.AnimationParams(0.4f, 1.3f, AnimationType::OSCILLATE);
 
 	// Scene Interfaces
-	//MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic};
-	//Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 2},
-	//				Array32<Light>{sponzaLights, 1},
-	//				Scene::sponzaSceneTotalSize,
-	//				Scene::sponzaSceneLevelSizes);
+	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &tinManBatch};
+	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
+					Array32<Light>{sponzaLights, 1},
+					Scene::sponzaSceneTotalSize,
+					Scene::sponzaSceneLevelSizes);
 
 	//MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
 	//Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
@@ -216,7 +213,7 @@ int main()
 				 Scene::tinmanSceneLevelSizes);
 
 	// Scenes
-	//scenes.push_back(&crySponza);
+	scenes.push_back(&crySponza);
 	//scenes.push_back(&cornellBox);
 	//scenes.push_back(&sibernik);
 	// Test Scenes

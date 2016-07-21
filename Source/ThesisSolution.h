@@ -72,7 +72,7 @@ struct VoxelObjectCache
 	StructuredBuffer<ObjGridInfo>			objectGridInfo;
 	StructuredBuffer<VoxelNormPos>			voxelNormPos;
 	StructuredBuffer<VoxelIds>				voxelIds;
-	StructuredBuffer<VoxelRenderData>		voxelRenderData;
+	StructuredBuffer<VoxelColorData>		voxelRenderData;
 	StructuredBuffer<uint32_t>				voxelCacheUsageSize;
 	VoxelDebugVAO							voxelVAO;
 	
@@ -84,7 +84,7 @@ struct VoxelObjectCache
 		, voxelNormPos(voxelCount)
 		, voxelIds(voxelCount)
 		, voxelRenderData(voxelCount)
-		, voxelCacheUsageSize(1)
+	//	, voxelCacheUsageSize(1)
 		, voxelVAO(voxelNormPos, voxelIds, voxelRenderData)
 	{
 		voxelCacheUsageSize.AddData(0);

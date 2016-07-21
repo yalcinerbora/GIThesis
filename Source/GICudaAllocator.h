@@ -77,7 +77,7 @@ class GICudaAllocator
 		
 		CudaVector<CVoxelNormPos*>				dObjNormPosCache;
 		CudaVector<CVoxelIds*>					dObjIdsCache;
-		CudaVector<CVoxelRender*>				dObjRenderCache;
+		CudaVector<CVoxelColor*>				dObjRenderCache;
 
 		std::vector<CObjectTransform*>			hTransforms;			
 		std::vector<CObjectAABB*>				hObjectAABB;
@@ -86,7 +86,7 @@ class GICudaAllocator
 
 		std::vector<CVoxelNormPos*>				hObjNormPosCache;
 		std::vector<CVoxelIds*>					hObjIdsCache;
-		std::vector<CVoxelRender*>				hObjRenderCache;
+		std::vector<CVoxelColor*>				hObjRenderCache;
 
 		// Interop Data
 		std::vector<cudaGraphicsResource_t>		transformLinks;
@@ -160,7 +160,7 @@ class GICudaAllocator
 
 		CVoxelNormPos**			GetObjCacheNormPosDevice();
 		CVoxelIds**				GetObjCacheIdsDevice();
-		CVoxelRender**			GetObjRenderCacheDevice();
+		CVoxelColor**			GetObjRenderCacheDevice();
 
 		CObjectTransform*		GetTransformsDevice(uint32_t index);
 		uint32_t*				GetTransformIDDevice(uint32_t index);
@@ -169,7 +169,7 @@ class GICudaAllocator
 
 		CVoxelNormPos*			GetObjCacheNormPosDevice(uint32_t index);
 		CVoxelIds*				GetObjCacheIdsDevice(uint32_t index);
-		CVoxelRender*			GetObjRenderCacheDevice(uint32_t index);
+		CVoxelColor*			GetObjRenderCacheDevice(uint32_t index);
 
 		// Pages
 		CVoxelPage*				GetVoxelPagesDevice();

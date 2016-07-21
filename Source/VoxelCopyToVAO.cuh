@@ -13,7 +13,7 @@ Copying voxels to VAO
 #include "CSVOTypes.cuh"
 
 struct CVoxelPage;
-struct CVoxelRender;
+struct CVoxelColor;
 typedef uint2 CVoxelNormPos;
 struct CVoxelGrid;
 struct CObjectVoxelInfo;
@@ -40,7 +40,7 @@ extern __global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
 								  unsigned int** gObjectAllocIndexLookup,
 
 								  // Per vox
-								  CVoxelRender** gVoxelRenderData,
+								  CVoxelColor** gVoxelRenderData,
 
 								  // Page
 								  const CVoxelPage* gVoxPages,

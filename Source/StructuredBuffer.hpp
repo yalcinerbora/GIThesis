@@ -7,11 +7,14 @@ StructuredBuffer<T>::StructuredBuffer(size_t initialCapacity)
 	: bufferId(0)
 	, bufferCapacity(initialCapacity)
 {
-	assert(initialCapacity != 0);
-	glGenBuffers(1, &bufferId);
-	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
-	glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),
-				 nullptr, GL_DYNAMIC_DRAW);
+	//assert(initialCapacity != 0);
+	if(bufferCapacity != 0)
+	{
+		glGenBuffers(1, &bufferId);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
+		glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),
+					 nullptr, GL_DYNAMIC_DRAW);
+	}
 }
 
 template <class T>
@@ -36,6 +39,7 @@ void StructuredBuffer<T>::SendData()
 	if(dataGPUImage.size() > bufferCapacity)
 	{
 		bufferCapacity = bufferCapacity * resizeFactor;
+		if(bufferCapacity == 0) bufferCapacity = dataGPUImage.size();
 
 		GLuint newBuffer;
 
@@ -76,9 +80,17 @@ size_t StructuredBuffer<T>::Count() const
 }
 
 template <class T>
-size_t  StructuredBuffer<T>::Capacity() const
+size_t StructuredBuffer<T>::Capacity() const
 {
 	return bufferCapacity;
+}
+
+template <class T>
+void StructuredBuffer<T>::Memset(uint8_t byte)
+{
+	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
+	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R8UI, GL_RED,
+					  GL_UNSIGNED_BYTE, &byte);
 }
 
 template <class T>
@@ -124,6 +136,7 @@ void StructuredBuffer<T>::BindAsDrawIndirectBuffer()
 template <class T>
 void StructuredBuffer<T>::Resize(size_t count)
 {
+	assert(count != 0);
 	if(count < bufferCapacity) return;
 
 	GLuint newBuffer;

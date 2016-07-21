@@ -37,7 +37,7 @@ void VoxelDebugVAO::InitVoxelCube()
 
 VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 							 StructuredBuffer<VoxelIds>& voxIdBuffer,
-							 StructuredBuffer<VoxelRenderData>& voxRenderDataBuffer)
+							 StructuredBuffer<VoxelColorData>& voxRenderDataBuffer)
 	: vaoId(0)
 {
 	if(voxelCubeData.indexBuffer == 0 &&
@@ -57,7 +57,7 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 	GLsizei strides[] = { sizeof(float) * 3,
 						  sizeof(VoxelNormPos),
 						  sizeof(VoxelIds), 
-						  sizeof(VoxelRenderData) };
+						  sizeof(VoxelColorData) };
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
 

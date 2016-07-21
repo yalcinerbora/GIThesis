@@ -15,7 +15,7 @@ typedef CAABB CObjectAABB;
 typedef uint2 CVoxelNormPos;
 typedef uint2 CVoxelIds;
 struct CObjectTransform;
-struct CVoxelRender;
+struct CVoxelColor;
 struct CVoxelPage;
 struct CVoxelGrid;
 struct CSVOConstants;
@@ -36,7 +36,7 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 									   CObjectTransform** gObjTransforms,
 									   uint32_t** gObjTransformIds,
 									   CVoxelNormPos** gVoxNormPosCacheData,
-									   CVoxelRender** gVoxRenderData,
+									   CVoxelColor** gVoxRenderData,
 									   CObjectVoxelInfo** gObjInfo,
 									   CObjectAABB** gObjectAABB);
 
@@ -156,7 +156,7 @@ extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 												  const CVoxelPage* gVoxelData,
 
 												  // For Color Lookup
-												  CVoxelRender** gVoxelRenderData,
+												  CVoxelColor** gVoxelRenderData,
 
 												  // Constants
 												  const unsigned int matSparseOffset,
@@ -193,7 +193,7 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 									  
 									  // For Color Lookup
 									  const CVoxelPage* gVoxelData,
-									  CVoxelRender** gVoxelRenderData,
+									  CVoxelColor** gVoxelRenderData,
 
 									  const unsigned int matSparseOffset,
 									  const unsigned int cascadeNo,

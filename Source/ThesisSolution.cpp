@@ -264,7 +264,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 	cache.objectGridInfo.RecieveData(batch->DrawCount());
 
 	// Buffers
-	cameraTransform.Bind();
+	//cameraTransform.Bind();
 	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
 	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
 	
@@ -380,7 +380,7 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 										static_cast<uint32_t>(cache.voxelNormPos.Capacity()));
 	cache.batchVoxCacheSize = static_cast<double>(cache.batchVoxCacheCount *
 												  (sizeof(CVoxelNormPos) +
-												  sizeof(VoxelRenderData) +
+												  sizeof(VoxelColorData) +
 												  sizeof(CVoxelIds))) /
 												  1024.0 /
 												  1024.0;
@@ -398,7 +398,6 @@ double ThesisSolution::Voxelize(VoxelObjectCache& cache,
 
 	glDeleteQueries(1, &queryID);
 	return time;
-	return 0.0;
 }
 
 void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene, 

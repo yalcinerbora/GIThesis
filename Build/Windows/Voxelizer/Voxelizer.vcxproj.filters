@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\..\Source\Voxelizer\main.cpp" />
+    <ClCompile Include="..\..\..\Source\Voxelizer\OGLVoxelizer.cpp" />
+    <ClCompile Include="..\..\..\Source\GFGLoader.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\GPUBuffer.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatch.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp">
+      <Filter>IEUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp">
+      <Filter>IEUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IEQuaternion.cpp">
+      <Filter>IEUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IETimer.cpp">
+      <Filter>IEUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IEVector3.cpp">
+      <Filter>IEUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IEVector4.cpp">
+      <Filter>IEUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\DrawBuffer.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\Material.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\Voxelizer\GL3DTexture.cpp" />
+    <ClCompile Include="..\..\..\Source\Shader.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\Voxelizer\VoxFramebuffer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\Source\Voxelizer\OGLVoxelizer.h" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\VoxWriter.h" />
+    <ClInclude Include="..\..\..\Source\GFGLoader.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GPUBuffer.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatch.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEFunctions.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEMath.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEMatrix3x3.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEMatrix4x4.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEQuaternion.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IETimer.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEVector3.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEVector4.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\DrawBuffer.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Material.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\StructuredBuffer.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Voxelizer\GL3DTexture.h" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\BindPoints.h" />
+    <ClInclude Include="..\..\..\Source\Shader.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Voxelizer\VoxFramebuffer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="FromThesis">
+      <UniqueIdentifier>{95308d7c-6603-4fa4-8c51-ed04385a846f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IEUtility">
+      <UniqueIdentifier>{c5779861-6731-4c94-930a-ce16c7b58275}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -7,6 +7,7 @@
 
 #include "MeshBatch.h"
 #include "GFG/GFGHeader.h"
+#include "IEUtility/IEQuaternion.h"
 
 #define JOINT_PER_VERTEX
 

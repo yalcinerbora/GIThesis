@@ -70,19 +70,19 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	glGenTextures(1, &svoDenseNode);
 	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
 	glTexStorage3D(GL_TEXTURE_3D, 1, GL_R32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
-	//CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseNodeResource, svoDenseNode, GL_TEXTURE_3D, 
-	//									   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
-	//									   //cudaGraphicsRegisterFlagsWriteDiscard*/));
+	CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseNodeResource, svoDenseNode, GL_TEXTURE_3D, 
+										   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
+										   //cudaGraphicsRegisterFlagsWriteDiscard*/));
 
 	// Mat Texture Binds
 	// Mipped 3D tex
 	glGenTextures(1, &svoDenseMat);	
 	glBindTexture(GL_TEXTURE_3D, svoDenseMat);
 	glTexStorage3D(GL_TEXTURE_3D, GI_DENSE_TEX_COUNT, GL_RG32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
-	//CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseTexResource, svoDenseMat, GL_TEXTURE_3D,
-	//									   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
-	//									   //cudaGraphicsRegisterFlagsWriteDiscard));
-	//
+	CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseTexResource, svoDenseMat, GL_TEXTURE_3D,
+										   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
+										   //cudaGraphicsRegisterFlagsWriteDiscard));
+	
 	// Flat Sampler for Node Index Fetch
 	glGenSamplers(1, &nodeSampler);
 	glSamplerParameteri(nodeSampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

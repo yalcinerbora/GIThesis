@@ -2,7 +2,7 @@
 /*	
 	**Voxelize Shader**
 	
-	File Name	: VoxelizeGeom.vert
+	File Name	: VoxelizeGeom.frag
 	Author		: Bora Yalciner
 	Description	:
 
@@ -19,6 +19,7 @@
 
 #define T_COLOR layout(binding = 0)
 #define I_VOX_WRITE layout(rg32ui, binding = 2) restrict writeonly
+
 #define U_OBJ_ID layout(location = 4)
 
 // Input

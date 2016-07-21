@@ -10,37 +10,9 @@ Voxel Representation of the Scene
 #include "GICudaAllocator.h"
 #include "StructuredBuffer.h"
 #include "VoxelDebugVAO.h"
+#include "VoxelCacheData.h"
 
 class IEVector3;
-
-#pragma pack(push, 1)
-struct VoxelNormPos
-{
-	uint32_t vNormPos[2];
-};
-
-struct VoxelIds
-{
-	uint32_t vIds[2];
-};
-
-struct VoxelRenderData
-{
-	uint32_t color;				// Color
-	// That is it for transform dynamic options
-};
-
-struct VoxelRenderSkelMorphData
-{
-	uchar4			color;		// Color
-
-	// Transform Related Data
-	// For Skeletal mesh these shows index of the transforms and weights
-	// For Morph target this shows the neigbouring vertices and their morph related index
-	uchar4			weightIndex;
-	uchar4			weight;
-};
-#pragma pack(pop)
 
 class GICudaVoxelScene
 {

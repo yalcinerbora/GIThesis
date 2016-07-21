@@ -34,7 +34,7 @@ __global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
 						   unsigned int** gObjectAllocIndexLookup,
 
 						   // Per vox
-						   CVoxelRender** gVoxelRenderData,
+						   CVoxelColor** gVoxelRenderData,
 
 						   // Page
 						   const CVoxelPage* gVoxPages,

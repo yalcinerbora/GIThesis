@@ -126,7 +126,7 @@ __global__ void VoxelTransform(// Voxel Pages
 							   CObjectTransform** gObjTransforms,
 							   uint32_t** gObjTransformIds,
 							   CVoxelNormPos** gVoxNormPosCacheData,
-							   CVoxelRender** gVoxRenderData,
+							   CVoxelColor** gVoxRenderData,
 							   CObjectVoxelInfo** gObjInfo,	
 							   CObjectAABB** gObjectAABB)
 {
@@ -255,9 +255,9 @@ __global__ void VoxelTransform(// Voxel Pages
 	if(!outOfBounds)
 	{
 		float invSpan = 1.0f / gGridInfo.span;
-		voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan);
-		voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan);
-		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan);
+		voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan + 0.5f);
+		voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan + 0.5f);
+		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan + 0.5f);
 
 		// Write to page
 		uint2 packedVoxNormPos;

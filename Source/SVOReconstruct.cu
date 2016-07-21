@@ -309,7 +309,7 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 										   const CVoxelPage* gVoxelData,
 
 										   // For Color Lookup
-										   CVoxelRender** gVoxelRenderData,
+										   CVoxelColor** gVoxelRenderData,
 
 										   // Constants
 										   const unsigned int matSparseOffset,
@@ -604,7 +604,7 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 							   // For Color Lookup
 							   const CVoxelPage* gVoxelData,
-							   CVoxelRender** gVoxelRenderData,
+							   CVoxelColor** gVoxelRenderData,
 
 							   const unsigned int matSparseOffset,
 							   const unsigned int cascadeNo,

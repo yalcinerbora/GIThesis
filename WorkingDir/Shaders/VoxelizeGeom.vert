@@ -18,6 +18,7 @@
 #define OUT_POS layout(location = 2)
 
 #define LU_AABB layout(std430, binding = 3)
+
 #define U_OBJ_ID layout(location = 4)
 
 // Input
@@ -49,31 +50,34 @@ mat4 orthoFromAABB()
 {
 	// AABB can be axis aligned plane
 	// any of the min max components can be equal (this makes scales zero and we dont want that
+	vec3 aabbMin = objectAABBInfo[objId].aabbMin.xyz;
+	vec3 aabbMax = objectAABBInfo[objId].aabbMax.xyz;
 
 	// Near Far Left Right Top Bottom
 	// Increase AABB slightly here so that we gurantee entire object will not get culled
-	vec3 aabbExpandedMin, aabbExpandedMax;
-	aabbExpandedMin = objectAABBInfo[objId].aabbMin.xyz - (abs(0.0000001f * objectAABBInfo[objId].aabbMin.xyz));
-	aabbExpandedMax = objectAABBInfo[objId].aabbMax.xyz + (abs(0.0000001f * objectAABBInfo[objId].aabbMax.xyz));
+	//aabbMin = 1.0000001f * aabbMin;
+	//aabbMax = 1.0000001f * aabbMax;
+	aabbMin = aabbMin - (abs(0.0000001f * aabbMin));
+	aabbMax = aabbMax + (abs(0.0000001f * aabbMax));
 
-	vec2 nf = vec2(aabbExpandedMin.z, aabbExpandedMax.z);
-	vec2 lr = vec2(aabbExpandedMin.x, aabbExpandedMax.x);
-	vec2 tb = vec2(aabbExpandedMax.y, aabbExpandedMin.y);
+	
+	vec2 lr = vec2(aabbMin.x, aabbMax.x);
+	vec2 tb = vec2(aabbMin.y, aabbMax.y);
+	vec2 nf = vec2(aabbMax.z, aabbMin.z);
 
-	vec3 diff = max(vec3((nf.y - nf.x), 
-						(lr.y - lr.x),
-						(tb.x - tb.y)),
-					vec3(0.00001f));
+	vec3 diff = vec3(aabbMax.x - aabbMin.x,
+					 aabbMax.y - aabbMin.y,
+					 aabbMax.z - aabbMin.z);
+	diff = max(diff, 0.00001f);
 
-	vec3 translate = vec3(-(lr.y + lr.x),
-						  -(tb.x + tb.y),
-						  nf.y + nf.x);
+	vec3 translate = vec3(-lr.y - lr.x,
+						  -tb.x - tb.y,
+						  +nf.y + nf.x);
+	translate = translate / diff.xyz;
 
-	translate = translate / diff.yzx;
-
-	return mat4(2.0f / diff.y,		0.0f,				0.0f,				0.0f,
-				0.0f,				2.0f / diff.z,		0.0f,				0.0f,
-				0.0f,				0.0f,				-2.0f / diff.x,		0.0f,
+	return mat4(2.0f / diff.x,		0.0f,				0.0f,				0.0f,
+				0.0f,				2.0f / diff.y,		0.0f,				0.0f,
+				0.0f,				0.0f,				-2.0f / diff.z,		0.0f,
 				translate.x,		translate.y,		translate.z,		1.0f);
 }
 

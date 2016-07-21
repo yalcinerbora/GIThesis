@@ -593,7 +593,7 @@ CVoxelIds** GICudaAllocator::GetObjCacheIdsDevice()
 	return dObjIdsCache.Data();
 }
 
-CVoxelRender** GICudaAllocator::GetObjRenderCacheDevice()
+CVoxelColor** GICudaAllocator::GetObjRenderCacheDevice()
 {
 	return dObjRenderCache.Data();
 }
@@ -629,7 +629,7 @@ CVoxelIds* GICudaAllocator::GetObjCacheIdsDevice(uint32_t index)
 	return hObjIdsCache[index];
 }
 
-CVoxelRender* GICudaAllocator::GetObjRenderCacheDevice(uint32_t index)
+CVoxelColor* GICudaAllocator::GetObjRenderCacheDevice(uint32_t index)
 {
 	return hObjRenderCache[index];
 }

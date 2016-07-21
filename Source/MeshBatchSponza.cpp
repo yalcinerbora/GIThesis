@@ -49,7 +49,7 @@ void MeshBatchSponza::Update(double elapsedS)
 
 	// Cube Rotation
 	static const float cubeSpeedRGB = 130.123f;
-	static const float cubeSpeedRGW = 100.123f;
+	static const float cubeSpeedRGW = 1.13f;
 	rotationFunctor(cubeRGB, cubeSpeedRGB * elapsedS, IEVector3::Xaxis);
 	rotationFunctor(cubeRGB, cubeSpeedRGB * elapsedS, IEVector3::Yaxis);
 	rotationFunctor(cubeRGW, cubeSpeedRGW * elapsedS, IEVector3::Xaxis);

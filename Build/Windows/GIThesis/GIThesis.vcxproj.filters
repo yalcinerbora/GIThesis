@@ -316,6 +316,9 @@
     <ClInclude Include="..\..\..\Source\MeshBatch.h">
       <Filter>MeshBatch</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelCacheData.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

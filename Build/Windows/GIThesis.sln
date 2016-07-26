@@ -69,6 +69,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxTrace", "VoxTrace", "{41
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Voxelizer", "Voxelizer\Voxelizer.vcxproj", "{8686D002-D45B-4AD6-993F-CE724CA0A4EE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Skeletal", "Skeletal", "{2F12191D-7440-4717-9359-CBFD2CB141D4}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\PackObjectVoxelsSkel.glsl = ..\..\WorkingDir\Shaders\PackObjectVoxelsSkel.glsl
+		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.frag = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.frag
+		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.geom = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.geom
+		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.vert = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.vert
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -92,5 +100,6 @@ Global
 		{42F0F4B2-2641-411B-8938-15FBF14395FA} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{CEC68846-BCA8-4FEC-9016-2B716037C75A} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{411BEC89-FDE7-42D4-A363-8AD320B28DAF} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
+		{2F12191D-7440-4717-9359-CBFD2CB141D4} = {E1A6E462-843D-4491-90A8-8137B528F211}
 	EndGlobalSection
 EndGlobal

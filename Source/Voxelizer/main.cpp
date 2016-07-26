@@ -198,7 +198,7 @@ int main(int argc, char* argv[])
 
 		voxelizer.Start();
 
-		std::string voxFile = fileName.substr(0, fileName.find_last_of('.')) + "_vox.gfg";
+		std::string voxFile = "vox_" + fileName;
 		voxelizer.Write(voxFile);
 	}
 
@@ -226,7 +226,7 @@ int main(int argc, char* argv[])
 
 			voxelizer.Start();
 
-			std::string voxFile = fileName.substr(0, fileName.find_last_of('.')) + "_vox.gfg";
+			std::string voxFile = "vox_" + fileName;
 			voxelizer.Write(voxFile);
 	}
 

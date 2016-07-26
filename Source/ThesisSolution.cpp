@@ -227,7 +227,7 @@ double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 	t.Start();
 
 	// Load GFG
-	std::string batchVoxFile = batch->BatchName() + "_vox.gfg";	
+	std::string batchVoxFile = "vox_" + batch->BatchName() + ".gfg";	
 	LoadVoxel(voxelCaches, batchVoxFile.c_str(), GI_CASCADE_COUNT);
 
 	t.Stop();

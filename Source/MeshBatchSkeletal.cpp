@@ -17,9 +17,8 @@ size_t MeshBatchSkeletal::tinmanVoxelSizes[] =
 };
 
 MeshBatchSkeletal::MeshBatchSkeletal(const char* sceneFileName,
-									 float minVoxSpan,
-									 const Array32<size_t> maxVoxelCounts)
-	: MeshBatch(sceneFileName, minVoxSpan, maxVoxelCounts, true)
+									 float minVoxSpan)
+	: MeshBatch(sceneFileName, minVoxSpan, true)
 	, finalTransforms(64)
 	, type(AnimationType::ONCE)
 	, timeS(0.0f)

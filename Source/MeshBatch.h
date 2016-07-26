@@ -28,14 +28,13 @@ class MeshBatch : public MeshBatchI
 		DrawBuffer				batchDrawParams;
 		BatchParams				batchParams;
 
-		std::vector<size_t>		maxVoxelCount;
+		std::string				batchName;
 		float					minSpan;
 
 	public:
 		// Constructors & Destructor
 								MeshBatch(const char* sceneFileName,
 										  float minVoxSpan,
-										  const Array32<size_t> maxVoxelCounts,
 										  bool isSkeletal);
 			
 		// Static Files
@@ -53,7 +52,8 @@ class MeshBatch : public MeshBatchI
 		DrawBuffer&				getDrawBuffer() override;
 		GPUBuffer&				getGPUBuffer() override;
 
-		size_t					VoxelCacheMax(uint32_t level) const override;
+		const std::string&		BatchName() const override;
+
 		VoxelObjectType			MeshType() const override;
 
 		size_t					ObjectCount() const override;

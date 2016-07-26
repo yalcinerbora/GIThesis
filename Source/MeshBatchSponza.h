@@ -16,8 +16,7 @@ class MeshBatchSponza : public MeshBatch
 	public:
 		// Constructors & Destructor
 								MeshBatchSponza(const char* sceneFileName,
-												float minVoxSpan,
-												const Array32<size_t> maxVoxelCounts);
+												float minVoxSpan);
 
 		// Static Files
 		static const char*		sponzaDynamicFileName;

@@ -89,8 +89,8 @@ inline __device__ CSVOMaterial AtomicColorNormalAvg(CSVOMaterial* gMaterial,
 	{
 		assumed = old;
 		old = atomicCAS(gMaterial, assumed, Average(assumed,
-			colorUnpack,
-			{normalUnpack.x, normalUnpack.y, normalUnpack.z}));
+						colorUnpack,
+						{normalUnpack.x, normalUnpack.y, normalUnpack.z}));
 	}
 	while(assumed != old);
 	return old;
@@ -107,8 +107,8 @@ inline __device__ CSVOMaterial AtomicMatAdd(CSVOMaterial* gMaterial,
 	{
 		assumed = old;
 		old = atomicCAS(gMaterial, assumed, AddMat(assumed,
-			colorUnpack,
-			normalUnpack));
+						colorUnpack,
+						normalUnpack));
 	}
 	while(assumed != old);
 	return old;

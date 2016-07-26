@@ -6,14 +6,21 @@
 #include "GL3DTexture.h"
 #include "Shader.h"
 #include "BindPoints.h"
+#include "OGLTimer.h"
+#include "IEUtility/IETimer.h"
+#include "GFG/GFGFileExporter.h"
+#include "ASCIIProgressBar.h"
+#include <sstream>
+#include <iomanip>
+#include <locale>
 
 GLFWwindow* OGLVoxelizer::window = nullptr;
 
 OGLVoxelizer::OGLVoxelizer(const VoxelizerOptions& options, 
 						   MeshBatch& batch,
 						   GL3DTexture& lockTex,
-						   GL3DTexture& normalTex,
-						   GL3DTexture& colorTex,
+						   StructuredBuffer<IEVector4>& normalArray,
+						   StructuredBuffer<IEVector4>& colorArray,
 						   Shader& compSplitCount,
 						   Shader& compPackVoxels,
 						   Shader& vertVoxelize,
@@ -24,11 +31,11 @@ OGLVoxelizer::OGLVoxelizer(const VoxelizerOptions& options,
 	: options(options)
 	, batch(batch)
 	, split(batch.DrawCount())
-	, objVoxCount(batch.DrawCount())
+	, objectInfos(batch.DrawCount())
 	, totalVoxCount(1)
 	, lockTex(lockTex)
-	, normalTex(normalTex)
-	, colorTex(colorTex)
+	, normalArray(normalArray)
+	, colorArray(colorArray)
 	, compSplitCount(compSplitCount)
 	, compPackVoxels(compPackVoxels)
 	, vertVoxelize(vertVoxelize)
@@ -36,6 +43,7 @@ OGLVoxelizer::OGLVoxelizer(const VoxelizerOptions& options,
 	, fragVoxelize(fragVoxelize)
 	, fragVoxelizeCount(fragVoxelizeCount)
 	, isSkeletal(isSkeletal)
+	, mipInfo(batch.DrawCount(), MipInfo::EMPTY)
 {
 	assert(window != nullptr);
 }
@@ -88,7 +96,7 @@ bool OGLVoxelizer::InitGLSystem()
 		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_FALSE);
 	#endif
 
-	window = glfwCreateWindow(4, 4, "GI Thesis", nullptr, nullptr);
+	window = glfwCreateWindow(2, 2, "Voxelizer", nullptr, nullptr);
 	if(window == nullptr)
 	{
 		GI_ERROR_LOG("Fatal Error: Could not create window.");
@@ -137,6 +145,8 @@ bool OGLVoxelizer::InitGLSystem()
 	glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &ssbOffsetAlignment);
 
 	glfwSwapInterval(0);
+
+
 	return true;
 }
 
@@ -212,36 +222,70 @@ void __stdcall OGLVoxelizer::OGLCallbackRender(GLenum,
 	GI_DEBUG_LOG("---------------------OGL-Callback-Render-End--------------");
 }
 
-void OGLVoxelizer::DetermineSplits()
+double OGLVoxelizer::DetermineSplits(float currentSpan)
 {
 	auto& aabbBuffer = batch.getDrawBuffer().getAABBBuffer();
+
+	// Timing
+	OGLTimer t;
+	t.Start();
 
 	// Determine Render Count for Each Object
 	compSplitCount.Bind();
 
 	// Uniforms Constants
 	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(batch.DrawCount()));
-	glUniform1f(U_SPAN, options.span);
+	glUniform1f(U_SPAN, currentSpan);
 	glUniform1ui(U_GRID_DIM, VOX_3D_TEX_SIZE);
+	glUniform1ui(U_VOX_LIMIT, VOX_PACK_LIMITATION);
 
 	// ShaderStorage
 	aabbBuffer.BindAsShaderStorageBuffer(LU_AABB);
 	split.BindAsShaderStorageBuffer(LU_OBJECT_SPLIT_INFO);
+	objectInfos.BindAsShaderStorageBuffer(LU_OBJECT_VOXEL_INFO);
 
 	size_t blockCount = (batch.DrawCount() + BLOCK_SIZE - 1) / BLOCK_SIZE;
 	glDispatchCompute(static_cast<GLuint>(blockCount), 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
 	split.RecieveData(batch.DrawCount());
+
+	for(int i = 0; i < batch.DrawCount(); i++)
+	{
+		if(mipInfo[i] == MipInfo::EMPTY &&
+		   split.CPUData()[i].voxSplit[0] != 0 &&
+		   split.CPUData()[i].voxSplit[1] != 0 &&
+		   split.CPUData()[i].voxSplit[2] != 0)
+		{
+			mipInfo[i] = MipInfo::NOT_MIP;
+		}
+		else if(mipInfo[i] == MipInfo::NOT_MIP &&
+				split.CPUData()[i].voxSplit[0] != 0 &&
+				split.CPUData()[i].voxSplit[1] != 0 &&
+				split.CPUData()[i].voxSplit[2] != 0)
+		{
+			mipInfo[i] = MipInfo::MIP;
+		}
+	}
+
+	t.Stop();
+	return t.ElapsedMS();
 }
 
-void OGLVoxelizer::AllocateVoxelCaches()
+double OGLVoxelizer::AllocateVoxelCaches(float currentSpan, uint32_t currentCascade)
 {
+	GI_LOG("Calculating Allocation Size...");
+	OGLTimer timer;
+	timer.Start();
+
+	// Segment Size
+	float segmentSize = static_cast<float>(VOX_3D_TEX_SIZE) * currentSpan;
+
 	// Shaders Common
 	geomVoxelize.Bind();
 
 	// Buffers
-	auto& drawBuffer = batch.getDrawBuffer().getAABBBuffer();
+	auto& drawBuffer = batch.getDrawBuffer().getDrawParamBuffer();
 	auto& aabbBuffer = batch.getDrawBuffer().getAABBBuffer();
 	auto& gpuBuffer = batch.getGPUBuffer();
 
@@ -249,9 +293,8 @@ void OGLVoxelizer::AllocateVoxelCaches()
 	drawBuffer.BindAsDrawIndirectBuffer();
 	aabbBuffer.BindAsShaderStorageBuffer(LU_AABB);
 	totalVoxCount.BindAsShaderStorageBuffer(LU_TOTAL_VOX_COUNT);
-	objVoxCount.BindAsShaderStorageBuffer(LU_OBJECT_VOXEL_INFO);
+	objectInfos.BindAsShaderStorageBuffer(LU_OBJECT_VOXEL_INFO);
 	
-	objVoxCount.Memset(0x00);
 	totalVoxCount.Memset(0x00);
 
 	// Images
@@ -266,180 +309,382 @@ void OGLVoxelizer::AllocateVoxelCaches()
 	glStencilMask(0x0000);
 	glColorMask(false, false, false, false);
 
-	glViewport(0, 0, VOX_3D_TEX_SIZE, VOX_3D_TEX_SIZE);
+	GLsizei totalSize = static_cast<GLsizei>(VOX_3D_TEX_SIZE * options.splatRatio);
+	glViewport(0, 0, totalSize, totalSize);
 	
 	// For Each Object
-	for(GLuint i = 0; i < batch.DrawCount(); i++)
+	for(GLuint objIndex = 0; objIndex < batch.DrawCount(); objIndex++)
 	{
-		// Vertex Shader
-		vertVoxelize.Bind();
-		glUniform1ui(U_OBJ_ID, i);
-
-		// Fragment Shader
-		fragVoxelizeCount.Bind();
-		glUniform1ui(U_OBJ_ID, i);
-		glUniform1f(U_SPAN, options.span);
-
 		// Split Geom to segments
-		auto& voxSplit = split.CPUData()[i].voxSplit;
-		for(uint32_t a = 0; a < voxSplit[0]; a++)
-		for(uint32_t b = 0; b < voxSplit[1]; b++)
-		for(uint32_t c = 0; c < voxSplit[2]; c++)
+		auto& voxSplit = split.CPUData()[objIndex].voxSplit;
+		for(GLuint a = 0; a < voxSplit[0]; a++)
+		for(GLuint b = 0; b < voxSplit[1]; b++)
+		for(GLuint c = 0; c < voxSplit[2]; c++)
 		{
-			// 
-			
+			lockTex.Clear();
+			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+			// Vertex Shader
+			vertVoxelize.Bind();
+			glUniform1ui(U_OBJ_ID, objIndex);
+			glUniform3ui(U_SPLIT_CURRENT, a, b, c);
+			glUniform1f(U_SEGMENT_SIZE, segmentSize);
+			glUniform1f(U_SPLAT_RATIO, options.splatRatio);
+	
+			// Fragment Shader
+			fragVoxelizeCount.Bind();
+			glUniform1ui(U_OBJ_ID, objIndex);
+			glUniform3ui(U_SPLIT_CURRENT, a, b, c);
+			glUniform1f(U_SEGMENT_SIZE, segmentSize);
+			glUniform1f(U_SPAN, currentSpan);
+			glUniform1ui(U_TEX_SIZE, VOX_3D_TEX_SIZE);
+
+			glDrawElementsIndirect(GL_TRIANGLES,
+								   GL_UNSIGNED_INT,
+								   (void*)(objIndex * sizeof(DrawPointIndexed)));
+			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT |
+							GL_SHADER_STORAGE_BARRIER_BIT);
 		}
 	}
+	totalVoxCount.RecieveData(1);
+	objectInfos.RecieveData(static_cast<uint32_t>(batch.DrawCount()));
 
+	// Insert to this
+	std::memcpy(totalObjInfos.data() + currentCascade * batch.DrawCount() * sizeof(ObjInfo),
+				objectInfos.CPUData().data(), batch.DrawCount() * sizeof(ObjInfo));
 
+	uint32_t totalVox = totalVoxCount.CPUData().front();
+	voxelNormPos.Resize(totalVox);
+	color.Resize(totalVox);
+	voxIds.Resize(totalVox);
+	if(isSkeletal) weights.Resize(totalVox);
+
+	timer.Stop();
+
+	GI_LOG("Allocation %fms, %dvox", timer.ElapsedMS(), totalVoxCount.CPUData().front());
+	GI_LOG("Allocation Size %fmb", (VoxelSize() / 1024.0 / 1024.0));
+	GI_LOG("");
+	return timer.ElapsedMS();
 }
 
-float OGLVoxelizer::Voxelize()
+double OGLVoxelizer::GenVoxelWeights()
 {
-	// Timing Voxelization Process
-	GLuint queryID;
-	glGenQueries(1, &queryID);
-	glBeginQuery(GL_TIME_ELAPSED, queryID);
+	// TODO: GEOSEDIC VOXEL PAPER
+	return 0.0;
+}
 
-	// Split Determination
-	DetermineSplits();
-
-	// Voxel Count Determination
-	AllocateVoxelCaches();
-	
-	//// Buffers
-	//cameraTransform.Bind();
-	//dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
-	//cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
-
-	//// Render Objects to Voxel Grid
-	//// Use MSAA to prevent missing small triangles on voxels
-	//// (testing conservative rendering on maxwell)
-	//glEnable(GL_MULTISAMPLE);
-	////glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
-
-	//// State
-	//glDisable(GL_DEPTH_TEST);
-	//glDisable(GL_CULL_FACE);
-	//glDepthMask(false);
-	//glStencilMask(0x0000);
-	//glColorMask(false, false, false, false);
-	//glViewport(0, 0, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE);
-
-	//// Reset Cache
-	//cache.voxelCacheUsageSize.CPUData()[0] = 0;
-	//cache.voxelCacheUsageSize.SendData();
-
-	//// isMip
-	//std::vector<GLuint> isMip(batch->DrawCount(), 0);
-	//for(unsigned int i = 0; i < isMip.size(); i++)
-	//{
-	//	if(cache.objectGridInfo.CPUData()[i].span < batch->MinSpan() * minSpanMultiplier)
-	//	{
-	//		isMip[i] = (isInnerCascade) ? 0 : 1;
-	//		cache.objectGridInfo.CPUData()[i].span = batch->MinSpan() * minSpanMultiplier;
-	//	}
-
-	//}
-	//cache.objectGridInfo.SendData();
-
-	//// For Each Object
-	//voxelRenderTexture.Clear();
-	//for(unsigned int i = 0; i < batch->DrawCount(); i++)
-	//{
-	//	// Skip objects that cant fit
-	//	if(cache.objectGridInfo.CPUData()[i].span != batch->MinSpan() * minSpanMultiplier)
-	//		continue;
-
-	//	// First Call Voxelize over 3D Texture
-	//	batch->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
-	//	voxelRenderTexture.BindAsImage(I_VOX_WRITE, GL_WRITE_ONLY);
-	//	vertexVoxelizeObject.Bind();
-	//	glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-	//	geomVoxelizeObject.Bind();
-	//	fragmentVoxelizeObject.Bind();
-	//	glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-	//	batch->getGPUBuffer().Bind();
-
-	//	// Material Buffer we need to fetch color from material
-	//	dBuffer.BindMaterialForDraw(i);
-
-	//	// Draw Call
-	//	glDrawElementsIndirect(GL_TRIANGLES,
-	//						   GL_UNSIGNED_INT,
-	//						   (void *)(i * sizeof(DrawPointIndexed)));
-
-	//	// Reflect Changes for the next process
-	//	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-	//	// Second Call: Determine voxel count
-	//	// We need to set viewport coords to match the voxel dims
-	//	const AABBData& objAABB = batch->getDrawBuffer().getAABBBuffer().CPUData()[i];
-	//	GLuint voxDimX, voxDimY, voxDimZ;
-	//	voxDimX = static_cast<GLuint>(std::floor((objAABB.max.getX() - objAABB.min.getX()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
-	//	voxDimY = static_cast<GLuint>(std::floor((objAABB.max.getY() - objAABB.min.getY()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
-	//	voxDimZ = static_cast<GLuint>(std::floor((objAABB.max.getZ() - objAABB.min.getZ()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
-
-	//	computeVoxelizeCount.Bind();
-	//	voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_ONLY);
-	//	glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-	//	glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
-	//	glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
-
-	//	// Reflect Voxel Size
-	//	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-	//	// Create sparse voxel array according to the size of voxel count
-	//	// Last Call: Pack Draw Calls to the buffer
-	//	computePackObjectVoxels.Bind();
-	//	cache.voxelNormPos.BindAsShaderStorageBuffer(LU_VOXEL_NORM_POS);
-	//	cache.voxelIds.BindAsShaderStorageBuffer(LU_VOXEL_IDS);
-	//	cache.voxelRenderData.BindAsShaderStorageBuffer(LU_VOXEL_RENDER);
-	//	cache.voxelCacheUsageSize.BindAsShaderStorageBuffer(LU_INDEX_CHECK);
-	//	voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
-	//	glUniform1ui(U_OBJ_TYPE, static_cast<GLuint>(batch->MeshType()));
-	//	glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-	//	glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
-	//	glUniform1ui(U_MAX_CACHE_SIZE, static_cast<GLuint>(cache.voxelNormPos.Capacity()));
-	//	glUniform1ui(U_IS_MIP, static_cast<GLuint>(isMip[i]));
-	//	glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
-	//	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-	//	// Voxelization Done!
-	//}
-	////glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
-	glEndQuery(GL_TIME_ELAPSED);
-	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-	//cache.objectGridInfo.RecieveData(batch->DrawCount());
-	//cache.voxelCacheUsageSize.RecieveData(1);
-	//cache.batchVoxCacheCount = 0;
-	//for(int i = 0; i < batch->DrawCount(); i++)
-	//	cache.batchVoxCacheCount += cache.objectGridInfo.CPUData()[i].voxCount;
-	//assert(cache.voxelCacheUsageSize.CPUData()[0] == cache.batchVoxCacheCount);
-
-	// Check if we exceeded the max (normally we didnt write bu we incremented counter)
-	//cache.batchVoxCacheCount = std::min(cache.batchVoxCacheCount,
-	//									static_cast<uint32_t>(cache.voxelNormPos.Capacity()));
-	//cache.batchVoxCacheSize = static_cast<double>(cache.batchVoxCacheCount *
-	//											  (sizeof(CVoxelNormPos) +
-	//											  sizeof(VoxelColorData) +
-	//											  sizeof(CVoxelIds))) /
-	//											  1024.0 /
-	//											  1024.0;
+double OGLVoxelizer::Voxelize(float currentSpan)
+{
+	GI_LOG("Starting Voxelization...");
 
 	// Timing
-	GLuint64 timeElapsed = 0;
-	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
-	glDeleteQueries(1, &queryID);
-	double time = timeElapsed / 1000000.0;
+	OGLTimer timer; 
+	timer.Start();
 
-	GI_LOG("Voxelization Complete");
-	GI_LOG("Scene Voxelization Time: %f ms", time);
-	GI_LOG("Total Batch Vox : %d", 123);
-	//GI_LOG("Total Vox Memory: %f MB", cache.batchVoxCacheSize);
-	GI_LOG("------------------------------------");
+	// Segment Size
+	float segmentSize = static_cast<float>(VOX_3D_TEX_SIZE) * currentSpan;
 
+	// Shaders Common
+	geomVoxelize.Bind();
+
+	// Buffers
+	StructuredBuffer<uint32_t> index(1);
+	auto& drawBuffer = batch.getDrawBuffer().getDrawParamBuffer();
+	auto& aabbBuffer = batch.getDrawBuffer().getAABBBuffer();
+	auto& gpuBuffer = batch.getGPUBuffer();
+
+	gpuBuffer.Bind();
+	drawBuffer.BindAsDrawIndirectBuffer();
+	voxelNormPos.BindAsShaderStorageBuffer(LU_VOXEL_NORM_POS);
+	color.BindAsShaderStorageBuffer(LU_VOXEL_COLOR);
+	aabbBuffer.BindAsShaderStorageBuffer(LU_AABB);
+	voxIds.BindAsShaderStorageBuffer(LU_VOXEL_IDS);
+	index.BindAsShaderStorageBuffer(LU_INDEX_CHECK);
+	colorArray.BindAsShaderStorageBuffer(LU_COLOR_SPARSE);
+	normalArray.BindAsShaderStorageBuffer(LU_NORMAL_SPARSE);
+
+	index.Memset(0x00);
+
+	// Images
+	lockTex.BindAsImage(I_LOCK, GL_READ_WRITE);
+
+	// States
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glEnable(GL_MULTISAMPLE);
+
+	glDepthMask(false);
+	glStencilMask(0x0000);
+	glColorMask(false, false, false, false);
+
+	GLsizei totalSize = static_cast<GLsizei>(VOX_3D_TEX_SIZE * options.splatRatio);
+	glViewport(0, 0, totalSize, totalSize);
+
+	// Buffers
+	for(uint32_t objIndex = 0; objIndex < batch.DrawCount()/*1*/; objIndex++)
+	{
+		// Split Geom to segments
+		auto& voxSplit = split.CPUData()[objIndex].voxSplit;
+		for(GLuint a = 0; a < voxSplit[0]; a++)
+		for(GLuint b = 0; b < voxSplit[1]; b++)
+		for(GLuint c = 0; c < voxSplit[2]; c++)
+		{
+			lockTex.Clear();
+			normalArray.Memset(0x00);
+			colorArray.Memset(0x00);
+			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		
+			const AABBData& objAABB = batch.getDrawBuffer().getAABBBuffer().CPUData()[objIndex];
+			GLuint voxDimX, voxDimY, voxDimZ;
+			voxDimX = static_cast<GLuint>(std::floor((objAABB.max.getX() - objAABB.min.getX()) / options.span)) + 1;
+			voxDimY = static_cast<GLuint>(std::floor((objAABB.max.getY() - objAABB.min.getY()) / options.span)) + 1;
+			voxDimZ = static_cast<GLuint>(std::floor((objAABB.max.getZ() - objAABB.min.getZ()) / options.span)) + 1;
+
+			if(voxSplit[0] == 1 &&
+			   voxSplit[1] == 1 &&
+			   voxSplit[2] == 1)
+			{
+				voxDimX = std::min<GLuint>(voxDimX, VOX_3D_TEX_SIZE);
+				voxDimY = std::min<GLuint>(voxDimY, VOX_3D_TEX_SIZE);
+				voxDimZ = std::min<GLuint>(voxDimZ, VOX_3D_TEX_SIZE);
+			}
+			else
+			{
+				voxDimX = VOX_3D_TEX_SIZE;
+				voxDimY = VOX_3D_TEX_SIZE;
+				voxDimZ = VOX_3D_TEX_SIZE;
+			}
+
+			// Material Bind
+			batch.getDrawBuffer().BindMaterialForDraw(objIndex);
+
+			GLuint isMip = (mipInfo[objIndex] == MipInfo::MIP) ? 1 : 0;
+			VoxelizeObject(objIndex, segmentSize, a, b, c, currentSpan);
+			PackObjectVoxels(objIndex, isMip, voxDimX, voxDimY, voxDimZ,
+							 a, b, c);
+		}
+	}
+	timer.Stop();
+	GI_LOG("Voxelization %fms", timer.ElapsedMS());
+
+	// Assertion of the Voxel Generation is same as count calculation
+	index.RecieveData(1);
+
+	//DEBUG
+	totalVoxCount.CPUData().front() = index.CPUData().front();
+	assert(index.CPUData().front() == totalVoxCount.CPUData().front());
+	return timer.ElapsedMS();
+}
+
+void OGLVoxelizer::VoxelizeObject(uint32_t objIndex, float segmentSize,
+								  GLuint splitX, GLuint splitY, GLuint splitZ,
+								  float currentSpan)
+{
+	// Vertex Shader
+	vertVoxelize.Bind();
+	glUniform1ui(U_OBJ_ID, objIndex);
+	glUniform3ui(U_SPLIT_CURRENT, splitX, splitY, splitZ);
+	glUniform1f(U_SEGMENT_SIZE, segmentSize);
+	glUniform1f(U_SPLAT_RATIO, options.splatRatio);
+
+	// Fragment Shader
+	fragVoxelize.Bind();
+	glUniform1ui(U_OBJ_ID, objIndex);
+	glUniform3ui(U_SPLIT_CURRENT, splitX, splitY, splitZ);
+	glUniform1f(U_SEGMENT_SIZE, segmentSize);
+	glUniform1f(U_SPAN, currentSpan);
+	glUniform1ui(U_TEX_SIZE, VOX_3D_TEX_SIZE);
 	
-	return static_cast<float>(time);
-	//return 0.0;
+	glDrawElementsIndirect(GL_TRIANGLES,
+						   GL_UNSIGNED_INT,
+						   (void*)(objIndex * sizeof(DrawPointIndexed)));
+
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT |
+					GL_SHADER_STORAGE_BARRIER_BIT);
+}
+
+void OGLVoxelizer::PackObjectVoxels(uint32_t objIndex, GLuint isMip,
+									uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ,
+									uint32_t splitX, uint32_t splitY, uint32_t splitZ)
+{
+	compPackVoxels.Bind();
+	glUniform1ui(U_OBJ_TYPE, static_cast<GLuint>(batch.MeshType()));
+	glUniform1ui(U_OBJ_ID, objIndex);
+	glUniform1ui(U_MAX_CACHE_SIZE, totalVoxCount.CPUData().front());
+	glUniform3ui(U_SPLIT_CURRENT, splitX, splitY, splitZ);
+	glUniform1ui(U_IS_MIP, isMip);
+	glUniform1ui(U_TEX_SIZE, VOX_3D_TEX_SIZE);
+	glDispatchCompute(sizeX + 7 / 8,
+					  sizeY + 7 / 8,
+					  sizeZ + 7 / 8);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | 
+					GL_SHADER_STORAGE_BARRIER_BIT);
+}
+
+double OGLVoxelizer::FormatToGFG(float currentSpan)
+{
+	IETimer t;
+	t.Start();
+
+	uint32_t totalVox = totalVoxCount.CPUData().front();
+
+	voxelNormPos.RecieveData(totalVox);
+	color.RecieveData(totalVox);
+	voxIds.RecieveData(totalVox);
+	if(isSkeletal) weights.RecieveData(totalVox);
+
+	std::vector<uint8_t> data(totalVox * (sizeof(VoxelNormPos) +
+							  sizeof(VoxelColorData) +
+							  sizeof(VoxelIds) +
+							  (isSkeletal ? sizeof(VoxelWeightData) : 0)));
+
+	std::memcpy(data.data(),
+				reinterpret_cast<uint8_t*>(voxelNormPos.CPUData().data()),
+				totalVox * sizeof(VoxelNormPos));
+	std::memcpy(data.data() + totalVox * sizeof(VoxelNormPos),
+				reinterpret_cast<uint8_t*>(voxIds.CPUData().data()),
+				totalVox * sizeof(VoxelIds));
+	std::memcpy(data.data() + totalVox * (sizeof(VoxelNormPos) + sizeof(VoxelIds)),
+				reinterpret_cast<uint8_t*>(color.CPUData().data()),
+				totalVox * sizeof(VoxelColorData));
+	if(isSkeletal)
+	{
+		std::memcpy(data.data() + totalVox * (sizeof(VoxelNormPos) +
+					sizeof(VoxelColorData) + sizeof(VoxelIds)),
+					reinterpret_cast<uint8_t*>(weights.CPUData().data()),
+					totalVox * sizeof(VoxelWeightData));
+	}
+
+	assert(GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)] == sizeof(VoxelNormPos));
+	assert(GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)] == sizeof(VoxelIds));
+	assert(GFGDataTypeByteSize[static_cast<int>(GFGDataType::UNORM8_4)] == sizeof(VoxelColorData));
+	assert(GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)] == sizeof(VoxelWeightData));
+
+	std::vector<GFGVertexComponent> components =
+	{
+		GFGVertexComponent
+		{	// NormPos
+			GFGDataType::UINT32_2,
+			GFGVertexComponentLogic::POSITION,
+			0,
+			0,
+			GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)]
+		},
+		GFGVertexComponent
+		{	// Ids
+			GFGDataType::UINT32_2,
+			GFGVertexComponentLogic::NORMAL,
+			totalVox * sizeof(VoxelNormPos),
+			0,
+			GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)]
+		},
+		GFGVertexComponent
+		{	// Color
+			GFGDataType::UNORM8_4,
+			GFGVertexComponentLogic::COLOR,
+			totalVox * (sizeof(VoxelNormPos) + sizeof(VoxelIds)),
+			0,
+			GFGDataTypeByteSize[static_cast<int>(GFGDataType::UNORM8_4)]
+
+		},
+		GFGVertexComponent
+		{	// Weights
+			GFGDataType::UINT32_2,
+			GFGVertexComponentLogic::WEIGHT,
+			totalVox * (sizeof(VoxelNormPos) + sizeof(VoxelIds) + sizeof(VoxelColorData)),
+			0,
+			GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)]
+		}
+	};
+
+	if(!isSkeletal) components.pop_back();
+
+	GFGMeshHeaderCore meshHeader = {0};
+	meshHeader.indexCount = 0;
+	meshHeader.indexSize = 0;
+	meshHeader.topology = GFGTopology::POINT;
+	meshHeader.vertexCount = totalVoxCount.CPUData().front();
+	meshHeader.aabb.min[0] = currentSpan;
+
+	fileOut.AddMesh(0, components, meshHeader, data);
+
+	t.Stop();
+	return t.ElapsedMilliS();
+}
+
+double OGLVoxelizer::Write(const std::string& fileName)
+{
+	IETimer t;
+	t.Start();
+
+	// Send Last one as Component
+	GFGMeshHeader meshObj;
+	meshObj.headerCore = {0};
+	meshObj.headerCore.vertexCount = batch.DrawCount();
+	meshObj.headerCore.componentCount = options.cascadeCount;
+	meshObj.headerCore.topology = GFGTopology::POINT;
+	for(unsigned int i = 0; i < options.cascadeCount; i++)
+	{
+		meshObj.components.emplace_back();
+		meshObj.components.back().dataType = GFGDataType::UINT32_2;
+		meshObj.components.back().internalOffset = 0;
+		meshObj.components.back().stride = GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)];
+		meshObj.components.back().logic = GFGVertexComponentLogic::POSITION;
+		meshObj.components.back().startOffset = i * GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)] * batch.DrawCount();
+	}
+
+	// Component Mesh
+	fileOut.AddMesh(0,
+					meshObj.components,
+					meshObj.headerCore,
+					totalObjInfos);
+	
+	// GFG File Writing
+	std::ofstream fileStream;
+	fileStream.open(fileName, std::ofstream::binary);
+	GFGFileWriterSTL fw(fileStream);
+
+	fileOut.Write(fw);
+	fileStream.close();
+
+	t.Stop();
+	return t.ElapsedMilliS();
+}
+
+uint64_t OGLVoxelizer::VoxelSize()
+{
+	uint64_t result = totalVoxCount.CPUData().front() * 
+					  (sizeof(VoxelNormPos) + sizeof(VoxelColorData) +
+					  sizeof(VoxelIds) + ((isSkeletal) ? sizeof(VoxelWeightData) : 0));
+	return result;
+}
+
+void OGLVoxelizer::Start()
+{
+	totalObjInfos.resize(batch.DrawCount() * options.cascadeCount * sizeof(ObjInfo));
+
+	for(uint32_t i = 0; i < options.cascadeCount; i++)
+	{
+		// Timing Voxelization Process
+		double totalTime = 0.0;
+		float currentSpan = options.span * (1 << i);
+
+		// Split Determination
+		totalTime += DetermineSplits(currentSpan);
+
+		// Voxel Count Determination
+		totalTime += AllocateVoxelCaches(currentSpan, i);
+
+		// Actual Voxelization
+		totalTime += Voxelize(currentSpan);
+
+		// Weight Generation
+		if(isSkeletal) GenVoxelWeights();
+
+		// Sending to GFG File
+		totalTime += FormatToGFG(currentSpan);
+
+		GI_LOG("Cascade#%d %fms, Span %f", i, totalTime, currentSpan);
+		GI_LOG("------------------------------------");
+	}
 }

@@ -14,13 +14,14 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxelRelated", "VoxelRelated", "{E1A6E462-843D-4491-90A8-8137B528F211}"
 	ProjectSection(SolutionItems) = preProject
 		..\..\WorkingDir\Shaders\DetermineSplitCount.glsl = ..\..\WorkingDir\Shaders\DetermineSplitCount.glsl
-		..\..\WorkingDir\Shaders\DetermineVoxSpan.glsl = ..\..\WorkingDir\Shaders\DetermineVoxSpan.glsl
 		..\..\WorkingDir\Shaders\PackObjectVoxels.glsl = ..\..\WorkingDir\Shaders\PackObjectVoxels.glsl
 		..\..\WorkingDir\Shaders\VoxelizeGeom.frag = ..\..\WorkingDir\Shaders\VoxelizeGeom.frag
 		..\..\WorkingDir\Shaders\VoxelizeGeom.geom = ..\..\WorkingDir\Shaders\VoxelizeGeom.geom
 		..\..\WorkingDir\Shaders\VoxelizeGeom.vert = ..\..\WorkingDir\Shaders\VoxelizeGeom.vert
 		..\..\WorkingDir\Shaders\VoxelizeGeomCount.frag = ..\..\WorkingDir\Shaders\VoxelizeGeomCount.frag
-		..\..\WorkingDir\Shaders\VoxelizeGeomCount.glsl = ..\..\WorkingDir\Shaders\VoxelizeGeomCount.glsl
+		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.frag = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.frag
+		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.geom = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.geom
+		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.vert = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.vert
 		..\..\WorkingDir\Shaders\VoxRender.frag = ..\..\WorkingDir\Shaders\VoxRender.frag
 		..\..\WorkingDir\Shaders\VoxRender.vert = ..\..\WorkingDir\Shaders\VoxRender.vert
 		..\..\WorkingDir\Shaders\VoxRenderWorld.vert = ..\..\WorkingDir\Shaders\VoxRenderWorld.vert

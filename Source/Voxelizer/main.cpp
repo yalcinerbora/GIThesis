@@ -7,6 +7,7 @@
 #include "MeshBatchSkeletal.h"
 #include "GL3DTexture.h"
 #include "Shader.h"
+#include "Macros.h"
 #include "VoxFramebuffer.h"
 
 static const VoxelizerOptions defaults =
@@ -152,9 +153,13 @@ int main(int argc, char* argv[])
 	if(error != VoxErrorType::OK) return 1;
 	if(!OGLVoxelizer::InitGLSystem()) return 1;
 	
-	GL3DTexture lockTex(TextureDataType::BYTE_1);
-	GL3DTexture normalTex(TextureDataType::FLOAT_4);
-	GL3DTexture colorTex(TextureDataType::FLOAT_4);
+	GL3DTexture lockTex(TextureDataType::UINT_1);
+	StructuredBuffer<IEVector4> normalArray(VOX_3D_TEX_SIZE *
+											VOX_3D_TEX_SIZE *
+											VOX_3D_TEX_SIZE);
+	StructuredBuffer<IEVector4> colorArray(VOX_3D_TEX_SIZE *
+										   VOX_3D_TEX_SIZE *
+										   VOX_3D_TEX_SIZE);
 
 	Shader compSplitCount(ShaderType::COMPUTE, "Shaders/DetermineSplitCount.glsl");
 	Shader compPackVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.glsl");
@@ -172,55 +177,58 @@ int main(int argc, char* argv[])
 	// Voxelization
 	for(auto& fileName : fileNames)
 	{
-		MeshBatch batch(fileName.c_str(), 0.0f, {nullptr, 0}, false);
+		GI_LOG("");
+		GI_LOG("#######################################");
+		GI_LOG("Working on \"%s\"...", fileName.c_str());
+		MeshBatch batch(fileName.c_str(), 0.0f, false);
+		GI_LOG("");
 
-		for(unsigned int i = 0; i < options.cascadeCount; i++)
-		{
-			options.span = options.span * static_cast<float>(1 << i);
-			OGLVoxelizer voxelizer(options,
-								   batch,
-								   lockTex,
-								   normalTex,
-								   colorTex,
-								   compSplitCount,
-								   compPackVoxels,
-								   vertVoxelize,
-								   geomVoxelize,
-								   fragVoxelize,
-								   fragVoxelizeCount,
-								   false);
+		OGLVoxelizer voxelizer(options,
+								batch,
+								lockTex,
+								normalArray,
+								colorArray,
+								compSplitCount,
+								compPackVoxels,
+								vertVoxelize,
+								geomVoxelize,
+								fragVoxelize,
+								fragVoxelizeCount,
+								false);
 
-			voxelizer.Voxelize();
-			//voxelizer.Write(fileName)
-		}
+		voxelizer.Start();
+
+		std::string voxFile = fileName.substr(0, fileName.find_last_of('.')) + "_vox.gfg";
+		voxelizer.Write(voxFile);
 	}
 
 	// Skeletal Voxelization
 	for(auto& fileName : skeletalFileNames)
 	{
-		MeshBatchSkeletal batch(fileName.c_str(), 0.0f, {nullptr, 0});
+		GI_LOG("");
+		GI_LOG("#######################################");
+		GI_LOG("Working on \"%s\"...", fileName.c_str());		
+		MeshBatchSkeletal batch(fileName.c_str(), 0.0f);
+		GI_LOG("");
 
-		for(unsigned int i = 0; i < options.cascadeCount; i++)
-		{
-			options.span = options.span * static_cast<float>(1 << i);
-			OGLVoxelizer voxelizer(options,
-								   batch,
-								   lockTex,
-								   normalTex,
-								   colorTex,
-								   compSplitCount,
-								   compPackVoxels,
-								   vertVoxelize,
-								   geomVoxelize,
-								   fragVoxelize,
-								   fragVoxelizeCount,
-								   true);
+		OGLVoxelizer voxelizer(options,
+							   batch,
+							   lockTex,
+							   normalArray,
+							   colorArray,
+							   compSplitCount,
+							   compPackVoxels,
+							   vertVoxelize,
+							   geomVoxelize,
+							   fragVoxelize,
+							   fragVoxelizeCount,
+							   true);
 
-			voxelizer.Voxelize();
-			//voxelizer.Write(fileName)
-		}
+			voxelizer.Start();
+
+			std::string voxFile = fileName.substr(0, fileName.find_last_of('.')) + "_vox.gfg";
+			voxelizer.Write(voxFile);
 	}
-
 
 	OGLVoxelizer::DestroyGLSystem();
 	return 0;

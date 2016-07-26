@@ -3,6 +3,22 @@
 #include "IEUtility/IETimer.h"
 #include "Macros.h"
 
+//const uint32_t Scene::sponzaSceneLevelSizes[] =
+//{
+//	1,
+//	8,
+//	64,
+//	512,
+//	1024,
+//	8192,
+//	20 * 1024,
+//	60 * 1024,
+//	120 * 1024,
+//	500 * 1024,
+//	2200 * 1024,
+//	6200 * 1024
+//};
+
 const uint32_t Scene::sponzaSceneLevelSizes[] =
 {
 	1,
@@ -10,13 +26,13 @@ const uint32_t Scene::sponzaSceneLevelSizes[] =
 	64,
 	512,
 	1024,
-	8192,
-	45 * 1024,
-	200 * 1024,
-	600 * 1024,
-	2500 * 1024,
-	2000 * 1024,
-	2200 * 1024
+	4 * 1024,
+	20 * 1024,
+	62 * 1024,
+	300 * 1024,
+	1400 * 1024,
+	4800 * 1024,
+	7400 * 1024
 };
 
 const uint32_t Scene::cornellSceneLevelSizes[] =
@@ -59,12 +75,12 @@ const uint32_t Scene::sibernikSceneLevelSizes[] =
 	512,
 	1024,
 	8192,
-	145 * 1024,
-	220 * 1024,
+	45 * 1024,
+	120 * 1024,
 	400 * 1024,
-	3000 * 1024,
-	6200 * 1024,
-	6600 * 1024
+	2000 * 1024,
+	3800 * 1024,
+	4000 * 1024
 };
 
 const uint32_t Scene::tinmanSceneLevelSizes[]
@@ -83,10 +99,10 @@ const uint32_t Scene::tinmanSceneLevelSizes[]
 	50 * 1024
 };
 
-const uint32_t Scene::sponzaSceneTotalSize = 7555 * 1024;
+const uint32_t Scene::sponzaSceneTotalSize = 15000 * 1024;
 const uint32_t Scene::cornellSceneTotalSize = 5877 * 1024;
 const uint32_t Scene::cubeSceneTotalSize = 1064 * 1024;
-const uint32_t Scene::sibernikSceneTotalSize = 16569 * 1024;
+const uint32_t Scene::sibernikSceneTotalSize = 10400 * 1024;
 const uint32_t Scene::tinmanSceneTotalSize = 71 * 1024;
 
 static_assert(sizeof(Scene::sponzaSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");

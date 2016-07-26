@@ -102,6 +102,7 @@
       <Filter>FromThesis</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\Voxelizer\VoxFramebuffer.h" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\ASCIIProgressBar.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="FromThesis">

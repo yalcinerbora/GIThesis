@@ -16,8 +16,7 @@ class MeshBatchCube : public MeshBatch
 	public:
 		// Constructors & Destructor
 								MeshBatchCube(const char* sceneFileName,
-											  float minVoxSpan,
-											  const Array32<size_t> maxVoxelCounts);
+											  float minVoxSpan);
 
 		// Static Files
 		static const char*		rotatingCubeFileName;

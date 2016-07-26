@@ -148,10 +148,13 @@ void StructuredBuffer<T>::Resize(size_t count)
 				 GL_DYNAMIC_DRAW);
 
 	glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
-	glCopyBufferSubData(GL_COPY_READ_BUFFER,
-						GL_COPY_WRITE_BUFFER,
-						0, 0,
-						dataGPUImage.size() * sizeof(T));
+	if(bufferId != 0)
+	{
+		glCopyBufferSubData(GL_COPY_READ_BUFFER,
+							GL_COPY_WRITE_BUFFER,
+							0, 0,
+							dataGPUImage.size() * sizeof(T));
+	}
 
 	glDeleteBuffers(1, &bufferId);
 	bufferId = newBuffer;

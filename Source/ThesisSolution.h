@@ -21,22 +21,11 @@ Solution implementtion
 #include "DrawBuffer.h"
 #include "MeshBatchI.h"
 #include "GISparseVoxelOctree.h"
+#include "VoxelSceneCache.h"
 
 class DeferredRenderer;
 
-#pragma pack(push, 1)
-struct ObjGridInfo
-{
-	float span;
-	uint32_t voxCount;
-};
 
-struct VoxelGridInfoGL
-{
-	IEVector4		posSpan;
-	uint32_t		dimension[4];
-};
-#pragma pack(pop)
 
 enum ThesisRenderScheme
 {
@@ -54,79 +43,17 @@ enum ThesisRenderScheme
 class AOBar
 {
 	public:
-	TwBar* bar;
-	float angleDegree;
-	float sampleFactor;
-	float maxDistance;
-	float intensity;
-	bool hidden;
+		TwBar*	bar;
+		float	angleDegree;
+		float	sampleFactor;
+		float	maxDistance;
+		float	intensity;
+		bool	hidden;
 
-	AOBar();
-	~AOBar();
+				AOBar();
+				~AOBar();
 
 	void HideBar(bool);
-};
-
-struct VoxelObjectCache
-{
-	StructuredBuffer<ObjGridInfo>			objectGridInfo;
-	StructuredBuffer<VoxelNormPos>			voxelNormPos;
-	StructuredBuffer<VoxelIds>				voxelIds;
-	StructuredBuffer<VoxelColorData>		voxelRenderData;
-	StructuredBuffer<uint32_t>				voxelCacheUsageSize;
-	VoxelDebugVAO							voxelVAO;
-	
-	uint32_t								batchVoxCacheCount;
-	double									batchVoxCacheSize;
-
-	VoxelObjectCache(size_t objectCount, size_t voxelCount)
-		: objectGridInfo(objectCount)
-		, voxelNormPos(voxelCount)
-		, voxelIds(voxelCount)
-		, voxelRenderData(voxelCount)
-	//	, voxelCacheUsageSize(1)
-		, voxelVAO(voxelNormPos, voxelIds, voxelRenderData)
-	{
-		voxelCacheUsageSize.AddData(0);
-	}
-
-	VoxelObjectCache(VoxelObjectCache&& other)
-		: objectGridInfo(std::move(other.objectGridInfo))
-		, voxelNormPos(std::move(other.voxelNormPos))
-		, voxelIds(std::move(other.voxelIds))
-		, voxelRenderData(std::move(other.voxelRenderData))
-		, voxelCacheUsageSize(std::move(other.voxelCacheUsageSize))
-		, voxelVAO(std::move(other.voxelVAO))
-		, batchVoxCacheCount(other.batchVoxCacheCount)
-		, batchVoxCacheSize(other.batchVoxCacheSize)
-	{}
-
-	VoxelObjectCache(const VoxelObjectCache&) = delete;
-};
-
-struct SceneVoxCache
-{
-	uint32_t						depth;
-	std::vector<VoxelObjectCache>	cache;
-
-	uint32_t						voxOctreeCount;
-	double							voxOctreeSize;
-
-	uint32_t						totalCacheCount;
-	double							totalCacheSize;
-
-	SceneVoxCache() = default;
-
-	SceneVoxCache(SceneVoxCache&& other)
-	: depth(other.depth)
-	, cache(std::move(other.cache))
-	, voxOctreeCount(other.voxOctreeCount)
-	, voxOctreeSize(other.voxOctreeSize)
-	, totalCacheCount(other.totalCacheCount)
-	, totalCacheSize(other.totalCacheSize)
-	{}
-
-	SceneVoxCache(const SceneVoxCache&) = delete;
 };
 
 class ThesisSolution : public EmptyGISolution
@@ -137,14 +64,6 @@ class ThesisSolution : public EmptyGISolution
 		Shader					vertexDebugWorldVoxel;
 		Shader					fragmentDebugVoxel;
 
-		// Voxelization Shaders
-		Shader					vertexVoxelizeObject;
-		Shader					geomVoxelizeObject;
-		Shader					fragmentVoxelizeObject;
-		Shader					computeVoxelizeCount;
-		Shader					computePackObjectVoxels;
-		Shader					computeDetermineVoxSpan;
-
 		FrameTransformBuffer	cameraTransform;
 
 		// Voxel Cache for each cascade
@@ -154,7 +73,7 @@ class ThesisSolution : public EmptyGISolution
 		std::vector<GICudaVoxelScene>		voxelScenes;
 		GISparseVoxelOctree					voxelOctree;
 
-		// Utility(Debug) Buffers
+		// Utility(Debug) Buffers (Page Voxel Rendering)
 		StructuredBuffer<VoxelGridInfoGL>	gridInfoBuffer;
 		StructuredBuffer<VoxelNormPos>		voxelNormPosBuffer;
 		StructuredBuffer<uchar4>			voxelColorBuffer;
@@ -185,11 +104,9 @@ class ThesisSolution : public EmptyGISolution
 		double								DebugRenderSVO(const Camera& camera);
 
 		 // Voxelizes the scene for a cache level
-		double								Voxelize(VoxelObjectCache&,
-													 MeshBatchI* batch,
-													 float gridSpan, 
-													 unsigned int minSpanMultiplier,
-													 bool isInnerCascade);
+		double								LoadBatchVoxels(MeshBatchI* batch);
+		bool								LoadVoxel(std::vector<SceneVoxCache>& scenes,
+													  const char* gfgFileName, uint32_t cascadeCount);
 		void								LinkCacheWithVoxScene(GICudaVoxelScene&, 
 																  SceneVoxCache&,
 																  float coverageRatio);

@@ -42,7 +42,6 @@ Material::Material(ColorMaterial c)
 					(tgaColor.bitCount == 24) ? GL_RGB : GL_RGBA,
 					GL_UNSIGNED_BYTE, 
 					tgaColor.imageData);
-
 	glGenerateMipmap(GL_TEXTURE_2D);
 
 	// Tex Parameters

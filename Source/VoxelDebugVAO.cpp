@@ -119,7 +119,7 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 	GLintptr offsets[] = { 0, 0, 0 };
 	GLsizei strides[] = { sizeof(float) * 3, 
 						  sizeof(VoxelNormPos),
-						  sizeof(uchar4) };
+						  sizeof(uchar4)};
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
 

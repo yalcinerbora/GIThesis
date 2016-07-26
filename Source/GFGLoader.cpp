@@ -38,7 +38,6 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 		return GFGLoadError::NOT_ENOUGH_SIZE;
 	params.totalPolygons = indexCount / 3;
 	
-
 	// Get All Mesh Vertex Data
 	std::vector<uint8_t> vertexData;
 	std::vector<uint8_t> indexData;

@@ -13,10 +13,14 @@
 #define IN_UV layout(location = 0)
 #define IN_NORMAL layout(location = 1)
 #define IN_POS layout(location = 2)
+#define IN_WEIGHT layout(location = 4)
+#define IN_WEIGHT_INDEX layout(location = 5)
 
 #define OUT_UV layout(location = 0)
 #define OUT_NORMAL layout(location = 1)
 #define OUT_POS layout(location = 2)
+#define OUT_WEIGHT layout(location = 4)
+#define OUT_WEIGHT_INDEX layout(location = 5)
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
@@ -34,6 +38,7 @@ in gl_PerVertex
 out OUT_NORMAL vec3 fNormal;
 out OUT_UV vec2 fUV;
 out OUT_POS vec3 fPos;
+
 out gl_PerVertex 
 {
     vec4  gl_Position;

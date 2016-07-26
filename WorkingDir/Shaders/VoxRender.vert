@@ -17,8 +17,8 @@
 #define OUT_COLOR layout(location = 0)
 
 #define U_RENDER_TYPE layout(location = 0)
+#define U_SPAN layout(location = 1)
 
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict
 #define LU_AABB layout(std430, binding = 3) restrict readonly
 #define LU_MTRANSFORM layout(std430, binding = 4) restrict readonly
 #define LU_MTRANSFORM_INDEX layout(std430, binding = 5) restrict readonly
@@ -42,20 +42,12 @@ out OUT_COLOR vec3 fColor;
 
 // Uniforms
 U_RENDER_TYPE uniform uint renderType;
+U_SPAN uniform float span;
 
 U_FTRANSFORM uniform FrameTransform
 {
 	mat4 view;
 	mat4 projection;
-};
-
-LU_OBJECT_GRID_INFO buffer GridInfo
-{
-	struct
-	{
-		float span;
-		uint voxCount;
-	} objectGridInfo[];
 };
 
 LU_AABB buffer AABB
@@ -102,7 +94,6 @@ void main(void)
 	uint objId = voxIndex.w;
 	uint transformId = modelTransformIds[objId];
 
-	float span = objectGridInfo[objId].span;
 	vec3 deltaPos = objectAABBInfo[objId].aabbMin.xyz + (span * vec3(voxIndex.xyz));
 	mat4 voxModel =	mat4( span,			0.0f,		0.0f,		0.0f,
 						  0.0f,			span,		0.0f,		0.0f,

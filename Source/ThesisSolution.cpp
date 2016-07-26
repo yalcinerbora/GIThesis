@@ -8,10 +8,13 @@
 #include "SceneLights.h"
 #include "IEUtility/IEMath.h"
 #include <cuda_gl_interop.h>
+#include "OGLTimer.h"
+#include "IEUtility/IETimer.h"
+#include "GFGLoader.h"
 
 const size_t ThesisSolution::InitialObjectGridSize = 256;
-const float ThesisSolution::CascadeSpan = 0.6f;//1.0f;
-const uint32_t ThesisSolution::CascadeDim = 512;//256;
+const float ThesisSolution::CascadeSpan = 0.6f;
+const uint32_t ThesisSolution::CascadeDim = 512;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
@@ -74,12 +77,6 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	: vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
 	, vertexDebugWorldVoxel(ShaderType::VERTEX, "Shaders/VoxRenderWorld.vert")
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
-	, vertexVoxelizeObject(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert")
-	, geomVoxelizeObject(ShaderType::GEOMETRY, "Shaders/VoxelizeGeom.geom")
-	, fragmentVoxelizeObject(ShaderType::FRAGMENT, "Shaders/VoxelizeGeom.frag")
-	, computeVoxelizeCount(ShaderType::COMPUTE, "Shaders/VoxelizeGeomCount.glsl")
-	, computePackObjectVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.glsl")
-	, computeDetermineVoxSpan(ShaderType::COMPUTE, "Shaders/DetermineVoxSpan.glsl")
 	, bar(nullptr)
 	, renderScheme(GI_VOXEL_PAGE)
 	//, renderScheme(GI_VOXEL_CACHE2048)
@@ -114,8 +111,11 @@ void ThesisSolution::Init(SceneI& s)
 	{
 		voxelScenes[i].Reset();
 		voxelCaches.emplace_back();
+		voxelCaches.back().span = CascadeSpan * (1 << i);
+		voxelCaches.back().depth = (GI_CASCADE_COUNT - i - 1) + static_cast<uint32_t>(IEMath::Log2F(static_cast<float>(CascadeDim)));	
+		voxelCaches[i].voxOctreeCount = 0;
+		voxelCaches[i].voxOctreeSize = 0;
 	}
-
 	EmptyGISolution::Init(s);
 
 	// Voxelization
@@ -124,16 +124,7 @@ void ThesisSolution::Init(SceneI& s)
 	Array32<MeshBatchI*> batches = currentScene->getBatches();
 	for(unsigned int i = 0; i < batches.length; i++)
 	{
-		for(unsigned int j = 0; j < GI_CASCADE_COUNT; j++)
-		{
-			uint32_t multiplier = 0x1 << j;
-			voxelCaches[j].cache.emplace_back(InitialObjectGridSize, batches.arr[i]->VoxelCacheMax(j));
-			voxelTotaltime += Voxelize(voxelCaches[j].cache.back(), 
-									   batches.arr[i],
-									   CascadeSpan * multiplier, 
-									   multiplier, 
-									   j == 0);
-		}
+		LoadBatchVoxels(batches.arr[i]);
 	}
 
 	for(unsigned int i = 0; i < voxelCaches.size(); i++)
@@ -152,7 +143,7 @@ void ThesisSolution::Init(SceneI& s)
 	
 	// Voxel Page System Linking
 	for(unsigned int j = 0; j < GI_CASCADE_COUNT; j++)
-		LinkCacheWithVoxScene(voxelScenes[j], voxelCaches[j], 1.0f);
+		LinkCacheWithVoxScene(voxelScenes[j], voxelCaches[j], 1.5f);
 	
 	// Allocators Link
 	// Ordering is reversed svo tree needs cascades from other to inner
@@ -230,175 +221,136 @@ void ThesisSolution::Release()
 	bar = nullptr;
 }
 
-double ThesisSolution::Voxelize(VoxelObjectCache& cache,
-								MeshBatchI* batch,
-								float gridSpan, unsigned int minSpanMultiplier,
-								bool isInnerCascade)
+double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 {
-	cache.objectGridInfo.Resize(batch->DrawCount());
+	IETimer t;
+	t.Start();
 
-	// Timing Voxelization Process
-	GLuint queryID;
-	glGenQueries(1, &queryID);
-	glBeginQuery(GL_TIME_ELAPSED, queryID);
+	// Load GFG
+	std::string batchVoxFile = batch->BatchName() + "_vox.gfg";	
+	LoadVoxel(voxelCaches, batchVoxFile.c_str(), GI_CASCADE_COUNT);
 
-	//
-	glClear(GL_COLOR_BUFFER_BIT);
-	DrawBuffer& dBuffer = batch->getDrawBuffer();
-	VoxelRenderTexture voxelRenderTexture;
-
-	// Determine Voxel Sizes
-	computeDetermineVoxSpan.Bind();
-	cache.objectGridInfo.Resize(batch->DrawCount());
-	batch->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
-	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
-	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(batch->DrawCount()));
-	glUniform1f(U_MIN_SPAN, batch->MinSpan());
-	glUniform1ui(U_MAX_GRID_DIM, VOXEL_GRID_SIZE);
-
-	size_t blockCount = (batch->DrawCount() / 128);
-	size_t factor = ((batch->DrawCount() % 128) == 0) ? 0 : 1;
-	blockCount += factor;
-	glDispatchCompute(static_cast<GLuint>(blockCount), 1, 1);
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-	cache.objectGridInfo.RecieveData(batch->DrawCount());
-
-	// Buffers
-	//cameraTransform.Bind();
-	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
-	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
-	
-	// Render Objects to Voxel Grid
-	// Use MSAA to prevent missing small triangles on voxels
-	// (testing conservative rendering on maxwell)
-	glEnable(GL_MULTISAMPLE);
-	//glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
-
-	// State
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
-	glDepthMask(false);
-	glStencilMask(0x0000);
-	glColorMask(false, false, false, false);
-	glViewport(0, 0, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE);
-
-	// Reset Cache
-	cache.voxelCacheUsageSize.CPUData()[0] = 0;
-	cache.voxelCacheUsageSize.SendData();
-
-	// isMip
-	std::vector<GLuint> isMip(batch->DrawCount(), 0);
-	for(unsigned int i = 0; i < isMip.size(); i++)
-	{
-		if(cache.objectGridInfo.CPUData()[i].span < batch->MinSpan() * minSpanMultiplier)
-		{
-			isMip[i] = (isInnerCascade) ? 0 : 1;
-			cache.objectGridInfo.CPUData()[i].span = batch->MinSpan() * minSpanMultiplier;
-		}
-			
-	}
-	cache.objectGridInfo.SendData();
-
-	// For Each Object
-	voxelRenderTexture.Clear();
-	for(unsigned int i = 0; i < batch->DrawCount(); i++)
-	{
-		// Skip objects that cant fit
-		if(cache.objectGridInfo.CPUData()[i].span != batch->MinSpan() * minSpanMultiplier)
-			continue;
-
-		// First Call Voxelize over 3D Texture
-		batch->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
-		voxelRenderTexture.BindAsImage(I_VOX_WRITE, GL_WRITE_ONLY);
-		vertexVoxelizeObject.Bind();
-		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-		geomVoxelizeObject.Bind();
-		fragmentVoxelizeObject.Bind();
-		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-		batch->getGPUBuffer().Bind();
-
-		// Material Buffer we need to fetch color from material
-		dBuffer.BindMaterialForDraw(i);
-
-		// Draw Call
-		glDrawElementsIndirect(GL_TRIANGLES,
-							   GL_UNSIGNED_INT,
-							   (void *) (i * sizeof(DrawPointIndexed)));
-
-		// Reflect Changes for the next process
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-		// Second Call: Determine voxel count
-		// We need to set viewport coords to match the voxel dims
-		const AABBData& objAABB = batch->getDrawBuffer().getAABBBuffer().CPUData()[i];
-		GLuint voxDimX, voxDimY, voxDimZ;
-		voxDimX = static_cast<GLuint>(std::floor((objAABB.max.getX() - objAABB.min.getX()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
-		voxDimY = static_cast<GLuint>(std::floor((objAABB.max.getY() - objAABB.min.getY()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
-		voxDimZ = static_cast<GLuint>(std::floor((objAABB.max.getZ() - objAABB.min.getZ()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
-
-		computeVoxelizeCount.Bind();
-		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_ONLY);
-		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
-		glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
-
-		// Reflect Voxel Size
-		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-		// Create sparse voxel array according to the size of voxel count
-		// Last Call: Pack Draw Calls to the buffer
-		computePackObjectVoxels.Bind();
-		cache.voxelNormPos.BindAsShaderStorageBuffer(LU_VOXEL_NORM_POS);
-		cache.voxelIds.BindAsShaderStorageBuffer(LU_VOXEL_IDS);
-		cache.voxelRenderData.BindAsShaderStorageBuffer(LU_VOXEL_RENDER);
-		cache.voxelCacheUsageSize.BindAsShaderStorageBuffer(LU_INDEX_CHECK);
-		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
-		glUniform1ui(U_OBJ_TYPE, static_cast<GLuint>(batch->MeshType()));
-		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
-		glUniform1ui(U_MAX_CACHE_SIZE, static_cast<GLuint>(cache.voxelNormPos.Capacity()));
-		glUniform1ui(U_IS_MIP, static_cast<GLuint>(isMip[i]));
-		glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-		// Voxelization Done!
-	}
-	//glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
-	glEndQuery(GL_TIME_ELAPSED);
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-	GLuint64 timeElapsed = 0;
-	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
-	cache.objectGridInfo.RecieveData(batch->DrawCount());
-	cache.voxelCacheUsageSize.RecieveData(1);
-	cache.batchVoxCacheCount = 0;
-	for(int i = 0; i < batch->DrawCount(); i++)
-		cache.batchVoxCacheCount += cache.objectGridInfo.CPUData()[i].voxCount;
-	assert(cache.voxelCacheUsageSize.CPUData()[0] == cache.batchVoxCacheCount);
-
-	// Check if we exceeded the max (normally we didnt write bu we incremented counter)
-	cache.batchVoxCacheCount = std::min(cache.batchVoxCacheCount, 
-										static_cast<uint32_t>(cache.voxelNormPos.Capacity()));
-	cache.batchVoxCacheSize = static_cast<double>(cache.batchVoxCacheCount *
-												  (sizeof(CVoxelNormPos) +
-												  sizeof(VoxelColorData) +
-												  sizeof(CVoxelIds))) /
-												  1024.0 /
-												  1024.0;
-
-	double time = timeElapsed / 1000000.0;
-	GI_LOG("------------------------------------");
-	GI_LOG("Voxelization Complete");
-	GI_LOG("Cascade Parameters: ");
-	GI_LOG("\tObject Span Multiplier: %d", minSpanMultiplier);
-	GI_LOG("\tGrid Span %f", gridSpan);
-	GI_LOG("Scene Voxelization Time: %f ms", time);
-	GI_LOG("Total Vox : %d", cache.batchVoxCacheCount);
-	GI_LOG("Total Vox Memory: %f MB", cache.batchVoxCacheSize);
-	GI_LOG("------------------------------------");
-
-	glDeleteQueries(1, &queryID);
-	return time;
+	t.Stop();
+	// Voxel Load Complete
+	GI_LOG("Loading \"%s\" complete", batchVoxFile);
+	GI_LOG("\tDuration : %f ms", t.ElapsedMilliS());
+	GI_LOG("------");
+	return t.ElapsedMilliS();
 }
+
+bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
+							   const char* gfgFileName, uint32_t cascadeCount)
+{
+	std::ifstream stream(gfgFileName, std::ios_base::in | std::ios_base::binary);
+	GFGFileReaderSTL stlFileReader(stream);
+	GFGFileLoader gfgFile(&stlFileReader);
+
+	GFGFileError e = gfgFile.ValidateAndOpen();
+	assert(e == GFGFileError::OK);
+
+	// Assertions
+	const auto& header = gfgFile.Header();
+	assert((header.meshes.size() - 1) == cascadeCount);
+
+	// First mesh contains objInfos
+	const auto& meshObjCount = header.meshes.back();
+	assert(meshObjCount.components.size() == cascadeCount);
+
+	uint32_t objCount = static_cast<uint32_t>(meshObjCount.headerCore.vertexCount);
+	std::vector<uint8_t> objectInfoData(gfgFile.MeshVertexDataSize(cascadeCount));
+	gfgFile.MeshVertexData(objectInfoData.data(), cascadeCount);
+
+	// Determine VoxelCount
+	for(uint32_t i = 0; i < cascadeCount; i++)
+	{
+		const auto& mesh = header.meshes[i];
+
+		// Special case aabbmin show span count
+		assert(scenes[i].span == mesh.headerCore.aabb.min[0]);
+		scenes[i].cache.emplace_back(mesh.headerCore.vertexCount, objCount);
+
+		// Load to Mem
+		std::vector<uint8_t> meshData(gfgFile.MeshVertexDataSize(i));
+		gfgFile.MeshVertexData(meshData.data(), i);
+
+		auto& currentCache = scenes[i].cache.back();
+
+		// Object gridInfo
+		const auto& component = meshObjCount.components[i];
+		assert(component.dataType == GFGDataType::UINT32_2);
+		assert(sizeof(ObjGridInfo) == GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)]);
+		assert(component.internalOffset == 0);
+		assert(component.logic == GFGVertexComponentLogic::POSITION);
+		assert(component.stride == sizeof(ObjGridInfo));
+
+		currentCache.objInfo.CPUData().resize(objCount);
+		std::memcpy(currentCache.objInfo.CPUData().data(),
+					objectInfoData.data() + component.startOffset,
+					objCount * component.stride);
+
+		// Voxel Data
+		for(const auto& component : mesh.components)
+		{
+			if(component.logic == GFGVertexComponentLogic::POSITION)
+			{
+				// NormPos
+				assert(component.dataType == GFGDataType::UINT32_2);
+				auto& normPosVector = currentCache.voxelNormPos.CPUData();
+
+				normPosVector.resize(mesh.headerCore.vertexCount);
+				std::memcpy(normPosVector.data(), meshData.data() +
+							component.startOffset,
+							mesh.headerCore.vertexCount * component.stride);
+			}
+			else if(component.logic == GFGVertexComponentLogic::NORMAL)
+			{
+				// Vox Ids
+				assert(component.dataType == GFGDataType::UINT32_2);
+				auto& voxIdsVector = currentCache.voxelIds.CPUData();
+
+				voxIdsVector.resize(mesh.headerCore.vertexCount);
+				std::memcpy(voxIdsVector.data(), meshData.data() +
+							component.startOffset,
+							mesh.headerCore.vertexCount * component.stride);
+			}
+			else if(component.logic == GFGVertexComponentLogic::COLOR)
+			{
+				// Color
+				assert(component.dataType == GFGDataType::UNORM8_4);
+				auto& voxColorVector = currentCache.voxelRenderData.CPUData();
+
+				voxColorVector.resize(mesh.headerCore.vertexCount);
+				std::memcpy(voxColorVector.data(), meshData.data() +
+							component.startOffset,
+							mesh.headerCore.vertexCount * component.stride);
+			}
+			else if(component.logic == GFGVertexComponentLogic::WEIGHT)
+			{
+				// Weight
+				//assert(component.dataType == GFGDataType::UINT32_2);
+				//auto& voxWeightVector = currentCache.voxelWeightData.CPUData();
+
+				//voxWeightVector.resize(mesh.headerCore.vertexCount);
+				//std::memcpy(voxWeightVector.data(), meshData.data() +
+				//			component.startOffset,
+				//			mesh.headerCore.vertexCount * component.stride);
+			}
+			else
+			{
+				assert(false);
+			}
+			currentCache.voxelRenderData.SendData();
+			currentCache.voxelNormPos.SendData();
+			currentCache.voxelIds.SendData();
+			currentCache.objInfo.SendData();
+		}
+
+		GI_LOG("\tCascade#%d Voxels : %d", i, mesh.headerCore.vertexCount);
+	}
+
+	return true;
+}
+
 
 void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene, 
 										   SceneVoxCache& cache,
@@ -412,7 +364,7 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene,
 		scene.LinkOGL(batches.arr[i]->getDrawBuffer().getAABBBuffer().getGLBuffer(),
 					  batches.arr[i]->getDrawBuffer().getModelTransformBuffer().getGLBuffer(),
 					  batches.arr[i]->getDrawBuffer().getModelTransformIndexBuffer().getGLBuffer(),
-					  cache.cache[i].objectGridInfo.getGLBuffer(),
+					  cache.cache[i].objInfo.getGLBuffer(),
 					  cache.cache[i].voxelNormPos.getGLBuffer(),
 					  cache.cache[i].voxelIds.getGLBuffer(),
 					  cache.cache[i].voxelRenderData.getGLBuffer(),
@@ -475,6 +427,7 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 	Shader::Unbind(ShaderType::GEOMETRY);
 	vertexDebugVoxel.Bind();
 	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(traceType % 2));
+	glUniform1f(U_SPAN, cache.span);
 	fragmentDebugVoxel.Bind();
 
 	cameraTransform.Bind();
@@ -482,9 +435,7 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 
 	Array32<MeshBatchI*> batches = currentScene->getBatches();
 	for(unsigned int i = 0; i < cache.cache.size(); i++)
-	{
-		cache.cache[i].objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
-		
+	{		
 		DrawBuffer& dBuffer = batches.arr[i]->getDrawBuffer();
 		dBuffer.getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 		dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);

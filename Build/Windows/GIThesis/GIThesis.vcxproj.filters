@@ -319,6 +319,12 @@
     <ClInclude Include="..\..\..\Source\VoxelCacheData.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\OGLTimer.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelSceneCache.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

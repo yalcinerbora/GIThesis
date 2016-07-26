@@ -33,8 +33,8 @@ void GL3DTexture::BindAsImage(GLuint index, GLenum access)
 
 void GL3DTexture::Clear()
 {
-	GLuint dataInt = 0xFFFFFFFF;
-	GLuint dataFloat[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	GLuint dataInt = 0x00000000;
+	float dataFloat[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	GLenum format, dataType;
 	void* data = nullptr;

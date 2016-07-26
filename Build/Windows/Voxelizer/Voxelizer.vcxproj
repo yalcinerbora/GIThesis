@@ -117,6 +117,7 @@
     <ClInclude Include="..\..\..\Source\Shader.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\ASCIIProgressBar.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\BindPoints.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\GL3DTexture.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\OGLVoxelizer.h" />

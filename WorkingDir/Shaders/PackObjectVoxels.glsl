@@ -2,25 +2,30 @@
 				
 // Definitions
 #define LU_VOXEL_NORM_POS layout(std430, binding = 0) restrict
-#define LU_VOXEL_RENDER layout(std430, binding = 1) restrict 
-#define LU_OBJECT_GRID_INFO layout(std430, binding = 2) restrict readonly
-#define LU_VOXEL_IDS layout(std430, binding = 3) restrict
+#define LU_VOXEL_COLOR layout(std430, binding = 1) restrict 
 #define LU_INDEX_CHECK layout(std430, binding = 4) restrict
+#define LU_VOXEL_IDS layout(std430, binding = 5) restrict
+#define LU_NORMAL_SPARSE layout(std430, binding = 6) restrict readonly
+#define LU_COLOR_SPARSE layout(std430, binding = 7) restrict readonly
 
-#define U_TOTAL_VOX_DIM layout(location = 3)
+#define I_LOCK layout(r32ui, binding = 0) restrict readonly
+
 #define U_OBJ_ID layout(location = 4)
 #define U_MAX_CACHE_SIZE layout(location = 5)
 #define U_OBJ_TYPE layout(location = 6)
-#define U_IS_MIP layout(location = 7)
-
-#define I_VOX_READ layout(rg32ui, binding = 2) restrict
+#define U_SPLIT_CURRENT layout(location = 7)
+#define U_TEX_SIZE layout(location = 8)
+#define U_IS_MIP layout(location = 9)
 
 // I-O
 U_OBJ_TYPE uniform uint objType;
 U_OBJ_ID uniform uint objId;
 U_IS_MIP uniform uint isMip;
-U_TOTAL_VOX_DIM uniform uvec3 voxDim;
 U_MAX_CACHE_SIZE uniform uint maxSize;
+U_SPLIT_CURRENT uniform uvec3 currentSplit;
+U_TEX_SIZE uniform uint texSize3D;
+
+uniform I_LOCK uimage3D lock;
 
 LU_INDEX_CHECK buffer CountArray
 {
@@ -37,27 +42,23 @@ LU_VOXEL_IDS buffer VoxelIdsArray
 	uvec2 voxelIds[];
 };
 
-LU_VOXEL_RENDER buffer VoxelArrayRender
+LU_VOXEL_COLOR buffer VoxelArrayColor
 {
-	struct
-	{
-		uint color;
-	} voxelArrayRender[];
+	uint voxColor[];
 };
 
-LU_OBJECT_GRID_INFO buffer GridInfo
+LU_COLOR_SPARSE buffer ColorBuffer 
 {
-	struct
-	{
-		float span;
-		uint voxCount;
-	} objectGridInfo[];
+	vec4 colorSparse[];
 };
 
-uniform I_VOX_READ uimage3D voxelData;
+LU_NORMAL_SPARSE buffer NormalBuffer 
+{
+	vec4 normalSparse[];
+};
 
 uvec2 PackVoxelNormPos(in uvec3 voxCoord,
-					   in uint normal,
+					   in vec4 normal,
 					   in uint isMip)
 {
 	uvec2 result = uvec2(0);
@@ -70,8 +71,8 @@ uvec2 PackVoxelNormPos(in uvec3 voxCoord,
 	value |= voxCoord.x;
 	result.x = value;
 
-	// Normal is Already Packed (XYZ8 SNROM format)
-	result.y = normal;
+	// Normal packed with XYZ8 SNROM format (W is empty and will be used as volume info)
+	result.y = packSnorm4x8(normal);
 	return result;
 }
 
@@ -97,25 +98,38 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void)
 {
 	uvec3 voxId = gl_GlobalInvocationID.xyz;
-	if(voxId.x < (voxDim.x)  &&
-		voxId.y < (voxDim.y) &&
-		voxId.z < (voxDim.z))
+	if(voxId.x < texSize3D &&
+	   voxId.y < texSize3D &&
+	   voxId.z < texSize3D)
 	{
-		uvec2 voxData = imageLoad(voxelData, ivec3(voxId)).xy;
+		ivec3 iCoord = ivec3(voxId);
+		uint coord = iCoord.z * texSize3D * texSize3D +
+					 iCoord.y * texSize3D +
+					 iCoord.x;
+		// DEBUG
+		//uint voxOccupation = imageLoad(lock, ivec3(voxId)).x;
+		//if(voxOccupation == 1) atomicAdd(writeIndex, 1);
+		
+		vec4 normal = normalSparse[coord];
+		vec4 color = colorSparse[coord];
 
 		// Empty Normal Means its vox is empty
-		if(voxData.x != 0xFFFFFFFF ||
-			voxData.y != 0xFFFFFFFF)
+		if(normal.w > 0.0f)
 		{
+			// Average Divide
+			color.xyz /= normal.w;
+			normal.xyz /= normal.w;
+			normal.w = 0.0f;
+
 			uint index = atomicAdd(writeIndex, 1);
 			if(index <= maxSize)
 			{
-				voxelArrayRender[index].color = voxData.y;
-				voxelNormPos[index] = PackVoxelNormPos(voxId, voxData.x, isMip);
+				voxId += currentSplit * texSize3D;
+
+				voxColor[index] = packUnorm4x8(color);
+				voxelNormPos[index] = PackVoxelNormPos(voxId, normal, isMip);
 				voxelIds[index] = PackVoxelIds(objId, objType, index);
 			}
-			// Reset Color For next iteration
-			imageStore(voxelData, ivec3(voxId), uvec4(0xFFFFFFFF));
 		}
 	}
 }

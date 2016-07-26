@@ -10,15 +10,18 @@ Vao for rendering voxel debug
 #include "GLHeaderLite.h"
 #include <cstdint>
 #include <vector_types.h>
+#include <array>
 #include "VoxelCacheData.h"
+#include "StructuredBuffer.h"
 
 #define IN_POS 0
 #define IN_VOX_COLOR 1
 #define IN_VOX_NORM_POS 2
 #define IN_VOX_IDS 3
 
-template<class T>
-class StructuredBuffer;
+//template<class T>
+//class StructuredBuffer;
+//
 
 struct CubeData
 {

@@ -10,6 +10,7 @@ class GPUBuffer;
 class SceneLights;
 
 #include <cstdint>
+#include <string>
 
 enum class VoxelObjectType : uint32_t
 {
@@ -28,12 +29,13 @@ class MeshBatchI
 	virtual DrawBuffer&			getDrawBuffer() = 0;
 	virtual GPUBuffer&			getGPUBuffer() = 0;
 
+	virtual const std::string&	BatchName() const = 0;
+
 	virtual size_t				ObjectCount() const = 0;
 	virtual size_t				DrawCount() const = 0;
 	virtual size_t				MaterialCount() const = 0;
 	virtual size_t				PolyCount() const = 0;
 
-	virtual size_t				VoxelCacheMax(uint32_t level) const = 0;
 	virtual VoxelObjectType		MeshType() const = 0;
 
 	virtual float				MinSpan() const = 0; // Minimum voxel span used in vox generation

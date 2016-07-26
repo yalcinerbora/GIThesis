@@ -16,8 +16,7 @@ class MeshBatchNyra : public MeshBatch
 	public:
 		// Constructors & Destructor
 								MeshBatchNyra(const char* sceneFileName,
-											  float minVoxSpan,
-											  const Array32<size_t> maxVoxelCounts);
+											  float minVoxSpan);
 
 		// Static Files
 		static const char*		nyraFileName;

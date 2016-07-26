@@ -3,6 +3,7 @@
 #define __VOXELCACHEDATA_H__
 
 #include <cstdint>
+#include "StructuredBuffer.h"
 
 #pragma pack(push, 1)
 struct VoxelNormPos

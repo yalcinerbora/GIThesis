@@ -3,9 +3,8 @@
 
 // Constructors & Destructor
 MeshBatchCornell::MeshBatchCornell(const char* sceneFileName,
-								   float minVoxSpan,
-								   const Array32<size_t> maxVoxelCounts)
-	: MeshBatch(sceneFileName, minVoxSpan, maxVoxelCounts, false)
+								   float minVoxSpan)
+	: MeshBatch(sceneFileName, minVoxSpan, false)
 {}
 
 const char* MeshBatchCornell::cornellDynamicFileName = "cornellDynamic.gfg";

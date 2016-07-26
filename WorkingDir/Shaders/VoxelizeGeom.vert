@@ -19,7 +19,10 @@
 
 #define LU_AABB layout(std430, binding = 3)
 
+#define U_SEGMENT_SIZE layout(location = 2)
+#define U_SPLIT_CURRENT layout(location = 7)
 #define U_OBJ_ID layout(location = 4)
+#define U_SPLAT_RATIO layout(location = 5)
 
 // Input
 in IN_NORMAL vec3 vNormal;
@@ -36,6 +39,9 @@ out OUT_POS vec3 fPos;
 
 // Uniforms
 U_OBJ_ID uniform uint objId;
+U_SEGMENT_SIZE uniform float segmentSize;
+U_SPLIT_CURRENT uniform uvec3 currentSplit;
+U_SPLAT_RATIO uniform float splatRatio;
 
 LU_AABB buffer AABB
 {
@@ -49,18 +55,23 @@ LU_AABB buffer AABB
 mat4 orthoFromAABB()
 {
 	// AABB can be axis aligned plane
-	// any of the min max components can be equal (this makes scales zero and we dont want that
+	// any of the min max components can be equal (this makes scales zero and we dont want that)
+	
+	// Project only the required segment of the object
 	vec3 aabbMin = objectAABBInfo[objId].aabbMin.xyz;
 	vec3 aabbMax = objectAABBInfo[objId].aabbMax.xyz;
+	// Increase AABB slightly here so that we gurantee entire object will not get culled
+	aabbMin -= (abs(0.00100001f * aabbMin));
+	aabbMax += (abs(0.00100001f * aabbMax));
+
+	// Divide it into 
+	aabbMin += vec3(currentSplit) * vec3(segmentSize);
+	aabbMax = min(aabbMax - aabbMin, vec3(segmentSize));
+	aabbMax += aabbMin;
+	//aabbMax = max(aabbMax, 0.00001f);
+	//aabbMax = aabbMin + vec3(segmentSize);
 
 	// Near Far Left Right Top Bottom
-	// Increase AABB slightly here so that we gurantee entire object will not get culled
-	//aabbMin = 1.0000001f * aabbMin;
-	//aabbMax = 1.0000001f * aabbMax;
-	aabbMin = aabbMin - (abs(0.0000001f * aabbMin));
-	aabbMax = aabbMax + (abs(0.0000001f * aabbMax));
-
-	
 	vec2 lr = vec2(aabbMin.x, aabbMax.x);
 	vec2 tb = vec2(aabbMin.y, aabbMax.y);
 	vec2 nf = vec2(aabbMax.z, aabbMin.z);

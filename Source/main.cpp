@@ -145,80 +145,71 @@ int main()
 
 	// Sponza Scene
 	MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
-							  ThesisSolution::CascadeSpan / 0.19f,
-							  {MeshBatch::sponzaVoxelSizes, GI_CASCADE_COUNT},
+							  ThesisSolution::CascadeSpan,
 							  false);
 	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
-									  ThesisSolution::CascadeSpan,
-									  {MeshBatchSponza::sponzaDynamicVoxelSizes, GI_CASCADE_COUNT});
+									  ThesisSolution::CascadeSpan);
 
-	//// Cornell Box Scene
-	//MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
-	//						ThesisSolution::CascadeSpan,
-	//						{MeshBatch::cornellVoxelSizes, GI_CASCADE_COUNT},
-	//						false);
-	//MeshBatchCornell cornellDynamic(MeshBatchCornell::cornellDynamicFileName,
-	//								ThesisSolution::CascadeSpan,
-	//								{MeshBatchCornell::cornellDynamicVoxelSizes, GI_CASCADE_COUNT});
+	// Cornell Box Scene
+	MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
+							ThesisSolution::CascadeSpan,
+							false);
+	MeshBatchCornell cornellDynamic(MeshBatchCornell::cornellDynamicFileName,
+									ThesisSolution::CascadeSpan);
 
-	//// Cube Scene
-	//MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
-	//							  ThesisSolution::CascadeSpan,
-	//							  {MeshBatchCube::rotatingCubeVoxelSizes, GI_CASCADE_COUNT});
-	//
-	//// Sibernik Scene
-	//MeshBatch sibernikStatic(MeshBatch::sibernikFileName,
-	//						 ThesisSolution::CascadeSpan,
-	//						 {MeshBatch::sibernikVoxelSizes, GI_CASCADE_COUNT},
-	//						 false);
+	// Cube Scene
+	MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
+								  ThesisSolution::CascadeSpan);
+	
+	// Sibernik Scene
+	MeshBatch sibernikStatic(MeshBatch::sibernikFileName,
+							 ThesisSolution::CascadeSpan,
+							 false);
 
 
-	// Tinman Solo Scene
-	MeshBatchSkeletal tinManBatch(//MeshBatchSkeletal::tinmanFileName,
-								  //MeshBatchSkeletal::snakeFileName,
-								  MeshBatchSkeletal::nyraFileName,
-								  ThesisSolution::CascadeSpan,
-								  {MeshBatchSkeletal::tinmanVoxelSizes, GI_CASCADE_COUNT});
-	tinManBatch.AnimationParams(0.4f, 1.3f, AnimationType::OSCILLATE);
+	// Nyra Solo Scene
+	MeshBatchSkeletal nyraBatch(MeshBatchSkeletal::nyraFileName,
+								  ThesisSolution::CascadeSpan);
+	nyraBatch.AnimationParams(1.4f, 1.3f, AnimationType::OSCILLATE);
 
 	// Scene Interfaces
-	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &tinManBatch};
+	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
 	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
 					Array32<Light>{sponzaLights, 1},
 					Scene::sponzaSceneTotalSize,
 					Scene::sponzaSceneLevelSizes);
 
-	//MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
-	//Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
-	//				 Array32<Light>{cornellLights, 1},
-	//				 Scene::cornellSceneTotalSize,
-	//				 Scene::cornellSceneLevelSizes);
+	MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
+	Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
+					 Array32<Light>{cornellLights, 1},
+					 Scene::cornellSceneTotalSize,
+					 Scene::cornellSceneLevelSizes);
 
-	//MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
-	//Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
-	//				 Array32<Light>{sponzaLights, 1},
-	//				 Scene::cubeSceneTotalSize,
-	//				 Scene::cubeSceneLevelSizes);
+	MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
+	Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
+					 Array32<Light>{sponzaLights, 1},
+					 Scene::cubeSceneTotalSize,
+					 Scene::cubeSceneLevelSizes);
 
-	//MeshBatchI* sibernikBatches[] = {&sibernikStatic};
-	//Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
-	//			   Array32<Light>{sibernikLights, 4},
-	//			   Scene::sibernikSceneTotalSize,
-	//			   Scene::sibernikSceneLevelSizes);
+	MeshBatchI* sibernikBatches[] = {&sibernikStatic};
+	Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
+				   Array32<Light>{sibernikLights, 4},
+				   Scene::sibernikSceneTotalSize,
+				   Scene::sibernikSceneLevelSizes);
 
-	MeshBatchI* tinmanBatches[] = {&tinManBatch};
-	Scene tinman(Array32<MeshBatchI*>{tinmanBatches, 1},
-				 Array32<Light>{sponzaLights, 1},
-				 Scene::tinmanSceneTotalSize,
-				 Scene::tinmanSceneLevelSizes);
+	MeshBatchI* nyraBatches[] = {&nyraBatch};
+	Scene nyra(Array32<MeshBatchI*>{nyraBatches, 1},
+			   Array32<Light>{sponzaLights, 1},
+			   Scene::tinmanSceneTotalSize,
+			   Scene::tinmanSceneLevelSizes);
 
 	// Scenes
 	scenes.push_back(&crySponza);
-	//scenes.push_back(&cornellBox);
-	//scenes.push_back(&sibernik);
+	scenes.push_back(&cornellBox);
+	scenes.push_back(&sibernik);
 	// Test Scenes
-	//scenes.push_back(&cubeRotate);
-	scenes.push_back(&tinman);
+	scenes.push_back(&cubeRotate);
+	scenes.push_back(&nyra);
 
 	// Solutions
 	EmptyGISolution emptySolution(deferredRenderer);

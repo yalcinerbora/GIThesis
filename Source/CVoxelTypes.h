@@ -42,14 +42,8 @@ struct CVoxelColor
 	uchar4			color;		// Color
 };
 
-struct CVoxelRenderSkelMorph
+struct CVoxelWeight
 {
-	//unsigned int	voxelTransformType;
-	uchar4			color;		// Color
-
-	// Transform Related Data
-	// For Skeletal mesh these shows index of the transforms and weights
-	// For Morph target this shows the neigbouring vertices and their morph related index
 	uchar4			weightIndex;
 	uchar4			weight;
 };

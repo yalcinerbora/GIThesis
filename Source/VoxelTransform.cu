@@ -9,6 +9,7 @@
 inline __device__ void LoadTransformData(// Shared Mem
 										 CMatrix4x4* sTransformMatrices,
 										 CMatrix3x3* sRotationMatrices,
+										 uint8_t* sMatrixLookup,
 
 										 // Object Transform Matrix
 										 CObjectTransform** gObjTransforms,
@@ -30,85 +31,59 @@ inline __device__ void LoadTransformData(// Shared Mem
 	}
 	__syncthreads();
 	
-	// Each Voxel Type Has Different Deformation(Animation)
-	switch(sObjType)
+	// Here we will load transform and rotation matrices
+	// Each thread will load 1 float. There is two 4x4 matrix
+	// 32 floats will be loaded
+	// Just enough for a warp to do the work
+	// Because of that we will broadcast obj id using the first warp
+	// Pack objId to int
+	unsigned int objIdShuffle;
+	objIdShuffle = static_cast<unsigned int>(objectId.y) << 16;
+	objIdShuffle |= static_cast<unsigned int>(transformId);
+
+	// Broadcast
+	#if __CUDA_ARCH__ >= 300
+		objIdShuffle = __shfl(objIdShuffle, 0);
+	#else
+		__shared__ unsigned int sObjId;
+		if(blockLocalId == 0) sObjId = objIdShuffle;
+		objIdShuffle = sObjId;
+	#endif
+
+	// Unpack broadcasted objId to ushort2
+	ushort2 objIdAfterShuffle;
+	objIdAfterShuffle.x = (objIdShuffle & 0x0000FFFF);
+	objIdAfterShuffle.y = (objIdShuffle & 0xFFFF0000) >> 16;
+
+	// Load matrices (4 byte load by each thread sequential no bank conflict)
+	if(blockLocalId < 16)
 	{
-		case CVoxelObjectType::STATIC:
-		case CVoxelObjectType::DYNAMIC:
-		{
-			// Static or Dynamic Objects have single transformation matrix to animate
-			// they also have rotation only matrix for normal manipulation
-
-			// Here we will load transform and rotation matrices
-			// Each thread will load 1 float. There is two 4x4 matrix
-			// 32 floats will be loaded
-			// Just enough for a warp to do the work
-			// Because of that we will broadcast obj id using the first warp
-			// Pack objId to int
-			unsigned int objIdShuffle;
-			objIdShuffle = static_cast<unsigned int>(objectId.y) << 16;
-			objIdShuffle |= static_cast<unsigned int>(transformId);
-
-			// Broadcast
-			#if __CUDA_ARCH__ >= 300
-				objIdShuffle = __shfl(objIdShuffle, 0);
-			#else
-				__shared__ unsigned int sObjId;
-				if(blockLocalId == 0) sObjId = objIdShuffle;
-				objIdShuffle = sObjId;
-			#endif
-
-			// Unpack broadcasted objId to ushort2
-			ushort2 objIdAfterShuffle;
-			objIdAfterShuffle.x = (objIdShuffle & 0x0000FFFF);
-			objIdAfterShuffle.y = (objIdShuffle & 0xFFFF0000) >> 16;
-		
-			// Load matrices (4 byte load by each thread sequential no bank conflict)
-			if(blockLocalId < 16)
-			{
-				reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
-					reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
-			}
-			else if(blockLocalId < 28)
-			{
-				blockLocalId -= 16;
-				reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 3])[blockLocalId % 3] =
-					reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId / 3])[blockLocalId % 3];
-			}
-			break;
-		}
-		case CVoxelObjectType::SKEL_DYNAMIC:
-		{
-			// TODO Implement
-			//
-			// All valid objects will request matrix load
-				// then entire block will try to load it
-			// Max skeleton bone count is 64
-			// Worst case 64 * 16 = 1024 float will be loaded to sMem
-			// Some blocks will load twice
-			// However its extremely rare (even impossible case)
-			// In a realistic scenario (and if a segment holds adjacent voxels)
-			// And if max bone influence per vertex is around 4 
-			// there should be at most 8
-			
-			break;
-		}
-		case CVoxelObjectType::MORPH_DYNAMIC:
-		{
-			// TODO Implement
-			//
-			// Caching shouldnt increase performance here
-			// but we'll store morph target positions in shmem
-			// inorder to reduce register usage
-			// Each vox will load 9 float (3 vertex parent targets)
-			// Worst case 9 * 512 = 4608 floats will be loaded
-
-			break;
-		}
-		default:
-			assert(false);
-			break;
+		reinterpret_cast<float*>(&sTransformMatrices[0].column[blockLocalId / 4])[blockLocalId % 4] =
+			reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].transform.column[blockLocalId / 4])[blockLocalId % 4];
 	}
+	else if(blockLocalId < 28)
+	{
+		blockLocalId -= 16;
+		reinterpret_cast<float*>(&sRotationMatrices[0].column[blockLocalId / 3])[blockLocalId % 3] =
+			reinterpret_cast<float*>(&gObjTransforms[objIdAfterShuffle.y][objIdAfterShuffle.x].rotation.column[blockLocalId / 3])[blockLocalId % 3];
+	}
+
+	// Load Joint Transforms if Skeletal Object
+	if(sObjType == CVoxelObjectType::SKEL_DYNAMIC)
+	{
+		// All valid objects will request matrix load
+		// then entire block will try to load it
+		// Max skeleton bone count is 64
+		// Worst case 64 * 16 = 1024 float will be loaded to sMem
+		// Some blocks will load twice
+		// However its extremely rare (even impossible case)
+		// In a realistic scenario (and if a segment holds adjacent voxels)
+		// And if max bone influence per vertex is around 4 
+		// there should be at most 8
+		
+
+	}
+
 	// We write to shared mem sync between warps
 	__syncthreads();
 }
@@ -127,6 +102,7 @@ __global__ void VoxelTransform(// Voxel Pages
 							   uint32_t** gObjTransformIds,
 							   CVoxelNormPos** gVoxNormPosCacheData,
 							   CVoxelColor** gVoxRenderData,
+							   //CVoxelWeight** gVoxelWeights,
 							   CObjectVoxelInfo** gObjInfo,	
 							   CObjectAABB** gObjectAABB)
 {
@@ -135,6 +111,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	__shared__ unsigned int sBlockBail;
 	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_SHARED_COUNT];
 	__shared__ CMatrix3x3 sRotationMatrices[GI_MAX_SHARED_COUNT];
+	__shared__ uint8_t sMatrixLookup[GI_MAX_SHARED_COUNT];
 
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
@@ -162,6 +139,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	LoadTransformData(// Shared Mem
 					  sTransformMatrices,
 					  sRotationMatrices,
+					  sMatrixLookup,
 
 					  // Object Transform Matrix
 					  gObjTransforms,
@@ -194,20 +172,25 @@ __global__ void VoxelTransform(// Voxel Pages
 	worldPos.z = objAABBMin.z + voxPos.z * objSpan;
 
 	// Transformations
+	// Model multiplication
+	MultMatrixSelf(worldPos, sTransformMatrices[0]);
+	MultMatrixSelf(normal, sRotationMatrices[0]);
+	//// Unoptimized Matrix Load
+	//CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
+	//CMatrix4x4 rotation = gObjTransforms[objectId.y][objectId.x].transform;
+	//MultMatrixSelf(worldPos, transform);
+	//MultMatrixSelf(normal, rotation);
+
+	if(objType == CVoxelObjectType::SKEL_DYNAMIC)
+	{
+		// TODO: Apply joint transforms to the voxel
+	}
+
 	switch(objType)
 	{
 		case CVoxelObjectType::STATIC:
 		case CVoxelObjectType::DYNAMIC:
 		{
-			// Now voxel is in is world space
-			MultMatrixSelf(worldPos, sTransformMatrices[0]);
-			MultMatrixSelf(normal, sRotationMatrices[0]);
-
-			//// Unoptimized Matrix Load
-			//CMatrix4x4 transform = gObjTransforms[objectId.y][objectId.x].transform;
-			//CMatrix4x4 rotation = gObjTransforms[objectId.y][objectId.x].transform;
-			//MultMatrixSelf(worldPos, transform);
-			//MultMatrixSelf(normal, rotation);
 			break;
 		}
 		case CVoxelObjectType::SKEL_DYNAMIC:
@@ -219,7 +202,7 @@ __global__ void VoxelTransform(// Voxel Pages
 		case CVoxelObjectType::MORPH_DYNAMIC:
 		{
 			// TODO Implement
-			//
+			// Not on Thesis Anymore
 			break;
 		}
 		default:

@@ -18,6 +18,7 @@ Vao for rendering voxel debug
 #define IN_VOX_COLOR 1
 #define IN_VOX_NORM_POS 2
 #define IN_VOX_IDS 3
+#define IN_VOX_WEIGHT 4
 
 //template<class T>
 //class StructuredBuffer;
@@ -47,7 +48,9 @@ class VoxelDebugVAO
 		// Cosntructors & Destructor
 								VoxelDebugVAO(StructuredBuffer<VoxelNormPos>&,
 											  StructuredBuffer<VoxelIds>&,
-											  StructuredBuffer<VoxelColorData>&);
+											  StructuredBuffer<VoxelColorData>&,
+											  StructuredBuffer<VoxelWeightData>&,
+											  bool isSkeletal);
 								VoxelDebugVAO(StructuredBuffer<VoxelNormPos>&,
 											  StructuredBuffer<uchar4>&);
 								VoxelDebugVAO(const VoxelDebugVAO&) = delete;

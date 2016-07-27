@@ -61,6 +61,7 @@ class ThesisSolution : public EmptyGISolution
 	private:
 		// Voxel Render Shaders
 		Shader					vertexDebugVoxel;
+		Shader					vertexDebugVoxelSkeletal;
 		Shader					vertexDebugWorldVoxel;
 		Shader					fragmentDebugVoxel;
 
@@ -106,7 +107,8 @@ class ThesisSolution : public EmptyGISolution
 		 // Voxelizes the scene for a cache level
 		double								LoadBatchVoxels(MeshBatchI* batch);
 		bool								LoadVoxel(std::vector<SceneVoxCache>& scenes,
-													  const char* gfgFileName, uint32_t cascadeCount);
+													  const char* gfgFileName, uint32_t cascadeCount,
+													  bool isSkeletal);
 		void								LinkCacheWithVoxScene(GICudaVoxelScene&, 
 																  SceneVoxCache&,
 																  float coverageRatio);

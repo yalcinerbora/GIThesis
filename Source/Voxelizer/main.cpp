@@ -160,13 +160,22 @@ int main(int argc, char* argv[])
 	StructuredBuffer<IEVector4> colorArray(VOX_3D_TEX_SIZE *
 										   VOX_3D_TEX_SIZE *
 										   VOX_3D_TEX_SIZE);
+	StructuredBuffer<VoxelWeightData> weightArray(VOX_3D_TEX_SIZE *
+												  VOX_3D_TEX_SIZE *
+												  VOX_3D_TEX_SIZE);
 
 	Shader compSplitCount(ShaderType::COMPUTE, "Shaders/DetermineSplitCount.glsl");
 	Shader compPackVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.glsl");
+	Shader compPackVoxelsSkel(ShaderType::COMPUTE, "Shaders/PackObjectVoxelsSkel.glsl");
 
 	Shader vertVoxelize(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert");
 	Shader geomVoxelize(ShaderType::GEOMETRY, "Shaders/VoxelizeGeom.geom");
 	Shader fragVoxelize(ShaderType::FRAGMENT, "Shaders/VoxelizeGeom.frag");
+
+	Shader vertVoxelizeSkel(ShaderType::VERTEX, "Shaders/VoxelizeGeomSkel.vert");
+	Shader geomVoxelizeSkel(ShaderType::GEOMETRY, "Shaders/VoxelizeGeomSkel.geom");
+	Shader fragVoxelizeSkel(ShaderType::FRAGMENT, "Shaders/VoxelizeGeomSkel.frag");
+
 	Shader fragVoxelizeCount(ShaderType::FRAGMENT, "Shaders/VoxelizeGeomCount.frag");
 	
 	// FBO
@@ -184,17 +193,22 @@ int main(int argc, char* argv[])
 		GI_LOG("");
 
 		OGLVoxelizer voxelizer(options,
-								batch,
-								lockTex,
-								normalArray,
-								colorArray,
-								compSplitCount,
-								compPackVoxels,
-								vertVoxelize,
-								geomVoxelize,
-								fragVoxelize,
-								fragVoxelizeCount,
-								false);
+							   batch,
+							   lockTex,
+							   normalArray,
+							   colorArray,
+							   weightArray,
+							   compSplitCount,
+							   compPackVoxels,
+							   compPackVoxelsSkel,
+							   vertVoxelize,
+							   geomVoxelize,
+							   fragVoxelize,
+							   vertVoxelizeSkel,
+							   geomVoxelizeSkel,
+							   fragVoxelizeSkel,
+							   fragVoxelizeCount,
+							   false);
 
 		voxelizer.Start();
 
@@ -216,20 +230,22 @@ int main(int argc, char* argv[])
 							   lockTex,
 							   normalArray,
 							   colorArray,
+							   weightArray,
 							   compSplitCount,
 							   compPackVoxels,
+							   compPackVoxelsSkel,
 							   vertVoxelize,
 							   geomVoxelize,
 							   fragVoxelize,
+							   vertVoxelizeSkel,
+							   geomVoxelizeSkel,
+							   fragVoxelizeSkel,
 							   fragVoxelizeCount,
 							   true);
-
 			voxelizer.Start();
-
 			std::string voxFile = "vox_" + fileName;
 			voxelizer.Write(voxFile);
 	}
-
 	OGLVoxelizer::DestroyGLSystem();
 	return 0;
 }

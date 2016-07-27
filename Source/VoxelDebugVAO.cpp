@@ -37,7 +37,9 @@ void VoxelDebugVAO::InitVoxelCube()
 
 VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 							 StructuredBuffer<VoxelIds>& voxIdBuffer,
-							 StructuredBuffer<VoxelColorData>& voxRenderDataBuffer)
+							 StructuredBuffer<VoxelColorData>& voxRenderDataBuffer,
+							 StructuredBuffer<VoxelWeightData>& voxWeightDataBuffer,
+							 bool isSkeletal)
 	: vaoId(0)
 {
 	if(voxelCubeData.indexBuffer == 0 &&
@@ -52,16 +54,17 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 	GLuint buffers[] = {voxelCubeData.vertexBuffer, 
 						voxNormPosBuffer.getGLBuffer(),
 						voxIdBuffer.getGLBuffer(),
-						voxRenderDataBuffer.getGLBuffer()};
-	GLintptr offsets[] = { 0, 0, 0, 0 };
+						voxRenderDataBuffer.getGLBuffer(),
+						voxWeightDataBuffer.getGLBuffer()};
+	GLintptr offsets[] = {0, 0, 0, 0, 0};
 	GLsizei strides[] = { sizeof(float) * 3,
 						  sizeof(VoxelNormPos),
 						  sizeof(VoxelIds), 
-						  sizeof(VoxelColorData) };
+						  sizeof(VoxelColorData),
+						  sizeof(VoxelWeightData)};
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, voxelCubeData.indexBuffer);
-
-	glBindVertexBuffers(0, 4, buffers, offsets, strides);
+	glBindVertexBuffers(0, (isSkeletal) ? 5 : 4, buffers, offsets, strides);
 	// Cube Pos
 	glEnableVertexAttribArray(IN_POS);
 	glVertexAttribFormat(IN_POS,
@@ -98,6 +101,17 @@ VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,
 						 0);
 	glVertexAttribDivisor(IN_VOX_COLOR, 1);
 	glVertexAttribBinding(IN_VOX_COLOR, 3);
+
+	if(isSkeletal)
+	{
+		glEnableVertexAttribArray(IN_VOX_WEIGHT);
+		glVertexAttribIFormat(IN_VOX_WEIGHT,
+							  2,
+							  GL_UNSIGNED_INT,
+							  0);
+		glVertexAttribDivisor(IN_VOX_WEIGHT, 1);
+		glVertexAttribBinding(IN_VOX_WEIGHT, 4);
+	}
 }
 
 VoxelDebugVAO::VoxelDebugVAO(StructuredBuffer<VoxelNormPos>& voxNormPosBuffer,

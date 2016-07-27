@@ -77,13 +77,20 @@ class OGLVoxelizer
 		GL3DTexture&						lockTex;
 		StructuredBuffer<IEVector4>&		normalArray;
 		StructuredBuffer<IEVector4>&		colorArray;
+		StructuredBuffer<VoxelWeightData>&	weightArray;
 
 		Shader&								compSplitCount;
 		Shader&								compPackVoxels;
+		Shader&								compPackVoxelsSkel;
 		
 		Shader&								vertVoxelize;
 		Shader&								geomVoxelize;
 		Shader&								fragVoxelize;
+		
+		Shader&								vertVoxelizeSkel;
+		Shader&								geomVoxelizeSkel;
+		Shader&								fragVoxelizeSkel;
+
 		Shader&								fragVoxelizeCount;
 		
 		std::vector<uint8_t>				totalObjInfos;
@@ -124,11 +131,16 @@ class OGLVoxelizer
 													 GL3DTexture& lockTex,
 													 StructuredBuffer<IEVector4>& normalArray,
 													 StructuredBuffer<IEVector4>& colorArray,
+													 StructuredBuffer<VoxelWeightData>& weightArray,
 													 Shader& compSplitCount,
 													 Shader& compPackVoxels,
+													 Shader& compPackVoxelsSkel,
 													 Shader& vertVoxelize,
 													 Shader& geomVoxelize,
 													 Shader& fragVoxelize,
+													 Shader& vertVoxelizeSkel,
+													 Shader& geomVoxelizeSkel,
+													 Shader& fragVoxelizeSkel,
 													 Shader& fragVoxelizeCount,
 													 bool isSkeletal);
 										~OGLVoxelizer();

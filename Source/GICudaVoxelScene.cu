@@ -206,12 +206,8 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	   allocator.GetVoxelPagesDevice(),
 	   *allocator.GetVoxelGridDevice(),
 	   float3{gridNewPos.getX(), gridNewPos.getY(), gridNewPos.getZ()},
-	   
-	   // Per Object Segment
-	   allocator.GetSegmentAllocLoc2D(),				   
 
 	   // Object Related
-	   allocator.GetObjectAllocationIndexLookup2D(),
 	   allocator.GetTransformsDevice(),
 	   allocator.GetTransformIDDevice(),
 	   allocator.GetObjCacheNormPosDevice(),

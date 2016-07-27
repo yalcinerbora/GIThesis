@@ -1,13 +1,13 @@
 #version 430
 #extension GL_NV_shader_atomic_float : require
 /*	
-	**Voxelize Count Shader**
+	**Voxelize Geom Shader**
 	
-	File Name	: VoxelizeGeomCount.frag
+	File Name	: VoxelizeGeom.frag
 	Author		: Bora Yalciner
 	Description	:
 
-		Counts How Many Voxels this Object Can Generate
+		Voxelizes Objects
 */
 
 // Definitions

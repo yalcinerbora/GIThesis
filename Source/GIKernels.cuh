@@ -28,11 +28,7 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 									   const CVoxelGrid& gGridInfo,
 									   const float3 hNewGridPosition,
 
-									   // Per Object Segment
-									   ushort2** gObjectAllocLocations,
-
 									   // Object Related
-									   unsigned int** gObjectAllocIndexLookup,
 									   CObjectTransform** gObjTransforms,
 									   uint32_t** gObjTransformIds,
 									   CVoxelNormPos** gVoxNormPosCacheData,

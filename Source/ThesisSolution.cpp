@@ -11,6 +11,7 @@
 #include "OGLTimer.h"
 #include "IEUtility/IETimer.h"
 #include "GFGLoader.h"
+#include "MeshBatchSkeletal.h"
 
 const size_t ThesisSolution::InitialObjectGridSize = 256;
 const float ThesisSolution::CascadeSpan = 0.6f;
@@ -75,6 +76,7 @@ AOBar::~AOBar()
 
 ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& intialCamPos)
 	: vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
+	, vertexDebugVoxelSkeletal(ShaderType::VERTEX, "Shaders/VoxRenderSkeletal.vert")
 	, vertexDebugWorldVoxel(ShaderType::VERTEX, "Shaders/VoxRenderWorld.vert")
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 	, bar(nullptr)
@@ -228,7 +230,8 @@ double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 
 	// Load GFG
 	std::string batchVoxFile = "vox_" + batch->BatchName() + ".gfg";	
-	LoadVoxel(voxelCaches, batchVoxFile.c_str(), GI_CASCADE_COUNT);
+	LoadVoxel(voxelCaches, batchVoxFile.c_str(), GI_CASCADE_COUNT,
+			  batch->MeshType() == VoxelObjectType::SKEL_DYNAMIC);
 
 	t.Stop();
 	// Voxel Load Complete
@@ -239,7 +242,8 @@ double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 }
 
 bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
-							   const char* gfgFileName, uint32_t cascadeCount)
+							   const char* gfgFileName, uint32_t cascadeCount,
+							   bool isSkeletal)
 {
 	std::ifstream stream(gfgFileName, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
@@ -267,7 +271,7 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 
 		// Special case aabbmin show span count
 		assert(scenes[i].span == mesh.headerCore.aabb.min[0]);
-		scenes[i].cache.emplace_back(mesh.headerCore.vertexCount, objCount);
+		scenes[i].cache.emplace_back(mesh.headerCore.vertexCount, objCount, isSkeletal);
 
 		// Load to Mem
 		std::vector<uint8_t> meshData(gfgFile.MeshVertexDataSize(i));
@@ -327,13 +331,13 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 			else if(component.logic == GFGVertexComponentLogic::WEIGHT)
 			{
 				// Weight
-				//assert(component.dataType == GFGDataType::UINT32_2);
-				//auto& voxWeightVector = currentCache.voxelWeightData.CPUData();
+				assert(component.dataType == GFGDataType::UINT32_2);
+				auto& voxWeightVector = currentCache.voxelWeightData.CPUData();
 
-				//voxWeightVector.resize(mesh.headerCore.vertexCount);
-				//std::memcpy(voxWeightVector.data(), meshData.data() +
-				//			component.startOffset,
-				//			mesh.headerCore.vertexCount * component.stride);
+				voxWeightVector.resize(mesh.headerCore.vertexCount);
+				std::memcpy(voxWeightVector.data(), meshData.data() +
+							component.startOffset,
+							mesh.headerCore.vertexCount * component.stride);
 			}
 			else
 			{
@@ -343,6 +347,7 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 			currentCache.voxelNormPos.SendData();
 			currentCache.voxelIds.SendData();
 			currentCache.objInfo.SendData();
+			if(isSkeletal) currentCache.voxelWeightData.SendData();
 		}
 
 		GI_LOG("\tCascade#%d Voxels : %d", i, mesh.headerCore.vertexCount);
@@ -425,9 +430,6 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 
 	// Debug Voxelize Scene
 	Shader::Unbind(ShaderType::GEOMETRY);
-	vertexDebugVoxel.Bind();
-	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(traceType % 2));
-	glUniform1f(U_SPAN, cache.span);
 	fragmentDebugVoxel.Bind();
 
 	cameraTransform.Bind();
@@ -441,11 +443,28 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 		dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
 		dBuffer.getModelTransformIndexBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM_INDEX);
 
+		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+		{
+			// Shader Vert
+			vertexDebugVoxelSkeletal.Bind();
+			glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(traceType % 2));
+			glUniform1f(U_SPAN, cache.span);
+
+			// Joint Transforms
+			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[i]);
+			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
+		}
+		else
+		{
+			// Shader Vert
+			vertexDebugVoxel.Bind();
+			glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(traceType % 2));
+			glUniform1f(U_SPAN, cache.span);
+		}
+
 		cache.cache[i].voxelVAO.Bind();
 		cache.cache[i].voxelVAO.Draw(cache.cache[i].batchVoxCacheCount, 0);
-	}
-
-	
+	}	
 }
 
 void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, 

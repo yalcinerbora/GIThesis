@@ -14,17 +14,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxelRelated", "VoxelRelated", "{E1A6E462-843D-4491-90A8-8137B528F211}"
 	ProjectSection(SolutionItems) = preProject
 		..\..\WorkingDir\Shaders\DetermineSplitCount.glsl = ..\..\WorkingDir\Shaders\DetermineSplitCount.glsl
-		..\..\WorkingDir\Shaders\PackObjectVoxels.glsl = ..\..\WorkingDir\Shaders\PackObjectVoxels.glsl
-		..\..\WorkingDir\Shaders\VoxelizeGeom.frag = ..\..\WorkingDir\Shaders\VoxelizeGeom.frag
-		..\..\WorkingDir\Shaders\VoxelizeGeom.geom = ..\..\WorkingDir\Shaders\VoxelizeGeom.geom
-		..\..\WorkingDir\Shaders\VoxelizeGeom.vert = ..\..\WorkingDir\Shaders\VoxelizeGeom.vert
 		..\..\WorkingDir\Shaders\VoxelizeGeomCount.frag = ..\..\WorkingDir\Shaders\VoxelizeGeomCount.frag
-		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.frag = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.frag
-		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.geom = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.geom
-		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.vert = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.vert
-		..\..\WorkingDir\Shaders\VoxRender.frag = ..\..\WorkingDir\Shaders\VoxRender.frag
-		..\..\WorkingDir\Shaders\VoxRender.vert = ..\..\WorkingDir\Shaders\VoxRender.vert
-		..\..\WorkingDir\Shaders\VoxRenderWorld.vert = ..\..\WorkingDir\Shaders\VoxRenderWorld.vert
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42F0F4B2-2641-411B-8938-15FBF14395FA}"
@@ -77,6 +67,22 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Skeletal", "Skeletal", "{2F
 		..\..\WorkingDir\Shaders\VoxelizeGeomSkel.vert = ..\..\WorkingDir\Shaders\VoxelizeGeomSkel.vert
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Rendering", "Rendering", "{9CC8801B-CF0C-420E-AE08-F99649E46717}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\VoxRender.frag = ..\..\WorkingDir\Shaders\VoxRender.frag
+		..\..\WorkingDir\Shaders\VoxRender.vert = ..\..\WorkingDir\Shaders\VoxRender.vert
+		..\..\WorkingDir\Shaders\VoxRenderSkeletal.vert = ..\..\WorkingDir\Shaders\VoxRenderSkeletal.vert
+		..\..\WorkingDir\Shaders\VoxRenderWorld.vert = ..\..\WorkingDir\Shaders\VoxRenderWorld.vert
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Static", "Static", "{5888CE97-E6FD-471B-8F2B-0A41BADC99BF}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\PackObjectVoxels.glsl = ..\..\WorkingDir\Shaders\PackObjectVoxels.glsl
+		..\..\WorkingDir\Shaders\VoxelizeGeom.frag = ..\..\WorkingDir\Shaders\VoxelizeGeom.frag
+		..\..\WorkingDir\Shaders\VoxelizeGeom.geom = ..\..\WorkingDir\Shaders\VoxelizeGeom.geom
+		..\..\WorkingDir\Shaders\VoxelizeGeom.vert = ..\..\WorkingDir\Shaders\VoxelizeGeom.vert
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -101,5 +107,7 @@ Global
 		{CEC68846-BCA8-4FEC-9016-2B716037C75A} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{411BEC89-FDE7-42D4-A363-8AD320B28DAF} = {67A12DB4-6DA6-4BC7-A9A7-725248EB38E5}
 		{2F12191D-7440-4717-9359-CBFD2CB141D4} = {E1A6E462-843D-4491-90A8-8137B528F211}
+		{9CC8801B-CF0C-420E-AE08-F99649E46717} = {E1A6E462-843D-4491-90A8-8137B528F211}
+		{5888CE97-E6FD-471B-8F2B-0A41BADC99BF} = {E1A6E462-843D-4491-90A8-8137B528F211}
 	EndGlobalSection
 EndGlobal

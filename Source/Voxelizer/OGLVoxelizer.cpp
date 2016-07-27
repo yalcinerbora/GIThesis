@@ -21,11 +21,16 @@ OGLVoxelizer::OGLVoxelizer(const VoxelizerOptions& options,
 						   GL3DTexture& lockTex,
 						   StructuredBuffer<IEVector4>& normalArray,
 						   StructuredBuffer<IEVector4>& colorArray,
+						   StructuredBuffer<VoxelWeightData>& weightArray,
 						   Shader& compSplitCount,
 						   Shader& compPackVoxels,
+						   Shader& compPackVoxelsSkel,
 						   Shader& vertVoxelize,
 						   Shader& geomVoxelize,
 						   Shader& fragVoxelize,
+						   Shader& vertVoxelizeSkel,
+						   Shader& geomVoxelizeSkel,
+						   Shader& fragVoxelizeSkel,
 						   Shader& fragVoxelizeCount,
 						   bool isSkeletal)
 	: options(options)
@@ -36,11 +41,16 @@ OGLVoxelizer::OGLVoxelizer(const VoxelizerOptions& options,
 	, lockTex(lockTex)
 	, normalArray(normalArray)
 	, colorArray(colorArray)
+	, weightArray(weightArray)
 	, compSplitCount(compSplitCount)
 	, compPackVoxels(compPackVoxels)
+	, compPackVoxelsSkel(compPackVoxelsSkel)
 	, vertVoxelize(vertVoxelize)
 	, geomVoxelize(geomVoxelize)
 	, fragVoxelize(fragVoxelize)
+	, vertVoxelizeSkel(vertVoxelizeSkel)
+	, geomVoxelizeSkel(geomVoxelizeSkel)
+	, fragVoxelizeSkel(fragVoxelizeSkel)
 	, fragVoxelizeCount(fragVoxelizeCount)
 	, isSkeletal(isSkeletal)
 	, mipInfo(batch.DrawCount(), MipInfo::EMPTY)
@@ -385,7 +395,8 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 	float segmentSize = static_cast<float>(VOX_3D_TEX_SIZE) * currentSpan;
 
 	// Shaders Common
-	geomVoxelize.Bind();
+	if(isSkeletal) geomVoxelizeSkel.Bind();
+	else geomVoxelize.Bind();
 
 	// Buffers
 	StructuredBuffer<uint32_t> index(1);
@@ -397,11 +408,13 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 	drawBuffer.BindAsDrawIndirectBuffer();
 	voxelNormPos.BindAsShaderStorageBuffer(LU_VOXEL_NORM_POS);
 	color.BindAsShaderStorageBuffer(LU_VOXEL_COLOR);
+	if(isSkeletal) weights.BindAsShaderStorageBuffer(LU_VOXEL_WEIGHT);
 	aabbBuffer.BindAsShaderStorageBuffer(LU_AABB);
 	voxIds.BindAsShaderStorageBuffer(LU_VOXEL_IDS);
 	index.BindAsShaderStorageBuffer(LU_INDEX_CHECK);
 	colorArray.BindAsShaderStorageBuffer(LU_COLOR_SPARSE);
 	normalArray.BindAsShaderStorageBuffer(LU_NORMAL_SPARSE);
+	if(isSkeletal) weightArray.BindAsShaderStorageBuffer(LU_WEIGHT_SPARSE);
 
 	index.Memset(0x00);
 
@@ -481,14 +494,16 @@ void OGLVoxelizer::VoxelizeObject(uint32_t objIndex, float segmentSize,
 								  float currentSpan)
 {
 	// Vertex Shader
-	vertVoxelize.Bind();
+	if(isSkeletal) vertVoxelizeSkel.Bind();
+	else vertVoxelize.Bind();
 	glUniform1ui(U_OBJ_ID, objIndex);
 	glUniform3ui(U_SPLIT_CURRENT, splitX, splitY, splitZ);
 	glUniform1f(U_SEGMENT_SIZE, segmentSize);
 	glUniform1f(U_SPLAT_RATIO, options.splatRatio);
 
 	// Fragment Shader
-	fragVoxelize.Bind();
+	if(isSkeletal) fragVoxelizeSkel.Bind();
+	else fragVoxelize.Bind();
 	glUniform1ui(U_OBJ_ID, objIndex);
 	glUniform3ui(U_SPLIT_CURRENT, splitX, splitY, splitZ);
 	glUniform1f(U_SEGMENT_SIZE, segmentSize);
@@ -507,7 +522,8 @@ void OGLVoxelizer::PackObjectVoxels(uint32_t objIndex, GLuint isMip,
 									uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ,
 									uint32_t splitX, uint32_t splitY, uint32_t splitZ)
 {
-	compPackVoxels.Bind();
+	if(isSkeletal) compPackVoxelsSkel.Bind();
+	else compPackVoxels.Bind();
 	glUniform1ui(U_OBJ_TYPE, static_cast<GLuint>(batch.MeshType()));
 	glUniform1ui(U_OBJ_ID, objIndex);
 	glUniform1ui(U_MAX_CACHE_SIZE, totalVoxCount.CPUData().front());

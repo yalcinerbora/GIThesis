@@ -87,13 +87,6 @@ __global__ void VoxelObjectAlloc(// Voxel System
 	// Intersection Check
 	const uint32_t transformId = gObjTransformIds[objectId];
 	const CMatrix4x4 transform = gObjTransforms[transformId].transform;
-	//{{
-	//	{ 0.19f, 0.0f, 0.0f, 0.0f },
-	//	{ 0.0f, 0.19f, 0.0f, 0.0f },
-	//	{ 0.0f, 0.0f, 0.19f, 0.0f },
-	//	{ 0.0f, 0.0f, 0.0f, 0.19f },
-	//}};
-
 	const CObjectAABB objAABB = gObjectAABB[objectId];
 	bool intersects = CheckGridVoxIntersect(gGridInfo, objAABB, transform);
 
@@ -180,10 +173,6 @@ __global__ void VoxelObjectInclude(// Voxel System
 						 objectId,
 						 objType,
 						 renderLoc);
-		}
-		else
-		{
-			assert(false);
 		}
 	}
 }

@@ -25,24 +25,30 @@ struct VoxelObjectCache
 	StructuredBuffer<VoxelNormPos>			voxelNormPos;
 	StructuredBuffer<VoxelIds>				voxelIds;
 	StructuredBuffer<VoxelColorData>		voxelRenderData;
-	StructuredBuffer<ObjGridInfo>			objInfo;
+	StructuredBuffer<VoxelWeightData>		voxelWeightData;
+	StructuredBuffer<ObjGridInfo>			objInfo;	
 	VoxelDebugVAO							voxelVAO;
+
+	bool									isSkeletal;
 
 	uint32_t								batchVoxCacheCount;
 	double									batchVoxCacheSize;
 
-	VoxelObjectCache(size_t voxelCount, size_t objCount)
-		: voxelNormPos(voxelCount)
+	VoxelObjectCache(size_t voxelCount, size_t objCount, bool isSkeletal)
+		: isSkeletal(isSkeletal)
+		, voxelNormPos(voxelCount)
 		, voxelIds(voxelCount)
 		, objInfo(objCount)
 		, voxelRenderData(voxelCount)
-		, voxelVAO(voxelNormPos, voxelIds, voxelRenderData)
+		, voxelWeightData((isSkeletal) ? voxelCount : 0)
+		, voxelVAO(voxelNormPos, voxelIds, voxelRenderData, voxelWeightData, isSkeletal)
 		, batchVoxCacheCount(static_cast<uint32_t>(voxelCount))
 		, batchVoxCacheSize(VoxelCacheSizeMB(voxelCount))
 	{}
 
 	VoxelObjectCache(VoxelObjectCache&& other)
-		: voxelNormPos(std::move(other.voxelNormPos))
+		: isSkeletal(other.isSkeletal)
+		, voxelNormPos(std::move(other.voxelNormPos))
 		, voxelIds(std::move(other.voxelIds))
 		, objInfo(std::move(other.objInfo))
 		, voxelRenderData(std::move(other.voxelRenderData))

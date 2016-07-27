@@ -14,6 +14,8 @@
 #define LU_VOXEL_IDS 5
 #define LU_NORMAL_SPARSE 6
 #define LU_COLOR_SPARSE 7
+#define LU_WEIGHT_SPARSE 8
+#define LU_VOXEL_WEIGHT 9
 
 // Image
 #define I_LOCK 0

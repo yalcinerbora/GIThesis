@@ -12,9 +12,6 @@
 	Implement area lights properly (atm its shitty point light)
 	Read some stuff about it.
 
--- [Skeleton Backed Transform Support]
-	Add Support for Skeleton backed Transforms to Voxel Hierarchy
-
 # REMOVED FROM THESIS (Not enough time)
 #-- [Implement Morph Target Transform]
 #-- [Morph Target Transform Support]
@@ -23,8 +20,8 @@
 #
 
 -- [GI Implement]
-	Add GI Implementation (Path Tracing) ??? (i was goint to implement this??)
-	Add GI Implementation (Cone Tracing) (Partially works buggy)
+	Add GI Implementation (Path Tracing) ??? (i was going to implement this??)
+	Add GI Implementation (Cone Tracing) (Partially works buggy shadow map fetch is buggy)
 
 -- [Compare Images]
 	Create Comparison Images between mental ray and mental ray

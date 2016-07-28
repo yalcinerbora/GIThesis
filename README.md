@@ -11,7 +11,7 @@ Everything else are provided by the repository
 
 ## Working Directory
 
-Working Directory can be found [here][2]
+Working Directory can be found [here][1]
 
 ## License
 

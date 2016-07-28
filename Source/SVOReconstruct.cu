@@ -192,8 +192,8 @@ __global__ void SVOReconstructDetermineNode(CSVONode* gSVODense,
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
 
 	// Skip Whole segment if necessary
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
+	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::EMPTY) return;
+	assert(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) != SegmentOccupation::MARKED_FOR_CLEAR);
 
 	// Fetch voxel
 	CVoxelPos voxelPosPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
@@ -234,8 +234,8 @@ __global__ void SVOReconstructDetermineNode(CSVONode* gSVOSparse,
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
 
 	// Skip Whole segment if necessary
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
+	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::EMPTY) return;
+	assert(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) != SegmentOccupation::MARKED_FOR_CLEAR);
 
 	// Fetch voxel
 	CVoxelPos voxelPosPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
@@ -320,10 +320,11 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
+	unsigned int segmentLocalVoxId = pageLocalId % GI_SEGMENT_SIZE;
 
 	// Skip Whole segment if necessary
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
+	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::EMPTY) return;
+	assert(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) != SegmentOccupation::MARKED_FOR_CLEAR);
 
 	// Fetch voxel
 	CVoxelPos voxelPosPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
@@ -371,12 +372,13 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 	// Average color and normal
 	// Fetch obj Id to get color
 	ushort2 objectId;
-	CVoxelObjectType objType;
-	unsigned int voxelId;
-	ExpandVoxelIds(voxelId, objectId, objType, gVoxelData[pageId].dGridVoxIds[pageLocalId]);
+	SegmentObjData objData = gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId];
+	objectId.x = objData.objId;
+	objectId.y = objData.batchId;
+	unsigned int cacheVoxelId = objData.voxStride + segmentLocalVoxId;
 
 	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
-	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
+	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][cacheVoxelId].color);
 
 	// Atomic Average
 	AtomicColorNormalAvg(gSVOMat + matSparseOffset +
@@ -614,10 +616,11 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
 	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
+	unsigned int segmentLocalVoxId = pageLocalId % GI_SEGMENT_SIZE;
 
 	// Skip Whole segment if necessary
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
-	if(gVoxelData[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
+	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::EMPTY) return;
+	assert(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) != SegmentOccupation::MARKED_FOR_CLEAR);
 
 	// Fetch voxel
 	CVoxelPos voxelPosPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
@@ -657,13 +660,15 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 		location += childId;
 	}
 
+	// ObjId Fetch
 	ushort2 objectId;
-	CVoxelObjectType objType;
-	unsigned int voxelId;
-	ExpandVoxelIds(voxelId, objectId, objType, gVoxelData[pageId].dGridVoxIds[pageLocalId]);
+	SegmentObjData objData = gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId];
+	objectId.x = objData.objId;
+	objectId.y = objData.batchId;
+	unsigned int cacheVoxelId = objData.voxStride+ segmentLocalVoxId;
 
 	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
-	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][voxelId].color);
+	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][cacheVoxelId].color);
 	AtomicColorNormalAvg(gSVOMat + matSparseOffset +
 						 gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location,
 						 voxelColorPacked,

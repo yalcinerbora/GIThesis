@@ -18,19 +18,19 @@ Memory Allocation
 #include <cudaGL.h>
 #include "IEUtility/IEVector3.h"
 
+
+
 struct CVoxelPageData
 {
 	CudaVector<CVoxelPos>			dVoxelPagePos;
 	CudaVector<CVoxelNorm>			dVoxelPageNorm;
-	CudaVector<CVoxelIds>			dVoxelPageIds;
 	CudaVector<unsigned char>		dEmptySegmentList;
-	CudaVector<SegmentOccupation>	dIsSegmentOccupied;
+	CudaVector<SegmentObjData>		dIsSegmentOccupied;
 
 	CVoxelPageData() {};
 	CVoxelPageData(size_t sizeOfPage, size_t sizeOfHelper)
 		: dVoxelPagePos(sizeOfPage)
 		, dVoxelPageNorm(sizeOfPage)
-		, dVoxelPageIds(sizeOfPage)
 		, dEmptySegmentList(sizeOfHelper)
 		, dIsSegmentOccupied(sizeOfHelper)
 	{}
@@ -40,8 +40,8 @@ class GICudaAllocator
 {
 	
 	private:
-		static const unsigned int				SVOTextureSize;
-		static const unsigned int				SVOTextureDepth;
+		static const unsigned int					SVOTextureSize;
+		static const unsigned int					SVOTextureDepth;
 
 		// Grid Data
 		std::vector<CVoxelPage>					hVoxelPages;
@@ -54,18 +54,17 @@ class GICudaAllocator
 
 		// Helper Data (That is populated by system)
 		// Object Segment Related
-		std::vector<CudaVector<unsigned int>>	dSegmentObjecId;
-		std::vector<CudaVector<ushort2>>		dSegmentAllocLoc;
+		std::vector<CudaVector<SegmentObjData>>	dSegmentObjecId;
+		std::vector<CudaVector<ushort2>>	 	dSegmentAllocLoc;
 
 		// Per Object
 		std::vector<CudaVector<unsigned int>>	dVoxelStrides;
 		std::vector<CudaVector<unsigned int>>	dObjectAllocationIndexLookup;
-		std::vector<CudaVector<char>>			dWriteSignals;
 
 		// Array of Device Pointers
-		CudaVector<unsigned int*>				dObjectAllocationIndexLookup2D;
-		CudaVector<unsigned int*>				dObjectVoxStrides2D;
-		CudaVector<ushort2*>					dSegmentAllocLoc2D;
+		CudaVector<unsigned int*>			 	dObjectAllocationIndexLookup2D;
+		CudaVector<unsigned int*>			 	dObjectVoxStrides2D;
+		CudaVector<ushort2*>				 	dSegmentAllocLoc2D;
 		//------
 
 		// Object Related Data (Comes from OGL)
@@ -74,29 +73,35 @@ class GICudaAllocator
 		CudaVector<uint32_t*>					dTransformIds;
 		CudaVector<CObjectAABB*>				dObjectAABB;			// Object Space Axis Aligned Bounding Box for each object
 		CudaVector<CObjectVoxelInfo*>			dObjectInfo;			// Voxel Count of the object
-		
-		CudaVector<CVoxelNormPos*>				dObjNormPosCache;
-		CudaVector<CVoxelIds*>					dObjIdsCache;
-		CudaVector<CVoxelColor*>				dObjRenderCache;
+		CudaVector<CObjectTransform*>			dJointTransform;		// Joint Transforms
 
-		std::vector<CObjectTransform*>			hTransforms;			
+		CudaVector<CVoxelNormPos*>				dObjNormPosCache;
+		//CudaVector<CVoxelIds*>				dObjIdsCache;
+		CudaVector<CVoxelColor*>				dObjRenderCache;
+		CudaVector<CVoxelWeight*>				dObjWeight;
+
+		std::vector<CObjectTransform*>			hTransforms;
 		std::vector<CObjectAABB*>				hObjectAABB;
 		std::vector<uint32_t*>					hTransformIds;
-		std::vector<CObjectVoxelInfo*>			hObjectInfo;		
+		std::vector<CObjectVoxelInfo*>			hObjectInfo;
+		std::vector<CObjectTransform*>			hJointTransform;
 
 		std::vector<CVoxelNormPos*>				hObjNormPosCache;
-		std::vector<CVoxelIds*>					hObjIdsCache;
+		//std::vector<CVoxelIds*>				hObjIdsCache;
 		std::vector<CVoxelColor*>				hObjRenderCache;
+		std::vector<CVoxelWeight*>				hObjWeight;
 
 		// Interop Data
 		std::vector<cudaGraphicsResource_t>		transformLinks;
 		std::vector<cudaGraphicsResource_t>		transformIdLinks;
 		std::vector<cudaGraphicsResource_t>		aabbLinks;
 		std::vector<cudaGraphicsResource_t>		objectInfoLinks;
+		std::vector<cudaGraphicsResource_t>		jointTransformLinks;
 
 		std::vector<cudaGraphicsResource_t>		cacheNormPosLinks;
-		std::vector<cudaGraphicsResource_t>		cacheIdsLinks;
+		//std::vector<cudaGraphicsResource_t>	cacheIdsLinks;
 		std::vector<cudaGraphicsResource_t>		cacheRenderLinks;
+		std::vector<cudaGraphicsResource_t>		objWeightLinks;
 
 		// Size Data
 		std::vector<size_t>						voxelCounts;
@@ -119,11 +124,13 @@ class GICudaAllocator
 		// Linking and Unlinking Voxel Cache Data (from OGL)
 		void					LinkOGLVoxelCache(GLuint aabbBuffer,
 												  GLuint transformBuffer,
+												  GLuint jointTransformBuffer,
 												  GLuint transformIDBuffer,
 												  GLuint infoBuffer,
 												  GLuint voxelNormPosBuffer,
 												  GLuint voxelIdsBuffer,
 												  GLuint voxelCacheRender,
+												  GLuint voxelWeightBuffer,
 												  uint32_t objCount,
 												  uint32_t voxelCount);
 
@@ -157,10 +164,12 @@ class GICudaAllocator
 		uint32_t**				GetTransformIDDevice();
 		CObjectAABB**			GetObjectAABBDevice();
 		CObjectVoxelInfo**		GetObjectInfoDevice();
+		CObjectTransform**		GetJointTransformDevice();
 
 		CVoxelNormPos**			GetObjCacheNormPosDevice();
 		CVoxelIds**				GetObjCacheIdsDevice();
 		CVoxelColor**			GetObjRenderCacheDevice();
+		CVoxelWeight**			GetObjWeightDevice();
 
 		CObjectTransform*		GetTransformsDevice(uint32_t index);
 		uint32_t*				GetTransformIDDevice(uint32_t index);
@@ -176,12 +185,11 @@ class GICudaAllocator
 
 		// Helper Data (That is populated by system)
 		// Object Segment Related
-		unsigned int*			GetSegmentObjectID(uint32_t index);
+		SegmentObjData*			GetSegmentObjectID(uint32_t index);
 		ushort2*				GetSegmentAllocLoc(uint32_t index);
 
 		unsigned int*			GetVoxelStrides(uint32_t index);
 		unsigned int*			GetObjectAllocationIndexLookup(uint32_t index);
-		char*					GetWriteSignals(uint32_t index);
 
 		unsigned int**			GetObjectAllocationIndexLookup2D();
 		unsigned int**			GetObjectVoxStrides2D();

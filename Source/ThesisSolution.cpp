@@ -235,7 +235,7 @@ double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 
 	t.Stop();
 	// Voxel Load Complete
-	GI_LOG("Loading \"%s\" complete", batchVoxFile);
+	GI_LOG("Loading \"%s\" complete", batchVoxFile.c_str());
 	GI_LOG("\tDuration : %f ms", t.ElapsedMilliS());
 	GI_LOG("------");
 	return t.ElapsedMilliS();
@@ -366,13 +366,18 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene,
 	assert(batches.length == cache.cache.size());
 	for(unsigned int i = 0; i < cache.cache.size(); i++)
 	{
+		GLuint jointBuffer = 0;
+		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+			jointBuffer = static_cast<MeshBatchSkeletal*>(batches.arr[i])->getJointTransforms().getGLBuffer();
 		scene.LinkOGL(batches.arr[i]->getDrawBuffer().getAABBBuffer().getGLBuffer(),
 					  batches.arr[i]->getDrawBuffer().getModelTransformBuffer().getGLBuffer(),
+					  jointBuffer,
 					  batches.arr[i]->getDrawBuffer().getModelTransformIndexBuffer().getGLBuffer(),
 					  cache.cache[i].objInfo.getGLBuffer(),
 					  cache.cache[i].voxelNormPos.getGLBuffer(),
 					  cache.cache[i].voxelIds.getGLBuffer(),
 					  cache.cache[i].voxelRenderData.getGLBuffer(),
+					  cache.cache[i].voxelWeightData.getGLBuffer(),
 					  static_cast<uint32_t>(batches.arr[i]->DrawCount()),
 					  cache.cache[i].batchVoxCacheCount);
 	}
@@ -630,6 +635,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			unsigned int totalVoxCount = 0;
 			for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 				totalVoxCount += voxelCaches[i].voxOctreeCount;
+
+			if(totalVoxCount == 0) break;
 
 			voxelNormPosBuffer.Resize(totalVoxCount);
 			voxelColorBuffer.Resize(totalVoxCount);

@@ -4,6 +4,7 @@
 #define __CVOXELPAGE_H__
 
 #include <vector_types.h>
+#include <cstdint>
 
 // Used in kernel calls that may not saturate enough cores
 #define GI_THREAD_PER_BLOCK_SMALL 128
@@ -29,15 +30,22 @@ enum class SegmentOccupation : unsigned char
 	MARKED_FOR_CLEAR = 2,
 };
 
+struct SegmentObjData
+{
+	uint16_t			batchId;
+	uint16_t			objId;
+	uint16_t			objectSegmentId;
+	uint16_t			packed;	// Containts 2 bit Obj Type 4 bit Occupation 10 bit segment occupancy
+	uint32_t			voxStride;
+};
+
 struct CVoxelPage
 {
 	CVoxelPos*			dGridVoxPos;
 	CVoxelNorm*			dGridVoxNorm;
-	CVoxelIds*			dGridVoxIds;
 	unsigned char*		dEmptySegmentPos;
-	SegmentOccupation*	dIsSegmentOccupied;
+	SegmentObjData*		dSegmentObjData;
 	unsigned int		dEmptySegmentStackSize;
-
 };
 
 #endif //__CVOXELPAGE_H__

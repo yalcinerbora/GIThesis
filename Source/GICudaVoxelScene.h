@@ -17,7 +17,7 @@ class IEVector3;
 class GICudaVoxelScene
 {
 	private:
-		GICudaAllocator						allocator;
+		GICudaAllocator		allocator;
 
 	protected:
 
@@ -32,11 +32,13 @@ class GICudaVoxelScene
 		// Determines and Allocates the initial Page Size for the first frame
 		void				LinkOGL(GLuint aabbBuffer,
 									GLuint transformBuffer,
+									GLuint jointTransformBuffer,
 									GLuint transformIDBuffer,
 									GLuint infoBufferID,
 									GLuint voxelCacheNormPos,
 									GLuint voxelCacheIds,
 									GLuint voxelCacheRender,
+									GLuint weightBuffer,
 									uint32_t objCount,
 									uint32_t voxelCount);
 		void				AllocateWRTLinkedData(float coverageRatio);

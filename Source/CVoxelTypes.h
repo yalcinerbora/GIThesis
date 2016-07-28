@@ -44,8 +44,8 @@ struct CVoxelColor
 
 struct CVoxelWeight
 {
-	uchar4			weightIndex;
 	uchar4			weight;
+	uchar4			weightIndex;
 };
 #pragma pack(pop)
 #endif //__CVOXELTYPES_H__

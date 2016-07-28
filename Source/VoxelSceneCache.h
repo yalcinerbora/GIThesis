@@ -61,7 +61,7 @@ struct VoxelObjectCache
 
 	static double VoxelCacheSizeMB(size_t voxelCount)
 	{
-		return voxelCount * (sizeof(VoxelNormPos) + sizeof(VoxelIds) + sizeof(VoxelColorData)) /
+		return voxelCount * (sizeof(VoxelNormPos) + /*sizeof(VoxelIds) +*/ sizeof(VoxelColorData)) /
 				1024.0 / 1024.0;
 	}
 };

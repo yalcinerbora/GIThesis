@@ -30,9 +30,12 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 
 									   // Object Related
 									   CObjectTransform** gObjTransforms,
+									   CObjectTransform** gJointTransforms,
 									   uint32_t** gObjTransformIds,
 									   CVoxelNormPos** gVoxNormPosCacheData,
 									   CVoxelColor** gVoxRenderData,
+									   CVoxelWeight** gVoxWeightData,
+
 									   CObjectVoxelInfo** gObjInfo,
 									   CObjectAABB** gObjectAABB);
 
@@ -46,11 +49,10 @@ extern __global__ void VoxelObjectDealloc(// Voxel System
 
 										  // Per Object Segment Related
 										  ushort2* gObjectAllocLocations,
-										  const unsigned int* gSegmentObjectId,
+										  const SegmentObjData* gSegmentObjectData,
 										  const uint32_t totalSegments,
 
 										  // Per Object Related
-										  char* gWriteToPages,
 										  const CObjectAABB* gObjectAABB,
 										  const CObjectTransform* gObjTransforms,
 										  const unsigned int* gObjTransformIds);
@@ -62,11 +64,10 @@ extern __global__ void VoxelObjectAlloc(// Voxel System
 
 										// Per Object Segment Related
 										ushort2* gObjectAllocLocations,
-										const unsigned int* gSegmentObjectId,
+										const SegmentObjData* gSegmentObjectData,
 										const uint32_t totalSegments,
 
 										// Per Object Related
-										char* gWriteToPages,
 										const CObjectAABB* gObjectAABB,
 										const CObjectTransform* gObjTransforms,
 										const unsigned int* gObjTransformIds);
@@ -81,31 +82,6 @@ __global__ void VoxelClearMarked(CVoxelPage* gVoxelData);
 // Logic per segment in page system
 __global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
 								 const uint32_t numPages);
-
-// Voxel Include
-// Introduces existing voxel to the voxel grid
-// Call Logic "per voxel"
-// Each voxel writes its data to allocated segments
-extern __global__ void VoxelObjectInclude(// Voxel System
-										  CVoxelPage* gVoxelData,
-										  const CVoxelGrid& gGridInfo,
-
-										  // Per Object Segment Related
-										  ushort2* gObjectAllocLocations,
-										  const uint32_t segmentCount,
-										  
-										  // Per Object Related
-										  char* gWriteToPages,
-										  const unsigned int* gObjectVoxStrides,
-										  const unsigned int* gObjectAllocIndexLookup,					  
-
-										  // Per Voxel Related
-										  const CVoxelIds* gVoxelIdsCache,
-										  uint32_t voxCount,
-										  uint32_t objCount,
-
-										  // Batch(ObjectGroup in terms of OGL) Id
-										  uint32_t batchId);
 
 
 // Reconstruct SVO

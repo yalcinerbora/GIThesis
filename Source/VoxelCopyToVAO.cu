@@ -45,8 +45,11 @@ __global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
 	unsigned int pageId = blockIdx.x / GI_BLOCK_PER_PAGE;
 	unsigned int pageLocalId = globalId - (pageId * GI_PAGE_SIZE);
 	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
-	if(gVoxPages[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::EMPTY) return;
-	if(gVoxPages[pageId].dIsSegmentOccupied[pageLocalSegmentId] == SegmentOccupation::MARKED_FOR_CLEAR) assert(false);
+	unsigned int segmentLocalVoxId = pageLocalId % GI_SEGMENT_SIZE;
+
+	// Skip whole segment if necessary
+	if(ExpandOnlyOccupation(gVoxPages[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::EMPTY) return;
+	assert(ExpandOnlyOccupation(gVoxPages[pageId].dSegmentObjData[pageLocalSegmentId].packed) != SegmentOccupation::MARKED_FOR_CLEAR);
 
 	// Data Read
 	CVoxelPos voxPosPacked = gVoxPages[pageId].dGridVoxPos[pageLocalId];
@@ -60,13 +63,15 @@ __global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
 		assert(index < maxBufferSize);
 
 		// Fetch obj Id to get color
+		// ObjId Fetch
 		ushort2 objectId;
-		CVoxelObjectType objType;
-		unsigned int voxelId;
-		ExpandVoxelIds(voxelId, objectId, objType, gVoxPages[pageId].dGridVoxIds[pageLocalId]);
+		SegmentObjData objData = gVoxPages[pageId].dSegmentObjData[pageLocalSegmentId];
+		objectId.x = objData.objId;
+		objectId.y = objData.batchId;
+		unsigned int cacheVoxelId = objData.voxStride + segmentLocalVoxId;
 
 		voxelNormPosData[index] = uint2{voxPosPacked, voxNormpacked};
-		voxelColorData[index] = gVoxelRenderData[objectId.y][voxelId].color;
+		voxelColorData[index] = gVoxelRenderData[objectId.y][cacheVoxelId].color;
 	}
 }
 

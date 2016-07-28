@@ -8,8 +8,36 @@ Voxel Sturcutres
 #define __CVOXEL_H__
 
 #include "CVoxelTypes.h"
+#include "CVoxelPage.h"
 
-//
+inline __device__ SegmentOccupation ExpandOnlyOccupation(const uint16_t packed)
+{
+	return static_cast<SegmentOccupation>((packed >> 11) & 0x0007);
+}
+
+inline __device__ void ExpandSegmentPacked(CVoxelObjectType& type,
+										   SegmentOccupation& occupation,
+										   uint16_t& segOccupancy,
+										   const uint16_t packed)
+{
+	// MSB to LSB 2 bit object type 2 bit
+	type = static_cast<CVoxelObjectType>((packed >> 14) & 0x0003);
+	occupation = ExpandOnlyOccupation(packed);
+	segOccupancy = packed & 0x07FF;
+}
+
+inline __device__ uint16_t PackSegmentPacked(const CVoxelObjectType type,
+											 const SegmentOccupation occupation,
+											 const uint16_t segOccupancy)
+{
+	//
+	uint16_t packed = 0;
+	packed |= (static_cast<uint16_t>(type) & 0x0003) << 14;
+	packed |= (static_cast<uint16_t>(occupation) & 0x0007) << 11;
+	packed |= (segOccupancy & 0x07FF) << 0;
+	return packed;
+}
+
 inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 {
 	uint3 result;

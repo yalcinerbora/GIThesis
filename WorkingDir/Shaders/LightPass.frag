@@ -286,7 +286,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 	// Lambert Diffuse Model
 	lightIntensity = GI_ONE_OVER_PI * vec3(max(dot(worldNormal, worldLight), 0.0f));
 
-	// Burley Diffuse Model (Disney)
+	//// Burley Diffuse Model (Disney)
 	//float rougness = 0.5f;
 	//float NdL = dot(worldNormal, worldLight);
 	//float NdV = dot(worldNormal, worldEye);

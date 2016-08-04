@@ -13,6 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shaders", "Shaders", "{67A1
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxelRelated", "VoxelRelated", "{E1A6E462-843D-4491-90A8-8137B528F211}"
 	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\ApplyVoxLI.glsl = ..\..\WorkingDir\Shaders\ApplyVoxLI.glsl
 		..\..\WorkingDir\Shaders\DetermineSplitCount.glsl = ..\..\WorkingDir\Shaders\DetermineSplitCount.glsl
 		..\..\WorkingDir\Shaders\VoxelizeGeomCount.frag = ..\..\WorkingDir\Shaders\VoxelizeGeomCount.frag
 	EndProjectSection

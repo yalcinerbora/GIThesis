@@ -12,6 +12,7 @@ Just Renders the scene
 #include <AntTweakBar.h>
 #include <cstdint>
 #include <vector>
+#include "IEUtility/IEVector3.h"
 
 class DeferredRenderer;
 class EmptyGISolution;
@@ -56,6 +57,8 @@ class EmptyGISolution : public SolutionI
 		SceneI*					currentScene;
 
 		bool					directLighting;
+		bool					ambientLighting;
+		IEVector3				ambientColor;
 		
 	public:
 								EmptyGISolution(DeferredRenderer&);

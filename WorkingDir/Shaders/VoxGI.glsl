@@ -11,7 +11,7 @@
 		Global Illumination approximation using SVO
 */
 
-#define I_LIGHT_INENSITY layout(rgba8, binding = 2) restrict writeonly
+#define I_LIGHT_INENSITY layout(rgba8, binding = 2) restrict
 
 #define LU_SVO_NODE layout(std430, binding = 2) readonly
 #define LU_SVO_MATERIAL layout(std430, binding = 3) readonly
@@ -159,7 +159,7 @@ U_CONE_PARAMS uniform ConeTraceParameters
 	// x intensity
 	// y sqrt2
 	// z sqrt3
-	// w empty
+	// w falloffFactor
 	vec4 coneParams2;
 };
 
@@ -532,33 +532,37 @@ float ShadowSample(in vec4 shadowUV, in uint shadowLod, in uint lightIndex)
 {
 	// Shadow new hier
 	float shadowIntensity = 1.0f;
-	if(lightParams[lightIndex].position.w == GI_LIGHT_DIRECTIONAL)
-	{			
-		vec3 uv = vec3(shadowUV.xy, float(lightIndex * 6) + shadowUV.z);
-		vec2 size = vec2(float(shadowMapWH >> shadowLod));
+//	for(uint i = 0; i < shadowMipCount; i++)
+//	{
+		if(lightParams[lightIndex].position.w == GI_LIGHT_DIRECTIONAL)
+		{			
+			vec3 uv = vec3(shadowUV.xy, float(lightIndex * 6) + shadowUV.z);
+			vec2 size = vec2(float(shadowMapWH >> shadowLod));
 		
-		float lodIntensity = 0.0f;
-		for(int x = -1; x <= 1; x++){
-		for(int y = -1; y <= 1; y++)
+			float lodIntensity = 0.0f;
+			for(int x = -1; x <= 1; x++){
+			for(int y = -1; y <= 1; y++)
+			{
+				vec2 off = vec2(x,y)/size;
+				lodIntensity += textureShadowLodLerp(shadowMapsDir, 
+													 size, 
+													 vec3(uv.xy + off, uv.z), 
+													 shadowLod, 
+													 shadowUV.w);
+			}}
+			lodIntensity /= 9.0f;
+			lodIntensity = (1.0f - lodIntensity) * ((shadowLod == 0) ? 1.0f : 0.5f);
+			//lodIntensity = (1.0f - lodIntensity);
+			shadowIntensity -= lodIntensity / float(1 << shadowLod);
+			
+		}
+		else
 		{
-			vec2 off = vec2(x,y)/size;
-			lodIntensity += textureShadowLodLerp(shadowMapsDir, 
-												 size, 
-												 vec3(uv.xy + off, uv.z), 
-												 shadowLod, 
-												 shadowUV.w);
-		}}
-		lodIntensity /= 9.0f;
-		lodIntensity = (1.0f - lodIntensity) * ((shadowLod == 0) ? 1.0f : 0.5f);
-		//lodIntensity = (1.0f - lodIntensity);
-		shadowIntensity -= lodIntensity / float(1 << shadowLod);
-	}
-	else
-	{
-		float depth = textureLod(shadowMaps, vec4(shadowUV.xyz, float(lightIndex)), float(shadowLod)).x;
-		shadowIntensity -= ((step(depth, shadowUV.w)) / (float(1 << shadowLod)));
-	}
-	return clamp(shadowIntensity, 0.0f, 1.0f);
+			float depth = textureLod(shadowMaps, vec4(shadowUV.xyz, float(lightIndex)), float(shadowLod)).x;
+			shadowIntensity -= ((step(depth, shadowUV.w)) / (float(1 << shadowLod)));
+		}
+//	}
+	return max(0.0f, shadowIntensity);
 }
 
 vec3 PhongBRDF(in vec3 worldPos,
@@ -612,7 +616,7 @@ vec3 PhongBRDF(in vec3 worldPos,
 	// Check Light Occulusion (ShadowMap)
 	// TODO: Check projected pixel sizes and choose the most appropirate level on the
 	// Hierarhical shadow map
-	uint shadowLod = 0;//max(3, dimDepth.y - nodeDepth);
+	uint shadowLod = max(3, dimDepth.y - nodeDepth);
 	float shadowIntensity = ShadowSample(shadowUV, shadowLod, lightIndex);
 
 	// Specular
@@ -634,10 +638,10 @@ vec3 PhongBRDF(in vec3 worldPos,
 	lightIntensity *= lightParams[lightIndex].color.a;
 
 	//Shadow
-	//lightIntensity *= shadowIntensity;
+	lightIntensity *= shadowIntensity;
 
 	// Voxel Occlusion
-	lightIntensity *= normalSVO.w;
+//	lightIntensity *= normalSVO.w;
 
 	// Out
 	return lightIntensity * colorSVO.xyz;
@@ -649,6 +653,7 @@ void main(void)
 	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
 	uvec2 pixelId = globalId / uvec2(CONE_COUNT, 1);
+
 	if(any(greaterThanEqual(pixelId, imageSize(liTex).xy))) return;
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
@@ -708,14 +713,13 @@ void main(void)
 		float surfacePoint = (traversedDistance + diameter * 0.5f);
 				
 		// start sampling from that surface (interpolate)
-		vec4 color, normal;
+		vec4 color, normal;// == Garbage comes from here
 		bool found = SampleSVO(color, normal, currentPos, nodeDepth);
 
 		// Calculate Illumination & Occlusion
 		float surfOcclusion = (found) ? normal.w : 0.0f;
-		vec3 illumSample = PhongBRDF(currentPos, color, normal, lIndex, nodeDepth);
-		//illumSmaple = 0.1f;
-
+		vec3 illumSample = (found) ? PhongBRDF(currentPos, color, normal, lIndex, nodeDepth) : vec3(0.0f);
+		
 		// Omit if %100 occuluded in closer ranges
 		// Since its not always depth pos aligned with voxel pos
 //		bool isOmitDistance = (surfOcclusion > 0.9f) && (traversedDistance < (coneParams2.z * worldPosSpan.w * (0x1 << offsetCascade.x - 1)));
@@ -732,10 +736,12 @@ void main(void)
 		illumSample = vec3(1.0f) - pow(vec3(1.0f) - illumSample, vec3(marchDistance / diameterVoxelSize));
 		
 		// Occlusion falloff (linear)
-		nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
-		//illumSample *= (1.0f / (1.0f + traversedDistance));
-		illumSample *= (1.0f / (1.0f + pow(traversedDistance, 0.2f)));
-		//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
+		nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * diameter));
+		illumSample *= (1.0f / (1.0f + coneParams2.w * diameter));
+		//illumSample *= (1.0f / (1.0f + coneParams2.w * traversedDistance));
+		//nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * traversedDistance);
+		//illumSample *= (1.0f / (1.0f + pow(traversedDistance, 0.2f)));
+		//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.2f)));
 
 		// Average total occlusion value
 		totalConeOcclusion += (1.0f - totalConeOcclusion) * nodeOcclusion;
@@ -754,13 +760,14 @@ void main(void)
 
 	// Sum occlusion data
 	vec4 result = vec4(totalIllumination, 1.0f - totalConeOcclusion);
-	//SumPixelData(result);
+	SumPixelData(result);
 	
-	//result.xyz *= texture(gBuffColor, gBuffUV).xyz;
-
 	// All Done!
 	if(globalId.x % CONE_COUNT == 0)
+	{
 		imageStore(liTex, ivec2(pixelId), result);
 		//imageStore(liTex, ivec2(pixelId), vec4(result.w));
-		
+		//imageStore(liTex, ivec2(pixelId), vec4(worldPos, 0.0f));
+		//imageStore(liTex, ivec2(pixelId), vec4(worldNorm, 0.0f));
+	}
 }

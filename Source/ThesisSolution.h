@@ -34,9 +34,7 @@ enum ThesisRenderScheme
 	GI_SVO_DEFERRED,
 	GI_SVO_LEVELS,
 	GI_VOXEL_PAGE,
-	GI_VOXEL_CACHE2048,
-	GI_VOXEL_CACHE1024,
-	GI_VOXEL_CACHE512,
+	GI_VOXEL_CACHE,
 	GI_END,
 };
 
@@ -47,6 +45,7 @@ class AOBar
 		float	angleDegree;
 		float	sampleFactor;
 		float	maxDistance;
+		float	falloffFactor;
 		float	intensity;
 		bool	hidden;
 
@@ -85,6 +84,9 @@ class ThesisSolution : public EmptyGISolution
 		// GUI								
 		TwBar*								bar;
 		bool								giOn;
+		bool								aoOn;
+
+		// Times
 		double								ioTime;
 		double								transformTime;
 		double								svoTime;
@@ -95,7 +97,7 @@ class ThesisSolution : public EmptyGISolution
 		TwType								renderType;
 											
 		// Debug Rendering					
-		void								DebugRenderVoxelCache(const Camera& camera, 
+		double								DebugRenderVoxelCache(const Camera& camera,
 																  SceneVoxCache&);
 		void								DebugRenderVoxelPage(const Camera& camera,
 																 VoxelDebugVAO& pageVoxels,
@@ -115,13 +117,6 @@ class ThesisSolution : public EmptyGISolution
 													 
 		// Cuda Segment
 		static const size_t		InitialObjectGridSize;
-		static const size_t		InitialVoxelBufferSizes;
-
-		// Pre Allocating withput determining total size
-		// These are pre calculated
-		static const size_t		MaxVoxelCacheSize2048;
-		static const size_t		MaxVoxelCacheSize1024;
-		static const size_t		MaxVoxelCacheSize512;
 
 		AOBar					aoBar;
 		void					LevelIncrement();

@@ -102,7 +102,7 @@ class GISparseVoxelOctree
 		GLuint									gaussSampler;
 
 		// Light Intensity Texture (for SVO GI)
-		GLuint									liTexture;
+		GLuint									traceTexture;
 		GLuint									gaussTex;
 		GLuint									edgeTex;
 
@@ -143,6 +143,7 @@ class GISparseVoxelOctree
 		Shader									computeGauss32;
 		Shader									computeEdge;
 		Shader									computeAOSurf;
+		Shader									computeLIApply;
 
 		void									CreateSurfFromArray(cudaArray_t&,
 																	cudaSurfaceObject_t&);
@@ -185,6 +186,7 @@ class GISparseVoxelOctree
 																 const Camera& camera,
 																 float coneAngle,
 																 float maxDistance,
+																 float falloffFactor,
 																 float sampleDistanceRatio,
 																 float intensityFactor);
 		double									GlobalIllumination(DeferredRenderer& dRenderer,
@@ -192,8 +194,11 @@ class GISparseVoxelOctree
 																   SceneI& scene,
 																   float coneAngle,
 																   float maxDistance,
+																   float falloffFactor,
 																   float sampleDistanceRatio,
-																   float intensityFactor);
+																   float intensityFactor,
+																   bool giOn,
+																   bool aoOn);
 
 		double									DebugTraceSVO(DeferredRenderer&,
 															  const Camera& camera,

@@ -93,11 +93,6 @@ class DeferredRenderer
 													   unsigned int cascadeNo);
 
 	protected:
-		void					GenerateShadowMaps(SceneI&, const Camera&);
-		void					DPass(SceneI&, const Camera&);
-		void					GPass(SceneI&, const Camera&);
-		void					LightPass(SceneI&, const Camera&);
-		void					LightMerge(const Camera&);
 
 	public:
 		// Constructors & Destructor
@@ -118,8 +113,16 @@ class DeferredRenderer
 														 GLsizei width,
 														 GLsizei height);
 
-		void						Render(SceneI&, const Camera&, bool unlit);
+		void						Render(SceneI&, const Camera&, bool directLight, const IEVector3& ambientColor);
 		void						PopulateGBuffer(SceneI&, const Camera&);
+
+		// Do stuff by function
+		void						GenerateShadowMaps(SceneI&, const Camera&);
+		void						DPass(SceneI&, const Camera&);
+		void						GPass(SceneI&, const Camera&);
+		void						ClearLI(const IEVector3& ambientColor);
+		void						LightPass(SceneI&, const Camera&);
+		void						Present(const Camera&);
 
 		// Directly Renders Buffers
 		void						ShowColorGBuffer(const Camera& camera);

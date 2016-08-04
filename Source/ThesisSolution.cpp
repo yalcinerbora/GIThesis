@@ -20,40 +20,43 @@ const uint32_t ThesisSolution::CascadeDim = 512;
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
 	{ GI_DEFERRED, "Deferred" }, 
-	{ GI_LIGHT_INTENSITY, "LI Buffer Only" },
-	{ GI_SVO_DEFERRED, "Render SVO Deferred" },
-	{ GI_SVO_LEVELS, "Render SVO Levels"},
-	{ GI_VOXEL_PAGE, "Render Voxel Page" },
-	{ GI_VOXEL_CACHE2048, "Render Voxel Cache 2048" },
-	{ GI_VOXEL_CACHE1024, "Render Voxel Cache 1024" },
-	{ GI_VOXEL_CACHE512, "Render Voxel Cache 512" }
+	{ GI_LIGHT_INTENSITY, "Light Intesity" },
+	{ GI_SVO_DEFERRED, "SVO Lookup" },
+	{ GI_SVO_LEVELS, "Voxel Octree"},
+	{ GI_VOXEL_PAGE, "Voxel Pages" },
+	{ GI_VOXEL_CACHE, "Voxel Caches" }
 };
 
 AOBar::AOBar()
  : angleDegree(30.0f)
  , sampleFactor(1.0f)
  , maxDistance(250.0f)
+ , falloffFactor(1.0f)
  , intensity(1.15f)
  , bar(nullptr)
  , hidden(true)
 {
-	bar = TwNewBar("AOBar");
-	TwDefine(" AOBar visible = false ");
+	bar = TwNewBar("ConeBar");
+	TwDefine(" ConeBar visible = false ");
 	TwAddVarRW(bar, "cAngle", TW_TYPE_FLOAT, &angleDegree,
 			   " label='Cone Angle' help='Cone Angle' "
 			   " min=1.0 max=90.0 step= 0.01 ");
 	TwAddVarRW(bar, "sFactor", TW_TYPE_FLOAT, &sampleFactor,
 			   " label='Sample Factor' help='Adjusts Sampling Rate' "
 			   " min=0.5 max=10.0 step=0.01 ");
+	TwAddVarRW(bar, "fFactor", TW_TYPE_FLOAT, &falloffFactor,
+			   " label='Falloff Factor' help='Falloff Factor or the cone sample' "
+			   " min=0.01 max=10.0 step=0.01 ");
 	TwAddVarRW(bar, "maxDist", TW_TYPE_FLOAT, &maxDistance,
 			   " label='Max Distance' help='Maximum Cone Trace Distance' "
 			   " min=10.0 max=300.0 step=0.1 ");
 	TwAddVarRW(bar, "intensity", TW_TYPE_FLOAT, &intensity,
 			   " label='Intensity' help='Occlusion Intensity' "
 			   " min=0.5 max=5.0 step=0.01 ");
-	TwDefine(" AOBar valueswidth=fit ");
-	TwDefine(" AOBar position='20 500' ");
-	TwDefine(" AOBar size='220 100' ");
+	TwDefine(" ConeBar size='220 115' ");
+	TwDefine(" ConeBar position='5 610' ");
+	TwDefine(" ConeBar valueswidth=fit ");
+	
 }
 
 void AOBar::HideBar(bool hide)
@@ -61,9 +64,9 @@ void AOBar::HideBar(bool hide)
 	if(hide != hidden)
 	{
 		if(hide)
-			TwDefine(" AOBar visible=false ");
+			TwDefine(" ConeBar visible=false ");
 		else
-			TwDefine(" AOBar visible=true ");
+			TwDefine(" ConeBar visible=true ");
 		hidden = hide;
 	}
 }
@@ -81,12 +84,15 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 	, bar(nullptr)
 	, renderScheme(GI_VOXEL_PAGE)
-	//, renderScheme(GI_VOXEL_CACHE2048)
+	//, renderScheme(GI_DEFERRED)
+	//, renderScheme(GI_VOXEL_CACHE)
 	, gridInfoBuffer(1)
 	, voxelNormPosBuffer(512)
 	, voxelColorBuffer(512)
 	, voxelOctree()
 	, traceType(0)
+	, aoOn(true)
+	, giOn(true)
 	, EmptyGISolution(dRenderer)
 {
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, GI_END);
@@ -178,6 +184,9 @@ void ThesisSolution::Init(SceneI& s)
 	TwAddVarRW(bar, "giOn", TW_TYPE_BOOLCPP,
 			   &giOn,
 			   " label='GI On' help='Cone Tracing GI On off' ");
+	TwAddVarRW(bar, "aoOn", TW_TYPE_BOOLCPP,
+			   &aoOn,
+			   " label='AO On' help='Ambient Occlusion On off' ");
 	TwAddSeparator(bar, NULL, NULL);
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
@@ -190,6 +199,7 @@ void ThesisSolution::Init(SceneI& s)
 		TwAddVarRO(bar, (std::string("voxCacheSize") + std::to_string(i)).c_str(), TW_TYPE_DOUBLE, &voxelCaches[i].totalCacheSize,
 				   (start + endSize).c_str());
 	}
+	TwDefine(" ThesisGI/'Voxel Cache' opened=false ");
 	TwAddSeparator(bar, NULL, NULL);
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
@@ -211,9 +221,10 @@ void ThesisSolution::Init(SceneI& s)
 	TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoTime,
 			   " label='SVO Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
 	TwAddVarRO(bar, "transferTime", TW_TYPE_DOUBLE, &debugVoxTransferTime,
-			   " label='Dbg Transfer Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
-	TwDefine(" ThesisGI size='325 430' ");
+			   " label='Misc Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
+	TwDefine(" ThesisGI size='250 325' ");
 	TwDefine(" ThesisGI valueswidth=fit ");
+	TwDefine(" ThesisGI position='5 278' ");
 }
 
 void ThesisSolution::Release()
@@ -411,9 +422,14 @@ void ThesisSolution::TraceTypeDec()
 	//GI_LOG("Trace Type %d", traceType % 3);
 }
 
-void ThesisSolution::DebugRenderVoxelCache(const Camera& camera, 
-										   SceneVoxCache& cache)
+double ThesisSolution::DebugRenderVoxelCache(const Camera& camera, 
+											 SceneVoxCache& cache)
 {
+	// Timing
+	GLuint queryID;
+	glGenQueries(1, &queryID);
+	glBeginQuery(GL_TIME_ELAPSED, queryID);
+
 	//DEBUG VOXEL RENDER
 	// Frame Viewport
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -469,7 +485,13 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 
 		cache.cache[i].voxelVAO.Bind();
 		cache.cache[i].voxelVAO.Draw(cache.cache[i].batchVoxCacheCount, 0);
-	}	
+	}
+
+	// Timer
+	GLuint64 timeElapsed = 0;
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
+	return timeElapsed / 1000000.0;
 }
 
 void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, 
@@ -576,42 +598,56 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	switch(renderScheme)
 	{
 		case GI_DEFERRED:
-		{
-			dRenderer.Render(*currentScene, mainRenderCamera, !directLighting);
-			break;
-		}
 		case GI_LIGHT_INTENSITY:
 		{
 			aoBar.HideBar(false);
-				
-	//		dRenderer.Render(*currentScene, mainRenderCamera);
-	//		dRenderer.ShowLIBuffer(mainRenderCamera);
-		
+
+			IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
+
+			// Shadow Map Generation
+			dRenderer.GenerateShadowMaps(*currentScene, mainRenderCamera);
+
+			// GPass
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
-			//debugVoxTransferTime = voxelOctree.AmbientOcclusion
-			//(
-			//	dRenderer,
-			//	mainRenderCamera,
-			//	IEMath::ToRadians(aoBar.angleDegree),
-			//	aoBar.maxDistance,
-			//	aoBar.sampleFactor,
-			//	aoBar.intensity
-			//);
 
-			debugVoxTransferTime = voxelOctree.GlobalIllumination
-			(
-				dRenderer,
-				mainRenderCamera,
-				*currentScene,
-				IEMath::ToRadians(aoBar.angleDegree),
-				aoBar.maxDistance,
-				aoBar.sampleFactor,
-				aoBar.intensity
-			);
+			// Clear LI
+			dRenderer.ClearLI(aColor);
 
+			// AO GI Pass
+			if(aoOn || giOn)
+			{
+				debugVoxTransferTime = voxelOctree.GlobalIllumination
+				(
+					dRenderer,
+					mainRenderCamera,
+					*currentScene,
+					IEMath::ToRadians(aoBar.angleDegree),
+					aoBar.maxDistance,
+					aoBar.falloffFactor,
+					aoBar.sampleFactor,
+					aoBar.intensity,
+					giOn,
+					aoOn
+				);
+			}
+
+			// Light Pass
+			if(directLighting)
+			{
+				dRenderer.LightPass(*currentScene, mainRenderCamera);
+			}
+
+			// Light Intensity Merge
+			if(renderScheme == GI_DEFERRED)
+			{
+				dRenderer.Present(mainRenderCamera);
+			}
+			else if(renderScheme == GI_LIGHT_INTENSITY)
+			{
+				dRenderer.ShowLIBuffer(mainRenderCamera);
+			}
 			break;
-		}		
-
+		}
 		case GI_SVO_DEFERRED:
 		{
 			SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
@@ -622,7 +658,6 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 																traceTypeEnum);
 			break;
 		}
-
 		case GI_SVO_LEVELS:
 		{
 			// Start Render
@@ -704,22 +739,13 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			}
 			break;
 		}
-		case GI_VOXEL_CACHE2048:
+		case GI_VOXEL_CACHE:
 		{
+			uint32_t level = voxelOctree.MaxLevel() - svoRenderLevel;
+			level = std::min(level, GI_CASCADE_COUNT - 1u);
+
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			DebugRenderVoxelCache(mainRenderCamera, voxelCaches[0]);
-			break;
-		}
-		case GI_VOXEL_CACHE1024:
-		{
-			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			DebugRenderVoxelCache(mainRenderCamera, voxelCaches[1]);
-			break;
-		}
-		case GI_VOXEL_CACHE512:
-		{
-			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			DebugRenderVoxelCache(mainRenderCamera, voxelCaches[2]);
+			debugVoxTransferTime = DebugRenderVoxelCache(mainRenderCamera, voxelCaches[level]);
 			break;
 		}
 	}

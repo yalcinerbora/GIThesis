@@ -50,7 +50,7 @@ DeferredRenderer::DeferredRenderer()
 	glGenFramebuffers(1, &lightIntensityFBO);
 
 	glBindTexture(GL_TEXTURE_2D, lightIntensityTex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB16F, gBuffWidth, gBuffHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, gBuffWidth, gBuffHeight);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
@@ -444,6 +444,14 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 	}
 }
 
+void DeferredRenderer::ClearLI(const IEVector3& ambientColor)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
+	glClearColor(ambientColor.getX(), ambientColor.getY(), ambientColor.getZ(), 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 {
 	// Light pass
@@ -471,8 +479,6 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	// Bind LightIntensity Buffer as framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glViewport(0, 0, gBuffWidth, gBuffHeight);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
 
 	// Get VAO from Scene Lights
 	Shader::Unbind(ShaderType::GEOMETRY);
@@ -566,7 +572,7 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 	}
 }
 
-void DeferredRenderer::LightMerge(const Camera& camera)
+void DeferredRenderer::Present(const Camera& camera)
 {
 	// Render to main framebuffer as post process
 	// Shaders
@@ -661,7 +667,8 @@ void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
 	GPass(scene, camera);
 }
 
-void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool unlit)
+void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLight,
+							  const IEVector3& ambientColor)
 {
 	// Shadow Map Generation
 	GenerateShadowMaps(scene, camera);
@@ -669,18 +676,17 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool unlit)
 	// GPass
 	PopulateGBuffer(scene, camera);
 	
-	// Unlit
-	if(unlit)
-	{
-		ShowColorGBuffer(camera);
-		return;
-	}
+	// Clear LI with ambient color
+	ClearLI(ambientColor);
 
 	// Light Pass
-	LightPass(scene, camera);
-	
+	if(directLight)
+	{
+		LightPass(scene, camera);
+	}
+
 	// Light Intensity Merge
-	LightMerge(camera);
+	Present(camera);
 
 	// All Done!
 }

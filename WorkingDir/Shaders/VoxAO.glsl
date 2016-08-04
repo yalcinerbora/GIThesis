@@ -509,7 +509,8 @@ void main(void)
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDistance / diameterVoxelSize);
 		
 		// Occlusion falloff (linear)
-		nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
+		nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * diameter));
+		//nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * traversedDistance);
 		//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
 
 		// Average total occlusion value

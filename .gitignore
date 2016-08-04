@@ -65,3 +65,5 @@ ThesisMsc/**/*.gz
 *.bbl
 *.blg
 *.tdo
+/ThesisMsc/giThesis-blx.bib
+/ThesisMsc/giThesis.run.xml

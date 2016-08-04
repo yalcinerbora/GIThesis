@@ -29,6 +29,7 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, computeGauss32(ShaderType::COMPUTE, "Shaders/Gauss32.glsl")
 	, computeEdge(ShaderType::COMPUTE, "Shaders/EdgeDetect.glsl")
 	, computeAOSurf(ShaderType::COMPUTE, "Shaders/SurfAO.glsl")
+	, computeLIApply(ShaderType::COMPUTE, "Shaders/ApplyVoxLI.glsl")
 	, svoTraceData(1)
 	, svoConeParams(1)
 	, svoNodeResource(nullptr)
@@ -38,7 +39,7 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, tSVODenseNode(0)
 	, sSVODenseNode(0)
 	, dSVODenseNodeArray(nullptr)
-	, liTexture(0)
+	, traceTexture(0)
 	, gaussTex(0)
 	, edgeTex(0)
 	, svoDenseMat(0)
@@ -52,8 +53,8 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	svoConeParams.AddData({});
 
 	// Light Intensity Tex
-	glGenTextures(1, &liTexture);
-	glBindTexture(GL_TEXTURE_2D, liTexture);
+	glGenTextures(1, &traceTexture);
+	glBindTexture(GL_TEXTURE_2D, traceTexture);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TraceWidth, TraceHeight);
 
 	// Gauss Intermediary Tex
@@ -124,7 +125,7 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 	if(tSVODenseNode) CUDA_CHECK(cudaDestroyTextureObject(tSVODenseNode));
 	if(sSVODenseNode) CUDA_CHECK(cudaDestroySurfaceObject(sSVODenseNode));
 
-	if(liTexture) glDeleteTextures(1, &liTexture);
+	if(traceTexture) glDeleteTextures(1, &traceTexture);
 	if(gaussTex) glDeleteTextures(1, &gaussTex);
 	if(edgeTex) glDeleteTextures(1, &edgeTex);
 	if(svoDenseNode) glDeleteTextures(1, &svoDenseNode);
@@ -577,12 +578,15 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 											   SceneI& scene,
 											   float coneAngle,
 											   float maxDistance,
+											   float falloffFactor,
 											   float sampleDistanceRatio,
-											   float intensityFactor)
+											   float intensityFactor,
+											   bool giOn,
+											   bool aoOn)
 {
 	// Light Intensity Texture
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-	glClearTexImage(liTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
+	glClearTexImage(traceTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
 
 	// Update FrameTransform Matrices 
 	// And its inverse realted buffer
@@ -617,12 +621,16 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	svoConeParams.CPUData()[0] =
 	{
 		{maxDistance, std::tan(coneAngle), std::tan(coneAngle * 0.5f), sampleDistanceRatio},
-		{intensityFactor, IEMath::Sqrt2, IEMath::Sqrt3, 0.0f}
+		{intensityFactor, IEMath::Sqrt2, IEMath::Sqrt3, falloffFactor}
 	};
 	svoConeParams.SendData();
 
 	// Shaders
 	computeGI.Bind();
+
+	// Shadow Related
+	dRenderer.BindShadowMaps(scene);
+	dRenderer.BindLightBuffers(scene);
 
 	// Uniforms
 	glUniform1ui(U_SHADOW_MIP_COUNT, static_cast<GLuint>(SceneLights::mipSampleCount));
@@ -638,31 +646,94 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	svoTraceData.BindAsUniformBuffer(U_SVO_CONSTANTS);
 	svoConeParams.BindAsUniformBuffer(U_CONE_PARAMS);
 
-	// Scene Related
-	dRenderer.BindShadowMaps(scene);
-	dRenderer.BindLightBuffers(scene);
-
 	// Images
+	dRenderer.GetGBuffer().BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
 	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
-	dRenderer.GetGBuffer().BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
-	glBindImageTexture(I_LIGHT_INENSITY, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glBindImageTexture(I_LIGHT_INENSITY, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 	glActiveTexture(GL_TEXTURE0 + T_DENSE_NODE);
 	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
 	glBindSampler(T_DENSE_NODE, nodeSampler);
 	glActiveTexture(GL_TEXTURE0 + T_DENSE_MAT);
 	glBindTexture(GL_TEXTURE_3D, svoDenseMat);
 	glBindSampler(T_DENSE_MAT, materialSampler);
-		
+
 	// Dispatch
 	uint2 gridSize;
 	gridSize.x = (TraceWidth * 4 + 32 - 1) / 32;
 	gridSize.y = (TraceHeight + 8 - 1) / 8;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
 
+	//
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//// Detect Edge
+	//computeEdge.Bind();
+	//glUniform2f(U_TRESHOLD, 0.007f, IEMath::CosF(IEMath::ToRadians(20.0f)));
+	//glUniform2f(U_NEAR_FAR, camera.near, camera.far);
+	//dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
+	//dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
+	//glBindImageTexture(I_OUT, edgeTex, 0, false, 0, GL_WRITE_ONLY, GL_RG8);
+	//
+	//gridSize.x = (TraceWidth + 16 - 1) / 16;
+	//gridSize.y = (TraceHeight + 16 - 1) / 16;
+	//glDispatchCompute(gridSize.x, gridSize.y, 1);
+	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	////dRenderer.ShowTexture(camera, edgeTex);
+
+	//// Edge Aware Gauss
+	//computeGauss32.Bind();
+	//glActiveTexture(GL_TEXTURE0 + T_EDGE);
+	//glBindTexture(GL_TEXTURE_2D, svoDenseMat);
+	//glBindSampler(T_EDGE, gaussSampler);
+
+	//// Call #1 (Vertical)
+	//GLuint inTex = liTexture;
+	//GLuint outTex = gaussTex;
+	//for(unsigned int i = 0; i < 32; i++)
+	//{
+	//	glActiveTexture(GL_TEXTURE0 + T_IN);
+	//	glBindTexture(GL_TEXTURE_2D, inTex);
+	//	glBindSampler(T_EDGE, gaussSampler);
+	//	glBindImageTexture(I_OUT, outTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	//	glUniform1ui(U_DIRECTION, 0);
+	//	glDispatchCompute(gridSize.x, gridSize.y, 1);
+	//	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//	// Call #2 (Horizontal)
+	//	glActiveTexture(GL_TEXTURE0 + T_IN);
+	//	glBindTexture(GL_TEXTURE_2D, outTex);
+	//	glBindSampler(T_EDGE, gaussSampler);
+	//	glBindImageTexture(I_OUT, inTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	//	glUniform1ui(U_DIRECTION, 1);
+	//	glDispatchCompute(gridSize.x, gridSize.y, 1);
+
+	//	GLuint temp = inTex;
+	//	inTex = outTex;
+	//	outTex = temp;
+	//}
+
 	// Render to window
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-	dRenderer.ShowTexture(camera, liTexture);
+
+	// Apply to DRenderer Li Tex
+	computeLIApply.Bind();
+	
+	// Uniform
+	glUniform2ui(U_ON_OFF_SWITCH, aoOn ? 1u : 0u, giOn ? 1u : 0u);
+
+	// Textures
+	GLuint gBufferLITex = dRenderer.GetLightIntensityBufferGL();
+	glBindImageTexture(I_LIGHT_INENSITY, gBufferLITex, 0, false, 0, GL_READ_WRITE, GL_RGBA16F);
+	glActiveTexture(GL_TEXTURE0 + T_COLOR);
+	glBindTexture(GL_TEXTURE_2D, traceTexture);
+	glBindSampler(T_DENSE_NODE, gaussSampler);
+
+	gridSize.x = (DeferredRenderer::gBuffWidth + 16 - 1) / 16;
+	gridSize.y = (DeferredRenderer::gBuffHeight + 16 - 1) / 16;
+	glDispatchCompute(gridSize.x, gridSize.y, 1);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	// Timer
 	GLuint64 timeElapsed = 0;
@@ -678,12 +749,13 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 											 const Camera& camera,
 											 float coneAngle,
 											 float maxDistance,
+											 float falloffFactor,
 											 float sampleDistanceRatio,
 											 float intensityFactor)
 {
 	// Light Intensity Texture
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-	glClearTexImage(liTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
+	glClearTexImage(traceTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
 
 	// Update FrameTransform Matrices 
 	// And its inverse realted buffer
@@ -718,7 +790,7 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 	svoConeParams.CPUData()[0] =
 	{
 		{maxDistance, std::tan(coneAngle), std::tan(coneAngle * 0.5f), sampleDistanceRatio},
-		{intensityFactor, IEMath::Sqrt2, IEMath::Sqrt3, 0.0f}
+		{intensityFactor, IEMath::Sqrt2, IEMath::Sqrt3, falloffFactor}
 	};
 	svoConeParams.SendData();
 
@@ -738,7 +810,7 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 	// Images
 	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
-	glBindImageTexture(I_LIGHT_INENSITY, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glBindImageTexture(I_LIGHT_INENSITY, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 	glActiveTexture(GL_TEXTURE0 + T_DENSE_NODE);
 	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
 	glBindSampler(T_DENSE_NODE, nodeSampler);
@@ -806,7 +878,7 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 
 	// Render to window
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-	dRenderer.ShowTexture(camera, liTexture);
+	dRenderer.ShowTexture(camera, traceTexture);
 
 	// Timer
 	GLuint64 timeElapsed = 0;
@@ -868,7 +940,7 @@ double GISparseVoxelOctree::DebugDeferredSVO(DeferredRenderer& dRenderer,
 
 	// Images
 	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
-	glBindImageTexture(I_COLOR_FB, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glBindImageTexture(I_COLOR_FB, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 	glActiveTexture(GL_TEXTURE0 + T_DENSE_NODE);
 	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
 	glBindSampler(T_DENSE_NODE, nodeSampler);
@@ -884,7 +956,7 @@ double GISparseVoxelOctree::DebugDeferredSVO(DeferredRenderer& dRenderer,
 
 	// Render to window
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-	dRenderer.ShowTexture(camera, liTexture);
+	dRenderer.ShowTexture(camera, traceTexture);
 
 	// Timer
 	GLuint64 timeElapsed = 0;
@@ -943,7 +1015,7 @@ double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
 	svoTraceData.BindAsUniformBuffer(U_SVO_CONSTANTS);
 
 	// Images
-	glBindImageTexture(I_COLOR_FB, liTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glBindImageTexture(I_COLOR_FB, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 	glActiveTexture(GL_TEXTURE0 + T_DENSE_NODE);
 	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
 	glBindSampler(T_DENSE_NODE, nodeSampler);
@@ -959,7 +1031,7 @@ double GISparseVoxelOctree::DebugTraceSVO(DeferredRenderer& dRenderer,
 	
 	// Render to window
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-	dRenderer.ShowTexture(camera, liTexture);
+	dRenderer.ShowTexture(camera, traceTexture);
 
 	// Timer
 	GLuint64 timeElapsed = 0;

@@ -54,7 +54,7 @@ AOBar::AOBar()
 			   " label='Intensity' help='Occlusion Intensity' "
 			   " min=0.5 max=5.0 step=0.01 ");
 	TwDefine(" ConeBar size='220 115' ");
-	TwDefine(" ConeBar position='5 610' ");
+	TwDefine(" ConeBar position='5 630' ");
 	TwDefine(" ConeBar valueswidth=fit ");
 	
 }
@@ -162,6 +162,7 @@ void ThesisSolution::Init(SceneI& s)
 	voxelOctree.LinkAllocators(Array32<GICudaAllocator*>{allocators.data(), GI_CASCADE_COUNT},
 							   currentScene->SVOTotalSize(),
 							   currentScene->SVOLevelSizes());
+	voxelOctree.LinkSceneShadowMaps(currentScene);
 	svoRenderLevel = voxelOctree.SVOConsts().totalDepth;
 
 	// Memory Usage Total
@@ -218,11 +219,17 @@ void ThesisSolution::Init(SceneI& s)
 			   " label='I-O Time (ms)' group='Timings' precision=2 help='Voxel Include Exclude Timing per frame.' ");
 	TwAddVarRO(bar, "updateTime", TW_TYPE_DOUBLE, &transformTime,
 			   " label='Update Time (ms)' group='Timings' precision=2 help='Voxel Grid Update Timing per frame.' ");
-	TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoTime,
-			   " label='SVO Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
-	TwAddVarRO(bar, "transferTime", TW_TYPE_DOUBLE, &debugVoxTransferTime,
+	TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoReconTime,
+			   " label='SVO Recon Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
+	TwAddVarRO(bar, "svoInjectTime", TW_TYPE_DOUBLE, &svoInjectTime,
+			   " label='SVO Inject Time (ms)' group='Timings' precision=2 help='SVO Inject Timing per frame.' ");
+	TwAddVarRO(bar, "svoAvgTime", TW_TYPE_DOUBLE, &svoAvgTime,
+			   " label='SVO Avg Time (ms)' group='Timings' precision=2 help='SVO Average Timing per frame.' ");
+	TwAddVarRO(bar, "giTime", TW_TYPE_DOUBLE, &giTime,
+			   " label='GI Time (ms)' group='Timings' precision=2 help='GI cone trace timing per frame.' ");
+	TwAddVarRO(bar, "miscTime", TW_TYPE_DOUBLE, &miscTime,
 			   " label='Misc Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
-	TwDefine(" ThesisGI size='250 325' ");
+	TwDefine(" ThesisGI size='250 370' ");
 	TwDefine(" ThesisGI valueswidth=fit ");
 	TwDefine(" ThesisGI position='5 278' ");
 }
@@ -554,13 +561,16 @@ double ThesisSolution::DebugRenderSVO(const Camera& camera)
 void ThesisSolution::Frame(const Camera& mainRenderCamera)
 {
 	// Zero out debug transfer time since it may not be used
-	debugVoxTransferTime = 0;
+	miscTime = 0.0;
 
 	// VoxelSceneUpdate
 	double ioTimeSegment, transformTimeSegment;
-	ioTime = 0;
-	transformTime = 0;
-	svoTime = 0;
+	ioTime = 0.0;
+	transformTime = 0.0;
+	svoReconTime = 0.0;
+	svoInjectTime = 0.0;
+	svoAvgTime = 0.0;
+
 
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
@@ -578,7 +588,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	transformTime += transformTimeSegment;
 	
 	// Octree Update
-	svoTime = voxelOctree.UpdateSVO();
+	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAvgTime);
 
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
@@ -616,7 +626,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			// AO GI Pass
 			if(aoOn || giOn)
 			{
-				debugVoxTransferTime = voxelOctree.GlobalIllumination
+				giTime = voxelOctree.GlobalIllumination
 				(
 					dRenderer,
 					mainRenderCamera,
@@ -652,17 +662,17 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		{
 			SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
-			debugVoxTransferTime = voxelOctree.DebugDeferredSVO(dRenderer,
-																mainRenderCamera,
-																svoRenderLevel,
-																traceTypeEnum);
+			miscTime = voxelOctree.DebugDeferredSVO(dRenderer,
+													mainRenderCamera,
+													svoRenderLevel,
+													traceTypeEnum);
 			break;
 		}
 		case GI_SVO_LEVELS:
 		{
 			// Start Render
 			glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
-			debugVoxTransferTime = DebugRenderSVO(mainRenderCamera);
+			miscTime = DebugRenderSVO(mainRenderCamera);
 			break;
 		}
 		case GI_VOXEL_PAGE:
@@ -712,15 +722,15 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			uint32_t voxelCount = 0, voxelOffset = 0;
 			std::vector<CVoxelGrid> voxGrids(GI_CASCADE_COUNT);
 			
-			debugVoxTransferTime = 0;
+			miscTime = 0;
 			for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 			{
 				offsets.push_back(voxelOffset);
-				debugVoxTransferTime += voxelScenes[i].VoxDataToGL(dVoxNormPos + voxelOffset,
-																   dVoxColor + voxelOffset,
-																   voxGrids[i],
-																   voxelCount,
-																   voxelCaches[i].voxOctreeCount);
+				miscTime += voxelScenes[i].VoxDataToGL(dVoxNormPos + voxelOffset,
+													   dVoxColor + voxelOffset,
+													   voxGrids[i],
+													   voxelCount,
+													   voxelCaches[i].voxOctreeCount);
 				voxelOffset += voxelCount;
 				counts.push_back(voxelCount);
 			}
@@ -745,7 +755,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			level = std::min(level, GI_CASCADE_COUNT - 1u);
 
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			debugVoxTransferTime = DebugRenderVoxelCache(mainRenderCamera, voxelCaches[level]);
+			miscTime = DebugRenderVoxelCache(mainRenderCamera, voxelCaches[level]);
 			break;
 		}
 	}

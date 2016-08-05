@@ -36,6 +36,8 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, svoLevelOffsetResource(nullptr)
 	, svoMaterialResource(nullptr)
 	, svoDenseNodeResource(nullptr)
+	, sceneShadowMapResource(nullptr)
+	, sceneLightParamResource(nullptr)
 	, tSVODenseNode(0)
 	, sSVODenseNode(0)
 	, dSVODenseNodeArray(nullptr)
@@ -84,6 +86,8 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 										   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
 										   //cudaGraphicsRegisterFlagsWriteDiscard));
 	
+	
+
 	// Flat Sampler for Node Index Fetch
 	glGenSamplers(1, &nodeSampler);
 	glSamplerParameteri(nodeSampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -219,7 +223,19 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 						  &hSVOConstants, 
 						  sizeof(CSVOConstants), 
 						  cudaMemcpyHostToDevice));
+}
 
+void GISparseVoxelOctree::LinkSceneShadowMaps(SceneI* scene)
+{
+	GLuint lightParamBuffer = scene->getSceneLights().GetLightBufferGL();
+	GLuint shadowMapTexture = scene->getSceneLights().GetShadowArrayGL();
+
+	if(sceneShadowMapResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneShadowMapResource));
+	if(sceneLightParamResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneLightParamResource));
+	CUDA_CHECK(cudaGraphicsGLRegisterImage(&sceneShadowMapResource, shadowMapTexture, GL_TEXTURE_2D_ARRAY,
+										   cudaGraphicsRegisterFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&sceneLightParamResource, lightParamBuffer,
+											cudaGraphicsRegisterFlagsReadOnly));
 }
 
 void GISparseVoxelOctree::CreateSurfFromArray(cudaArray_t& arr, cudaSurfaceObject_t& surf)
@@ -267,6 +283,25 @@ void GISparseVoxelOctree::CopyFromBufferToTex(cudaArray_t& arr, unsigned int* de
 	params.extent = {GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE};
 	params.kind = cudaMemcpyDeviceToDevice;
 	CUDA_CHECK(cudaMemcpy3D(&params));
+}
+
+void GISparseVoxelOctree::CreateTexLayeredFromArray(cudaMipmappedArray_t& arr, cudaTextureObject_t& tex)
+{
+	// Texture of SVO Dense
+	cudaResourceDesc resDesc = {};
+	cudaTextureDesc texDesc = {};
+	resDesc.resType = cudaResourceTypeMipmappedArray;
+	resDesc.res.mipmap.mipmap = arr;
+
+	texDesc.addressMode[0] = cudaAddressModeWrap;
+	texDesc.addressMode[1] = cudaAddressModeWrap;
+	texDesc.addressMode[2] = cudaAddressModeWrap;
+	texDesc.filterMode = cudaFilterModePoint;
+	texDesc.readMode = cudaReadModeElementType;
+	texDesc.normalizedCoords = 0;
+
+	if(tex != 0) CUDA_CHECK(cudaDestroyTextureObject(tex));
+	CUDA_CHECK(cudaCreateTextureObject(&tex, &resDesc, &texDesc, nullptr));
 }
 
 void GISparseVoxelOctree::ConstructDense()
@@ -350,8 +385,11 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	CUDA_KERNEL_CHECK();
 }
 
-void GISparseVoxelOctree::ConstructFullAtomic()
+double GISparseVoxelOctree::ConstructFullAtomic()
 {
+	CudaTimer timer;
+	timer.Start();
+
 	// Fully Atomic Version
 	for(unsigned int i = 0; i < allocators.size(); i++)
 	{
@@ -384,10 +422,15 @@ void GISparseVoxelOctree::ConstructFullAtomic()
 						  cudaMemcpyDeviceToHost));
 
 	CopyFromBufferToTex(dSVODenseNodeArray, dSVODense);
+	timer.Stop();
+	return timer.ElapsedMilliS();
 }
 
-void GISparseVoxelOctree::ConstructLevelByLevel()
+double GISparseVoxelOctree::ConstructLevelByLevel()
 {
+	CudaTimer timer;
+	timer.Start();
+
 	// Start with constructing dense
 	ConstructDense();
 	CopyFromBufferToTex(dSVODenseNodeArray, dSVODense);
@@ -410,14 +453,21 @@ void GISparseVoxelOctree::ConstructLevelByLevel()
 						  dSVOLevelSizes.Data() + (hSVOConstants.totalDepth - GI_DENSE_LEVEL),
 						  sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
+
+	timer.Stop();
+	return timer.ElapsedMilliS();
 }
 
-void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
+void GISparseVoxelOctree::AverageNodes(bool skipLeaf, double& averageTime, double& injectTime)
 {
 	// First Average Leafs atomically
+	double leafTime = 0.0;
 	if(!skipLeaf)
 	for(unsigned int i = 0; i < allocators.size(); i++)
 	{
+		CudaTimer timer;
+		timer.Start();
+
 		assert(allocators[i]->IsGLMapped() == true);
 		uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE +  GI_THREAD_PER_BLOCK - 1) / 
 							GI_THREAD_PER_BLOCK;
@@ -444,7 +494,17 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 			*dSVOConstants.Data()
 		);
 		CUDA_KERNEL_CHECK();
+
+		// Timer
+		timer.Stop();
+		leafTime = timer.ElapsedMilliS();
 	}
+
+	// Light Injection
+	injectTime = LightInject();
+
+	CudaTimer timer;
+	timer.Start();
 
 	// Now use leaf nodes to average upper nodes
 	// Start bottom up
@@ -494,15 +554,69 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf)
 			levelSize
 		);
 	}
+
+	timer.Stop();
+	averageTime = leafTime + timer.ElapsedMilliS();
 }
 
-double GISparseVoxelOctree::UpdateSVO()
+double GISparseVoxelOctree::LightInject()
+{
+	CudaTimer timer;
+	timer.Start();
+
+	// Now use leaf nodes to average upper nodes
+	// Start bottom up
+	for(int i = hSVOConstants.totalDepth; 
+		i > static_cast<int>(hSVOConstants.totalDepth - GI_CASCADE_COUNT); 
+		i--)
+	{
+		//unsigned int arrayIndex = i - GI_DENSE_LEVEL;
+		//unsigned int levelDim = GI_DENSE_SIZE >> (GI_DENSE_LEVEL - i);
+		//unsigned int levelSize = (i > GI_DENSE_LEVEL) ? hSVOLevelSizes[arrayIndex] :
+		//	levelDim * levelDim * levelDim;
+		//if(levelSize == 0) continue;
+
+		//uint32_t gridSize = (levelSize + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+		//// Average Level
+		//SVOLightInject<<<gridSize, GI_THREAD_PER_BLOCK >>>
+		//(
+		//	dSVOMaterial,
+		//	sSVODenseMat[0],
+
+		//	dSVODense,
+		//	dSVOSparse,
+
+		//	dSVOOffsets,
+		//	*(dSVOOffsets + arrayIndex),
+		//	*(dSVOOffsets + arrayIndex + 1),
+
+		//	levelSize,
+		//	0,
+		//	i,
+		//	*dSVOConstants.Data()
+		//);
+		//CUDA_KERNEL_CHECK();
+	}
+
+
+
+	return 0.0;
+}
+
+void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
+									double& injectTime,
+									double& averageTime)
 {
 	// Clear Mat Texture
 	GLuint ff[2] = {0x00000000, 0x00000000};
 	for(unsigned int i = 0; i < GI_DENSE_TEX_COUNT; i++)
 		glClearTexImage(svoDenseMat, i, GL_RG_INTEGER, GL_UNSIGNED_INT, &ff);
 
+	// Shadow Maps
+	CUDA_CHECK(cudaGraphicsMapResources(1, &sceneLightParamResource));
+	CUDA_CHECK(cudaGraphicsMapResources(1, &sceneShadowMapResource));
+
+	// SVO Nodes
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoNodeResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoLevelOffsetResource));
@@ -526,8 +640,11 @@ double GISparseVoxelOctree::UpdateSVO()
 	}
 	dSVOSparse = dSVODense + GI_DENSE_SIZE_CUBE;
 
-	CudaTimer timer;
-	timer.Start();
+	// Shadow Related
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dLightParamArray),
+													&size, sceneLightParamResource));
+	CUDA_CHECK(cudaGraphicsResourceGetMappedMipmappedArray(&shadowMapArray, sceneShadowMapResource));
+	CreateTexLayeredFromArray(shadowMapArray, tShadowMapArray);
 
 	// Reset Atomic Counter since we reconstruct every frame
 	uint32_t usedNodeCount = hSVOLevelSizes.back() + svoLevelOffsets.CPUData().back();
@@ -541,15 +658,14 @@ double GISparseVoxelOctree::UpdateSVO()
 	// However kepler sucks(660ti) (100ms compared to 5ms) 
 	if(CudaInit::CapabilityMajor() >= 5)
 	{
-		ConstructFullAtomic();
-		AverageNodes(true);
+		reconstTime = ConstructFullAtomic();
+		AverageNodes(true, averageTime, injectTime);
 	}
 	else
 	{
-		ConstructLevelByLevel();
-		AverageNodes(false);
+		reconstTime = ConstructLevelByLevel();
+		AverageNodes(false, averageTime, injectTime);
 	}
-	timer.Stop();
 
 	//// DEBUG
 	//GI_LOG("-------------------------------------------");
@@ -564,13 +680,14 @@ double GISparseVoxelOctree::UpdateSVO()
 	//									 hSVOLevelSizes.end(), 0);
 	//GI_LOG("Total : %d", total);
 	
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &sceneLightParamResource));
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &sceneShadowMapResource));
+
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNodeResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoLevelOffsetResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoDenseNodeResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoDenseTexResource));
-
-	return timer.ElapsedMilliS();
 }
 
 double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,

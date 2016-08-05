@@ -134,6 +134,14 @@ class GISparseVoxelOctree
 		cudaGraphicsResource_t					svoDenseNodeResource;
 		cudaGraphicsResource_t					svoDenseTexResource;
 		
+		cudaGraphicsResource_t					sceneShadowMapResource;
+		cudaGraphicsResource_t					sceneLightParamResource;
+
+		// Shadows
+		cudaMipmappedArray_t					shadowMapArray;
+		cudaTextureObject_t						tShadowMapArray;
+		CLight*									dLightParamArray;
+		
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;
 		Shader									computeVoxTraceDeferred;
@@ -145,19 +153,25 @@ class GISparseVoxelOctree
 		Shader									computeAOSurf;
 		Shader									computeLIApply;
 
-		void									CreateSurfFromArray(cudaArray_t&,
+		static void								CreateSurfFromArray(cudaArray_t&,
 																	cudaSurfaceObject_t&);
-		void									CreateTexFromArray(cudaArray_t&,
+		static void								CreateTexFromArray(cudaArray_t&,
 																   cudaTextureObject_t&);
-		void									CopyFromBufferToTex(cudaArray_t&, unsigned int* dPtr);
+		static void								CopyFromBufferToTex(cudaArray_t&, 
+																	unsigned int* dPtr);
+		static void								CreateTexLayeredFromArray(cudaMipmappedArray_t&,
+																		  cudaTextureObject_t&);
 
 		//
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
 															   unsigned int allocatorIndex);
-		void									ConstructFullAtomic();
-		void									ConstructLevelByLevel();
-		void									AverageNodes(bool skipLeaf);
+		double									ConstructFullAtomic();
+		double									ConstructLevelByLevel();
+		void									AverageNodes(bool skipLeaf,
+															 double& averageTime,
+															 double& injectTime);
+		double									LightInject();
 
 		static const GLsizei					TraceWidth;
 		static const GLsizei					TraceHeight;
@@ -176,8 +190,13 @@ class GISparseVoxelOctree
 															   uint32_t totalCount,
 															   const uint32_t levelCounts[]);
 
+		// Link
+		void									LinkSceneShadowMaps(SceneI* scene);
+
 		// Updates SVO Tree depending on the changes of the allocators
-		double									UpdateSVO();
+		void									UpdateSVO(double& reconstTime,
+														  double& injectTime,
+														  double& averageTime);
 		
 		// Traces entire scene with the given ray params
 		// Writes results to intensity texture

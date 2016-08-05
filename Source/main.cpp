@@ -136,10 +136,15 @@ int main()
 		// Top of the room (center of white rectangle)
 		// Square light
 		// Covers Entire Room
+		//{
+		//	{ 0.0f, 160.0f, 0.0f, static_cast<float>(LightType::POINT)},
+		//	{ 0.0f, -1.0f, 0.0f, 3300.0f},
+		//	IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
+		//}
 		{
-			{ 0.0f, 160.0f, 0.0f, static_cast<float>(LightType::POINT)},
-			{ 0.0f, -1.0f, 0.0f, 3300.0f},
-			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
+			{0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL)},
+			{0.56f, -0.69f, 0.46f, std::numeric_limits<float>::infinity()},
+			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
 		}
 	};
 

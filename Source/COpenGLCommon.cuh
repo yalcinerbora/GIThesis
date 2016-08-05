@@ -30,4 +30,10 @@ struct CObjectVoxelInfo
 
 typedef CAABB CObjectAABB;
 
+struct CLight
+{
+	float4 position;		// position.w is the light type
+	float4 direction;		// direction.w is effecting radius
+	float4 color;			// color.a is intensity
+};
 #endif //__COPENGLCOMMON_H__

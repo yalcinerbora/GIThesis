@@ -195,6 +195,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 
 	// State
 	// Rendering with polygon offset to eliminate shadow acne
+	glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 	glColorMask(true, false, false, false);
 	glDepthMask(true);
 	glDepthFunc(GL_LESS);
@@ -298,8 +299,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	{
 		// FBO Bind and render calls
 		glBindFramebuffer(GL_FRAMEBUFFER, scene.getSceneLights().shadowMapFBOs[i]);
-		glClear(GL_DEPTH_BUFFER_BIT);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		if(!scene.getSceneLights().lightShadowCast[i])
 			continue;
@@ -334,7 +334,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 			{
 				case LightType::POINT: geomPointShadowMap.Bind(); break;
 				case LightType::DIRECTIONAL: geomDirShadowMap.Bind();
-					glPolygonOffset(4.12f, 1024.0f); // Higher offset req since camera span is large
+					glPolygonOffset(6.12f, 1024.0f); // Higher offset req since camera span is large
 					break;
 				case LightType::AREA: geomAreaShadowMap.Bind(); break;
 			}

@@ -89,8 +89,11 @@ class ThesisSolution : public EmptyGISolution
 		// Times
 		double								ioTime;
 		double								transformTime;
-		double								svoTime;
-		double								debugVoxTransferTime;
+		double								svoReconTime;
+		double								svoInjectTime;
+		double								svoAvgTime;
+		double								giTime;
+		double								miscTime;
 											
 		ThesisRenderScheme					renderScheme;
 		static const TwEnumVal				renderSchemeVals[];

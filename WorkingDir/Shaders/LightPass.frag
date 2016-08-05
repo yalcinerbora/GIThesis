@@ -134,13 +134,13 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 	{
 		// Determine which side of the light is the point
 		// minimum absolute value
-		lightVec = worldPos - lightParams[fIndex].position.xyz;
+		lightVec = normalize(worldPos - lightParams[fIndex].position.xyz);
 		float maxVal = max(abs(lightVec.x), max(abs(lightVec.y), abs(lightVec.z)));
 		vec3 axis = vec3(abs(lightVec.x) == maxVal ? 1.0f : 0.0f,
 						 abs(lightVec.y) == maxVal ? 1.0f : 0.0f,
 						 abs(lightVec.z) == maxVal ? 1.0f : 0.0f);
 		vec3 lightVecSigns = sign(lightVec * axis);
-		viewIndex = dot(abs(lightVecSigns), (abs(lightVecSigns - 1.0f * 0.5f) + vec3(0.0f, 2.0f, 4.0f)));
+		viewIndex = dot(abs(lightVecSigns), (abs((lightVecSigns - 1.0f) * 0.5f) + vec3(0.0f, 2.0f, 4.0f)));
 
 		// Area light is half sphere
 		if(lightParams[fIndex].position.w == GI_LIGHT_AREA)

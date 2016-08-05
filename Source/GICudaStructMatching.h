@@ -26,5 +26,6 @@ static_assert(sizeof(CVoxelColor) == sizeof(VoxelColorData), "Cuda-GL VoxelRende
 static_assert(sizeof(CObjectTransform) == sizeof(ModelTransform), "Cuda-GL ModelTransform Struct Mismatch.");
 static_assert(sizeof(CObjectVoxelInfo) == sizeof(ObjGridInfo), "Cuda-GL ModelTransform Struct Mismatch.");
 static_assert(sizeof(CVoxelWeight) == sizeof(VoxelWeightData), "Cuda-GL VoxelWeight Struct Mismatch.");
+static_assert(sizeof(CLight) == sizeof(Light), "Cuda-GL Light Struct Mismatch.");
 
 #endif //__GICUDASTRUCTMATCH_H__

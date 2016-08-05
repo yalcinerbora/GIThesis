@@ -258,7 +258,7 @@ vec4 CalculateShadowUV(in vec3 worldPos, in uint lightIndex)
 						 abs(lightVec.y) == maxVal ? 1.0f : 0.0f,
 						 abs(lightVec.z) == maxVal ? 1.0f : 0.0f);
 		vec3 lightVecSigns = sign(lightVec * axis);
-		viewIndex = dot(abs(lightVecSigns), (abs(lightVecSigns - 1.0f * 0.5f) + vec3(0.0f, 2.0f, 4.0f)));
+		viewIndex = dot(abs(lightVecSigns), (abs((lightVecSigns - 1.0f) * 0.5f) + vec3(0.0f, 2.0f, 4.0f)));
 
 		// Area light is half sphere
 		if(lightParams[lightIndex].position.w == GI_LIGHT_AREA)
@@ -602,8 +602,8 @@ vec3 PhongBRDF(in vec3 worldPos,
 	}
 	worldLight = normalize(worldLight);
 	worldNormal = normalize(worldNormal);
-	//worldEye = normalize(worldEye);
-	//vec3 worldHalf = normalize(worldLight + worldEye);
+	worldEye = normalize(worldEye);
+	vec3 worldHalf = normalize(worldLight + worldEye);
 
 	// Lambert Diffuse Model
 	lightIntensity = GI_ONE_OVER_PI * vec3(max(dot(worldNormal, worldLight), 0.0f));
@@ -620,10 +620,10 @@ vec3 PhongBRDF(in vec3 worldPos,
 	float shadowIntensity = ShadowSample(shadowUV, shadowLod, lightIndex);
 
 	// Specular
-	//float specPower = color.w * 4096.0f;
+	float specPower = colorSVO.w * 4096.0f;
 
 	// Blinn-Phong
-	//lightIntensity += vec3(pow(max(dot(worldHalf, worldNormal), 0.0f), specPower));
+	lightIntensity += vec3(pow(max(dot(worldHalf, worldNormal), 0.0f), specPower));
 
 	// Sampled Normal Accuracy
 	lightIntensity *= normalAccuracy;

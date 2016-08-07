@@ -54,7 +54,7 @@ AOBar::AOBar()
 			   " label='Intensity' help='Occlusion Intensity' "
 			   " min=0.5 max=5.0 step=0.01 ");
 	TwDefine(" ConeBar size='220 115' ");
-	TwDefine(" ConeBar position='5 630' ");
+	TwDefine(" ConeBar position='227 25' ");
 	TwDefine(" ConeBar valueswidth=fit ");
 	
 }
@@ -229,7 +229,10 @@ void ThesisSolution::Init(SceneI& s)
 			   " label='GI Time (ms)' group='Timings' precision=2 help='GI cone trace timing per frame.' ");
 	TwAddVarRO(bar, "miscTime", TW_TYPE_DOUBLE, &miscTime,
 			   " label='Misc Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
-	TwDefine(" ThesisGI size='250 370' ");
+	TwAddSeparator(bar, "Total", NULL);
+	TwAddVarRO(bar, "Time", TW_TYPE_DOUBLE, &totalTime,
+			   " label='Total (ms)' precision=2 help='Total Timing.' ");
+	TwDefine(" ThesisGI size='250 400' ");
 	TwDefine(" ThesisGI valueswidth=fit ");
 	TwDefine(" ThesisGI position='5 278' ");
 }
@@ -759,6 +762,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			break;
 		}
 	}
+	totalTime = ioTime + transformTime + svoReconTime + svoInjectTime +
+				+ svoAvgTime + giTime + miscTime;
 }
 
 void ThesisSolution::LevelIncrement(void* solPtr)

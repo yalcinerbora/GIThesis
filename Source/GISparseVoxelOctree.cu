@@ -38,8 +38,10 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, svoDenseNodeResource(nullptr)
 	, sceneShadowMapResource(nullptr)
 	, sceneLightParamResource(nullptr)
+	, sceneVPMatrixResource(nullptr)
 	, tSVODenseNode(0)
 	, sSVODenseNode(0)
+	, tShadowMapArray(0)
 	, dSVODenseNodeArray(nullptr)
 	, traceTexture(0)
 	, gaussTex(0)
@@ -158,6 +160,14 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 	uint32_t totalLevel = allocatorGrids[0]->depth + newAllocators.length - 1;
 	size_t totalAlloc = totalCount;
 
+	// Light Buffer Allocation (only cascdes)
+	size_t lightTotalLevel = 0;
+	for(unsigned int i = allocatorGrids[0]->depth; i <= totalLevel; i++)
+	{
+		lightTotalLevel += levelCounts[i];
+	}
+	dSVOLight.Resize(lightTotalLevel);
+
 	// TODO: More Dynamic Allocation Scheme
 	hSVOLevelTotalSizes.resize(sparseNodeCount);
 	dSVOLevelTotalSizes.Resize(sparseNodeCount);
@@ -229,12 +239,16 @@ void GISparseVoxelOctree::LinkSceneShadowMaps(SceneI* scene)
 {
 	GLuint lightParamBuffer = scene->getSceneLights().GetLightBufferGL();
 	GLuint shadowMapTexture = scene->getSceneLights().GetShadowArrayGL();
+	GLuint lightVPBuffer = scene->getSceneLights().GetVPMatrixGL();
 
 	if(sceneShadowMapResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneShadowMapResource));
 	if(sceneLightParamResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneLightParamResource));
+	if(sceneVPMatrixResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneVPMatrixResource));
 	CUDA_CHECK(cudaGraphicsGLRegisterImage(&sceneShadowMapResource, shadowMapTexture, GL_TEXTURE_2D_ARRAY,
 										   cudaGraphicsRegisterFlagsReadOnly));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&sceneLightParamResource, lightParamBuffer,
+											cudaGraphicsRegisterFlagsReadOnly));
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&sceneVPMatrixResource, lightVPBuffer,
 											cudaGraphicsRegisterFlagsReadOnly));
 }
 
@@ -285,7 +299,8 @@ void GISparseVoxelOctree::CopyFromBufferToTex(cudaArray_t& arr, unsigned int* de
 	CUDA_CHECK(cudaMemcpy3D(&params));
 }
 
-void GISparseVoxelOctree::CreateTexLayeredFromArray(cudaMipmappedArray_t& arr, cudaTextureObject_t& tex)
+void GISparseVoxelOctree::CreateTexLayeredFromArray(cudaMipmappedArray_t& arr, 
+													cudaTextureObject_t& tex)
 {
 	// Texture of SVO Dense
 	cudaResourceDesc resDesc = {};
@@ -297,8 +312,8 @@ void GISparseVoxelOctree::CreateTexLayeredFromArray(cudaMipmappedArray_t& arr, c
 	texDesc.addressMode[1] = cudaAddressModeWrap;
 	texDesc.addressMode[2] = cudaAddressModeWrap;
 	texDesc.filterMode = cudaFilterModePoint;
-	texDesc.readMode = cudaReadModeElementType;
-	texDesc.normalizedCoords = 0;
+	texDesc.readMode = cudaReadModeNormalizedFloat;
+	texDesc.normalizedCoords = 1;
 
 	if(tex != 0) CUDA_CHECK(cudaDestroyTextureObject(tex));
 	CUDA_CHECK(cudaCreateTextureObject(&tex, &resDesc, &texDesc, nullptr));
@@ -564,7 +579,7 @@ double GISparseVoxelOctree::LightInject()
 	CudaTimer timer;
 	timer.Start();
 
-	// Now use leaf nodes to average upper nodes
+	// Now inject light to leaf node before interpolation
 	// Start bottom up
 	for(int i = hSVOConstants.totalDepth; 
 		i > static_cast<int>(hSVOConstants.totalDepth - GI_CASCADE_COUNT); 
@@ -614,6 +629,7 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 
 	// Shadow Maps
 	CUDA_CHECK(cudaGraphicsMapResources(1, &sceneLightParamResource));
+	CUDA_CHECK(cudaGraphicsMapResources(1, &sceneVPMatrixResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &sceneShadowMapResource));
 
 	// SVO Nodes
@@ -643,6 +659,8 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 	// Shadow Related
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dLightParamArray),
 													&size, sceneLightParamResource));
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dLightVPArray),
+													&size, sceneVPMatrixResource));
 	CUDA_CHECK(cudaGraphicsResourceGetMappedMipmappedArray(&shadowMapArray, sceneShadowMapResource));
 	CreateTexLayeredFromArray(shadowMapArray, tShadowMapArray);
 
@@ -682,6 +700,7 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 	
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &sceneLightParamResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &sceneShadowMapResource));
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &sceneVPMatrixResource));
 
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoMaterialResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNodeResource));
@@ -780,8 +799,6 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	gridSize.x = (TraceWidth * 4 + 32 - 1) / 32;
 	gridSize.y = (TraceHeight + 8 - 1) / 8;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
-
-	//
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//// Detect Edge
@@ -806,9 +823,9 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	//glBindSampler(T_EDGE, gaussSampler);
 
 	//// Call #1 (Vertical)
-	//GLuint inTex = liTexture;
+	//GLuint inTex = traceTexture;
 	//GLuint outTex = gaussTex;
-	//for(unsigned int i = 0; i < 32; i++)
+	//for(unsigned int i = 0; i < 8; i++)
 	//{
 	//	glActiveTexture(GL_TEXTURE0 + T_IN);
 	//	glBindTexture(GL_TEXTURE_2D, inTex);
@@ -830,9 +847,7 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	//	inTex = outTex;
 	//	outTex = temp;
 	//}
-
-	// Render to window
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	// Apply to DRenderer Li Tex
 	computeLIApply.Bind();

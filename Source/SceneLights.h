@@ -83,6 +83,7 @@ class SceneLights
 		uint32_t					Count() const;
 		GLuint						GetLightBufferGL();
 		GLuint						GetShadowArrayGL();
+		GLuint						GetVPMatrixGL();
 		
 		void						ChangeLightPos(uint32_t index, IEVector3 position);
 		void						ChangeLightDir(uint32_t index, IEVector3 direction);

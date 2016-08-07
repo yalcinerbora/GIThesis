@@ -162,7 +162,7 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 									  const unsigned int* gLevelOffsets,
 									  const unsigned int* gLevelTotalSizes,
-									  
+
 									  // For Color Lookup
 									  const CVoxelPage* gVoxelData,
 									  CVoxelColor** gVoxelRenderData,

@@ -69,22 +69,22 @@ void main(void)
 
 	// Vertical or Horizontal Pass
 	bvec2 foundEdge = bvec2(false);
-	vec3 fragOut = texture(tIn, uv).xyz * WEIGHTS[0];
+	vec4 fragOut = texture(tIn, uv) * WEIGHTS[0];
     for(int i = 1; i < KERNEL_SIZE_HALF; i++) 
 	{
 		vec2 uvOffset = vec2(OFFSETS[i]) * DIRECTION_VECTOR[direction] / vec2(imageSize(imgOut).xy);
 		if(!foundEdge.x)
 		{
 			foundEdge.x = CheckEdge(uv + uvOffset);
-			if(!foundEdge.x) fragOut += texture(tIn, uv + uvOffset).xyz * WEIGHTS[i];
+			if(!foundEdge.x) fragOut += texture(tIn, uv + uvOffset) * WEIGHTS[i];
 		}
 
 		if(!foundEdge.y)
 		{
 			foundEdge.y = CheckEdge(uv - uvOffset);
-			if(!foundEdge.y) fragOut += texture(tIn, uv - uvOffset).xyz * WEIGHTS[i];
+			if(!foundEdge.y) fragOut += texture(tIn, uv - uvOffset) * WEIGHTS[i];
 		}
     }
 	
-	imageStore(imgOut, ivec2(globalId), vec4(fragOut, 0.0f));	
+	imageStore(imgOut, ivec2(globalId), fragOut);	
 }

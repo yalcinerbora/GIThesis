@@ -94,6 +94,7 @@ class ThesisSolution : public EmptyGISolution
 		double								svoAvgTime;
 		double								giTime;
 		double								miscTime;
+		double								totalTime;
 											
 		ThesisRenderScheme					renderScheme;
 		static const TwEnumVal				renderSchemeVals[];

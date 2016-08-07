@@ -126,7 +126,10 @@ class GISparseVoxelOctree
 		std::vector<uint32_t>					hSVOLevelTotalSizes;
 		CudaVector<uint32_t>					dSVOLevelSizes;
 		std::vector<uint32_t>					hSVOLevelSizes;
-		
+
+		// Light Array for Cascades
+		CudaVector<uint32_t>					dSVOLight;
+				
 		// Interop Data
 		cudaGraphicsResource_t					svoNodeResource;
 		cudaGraphicsResource_t					svoLevelOffsetResource;
@@ -136,11 +139,13 @@ class GISparseVoxelOctree
 		
 		cudaGraphicsResource_t					sceneShadowMapResource;
 		cudaGraphicsResource_t					sceneLightParamResource;
+		cudaGraphicsResource_t					sceneVPMatrixResource;
 
 		// Shadows
 		cudaMipmappedArray_t					shadowMapArray;
 		cudaTextureObject_t						tShadowMapArray;
 		CLight*									dLightParamArray;
+		IEMatrix4x4* 							dLightVPArray;
 		
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;

@@ -121,6 +121,11 @@ vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
 	return (worldPoint - worldPosSpan.xyz) / (worldPosSpan.w * float((0x1 << (dimDepth.y - depth))));
 }
 
+vec3 VoxPosToWorld(in ivec3  voxPos, in uint depth)
+{
+	return worldPosSpan.xyz + (vec3(voxPos) * (worldPosSpan.w * float(0x1 << (dimDepth.y - depth))));
+}
+
 vec3 DepthToWorld(vec2 gBuffUV)
 {
 	// Converts Depthbuffer Value to World Coords
@@ -161,89 +166,71 @@ vec4 UnpackNormalSVO(in uint voxNormPosY)
 bool InterpolateSparse(out vec4 color,
 					   out vec4 normal,
 
-					   in vec3 worldPos,
-					   in uint depth,
-					   in uint matLoc)
-{
-	ivec3 voxPosLevel = LevelVoxId(worldPos, depth - 1);
-	vec3 voxPosWorld = worldPosSpan.xyz + vec3(voxPosLevel) * (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
-	vec3 interpValue = (worldPos - voxPosWorld) / (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
+					   in uvec4 matAB,
+					   in uvec4 matCD,
+					   in uvec4 matEF,
+					   in uvec4 matGH,
 
+					   in vec3 interpValue)
+{
 	// Bigass fetch (its fast tho L1 cache doing work on GPU!!!)
-	uvec2 materialA = svoMaterial[matLoc + 0].xy;
-	//uvec2 materialB = svoMaterial[matLoc + 1].xy;
-	//uvec2 materialC = svoMaterial[matLoc + 2].xy;
-	//uvec2 materialD = svoMaterial[matLoc + 3].xy;
-	//uvec2 materialE = svoMaterial[matLoc + 4].xy;
-	//uvec2 materialF = svoMaterial[matLoc + 5].xy;
-	//uvec2 materialG = svoMaterial[matLoc + 6].xy;
-	//uvec2 materialH = svoMaterial[matLoc + 7].xy;
+	uvec2 materialA = matAB.xy;
+	uvec2 materialB = matAB.zw;
+	uvec2 materialC = matCD.xy;
+	uvec2 materialD = matCD.zw;
+	uvec2 materialE = matEF.xy;
+	uvec2 materialF = matEF.zw;
+	uvec2 materialG = matGH.xy;
+	uvec2 materialH = matGH.zw;
 
 	// Interp Color
 	vec4 colorA = UnpackColorSVO(materialA.x);
-	//vec4 colorB = UnpackColorSVO(materialB.x); 
-	//vec4 colorC = UnpackColorSVO(materialC.x);
-	//vec4 colorD = UnpackColorSVO(materialD.x); 
-	//vec4 colorE = UnpackColorSVO(materialE.x); 
-	//vec4 colorF = UnpackColorSVO(materialF.x); 
-	//vec4 colorG = UnpackColorSVO(materialG.x); 
-	//vec4 colorH = UnpackColorSVO(materialH.x);
+	vec4 colorB = UnpackColorSVO(materialB.x); 
+	vec4 colorC = UnpackColorSVO(materialC.x);
+	vec4 colorD = UnpackColorSVO(materialD.x); 
+	vec4 colorE = UnpackColorSVO(materialE.x); 
+	vec4 colorF = UnpackColorSVO(materialF.x); 
+	vec4 colorG = UnpackColorSVO(materialG.x); 
+	vec4 colorH = UnpackColorSVO(materialH.x);
 
-	//colorA = mix(colorA, colorB, interpValue.x);
-	//colorB = mix(colorC, colorD, interpValue.x);
-	//colorC = mix(colorE, colorF, interpValue.x);
-	//colorD = mix(colorG, colorH, interpValue.x);
+	colorA = mix(colorA, colorB, interpValue.x);
+	colorB = mix(colorC, colorD, interpValue.x);
+	colorC = mix(colorE, colorF, interpValue.x);
+	colorD = mix(colorG, colorH, interpValue.x);
 
-	//colorA = mix(colorA, colorB, interpValue.y);
-	//colorB = mix(colorC, colorD, interpValue.y);
+	colorA = mix(colorA, colorB, interpValue.y);
+	colorB = mix(colorC, colorD, interpValue.y);
 
-	//color = mix(colorA, colorB, interpValue.z);
-
-	color = colorA;
+	color = mix(colorA, colorB, interpValue.z);
 	
 	vec4 normalA = UnpackNormalSVO(materialA.y);
-	//vec4 normalB = UnpackNormalSVO(materialB.y); 
-	//vec4 normalC = UnpackNormalSVO(materialC.y);
-	//vec4 normalD = UnpackNormalSVO(materialD.y); 
-	//vec4 normalE = UnpackNormalSVO(materialE.y); 
-	//vec4 normalF = UnpackNormalSVO(materialF.y); 
-	//vec4 normalG = UnpackNormalSVO(materialG.y); 
-	//vec4 normalH = UnpackNormalSVO(materialH.y);
-	
-	// .w component used to average so change it
-	if(depth == dimDepth.y)
-	{
-		normalA.w = ceil(normalA.w);
-		//normalB.w = ceil(normalB.w);
-		//normalC.w = ceil(normalC.w);
-		//normalD.w = ceil(normalD.w);
-		//normalE.w = ceil(normalE.w);
-		//normalF.w = ceil(normalF.w);
-		//normalG.w = ceil(normalG.w);
-		//normalH.w = ceil(normalH.w);
-	}
-	
-	//normalA = mix(normalA, normalB, interpValue.x);
-	//normalB = mix(normalC, normalD, interpValue.x);
-	//normalC = mix(normalE, normalF, interpValue.x);
-	//normalD = mix(normalG, normalH, interpValue.x);
+	vec4 normalB = UnpackNormalSVO(materialB.y); 
+	vec4 normalC = UnpackNormalSVO(materialC.y);
+	vec4 normalD = UnpackNormalSVO(materialD.y); 
+	vec4 normalE = UnpackNormalSVO(materialE.y); 
+	vec4 normalF = UnpackNormalSVO(materialF.y); 
+	vec4 normalG = UnpackNormalSVO(materialG.y); 
+	vec4 normalH = UnpackNormalSVO(materialH.y);
+		
+	normalA = mix(normalA, normalB, interpValue.x);
+	normalB = mix(normalC, normalD, interpValue.x);
+	normalC = mix(normalE, normalF, interpValue.x);
+	normalD = mix(normalG, normalH, interpValue.x);
 
-	//normalA = mix(normalA, normalB, interpValue.y);
-	//normalB = mix(normalC, normalD, interpValue.y);
+	normalA = mix(normalA, normalB, interpValue.y);
+	normalB = mix(normalC, normalD, interpValue.y);
 
-	//normal = mix(normalA, normalB, interpValue.z);
-
-	normal = normalA;
+	normal = mix(normalA, normalB, interpValue.z);
 
 	if(normal.w == 0.0f) return false;
 	return true;
 }
 
 void InterpolateDense(out vec4 color,
-					   out vec4 normal,
+					  out vec4 normal,
 					
-					   in vec3 levelUV, 
-					   in int level)
+					  in vec3 levelUV, 
+					  in int level)
 {
 	vec3 interpolId = levelUV - floor(levelUV);
 	ivec3 uvInt = ivec3(floor(levelUV));
@@ -302,16 +289,6 @@ bool SampleSVO(out vec4 color,
 			   out vec4 normal,
 			   in vec3 worldPos)
 {
-	ivec3 voxPos = LevelVoxId(worldPos, dimDepth.y);
-	
-	// Cull if out of bounds
-	// Since cam is centered towards grid
-	// Out of bounds means its cannot come towards the grid
-	// directly cull
-	if(any(lessThan(voxPos, ivec3(0))) ||
-	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
-		return false;
-
 	// Dense Fetch
 	if(fetchLevel <= dimDepth.w &&
 	   fetchLevel >= offsetCascade.w)
@@ -324,35 +301,98 @@ bool SampleSVO(out vec4 color,
 		return true;
 	}
 
-	// Initialize Traverse
-	unsigned int nodeIndex = 0;
-	ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
-	vec3 texCoord = vec3(denseVox) / dimDepth.z;
-	nodeIndex = texture(tSVODense, texCoord).x;
-	if(nodeIndex == 0xFFFFFFFF) return false;
-	nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
+	// For each Corner Value // Offsets
+	ivec3 voxPosLevel = LevelVoxId(worldPos, fetchLevel);
+	vec3 interp = LevelVoxIdF(worldPos, fetchLevel);
+	interp -= (vec3(voxPosLevel));
+	vec3 offsets = sign(interp);
 
-	// Tree Traverse
-	uint traversedLevel;
-	for(traversedLevel = dimDepth.w + 1; 
-		traversedLevel < fetchLevel;
-		traversedLevel++)
-	{
-		uint currentNode = svoNode[offsetCascade.y + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex];
-		if(currentNode == 0xFFFFFFFF) break;
-		nodeIndex = currentNode + CalculateLevelChildId(voxPos, traversedLevel + 1);
-	}
-	//nodeIndex -= CalculateLevelChildId(voxPos, traversedLevel);
+	// Materials that will be interpolated
+	uvec4 matAB = uvec4(0);
+	uvec4 matCD = uvec4(0);
+	uvec4 matEF = uvec4(0);
+	uvec4 matGH = uvec4(0);
 
-	// Mat out
-	if(traversedLevel > (dimDepth.y - offsetCascade.x) || 
-	   traversedLevel == fetchLevel)
+	for(uint i = 0; i < 8; i++)
 	{
-		// Mid or Leaf Level
-		uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
-		return InterpolateSparse(color, normal, worldPos, traversedLevel, loc);
+		vec3 currentWorld = VoxPosToWorld(voxPosLevel + NEIG_MASK[i], fetchLevel);
+		ivec3 voxPos = LevelVoxId(currentWorld, dimDepth.y);
+	
+		// Cull if out of bounds
+		// Since cam is centered towards grid
+		// Out of bounds means its cannot come towards the grid
+		// directly cull
+		if(any(lessThan(voxPos, ivec3(0))) ||
+		   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
+			continue;
+
+		// Initialize Traverse
+		unsigned int nodeIndex = 0;
+		ivec3 denseVox = LevelVoxId(currentWorld, dimDepth.w);
+		
+		vec3 texCoord = vec3(denseVox) / dimDepth.z;
+		nodeIndex = texture(tSVODense, texCoord).x;
+		if(nodeIndex == 0xFFFFFFFF) continue;
+		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
+		
+		// Tree Traverse
+		uint traversedLevel;
+		for(traversedLevel = dimDepth.w + 1; 
+			traversedLevel < fetchLevel;
+			traversedLevel++)
+		{
+			uint currentNode = svoNode[offsetCascade.y + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex];
+			if(currentNode == 0xFFFFFFFF) break;
+			nodeIndex = currentNode + CalculateLevelChildId(voxPos, traversedLevel + 1);
+		}	
+
+		// Mat out
+		if(traversedLevel > (dimDepth.y - offsetCascade.x) || 
+		   traversedLevel == fetchLevel)
+		{
+			// Mid or Leaf Level
+			uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
+			
+			// .w component used to average so change it
+			uvec2 mat = svoMaterial[loc].xy;
+			if(traversedLevel == fetchLevel) mat.y |= 0xFF000000;
+
+			if(i < 2)
+			{
+				matAB[(i % 2) * 2 + 0] = mat.x;
+				matAB[(i % 2) * 2 + 1] = mat.y;
+			}
+			else if(i < 4)
+			{
+				matCD[(i % 2) * 2 + 0] = mat.x;
+				matCD[(i % 2) * 2 + 1] = mat.y;
+			}
+			else if(i < 6)
+			{
+				matEF[(i % 2) * 2 + 0] = mat.x;
+				matEF[(i % 2) * 2 + 1] = mat.y;
+			}
+			else if(i < 8)
+			{
+				matGH[(i % 2) * 2 + 0] = mat.x;
+				matGH[(i % 2) * 2 + 1] = mat.y;
+			}				
+		}
 	}
-	return false;
+	
+	// Out
+	InterpolateSparse(color, 
+					  normal, 
+
+					  matAB,
+					  matCD,
+					  matEF,
+					  matGH,
+							 
+					  interp);
+
+	if(normal.w == 0.0f) return false;
+	return true;
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;

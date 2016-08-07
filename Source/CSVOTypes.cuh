@@ -12,10 +12,7 @@ Sparse voxel octree types that used in cuda funcs
 #include <cstdint>
 
 // first int has
-// first 24 bit is children index
-// last 8 bit used to determine which children is avail
-// --
-// last 4 byte is used for color
+// first 32 bit is children index
 typedef unsigned int CSVONode;
 typedef unsigned int CSVOColor;
 

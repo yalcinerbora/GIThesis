@@ -237,6 +237,11 @@ GLuint SceneLights::GetShadowArrayGL()
 	return shadowMapArrayView;
 }
 
+GLuint SceneLights::GetVPMatrixGL()
+{
+	return lightViewProjMatrices.getGLBuffer();
+}
+
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)
 {
 	Light l = lightsGPU.GetData(index);

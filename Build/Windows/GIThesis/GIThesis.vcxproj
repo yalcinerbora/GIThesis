@@ -189,7 +189,6 @@
     <ClInclude Include="..\..\..\Source\VoxelCopyToVAO.cuh" />
     <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h" />
     <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h" />
-    <CudaCompile Include="SVOLightInject.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\ArrayStruct.h" />

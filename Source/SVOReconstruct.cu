@@ -1,6 +1,7 @@
 #include "GIKernels.cuh"
 #include "CSparseVoxelOctree.cuh"
 #include "CVoxel.cuh"
+#include "SVOLightInject.cuh"
 #include <cuda.h>
 
 // Lookup table for determining neigbour nodes
@@ -79,8 +80,8 @@ inline __device__ CSVOMaterial AddMat(const CSVOMaterial& material,
 }
 
 inline __device__ CSVOMaterial AtomicColorNormalAvg(CSVOMaterial* gMaterial,
-													CSVOColor color,
-													CVoxelNorm voxelNormal)
+													const CSVOColor& color,
+													const CVoxelNorm& voxelNormal)
 {
 	float4 colorUnpack = UnpackSVOColor(color);
 	float4 normalUnpack = ExpandOnlyNormal(voxelNormal);

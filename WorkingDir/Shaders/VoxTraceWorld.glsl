@@ -262,21 +262,22 @@ float FindMarchLength(out vec3 outData,
 		   i == fetchLevel)
 		{
 			// Mid Leaf Level
-			uint loc;
+			uvec2 mat;
 			if(i > dimDepth.w)
 			{
 				// Sparse Fetch
-				loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
+				uint loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
+				mat = svoMaterial[loc];
 
 				if(renderType == RENDER_TYPE_COLOR)
-					outData = UnpackColor(svoMaterial[loc].x);		
+					outData = UnpackColor(mat.x);		
 				else if(renderType == RENDER_TYPE_OCCLUSION)
 				{
-					outData = vec3(UnpackOcclusion(svoMaterial[loc].y));
+					outData = vec3(UnpackOcclusion(mat.y));
 					if(i == dimDepth.y) outData = ceil(outData);
 				}
 				else if(renderType == RENDER_TYPE_NORMAL)
-					outData = UnpackNormal(svoMaterial[loc].y);
+					outData = UnpackNormal(mat.y);
 			}
 			else
 			{
@@ -285,17 +286,18 @@ float FindMarchLength(out vec3 outData,
 				uint levelDim = dimDepth.z >> mipId;
 				vec3 levelUV = LevelVoxIdF(marchPos, i) / float(levelDim);
 				
+				mat = textureLod(tSVOMat, levelUV, float(mipId)).xy;
 				if(renderType == RENDER_TYPE_COLOR)
-					outData = UnpackColor(textureLod(tSVOMat, levelUV, float(mipId)).x);
+					outData = UnpackColor(mat.x);
 				else if(renderType == RENDER_TYPE_OCCLUSION)
 				{
-					outData = vec3(UnpackOcclusion(textureLod(tSVOMat, levelUV, float(mipId)).y));
+					outData = vec3(UnpackOcclusion(mat.y));
 					if(i == dimDepth.y) outData = ceil(outData);
 				}
 				else if(renderType == RENDER_TYPE_NORMAL)
-					outData = UnpackNormal(textureLod(tSVOMat, levelUV, float(mipId)).y);
+					outData = UnpackNormal(mat.y);
 			}
-			if(any(notEqual(outData, vec3(0.0f)))) return 0.0f;
+			if(mat.y != uvec2(0x00000000)) return 0.0f;
 		}
 
 		// Node check

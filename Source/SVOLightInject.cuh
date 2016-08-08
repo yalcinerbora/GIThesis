@@ -135,8 +135,9 @@ __device__ inline float4 CalculateShadowUV(const CMatrix4x4* lightVP,
 	ndc.z = clip.z / clip.w;
 
 	// NDC to Tex
-	float depth = 0.5 * ((2.0f * depthNear + 1.0f) + (depthFar - depthNear) * ndc.z);
-	if(lightStruct.position.w == GI_LIGHT_POINT)
+	float depth = 0.5 * ((2.0f * depthNear + 1.0f) + 
+						 (depthFar - depthNear) * ndc.z);
+	if(lightStruct.position.w == GI_LIGHT_DIRECTIONAL)
 	{
 		lightVec.x = 0.5f * ndc.x + 0.5f;
 		lightVec.y = 0.5f * ndc.y + 0.5f;
@@ -170,15 +171,6 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 	worldEye.y = camPos.y - worldPos.y;
 	worldEye.z = camPos.z - worldPos.z;
 
-	float4 shadowUV = CalculateShadowUV(lightVP,
-										lightStruct,
-										worldPos,
-										camPos,
-										camDir,
-										depthNear,
-										depthFar);
-
-
 	float3 worldLight;
 	float falloff = 1.0f;
 	if(lightStruct.position.w == GI_LIGHT_DIRECTIONAL)
@@ -207,6 +199,21 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 	worldLight = Normalize(worldLight);
 	worldEye = Normalize(worldEye);
 	
+	float3 biasedWorld = worldPos;
+	biasedWorld.x += worldLight.x * 3.0f;
+	biasedWorld.y += worldLight.y * 3.0f;
+	biasedWorld.z += worldLight.z * 3.0f;
+
+	float4 shadowUV = CalculateShadowUV(lightVP,
+										lightStruct,
+										biasedWorld,
+										camPos,
+										camDir,
+										depthNear,
+										depthFar);
+
+
+
 	float3 worldHalf;
 	worldHalf.x = worldLight.x + worldEye.x;
 	worldHalf.y = worldLight.y + worldEye.y;
@@ -231,12 +238,12 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 		shadowDepth = tex2DLayeredLod<float>(shadowTex,
 											 shadowUV.x,
 											 shadowUV.y,
-											 shadowUV.z,
+											 static_cast<float>(lightIndex * 6) + shadowUV.z,
 											 0.0f);
 	}
 	else
 	{
-		// TODO: Implement Cumbe Array Showmap by hand
+		// Cube Fetch if applicable
 		shadowDepth = texCubemapLayeredLod<float>(shadowTex,
 												  shadowUV.x,
 												  shadowUV.y,
@@ -249,13 +256,12 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 	if(shadowDepth < shadowUV.w) return float3{0.0f, 0.0f, 0.0f};
 
 	// Specular
-	float specPower = colorSVO.w * 4096.0f;
-
 	// Blinn-Phong
-	float power = pow(fmaxf(Dot(worldHalf, worldNormal), 0.0f), specPower);
-	lightIntensity.x += power;
-	lightIntensity.y += power;
-	lightIntensity.z += power;
+	//float specPower = colorSVO.w * 4096.0f;
+	//float power = pow(fmaxf(Dot(worldHalf, worldNormal), 0.0f), specPower);
+	//lightIntensity.x += power;
+	//lightIntensity.y += power;
+	//lightIntensity.z += power;
 
 	// Falloff
 	lightIntensity.x *= falloff;
@@ -268,35 +274,40 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 	lightIntensity.z *= lightStruct.color.z * lightStruct.color.w;
 
 	// Out
-	return float3
+	float3 result =
 	{
 		lightIntensity.x * colorSVO.x,
 		lightIntensity.y * colorSVO.y,
 		lightIntensity.z * colorSVO.z
 	};
+
+	result.x = Clamp(result.x, 0.0f, 1.0f);
+	result.y = Clamp(result.y, 0.0f, 1.0f);
+	result.z = Clamp(result.z, 0.0f, 1.0f);
+	return result;
 }
 
-__device__ inline void LightInject(const float3& worldPos,
+__device__ inline float3 LightInject(const float3& worldPos,
 
-								   // SVO Surface Voxel
-								   const float4& colorSVO,
-								   const float4& normalSVO,
+									 // SVO Surface Voxel
+									 const float4& colorSVO,
+									 const float4& normalSVO,
 
-								   // Camera Related
-								   const float4& camPos,
-								   const float3& camDir,
+									 // Camera Related
+									 const float4& camPos,
+									 const float3& camDir,
 
-								   // Light View Projection
-								   const CMatrix4x4* lightVP,
-								   const CLight* lightStruct,
+									 // Light View Projection
+									 const CMatrix4x4* lightVP,
+									 const CLight* lightStruct,
 
-								   float depthNear,
-								   float depthFar,
+									 float depthNear,
+									 float depthFar,
 
-								   // Shadow Tex
-								   cudaTextureObject_t shadowTex,
+									 // Shadow Tex
+									 cudaTextureObject_t shadowTex,
 
-								   const int lightCount)
+									 const int lightCount)
 {
 	// For Each Light
 	float3 totalIllum = {0.0f, 0.0f, 0.0f};
@@ -321,5 +332,6 @@ __device__ inline void LightInject(const float3& worldPos,
 		totalIllum.y += illum.y;
 		totalIllum.z += illum.z;
 	}
+	return totalIllum;
 }
 #endif //__SVOLIGHTINJECT_H__

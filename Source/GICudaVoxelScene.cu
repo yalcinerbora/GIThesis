@@ -57,13 +57,13 @@ void GICudaVoxelScene::Reset()
 	allocator.ResetSceneData();
 }
 
-void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
-								   double& updateTiming,
-								   const IEVector3& playerPos,
-								   float cascadeMultiplier)
+IEVector3 GICudaVoxelScene::VoxelUpdate(double& ioTiming,
+										double& updateTiming,
+										const IEVector3& playerPos,
+										float cascadeMultiplier)
 {
 	// Pass if there is not any linked objects
-	if(allocator.NumSegments() == 0) return;
+	if(allocator.NumSegments() == 0) return IEVector3(0.0f, 0.0f, 0.0f);
 
 	// Manages Voxel Pages
 	assert(allocator.IsGLMapped() == true);
@@ -191,6 +191,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	
 	timer.Stop();
 	updateTiming = timer.ElapsedMilliS();
+	return gridNewPos;
 }
 
 uint64_t GICudaVoxelScene::AllocatorMemoryUsage() const

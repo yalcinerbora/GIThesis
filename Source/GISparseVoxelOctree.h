@@ -78,6 +78,21 @@ struct SVOConeParams
 	float4 coneParams2;
 };
 
+struct InjectParams
+{
+	bool inject;
+	float span;
+	float3 outerCascadePos;
+
+	float4 camPos;
+	float3 camDir;
+	
+	float depthNear;
+	float depthFar;
+	
+	unsigned int lightCount;
+};
+
 struct InvFrameTransform;
 
 class GISparseVoxelOctree
@@ -126,9 +141,6 @@ class GISparseVoxelOctree
 		std::vector<uint32_t>					hSVOLevelTotalSizes;
 		CudaVector<uint32_t>					dSVOLevelSizes;
 		std::vector<uint32_t>					hSVOLevelSizes;
-
-		// Light Array for Cascades
-		CudaVector<uint32_t>					dSVOLight;
 				
 		// Interop Data
 		cudaGraphicsResource_t					svoNodeResource;
@@ -145,7 +157,7 @@ class GISparseVoxelOctree
 		cudaMipmappedArray_t					shadowMapArray;
 		cudaTextureObject_t						tShadowMapArray;
 		CLight*									dLightParamArray;
-		IEMatrix4x4* 							dLightVPArray;
+		CMatrix4x4* 							dLightVPArray;
 		
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;
@@ -171,12 +183,10 @@ class GISparseVoxelOctree
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
 															   unsigned int allocatorIndex);
-		double									ConstructFullAtomic();
-		double									ConstructLevelByLevel();
-		void									AverageNodes(bool skipLeaf,
-															 double& averageTime,
-															 double& injectTime);
+		double									ConstructFullAtomic(InjectParams);
+		double									ConstructLevelByLevel(InjectParams);
 		double									LightInject();
+		double									AverageNodes();
 
 		static const GLsizei					TraceWidth;
 		static const GLsizei					TraceHeight;
@@ -201,7 +211,8 @@ class GISparseVoxelOctree
 		// Updates SVO Tree depending on the changes of the allocators
 		void									UpdateSVO(double& reconstTime,
 														  double& injectTime,
-														  double& averageTime);
+														  double& averageTime,
+														  InjectParams);
 		
 		// Traces entire scene with the given ray params
 		// Writes results to intensity texture

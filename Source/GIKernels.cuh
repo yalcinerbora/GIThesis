@@ -83,7 +83,6 @@ __global__ void VoxelClearMarked(CVoxelPage* gVoxelData);
 __global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
 								 const uint32_t numPages);
 
-
 // Reconstruct SVO
 // Creates SVO tree top down manner
 // For Each Level of the tree
@@ -133,7 +132,24 @@ extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 												  // Constants
 												  const unsigned int matSparseOffset,
 												  const unsigned int cascadeNo,
-												  const CSVOConstants& svoConstants);
+												  const CSVOConstants& svoConstants,
+
+												  // Light Inject Related
+												  bool inject,
+												  float span,
+												  const float3 outerCascadePos,
+
+												  const float4 camPos,
+												  const float3 camDir,
+
+												  const CMatrix4x4* lightVP,
+												  const CLight* lightStruct,
+
+												  const float depthNear,
+												  const float depthFar,
+
+												  cudaTextureObject_t shadowMaps,
+												  const unsigned int lightCount);
 
 extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 												 cudaSurfaceObject_t sDenseMat,
@@ -169,7 +185,22 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 									  const unsigned int matSparseOffset,
 									  const unsigned int cascadeNo,
-									  const CSVOConstants& svoConstants);
+									  const CSVOConstants& svoConstants,
 
+									  //// Light Inject Related
+									  bool inject,
+									  float span,
+									  const float3 outerCascadePos,
 
+									  const float4 camPos,
+									  const float3 camDir,
+
+									  const CMatrix4x4* lightVP,
+									  const CLight* lightStruct,
+
+									  const float depthNear,
+									  const float depthFar,
+
+									  cudaTextureObject_t shadowMaps,
+									  const unsigned int lightCount);
 #endif //__GIKERNELS_H__

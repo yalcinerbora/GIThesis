@@ -573,25 +573,46 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	svoReconTime = 0.0;
 	svoInjectTime = 0.0;
 	svoAvgTime = 0.0;
+	giTime = 0.0;
 
-
+	IEVector3 outerCascadePos;
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
 		voxelScenes[i].MapGLPointers();
 
 		// Cascade Update
-		voxelScenes[i].VoxelUpdate(ioTimeSegment,
-								   transformTimeSegment,
-								   mainRenderCamera.pos,
-								   static_cast<float>(0x1 << (3 - i - 1)));
+		IEVector3 pos = voxelScenes[i].VoxelUpdate(ioTimeSegment,
+												   transformTimeSegment,
+												   mainRenderCamera.pos,
+												   static_cast<float>(0x1 << (3 - i - 1)));
 		ioTime += ioTimeSegment;
 		transformTime += transformTimeSegment;
+		if(i == 0) outerCascadePos = pos;
 	}
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
 	
 	// Octree Update
-	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAvgTime);
+	// TODO Light Inject
+	IEVector3 camDir = (mainRenderCamera.centerOfInterest - mainRenderCamera.pos).NormalizeSelf();
+	IEVector3 camPos = mainRenderCamera.pos;
+
+	InjectParams p;
+	p.camDir = {camDir.getX(), camDir.getY(), camDir.getZ()};
+	p.camPos = {camPos.getX(), camPos.getY(), camPos.getZ(), DeferredRenderer::CalculateCascadeLength(mainRenderCamera.far, 0)};
+
+	float depthRange[2];
+	glGetFloatv(GL_DEPTH_RANGE, depthRange);
+	p.depthNear = depthRange[0];
+	p.depthFar = depthRange[1];
+	
+	p.lightCount = currentScene->getSceneLights().Count();
+	p.outerCascadePos = {outerCascadePos.getX(), outerCascadePos.getY(), outerCascadePos.getZ()};
+	p.span = CascadeSpan;
+
+	p.inject = true;
+	
+	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAvgTime, p);
 
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{

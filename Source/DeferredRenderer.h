@@ -89,9 +89,6 @@ class DeferredRenderer
 														float cascadeFar,
 														const Camera& camera,
 														const IEVector3& lightDir);
-		static float			CalculateCascadeLength(float frustumFar, 
-													   unsigned int cascadeNo);
-
 	protected:
 
 	public:
@@ -108,6 +105,9 @@ class DeferredRenderer
 		GLuint						GetLightIntensityBufferGL();
 		InvFrameTransformBuffer&	GetInvFTransfrom();
 		FrameTransformBuffer&		GetFTransform();
+
+		static float				CalculateCascadeLength(float frustumFar,
+														   unsigned int cascadeNo);
 
 		void						RefreshInvFTransform(const Camera&,
 														 GLsizei width,

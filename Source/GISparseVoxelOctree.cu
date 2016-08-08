@@ -160,14 +160,6 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 	uint32_t totalLevel = allocatorGrids[0]->depth + newAllocators.length - 1;
 	size_t totalAlloc = totalCount;
 
-	// Light Buffer Allocation (only cascdes)
-	size_t lightTotalLevel = 0;
-	for(unsigned int i = allocatorGrids[0]->depth; i <= totalLevel; i++)
-	{
-		lightTotalLevel += levelCounts[i];
-	}
-	dSVOLight.Resize(lightTotalLevel);
-
 	// TODO: More Dynamic Allocation Scheme
 	hSVOLevelTotalSizes.resize(sparseNodeCount);
 	dSVOLevelTotalSizes.Resize(sparseNodeCount);
@@ -312,7 +304,7 @@ void GISparseVoxelOctree::CreateTexLayeredFromArray(cudaMipmappedArray_t& arr,
 	texDesc.addressMode[1] = cudaAddressModeWrap;
 	texDesc.addressMode[2] = cudaAddressModeWrap;
 	texDesc.filterMode = cudaFilterModePoint;
-	texDesc.readMode = cudaReadModeNormalizedFloat;
+	texDesc.readMode = cudaReadModeElementType;
 	texDesc.normalizedCoords = 1;
 
 	if(tex != 0) CUDA_CHECK(cudaDestroyTextureObject(tex));
@@ -400,7 +392,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	CUDA_KERNEL_CHECK();
 }
 
-double GISparseVoxelOctree::ConstructFullAtomic()
+double GISparseVoxelOctree::ConstructFullAtomic(InjectParams params)
 {
 	CudaTimer timer;
 	timer.Start();
@@ -426,7 +418,23 @@ double GISparseVoxelOctree::ConstructFullAtomic()
 
 			0,
 			i,
-			*dSVOConstants.Data()
+			*dSVOConstants.Data(),
+
+			params.inject,
+			params.span,
+			params.outerCascadePos,
+			
+			params.camPos,
+			params.camDir,
+
+			dLightVPArray,
+			dLightParamArray,
+
+			params.depthNear,
+			params.depthFar,
+
+			tShadowMapArray,
+			params.lightCount
 		);
 		CUDA_KERNEL_CHECK();
 	}
@@ -441,7 +449,7 @@ double GISparseVoxelOctree::ConstructFullAtomic()
 	return timer.ElapsedMilliS();
 }
 
-double GISparseVoxelOctree::ConstructLevelByLevel()
+double GISparseVoxelOctree::ConstructLevelByLevel(InjectParams params)
 {
 	CudaTimer timer;
 	timer.Start();
@@ -469,20 +477,9 @@ double GISparseVoxelOctree::ConstructLevelByLevel()
 						  sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
 
-	timer.Stop();
-	return timer.ElapsedMilliS();
-}
-
-void GISparseVoxelOctree::AverageNodes(bool skipLeaf, double& averageTime, double& injectTime)
-{
-	// First Average Leafs atomically
-	double leafTime = 0.0;
-	if(!skipLeaf)
+	// Average Leafs
 	for(unsigned int i = 0; i < allocators.size(); i++)
 	{
-		CudaTimer timer;
-		timer.Start();
-
 		assert(allocators[i]->IsGLMapped() == true);
 		uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE +  GI_THREAD_PER_BLOCK - 1) / 
 							GI_THREAD_PER_BLOCK;
@@ -506,18 +503,33 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf, double& averageTime, doubl
 			// Constants
 			0,
 			i,
-			*dSVOConstants.Data()
+			*dSVOConstants.Data(),
+
+			params.inject,
+			params.span,
+			params.outerCascadePos,
+
+			params.camPos,
+			params.camDir,
+
+			dLightVPArray,
+			dLightParamArray,
+
+			params.depthNear,
+			params.depthFar,
+
+			tShadowMapArray,
+			params.lightCount
 		);
 		CUDA_KERNEL_CHECK();
-
-		// Timer
-		timer.Stop();
-		leafTime = timer.ElapsedMilliS();
 	}
 
-	// Light Injection
-	injectTime = LightInject();
+	timer.Stop();
+	return timer.ElapsedMilliS();
+}
 
+double GISparseVoxelOctree::AverageNodes()
+{
 	CudaTimer timer;
 	timer.Start();
 
@@ -571,56 +583,13 @@ void GISparseVoxelOctree::AverageNodes(bool skipLeaf, double& averageTime, doubl
 	}
 
 	timer.Stop();
-	averageTime = leafTime + timer.ElapsedMilliS();
-}
-
-double GISparseVoxelOctree::LightInject()
-{
-	CudaTimer timer;
-	timer.Start();
-
-	// Now inject light to leaf node before interpolation
-	// Start bottom up
-	for(int i = hSVOConstants.totalDepth; 
-		i > static_cast<int>(hSVOConstants.totalDepth - GI_CASCADE_COUNT); 
-		i--)
-	{
-		//unsigned int arrayIndex = i - GI_DENSE_LEVEL;
-		//unsigned int levelDim = GI_DENSE_SIZE >> (GI_DENSE_LEVEL - i);
-		//unsigned int levelSize = (i > GI_DENSE_LEVEL) ? hSVOLevelSizes[arrayIndex] :
-		//	levelDim * levelDim * levelDim;
-		//if(levelSize == 0) continue;
-
-		//uint32_t gridSize = (levelSize + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
-		//// Average Level
-		//SVOLightInject<<<gridSize, GI_THREAD_PER_BLOCK >>>
-		//(
-		//	dSVOMaterial,
-		//	sSVODenseMat[0],
-
-		//	dSVODense,
-		//	dSVOSparse,
-
-		//	dSVOOffsets,
-		//	*(dSVOOffsets + arrayIndex),
-		//	*(dSVOOffsets + arrayIndex + 1),
-
-		//	levelSize,
-		//	0,
-		//	i,
-		//	*dSVOConstants.Data()
-		//);
-		//CUDA_KERNEL_CHECK();
-	}
-
-
-
-	return 0.0;
+	return timer.ElapsedMilliS();
 }
 
 void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 									double& injectTime,
-									double& averageTime)
+									double& averageTime,
+									InjectParams p)
 {
 	// Clear Mat Texture
 	GLuint ff[2] = {0x00000000, 0x00000000};
@@ -676,13 +645,13 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 	// However kepler sucks(660ti) (100ms compared to 5ms) 
 	if(CudaInit::CapabilityMajor() >= 5)
 	{
-		reconstTime = ConstructFullAtomic();
-		AverageNodes(true, averageTime, injectTime);
+		reconstTime = ConstructFullAtomic(p);
+		averageTime = AverageNodes();
 	}
 	else
 	{
-		reconstTime = ConstructLevelByLevel();
-		AverageNodes(false, averageTime, injectTime);
+		reconstTime = ConstructLevelByLevel(p);
+		averageTime = AverageNodes();
 	}
 
 	//// DEBUG

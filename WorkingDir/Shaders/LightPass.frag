@@ -201,6 +201,21 @@ float textureShadowLodLerp(in sampler2DArray depths,
     return c;
 }
 
+float ShadowSampleFlat(in vec4 shadowUV)
+{
+	float depth = 0.0f;
+	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
+	{
+		vec3 uv = vec3(shadowUV.xy, float(fIndex * 6) + shadowUV.z);
+		depth = textureLod(shadowMapsDir, uv, 0.0f).r;
+	}
+	else
+	{
+		depth = textureLod(shadowMaps, vec4(shadowUV.xyz, float(fIndex)), 0.0f).r;
+	}
+	return (depth < shadowUV.w) ? 0.0f : 1.0f;
+}
+
 float ShadowSample(in vec4 shadowUV)
 {
 	// Shadow new hier
@@ -307,6 +322,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// Check Light Occulusion (ShadowMap)
 	float shadowIntensity = ShadowSample(shadowUV);
+	//float shadowIntensity = ShadowSampleFlat(shadowUV);
 	
 	////DEBUG	
 	//// Cascade Check

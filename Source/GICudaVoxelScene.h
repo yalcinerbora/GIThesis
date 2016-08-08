@@ -49,7 +49,7 @@ class GICudaVoxelScene
 		// Adds newly entered voxels from the cache
 		// Repositions existing voxels which is already in the grid
 		// Reconstructs SVO tree
-		void				VoxelUpdate(double& ioTiming,
+		IEVector3			VoxelUpdate(double& ioTiming,
 										double& updateTiming,
 										const IEVector3& playerPos,
 										float cascadeMultiplier);
@@ -69,5 +69,6 @@ class GICudaVoxelScene
 										uint32_t& voxCount,
 										uint32_t maxVoxelCount);
 		GICudaAllocator*	Allocator();
+
 };
 #endif //__GICUDAVOXELSCENE_H__

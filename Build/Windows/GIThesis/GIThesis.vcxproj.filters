@@ -325,7 +325,7 @@
     <ClInclude Include="..\..\..\Source\VoxelSceneCache.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\SVOLightInject.cuh">
+    <ClInclude Include="..\..\..\Source\SVOLightInject.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
   </ItemGroup>

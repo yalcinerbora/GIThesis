@@ -25,8 +25,6 @@ Solution implementtion
 
 class DeferredRenderer;
 
-
-
 enum ThesisRenderScheme
 {
 	GI_DEFERRED,

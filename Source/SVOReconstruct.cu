@@ -1,7 +1,6 @@
 #include "GIKernels.cuh"
 #include "CSparseVoxelOctree.cuh"
 #include "CVoxel.cuh"
-#include "SVOLightInject.cuh"
 #include <cuda.h>
 
 // Lookup table for determining neigbour nodes
@@ -273,6 +272,7 @@ __global__ void SVOReconstructDetermineNode(CSVONode* gSVOSparse,
 
 		// Offset according to children
 		assert(currentNode != 0xFFFFFFFF);
+		if(currentNode == 0xFFFFFFFF) return;
 		unsigned int childIndex = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
 		nodeIndex = currentNode + childIndex;
 	}
@@ -295,8 +295,9 @@ __global__ void SVOReconstructAllocateLevel(CSVONode* gSVOLevel,
 	// Allocation
 	unsigned int location = atomicAdd(&gSVONextLevelAllocator, 8);
 	assert(location < gSVONextLevelTotalSize);
-
-	gSVOLevel[globalId] = location;
+	
+	if(location < gSVONextLevelTotalSize) return;
+		gSVOLevel[globalId] = location;
 }
 
 __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
@@ -315,24 +316,7 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 										   // Constants
 										   const unsigned int matSparseOffset,
 										   const unsigned int cascadeNo,
-										   const CSVOConstants& svoConstants,
-										   
-										   // Light Inject Related
-										   bool inject,
-										   float span,
-										   const float3 outerCascadePos,
-
-										   const float4 camPos,
-										   const float3 camDir,
-
-										   const CMatrix4x4* lightVP,
-										   const CLight* lightStruct,
-
-										   const float depthNear,
-										   const float depthFar,
-
-										   cudaTextureObject_t shadowMaps,
-										   const unsigned int lightCount)
+										   const CSVOConstants& svoConstants)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
@@ -397,43 +381,6 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 
 	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
 	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][cacheVoxelId].color);
-
-	// Light Injection
-	if(inject)
-	{
-		float4 colorSVO = UnpackSVOColor(voxelColorPacked);
-		float4 normalSVO = ExpandOnlyNormal(voxelNormPacked);
-
-		float3 worldPos =
-		{
-			outerCascadePos.x + voxelPos.x * span,
-			outerCascadePos.y + voxelPos.y * span,
-			outerCascadePos.z + voxelPos.z * span
-		};
-
-		// First Averager find and inject light
-		float3 illum = LightInject(worldPos,
-
-								   colorSVO,
-								   normalSVO,
-
-								   camPos,
-								   camDir,
-
-								   lightVP,
-								   lightStruct,
-
-								   depthNear,
-								   depthFar,
-
-								   shadowMaps,
-								   lightCount);
-
-		colorSVO.x = illum.x;
-		colorSVO.y = illum.y;
-		colorSVO.z = illum.z;
-		voxelColorPacked = PackSVOColor(colorSVO);
-	}
 
 	// Atomic Average
 	AtomicColorNormalAvg(gSVOMat + matSparseOffset +
@@ -665,24 +612,7 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 							   const unsigned int matSparseOffset,
 							   const unsigned int cascadeNo,
-							   const CSVOConstants& svoConstants,
-							   
-							   // Light Inject Related
-							   bool inject,
-							   float span,
-							   const float3 outerCascadePos,
-
-							   const float4 camPos,
-							   const float3 camDir,
-
-							   const CMatrix4x4* lightVP,
-							   const CLight* lightStruct,
-
-							   const float depthNear,
-							   const float depthFar,
-
-							   cudaTextureObject_t shadowMaps,
-							   const unsigned int lightCount)
+							   const CSVOConstants& svoConstants)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GI_PAGE_SIZE;
@@ -726,6 +656,7 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 		// Allocate (or acquire) next location
 		location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
 		assert(location < gLevelTotalSizes[levelIndex + 1]);
+		if(location >= gLevelTotalSizes[levelIndex + 1]) return;
 
 		// Offset child
 		unsigned int childId = CalculateLevelChildId(voxelPos, i + 1, svoConstants.totalDepth);
@@ -741,43 +672,6 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
 	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][cacheVoxelId].color);
-
-	// Light Injection
-	if(inject)
-	{
-		float4 colorSVO = UnpackSVOColor(voxelColorPacked);
-		float4 normalSVO = ExpandOnlyNormal(voxelNormPacked);
-
-		float3 worldPos =
-		{
-			outerCascadePos.x + voxelPos.x * span,
-			outerCascadePos.y + voxelPos.y * span,
-			outerCascadePos.z + voxelPos.z * span
-		};
-
-		// First Averager find and inject light
-		float3 illum = LightInject(worldPos,
-
-								   colorSVO,
-								   normalSVO,
-
-								   camPos,
-								   camDir,
-
-								   lightVP,
-								   lightStruct,
-
-								   depthNear,
-								   depthFar,
-
-								   shadowMaps,
-								   lightCount);
-
-		colorSVO.x = illum.x;
-		colorSVO.y = illum.y;
-		colorSVO.z = illum.z;
-		voxelColorPacked = PackSVOColor(colorSVO);
-	}
 
 	AtomicColorNormalAvg(gSVOMat + matSparseOffset +
 						 gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location,

@@ -181,32 +181,32 @@ int main()
 	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
 	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
 					Array32<Light>{sponzaLights, 1},
-					Scene::sponzaSceneTotalSize,
-					Scene::sponzaSceneLevelSizes);
+					Scene::bigTotalSize,
+					Scene::bigSizes);
 
 	MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
 	Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
 					 Array32<Light>{cornellLights, 1},
-					 Scene::cornellSceneTotalSize,
-					 Scene::cornellSceneLevelSizes);
+					 Scene::bigTotalSize,
+					 Scene::bigSizes);
 
 	MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
 	Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
 					 Array32<Light>{sponzaLights, 1},
-					 Scene::cubeSceneTotalSize,
-					 Scene::cubeSceneLevelSizes);
+					 Scene::bigTotalSize,
+					 Scene::bigSizes);
 
 	MeshBatchI* sibernikBatches[] = {&sibernikStatic};
 	Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
 				   Array32<Light>{sibernikLights, 4},
-				   Scene::sibernikSceneTotalSize,
-				   Scene::sibernikSceneLevelSizes);
+				   Scene::bigTotalSize,
+				   Scene::bigSizes);
 
 	MeshBatchI* nyraBatches[] = {&nyraBatch};
 	Scene nyra(Array32<MeshBatchI*>{nyraBatches, 1},
 			   Array32<Light>{sponzaLights, 1},
-			   Scene::tinmanSceneTotalSize,
-			   Scene::tinmanSceneLevelSizes);
+			   Scene::bigTotalSize,
+			   Scene::bigSizes);
 
 	// Scenes
 	scenes.push_back(&crySponza);

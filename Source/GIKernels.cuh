@@ -132,24 +132,7 @@ extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 												  // Constants
 												  const unsigned int matSparseOffset,
 												  const unsigned int cascadeNo,
-												  const CSVOConstants& svoConstants,
-
-												  // Light Inject Related
-												  bool inject,
-												  float span,
-												  const float3 outerCascadePos,
-
-												  const float4 camPos,
-												  const float3 camDir,
-
-												  const CMatrix4x4* lightVP,
-												  const CLight* lightStruct,
-
-												  const float depthNear,
-												  const float depthFar,
-
-												  cudaTextureObject_t shadowMaps,
-												  const unsigned int lightCount);
+												  const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 												 cudaSurfaceObject_t sDenseMat,
@@ -185,22 +168,29 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 									  const unsigned int matSparseOffset,
 									  const unsigned int cascadeNo,
-									  const CSVOConstants& svoConstants,
+									  const CSVOConstants& svoConstants);
 
-									  //// Light Inject Related
-									  bool inject,
-									  float span,
-									  const float3 outerCascadePos,
+extern __global__ void LightInject(CSVOMaterial* gSVOMat,
+								   const CSVONode* gSVOSparse,
+								   const CSVONode* gSVODense,
+								   const unsigned int* gLevelAllocators,
 
-									  const float4 camPos,
-									  const float3 camDir,
+								   const unsigned int* gLevelOffsets,
+								   const unsigned int* gLevelTotalSizes,
 
-									  const CMatrix4x4* lightVP,
-									  const CLight* lightStruct,
+								   // Light Inject Related
+								   float span,
+								   const float3 outerCascadePos,
 
-									  const float depthNear,
-									  const float depthFar,
+								   const float4 camPos,
+								   const float3 camDir,
 
-									  cudaTextureObject_t shadowMaps,
-									  const unsigned int lightCount);
+								   const CMatrix4x4* lightVP,
+								   const CLight* lightStruct,
+
+								   const float depthNear,
+								   const float depthFar,
+
+								   cudaTextureObject_t shadowMaps,
+								   const unsigned int lightCount);
 #endif //__GIKERNELS_H__

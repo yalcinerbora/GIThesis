@@ -3,21 +3,22 @@
 #include "IEUtility/IETimer.h"
 #include "Macros.h"
 
-//const uint32_t Scene::sponzaSceneLevelSizes[] =
-//{
-//	1,
-//	8,
-//	64,
-//	512,
-//	1024,
-//	8192,
-//	20 * 1024,
-//	60 * 1024,
-//	120 * 1024,
-//	500 * 1024,
-//	2200 * 1024,
-//	6200 * 1024
-//};
+const uint32_t Scene::bigSizes[] =
+{
+	1,
+	8,
+	64,
+	512,
+	1024,
+	8192,
+	5320 * 1024,
+	1560 * 1024,
+	12000 * 1024,
+	12000 * 1024,
+	12000 * 1024,
+	12000 * 1024,
+	12000 * 1024,
+};
 
 const uint32_t Scene::sponzaSceneLevelSizes[] =
 {
@@ -99,6 +100,7 @@ const uint32_t Scene::tinmanSceneLevelSizes[]
 	50 * 1024
 };
 
+const uint32_t Scene::bigTotalSize = 65 * 1024 * 1024;
 const uint32_t Scene::sponzaSceneTotalSize = 15000 * 1024;
 const uint32_t Scene::cornellSceneTotalSize = 5877 * 1024;
 const uint32_t Scene::cubeSceneTotalSize = 1064 * 1024;

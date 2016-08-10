@@ -184,7 +184,9 @@
     <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
-    <ClInclude Include="..\..\..\Source\SVOLightInject.cuh" />
+    <CudaCompile Include="..\..\..\Source\SVOLightInject.cu">
+      <FileType>CppHeader</FileType>
+    </CudaCompile>
     <ClInclude Include="..\..\..\Source\SVOTexPool.h" />
     <ClInclude Include="..\..\..\Source\VoxelCacheData.h" />
     <ClInclude Include="..\..\..\Source\VoxelCopyToVAO.cuh" />

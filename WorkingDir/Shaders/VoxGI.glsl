@@ -41,6 +41,8 @@
 #define BLOCK_SIZE_X 32
 #define BLOCK_SIZE_Y 8
 
+#define TRACE_NEIGBOUR 8//1
+
 #define GI_LIGHT_POINT 0.0f
 #define GI_LIGHT_DIRECTIONAL 1.0f
 #define GI_LIGHT_AREA 2.0f
@@ -326,15 +328,22 @@ bool InterpolateSparse(out vec4 color,
 	vec4 colorG = UnpackColorSVO(materialG.x); 
 	vec4 colorH = UnpackColorSVO(materialH.x);
 
-	colorA = mix(colorA, colorB, interpValue.x);
-	colorB = mix(colorC, colorD, interpValue.x);
-	colorC = mix(colorE, colorF, interpValue.x);
-	colorD = mix(colorG, colorH, interpValue.x);
+	if(TRACE_NEIGBOUR == 1)
+	{
+		color = colorA;
+	}
+	else
+	{
+		colorA = mix(colorA, colorB, interpValue.x);
+		colorB = mix(colorC, colorD, interpValue.x);
+		colorC = mix(colorE, colorF, interpValue.x);
+		colorD = mix(colorG, colorH, interpValue.x);
 
-	colorA = mix(colorA, colorB, interpValue.y);
-	colorB = mix(colorC, colorD, interpValue.y);
+		colorA = mix(colorA, colorB, interpValue.y);
+		colorB = mix(colorC, colorD, interpValue.y);
 
-	color = mix(colorA, colorB, interpValue.z);
+		color = mix(colorA, colorB, interpValue.z);
+	}
 	
 	vec4 normalA = UnpackNormalSVO(materialA.y);
 	vec4 normalB = UnpackNormalSVO(materialB.y); 
@@ -345,16 +354,22 @@ bool InterpolateSparse(out vec4 color,
 	vec4 normalG = UnpackNormalSVO(materialG.y); 
 	vec4 normalH = UnpackNormalSVO(materialH.y);
 		
-	normalA = mix(normalA, normalB, interpValue.x);
-	normalB = mix(normalC, normalD, interpValue.x);
-	normalC = mix(normalE, normalF, interpValue.x);
-	normalD = mix(normalG, normalH, interpValue.x);
+	if(TRACE_NEIGBOUR == 1)
+	{
+		normal = normalA;
+	}
+	else
+	{
+		normalA = mix(normalA, normalB, interpValue.x);
+		normalB = mix(normalC, normalD, interpValue.x);
+		normalC = mix(normalE, normalF, interpValue.x);
+		normalD = mix(normalG, normalH, interpValue.x);
 
-	normalA = mix(normalA, normalB, interpValue.y);
-	normalB = mix(normalC, normalD, interpValue.y);
+		normalA = mix(normalA, normalB, interpValue.y);
+		normalB = mix(normalC, normalD, interpValue.y);
 
-	normal = mix(normalA, normalB, interpValue.z);
-
+		normal = mix(normalA, normalB, interpValue.z);
+	}
 	if(normal.w == 0.0f) return false;
 	return true;
 }
@@ -450,7 +465,7 @@ bool SampleSVO(out vec4 color,
 	uvec4 matEF = uvec4(0);
 	uvec4 matGH = uvec4(0);
 
-	for(uint i = 0; i < 8; i++)
+	for(uint i = 0; i < TRACE_NEIGBOUR; i++)
 	{
 		vec3 currentWorld = VoxPosToWorld(voxPosLevel + NEIG_MASK[i], fetchLevel);
 		ivec3 voxPos = LevelVoxId(currentWorld, dimDepth.y);

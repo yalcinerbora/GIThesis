@@ -1,5 +1,6 @@
 
 #include <string>
+#include <sstream>
 #include <iostream>
 #include <GFG/GFGFileLoader.h>
 
@@ -184,6 +185,10 @@ int main(int argc, char* argv[])
 	fbo.Bind();
 
 	// Voxelization
+	float span = options.span;
+	std::stringstream voxPrefix;
+	voxPrefix << "vox_" << span << "_" << options.cascadeCount << "_";
+
 	for(auto& fileName : fileNames)
 	{
 		GI_LOG("");
@@ -212,7 +217,7 @@ int main(int argc, char* argv[])
 
 		voxelizer.Start();
 
-		std::string voxFile = "vox_" + fileName;
+		std::string voxFile = voxPrefix.str() + fileName;
 		voxelizer.Write(voxFile);
 	}
 
@@ -243,7 +248,7 @@ int main(int argc, char* argv[])
 							   fragVoxelizeCount,
 							   true);
 			voxelizer.Start();
-			std::string voxFile = "vox_" + fileName;
+			std::string voxFile = voxPrefix.str() + fileName;
 			voxelizer.Write(voxFile);
 	}
 	OGLVoxelizer::DestroyGLSystem();

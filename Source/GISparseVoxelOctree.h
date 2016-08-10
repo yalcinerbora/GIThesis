@@ -183,9 +183,9 @@ class GISparseVoxelOctree
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
 															   unsigned int allocatorIndex);
-		double									ConstructFullAtomic(InjectParams);
-		double									ConstructLevelByLevel(InjectParams);
-		double									LightInject();
+		double									ConstructFullAtomic();
+		double									ConstructLevelByLevel();
+		double									LightInject(InjectParams);
 		double									AverageNodes();
 
 		static const GLsizei					TraceWidth;

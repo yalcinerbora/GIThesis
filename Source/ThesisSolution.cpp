@@ -12,10 +12,11 @@
 #include "IEUtility/IETimer.h"
 #include "GFGLoader.h"
 #include "MeshBatchSkeletal.h"
+#include <sstream>
 
-const size_t ThesisSolution::InitialObjectGridSize = 256;
-const float ThesisSolution::CascadeSpan = 0.6f;
-const uint32_t ThesisSolution::CascadeDim = 512;
+const size_t ThesisSolution::InitialObjectGridSize = 512;
+const float ThesisSolution::CascadeSpan = 0.3f;
+const uint32_t ThesisSolution::CascadeDim = 1024;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
@@ -249,8 +250,12 @@ double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 	IETimer t;
 	t.Start();
 
+	// Voxelization
+	std::stringstream voxPrefix;
+	voxPrefix << "vox_" << CascadeSpan << "_" << GI_CASCADE_COUNT << "_";
+	
 	// Load GFG
-	std::string batchVoxFile = "vox_" + batch->BatchName() + ".gfg";	
+	std::string batchVoxFile = voxPrefix.str() + batch->BatchName() + ".gfg";
 	LoadVoxel(voxelCaches, batchVoxFile.c_str(), GI_CASCADE_COUNT,
 			  batch->MeshType() == VoxelObjectType::SKEL_DYNAMIC);
 

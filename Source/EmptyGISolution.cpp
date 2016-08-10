@@ -110,7 +110,7 @@ EmptyGISolution::EmptyGISolution(DeferredRenderer& defferedRenderer)
 	, bar(nullptr)
 	, directLighting(true)
 	, ambientLighting(true)
-	, ambientColor(0.13f, 0.13f, 0.13f)
+	, ambientColor(0.33f, 0.33f, 0.33f)
 {}
 
 bool EmptyGISolution::IsCurrentScene(SceneI& scene)

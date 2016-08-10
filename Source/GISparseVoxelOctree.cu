@@ -392,7 +392,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	CUDA_KERNEL_CHECK();
 }
 
-double GISparseVoxelOctree::ConstructFullAtomic(InjectParams params)
+double GISparseVoxelOctree::ConstructFullAtomic()
 {
 	CudaTimer timer;
 	timer.Start();
@@ -418,23 +418,7 @@ double GISparseVoxelOctree::ConstructFullAtomic(InjectParams params)
 
 			0,
 			i,
-			*dSVOConstants.Data(),
-
-			params.inject,
-			params.span,
-			params.outerCascadePos,
-			
-			params.camPos,
-			params.camDir,
-
-			dLightVPArray,
-			dLightParamArray,
-
-			params.depthNear,
-			params.depthFar,
-
-			tShadowMapArray,
-			params.lightCount
+			*dSVOConstants.Data()
 		);
 		CUDA_KERNEL_CHECK();
 	}
@@ -449,7 +433,7 @@ double GISparseVoxelOctree::ConstructFullAtomic(InjectParams params)
 	return timer.ElapsedMilliS();
 }
 
-double GISparseVoxelOctree::ConstructLevelByLevel(InjectParams params)
+double GISparseVoxelOctree::ConstructLevelByLevel()
 {
 	CudaTimer timer;
 	timer.Start();
@@ -503,29 +487,34 @@ double GISparseVoxelOctree::ConstructLevelByLevel(InjectParams params)
 			// Constants
 			0,
 			i,
-			*dSVOConstants.Data(),
-
-			params.inject,
-			params.span,
-			params.outerCascadePos,
-
-			params.camPos,
-			params.camDir,
-
-			dLightVPArray,
-			dLightParamArray,
-
-			params.depthNear,
-			params.depthFar,
-
-			tShadowMapArray,
-			params.lightCount
+			*dSVOConstants.Data()
 		);
 		CUDA_KERNEL_CHECK();
 	}
 
 	timer.Stop();
 	return timer.ElapsedMilliS();
+}
+
+double GISparseVoxelOctree::LightInject(InjectParams params)
+{
+
+	/*params.inject,
+		params.span,
+		params.outerCascadePos,
+
+		params.camPos,
+		params.camDir,
+
+		dLightVPArray,
+		dLightParamArray,
+
+		params.depthNear,
+		params.depthFar,
+
+		tShadowMapArray,
+		params.lightCount*/
+	return 0.0;
 }
 
 double GISparseVoxelOctree::AverageNodes()
@@ -644,15 +633,12 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 	// Maxwell is faster with fully atomic code (CAS Locks etc.)
 	// However kepler sucks(660ti) (100ms compared to 5ms) 
 	if(CudaInit::CapabilityMajor() >= 5)
-	{
-		reconstTime = ConstructFullAtomic(p);
-		averageTime = AverageNodes();
-	}
+		reconstTime = ConstructFullAtomic();
 	else
-	{
-		reconstTime = ConstructLevelByLevel(p);
-		averageTime = AverageNodes();
-	}
+		reconstTime = ConstructLevelByLevel();
+
+	injectTime = LightInject(p);
+	averageTime = AverageNodes();
 
 	//// DEBUG
 	//GI_LOG("-------------------------------------------");

@@ -366,5 +366,5 @@ void main(void)
 			marchPos += marchLength * rayDir;
 		}
 	}
-	imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 1.0f, 0.0f)); 
+	imageStore(fbo, ivec2(globalId), vec4(0.0f, 0.0f, 0.0f, 0.0f)); 
 }

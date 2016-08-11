@@ -53,6 +53,8 @@ class DeferredRenderer
 		Shader					vertPPGeneric;
 		Shader					fragLightApply;
 		Shader					fragPPGeneric;
+		Shader					fragPPNormal;
+		Shader					fragPPDepth;
 
 		
 
@@ -126,8 +128,10 @@ class DeferredRenderer
 
 		// Directly Renders Buffers
 		void						ShowColorGBuffer(const Camera& camera);
+		void						ShowNormalGBuffer(const Camera& camera);
+		void						ShowDepthGBuffer(const Camera& camera);
 		void						ShowLIBuffer(const Camera& camera);
-		void						ShowTexture(const Camera& camera, GLuint tex);
+		void						ShowTexture(const Camera& camera, GLuint tex, RenderTargetLocation location = RenderTargetLocation::COLOR);
 		
 		void						AddToLITexture(GLuint texture);
 

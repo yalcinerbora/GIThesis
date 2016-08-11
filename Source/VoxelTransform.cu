@@ -96,10 +96,16 @@ inline __device__ void LoadTransformData(// Shared Mem
 					// Transform
 					reinterpret_cast<float*>(&sTransformMatrices[sharedLoc].column[column])[row] =
 						reinterpret_cast<float*>(&gJointTransforms[batchId][sharedLoc - 1].transform.column[column])[row];
-
-					sharedLoc = (blockLocalId / 9) + matricesPerIteration * i + 1;
-					column = (blockLocalId / 3) % 3;
-					row = blockLocalId % 3;
+				}
+			}
+			// Rotation
+			if(blockLocalId + (matricesPerIteration * i) < (GI_MAX_JOINT_COUNT * 9))
+			{
+				unsigned int sharedLoc = (blockLocalId / 9) + matricesPerIteration * i + 1;
+				if(sMatrixLookup[sharedLoc - 1] == 1)
+				{
+					unsigned int column = (blockLocalId / 3) % 3;
+					unsigned int row = blockLocalId % 3;
 
 					reinterpret_cast<float*>(&sRotationMatrices[sharedLoc].column[column])[row] =
 						reinterpret_cast<float*>(&gJointTransforms[batchId][sharedLoc - 1].rotation.column[column])[row];

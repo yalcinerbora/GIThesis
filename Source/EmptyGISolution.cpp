@@ -257,6 +257,10 @@ void EmptyGISolution::Frame(const Camera& mainRenderCamera)
 {
 	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
 	dRenderer.Render(*currentScene, mainRenderCamera, directLighting, aColor);
+
+	//dRenderer.ShowColorGBuffer(mainRenderCamera);
+	//dRenderer.ShowNormalGBuffer(mainRenderCamera);
+	//dRenderer.ShowDepthGBuffer(mainRenderCamera);
 }
 
 void EmptyGISolution::SetFPS(double fpsMS)

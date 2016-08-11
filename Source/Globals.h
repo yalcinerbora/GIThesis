@@ -148,6 +148,7 @@ static const TwStructMember lightMembers[] =
 #define U_DIRECTION 0
 #define U_MAX_DISTANCE 0
 #define U_DEPTH_SIZE 0
+#define U_NEAR_FAR 1
 #define U_SPAN 1
 #define U_SHADOW_MAP_WH 1
 #define U_CONE_ANGLE 1

@@ -29,6 +29,8 @@ DeferredRenderer::DeferredRenderer()
 	, vertPPGeneric(ShaderType::VERTEX, "Shaders/PProcessGeneric.vert")
 	, fragLightApply(ShaderType::FRAGMENT, "Shaders/PPLightPresent.frag")
 	, fragPPGeneric(ShaderType::FRAGMENT, "Shaders/PProcessGeneric.frag")
+	, fragPPNormal(ShaderType::FRAGMENT, "Shaders/PProcessNormal.frag")
+	, fragPPDepth(ShaderType::FRAGMENT, "Shaders/PProcessDepth.frag")
 	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
 	, vertShadowMap(ShaderType::VERTEX, "Shaders/ShadowMap.vert")
 	, vertShadowMapSkeletal(ShaderType::VERTEX, "Shaders/ShadowMapSkeletal.vert")
@@ -691,7 +693,7 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLi
 	// All Done!
 }
 
-void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex)
+void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex, RenderTargetLocation location)
 {
 	// Only Draw Color Buffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -712,8 +714,19 @@ void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex)
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);
 	vertPPGeneric.Bind();
-	fragPPGeneric.Bind();
 
+	if(location == RenderTargetLocation::COLOR)
+		fragPPGeneric.Bind();
+	else if(location == RenderTargetLocation::NORMAL)
+	{
+		fragPPNormal.Bind();
+	}
+	else if(location == RenderTargetLocation::DEPTH)
+	{
+		fragPPDepth.Bind();
+		glUniform2f(U_NEAR_FAR, camera.near, camera.far);
+	}
+	
 	// Texture
 	glActiveTexture(GL_TEXTURE0 + T_COLOR);
 	glBindTexture(GL_TEXTURE_2D, tex);
@@ -729,6 +742,16 @@ void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex)
 void DeferredRenderer::ShowColorGBuffer(const Camera& camera)
 {
 	ShowTexture(camera, gBuffer.getColorGL());
+}
+
+void DeferredRenderer::ShowNormalGBuffer(const Camera& camera)
+{
+	ShowTexture(camera, gBuffer.getNormalGL(), RenderTargetLocation::NORMAL);
+}
+
+void DeferredRenderer::ShowDepthGBuffer(const Camera& camera)
+{
+	ShowTexture(camera, gBuffer.getDepthGL(), RenderTargetLocation::DEPTH);
 }
 
 void DeferredRenderer::ShowLIBuffer(const Camera& camera)

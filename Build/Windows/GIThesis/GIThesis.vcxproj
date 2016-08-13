@@ -141,6 +141,7 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEQuaternion.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IERandom.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IETimer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector4.cpp" />
@@ -150,6 +151,7 @@
     <ClCompile Include="..\..\..\Source\MeshBatchCornell.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchCube.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchNyra.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchOscillate.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchSponza.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatch.cpp" />
@@ -167,6 +169,7 @@
     <ClInclude Include="..\..\..\Source\GICudaStructMatching.h" />
     <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h" />
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchCornell.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchCube.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchNyra.h" />
@@ -174,6 +177,7 @@
     <ClInclude Include="..\..\..\Source\MeshBatchSponza.h" />
     <ClInclude Include="..\..\..\Source\MeshBatch.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchI.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchOscillate.h" />
     <ClInclude Include="..\..\..\Source\OGLTimer.h" />
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />

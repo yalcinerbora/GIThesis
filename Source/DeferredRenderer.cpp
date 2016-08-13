@@ -7,8 +7,8 @@
 #include "DrawBuffer.h"
 #include "MeshBatchSkeletal.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920;*//*2560;*///3840;
-const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*//*1440;*///2160;
+const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*//*1280;*/1920;/*2560;*///3840;
+const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*/1080;/*1440;*///2160;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {

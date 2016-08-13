@@ -41,7 +41,7 @@
 #define BLOCK_SIZE_X 32
 #define BLOCK_SIZE_Y 8
 
-#define TRACE_NEIGBOUR 8//1
+#define TRACE_NEIGBOUR 8
 
 #define GI_LIGHT_POINT 0.0f
 #define GI_LIGHT_DIRECTIONAL 1.0f

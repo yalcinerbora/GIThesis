@@ -23,6 +23,7 @@
 #include "MeshBatchCornell.h"
 #include "MeshBatchSponza.h"
 #include "MeshBatchCube.h"
+#include "MeshBatchOscillate.h"
 
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
@@ -154,6 +155,9 @@ int main()
 							  false);
 	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
 									  ThesisSolution::CascadeSpan);
+	MeshBatchOscillate crySponzaDyno(MeshBatch::sponzaFileName,
+									 ThesisSolution::CascadeSpan,
+									 IEVector3::Zaxis);
 
 	// Cornell Box Scene
 	MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
@@ -190,26 +194,35 @@ int main()
 					 Scene::bigTotalSize,
 					 Scene::bigSizes);
 
-	MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
-	Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
-					 Array32<Light>{sponzaLights, 1},
-					 Scene::bigTotalSize,
-					 Scene::bigSizes);
-
 	MeshBatchI* sibernikBatches[] = {&sibernikStatic};
 	Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
 				   Array32<Light>{sibernikLights, 4},
 				   Scene::bigTotalSize,
 				   Scene::bigSizes);
 
+	// Scaling Scenes
+	MeshBatchI* sponzaDynoBatches[] = {&crySponzaDyno, &crySponzaDynamic, &nyraBatch};
+	Scene dynoSponza(Array32<MeshBatchI*>{sponzaDynoBatches, 1},
+					 Array32<Light>{sponzaLights, 1},
+					 Scene::bigTotalSize,
+					 Scene::bigSizes);
+
+	// Debug Scenes
 	MeshBatchI* nyraBatches[] = {&nyraBatch};
 	Scene nyra(Array32<MeshBatchI*>{nyraBatches, 1},
 			   Array32<Light>{sponzaLights, 1},
 			   Scene::bigTotalSize,
 			   Scene::bigSizes);
 
+	MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
+	Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
+					 Array32<Light>{sponzaLights, 1},
+					 Scene::bigTotalSize,
+					 Scene::bigSizes);
+
 	// Scenes
 	scenes.push_back(&crySponza);
+	scenes.push_back(&dynoSponza);
 	scenes.push_back(&cornellBox);
 	scenes.push_back(&sibernik);
 	// Test Scenes

@@ -112,25 +112,6 @@ inline __device__ void LoadTransformData(// Shared Mem
 				}
 			}
 		}
-
-		//// Inefficient Test Code
-		//if(blockLocalId < GI_MAX_JOINT_COUNT)
-		//{
-		//	if(sMatrixLookup[blockLocalId] == 1)
-		//	{
-		//		sTransformMatrices[blockLocalId + 1] = gJointTransforms[batchId][blockLocalId].transform;
-
-		//		//sTransformMatrices[blockLocalId + 1] = CMatrix4x4
-		//		//{{
-		//		//	{1.0f, 0.0f, 0.0f, 0.0f},
-		//		//	{0.0f, 1.0f, 0.0f, 0.0f},
-		//		//	{0.0f, 0.0f, 1.0f, 0.0f},
-		//		//	{0.0f, 0.0f, 0.0f, 1.0f}
-		//		//}};
-
-		//		//sRotationMatrices[blockLocalId + 1] = gJointTransforms[objectId.y][blockLocalId].rotation;
-		//	}
-		//}
 	}
 
 	// We write to shared mem sync between warps

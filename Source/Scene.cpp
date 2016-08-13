@@ -16,7 +16,7 @@ const uint32_t Scene::bigSizes[] =
 	12000 * 1024,
 	12000 * 1024,
 	12000 * 1024,
-	12000 * 1024,
+	15000 * 1024,
 	12000 * 1024,
 };
 
@@ -100,7 +100,7 @@ const uint32_t Scene::tinmanSceneLevelSizes[]
 	50 * 1024
 };
 
-const uint32_t Scene::bigTotalSize = 65 * 1024 * 1024;
+const uint32_t Scene::bigTotalSize = 68 * 1024 * 1024;
 const uint32_t Scene::sponzaSceneTotalSize = 15000 * 1024;
 const uint32_t Scene::cornellSceneTotalSize = 5877 * 1024;
 const uint32_t Scene::cubeSceneTotalSize = 1064 * 1024;

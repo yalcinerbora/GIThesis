@@ -40,10 +40,7 @@ void MeshBatchOscillate::Update(double elapsedS)
 		float timeToPeakS = amplitude / speed;
 		
 		// Sinusodial Oscillation
-		//float oscillation = amplitude * std::sin(totalTimeS * (IEMath::PI / (2.0f * timeToPeakS)));
-
-		// Linear Oscillation
-		float oscillation = amplitude * std::signbit(std::sin(totalTimeS * (IEMath::PI / (2.0f * timeToPeakS)))) ? 1.0f : -1.0f;
+		float oscillation = amplitude * std::sin(totalTimeS * (IEMath::PI / (2.0f * timeToPeakS)));
 
 		IEMatrix4x4 trans = IEMatrix4x4::Translate(oscillateAxis * oscillation);
 		model.model = trans * baseModel.model;

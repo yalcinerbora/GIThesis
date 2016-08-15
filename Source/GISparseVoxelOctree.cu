@@ -671,7 +671,8 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 											   float maxDistance,
 											   float falloffFactor,
 											   float sampleDistanceRatio,
-											   float intensityFactor,
+											   float intensityFactorAO,
+											   float intensityFactorGI,
 											   bool giOn,
 											   bool aoOn)
 {
@@ -712,7 +713,7 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	svoConeParams.CPUData()[0] =
 	{
 		{maxDistance, std::tan(coneAngle), std::tan(coneAngle * 0.5f), sampleDistanceRatio},
-		{intensityFactor, IEMath::Sqrt2, IEMath::Sqrt3, falloffFactor}
+		{intensityFactorAO, intensityFactorGI, IEMath::Sqrt3, falloffFactor}
 	};
 	svoConeParams.SendData();
 
@@ -907,8 +908,8 @@ double GISparseVoxelOctree::AmbientOcclusion(DeferredRenderer& dRenderer,
 	
 	// Dispatch
 	uint2 gridSize;
-	gridSize.x = (TraceWidth * 4 + 32 - 1) / 32;
-	gridSize.y = (TraceHeight + 8 - 1) / 8;
+	gridSize.x = (TraceWidth + 16 - 1) / 16;
+	gridSize.y = (TraceHeight + 16 - 1) / 16;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
 
 	//uint2 gridSize;

@@ -135,11 +135,9 @@ uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
 
 vec3 UnpackColor(in uint colorPacked)
 {
-	vec3 color;
-	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
-	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
-	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
-	return color;
+	//vec3 color;
+	return unpackUnorm4x8(colorPacked).xyz;
+	//return unpackUnorm4x8(colorPacked).www;
 }
 
 vec3 UnpackNormal(in uint voxNormPosY)

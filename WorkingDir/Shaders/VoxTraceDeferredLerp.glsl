@@ -285,6 +285,35 @@ void InterpolateDense(out vec4 color,
 	//normal = normalA;
 }
 
+void MatWrite(inout uvec4 matAB,
+			  inout uvec4 matCD,
+			  inout uvec4 matEF,
+			  inout uvec4 matGH,
+			  in uvec2 mat,
+			  in uint i)
+{
+	if(i < 2)
+	{
+		matAB[(i % 2) * 2 + 0] = mat.x;
+		matAB[(i % 2) * 2 + 1] = mat.y;
+	}
+	else if(i < 4)
+	{
+		matCD[(i % 2) * 2 + 0] = mat.x;
+		matCD[(i % 2) * 2 + 1] = mat.y;
+	}
+	else if(i < 6)
+	{
+		matEF[(i % 2) * 2 + 0] = mat.x;
+		matEF[(i % 2) * 2 + 1] = mat.y;
+	}
+	else if(i < 8)
+	{
+		matGH[(i % 2) * 2 + 0] = mat.x;
+		matGH[(i % 2) * 2 + 1] = mat.y;
+	}
+}
+
 bool SampleSVO(out vec4 color,
 			   out vec4 normal,
 			   in vec3 worldPos)
@@ -294,9 +323,7 @@ bool SampleSVO(out vec4 color,
 	   fetchLevel >= offsetCascade.w)
 	{
 		uint mipId = dimDepth.w - fetchLevel;
-		uint levelDim = dimDepth.z >> mipId;
-		vec3 levelUV = LevelVoxIdF(worldPos, fetchLevel);
-			
+		vec3 levelUV = LevelVoxIdF(worldPos, fetchLevel);			
 		InterpolateDense(color, normal, levelUV, int(mipId));
 		return true;
 	}
@@ -327,12 +354,26 @@ bool SampleSVO(out vec4 color,
 			continue;
 
 		// Initialize Traverse
-		unsigned int nodeIndex = 0;
 		ivec3 denseVox = LevelVoxId(currentWorld, dimDepth.w);
-		
 		vec3 texCoord = vec3(denseVox) / dimDepth.z;
-		nodeIndex = texture(tSVODense, texCoord).x;
-		if(nodeIndex == 0xFFFFFFFF) continue;
+		unsigned int nodeIndex = texture(tSVODense, texCoord).x;
+		unsigned int lastValid = nodeIndex;
+		if(nodeIndex == 0xFFFFFFFF)
+		{
+			// Fall back to dense
+			for(unsigned int j = 1; j < (dimDepth.w - offsetCascade.w); j++)
+			{
+				vec3 levelUV = LevelVoxIdF(worldPos, dimDepth.w - j);
+				uvec2 mat = texelFetch(tSVOMat, ivec3(floor(levelUV)), int(j)).xy;
+
+				if(mat.x != 0 || mat.y != 0)
+				{
+					MatWrite(matAB, matCD, matEF, matGH, mat, i);
+					break;
+				}
+			}
+			continue;
+		}
 		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
 		
 		// Tree Traverse
@@ -343,41 +384,33 @@ bool SampleSVO(out vec4 color,
 		{
 			uint currentNode = svoNode[offsetCascade.y + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex];
 			if(currentNode == 0xFFFFFFFF) break;
+			lastValid = nodeIndex;
 			nodeIndex = currentNode + CalculateLevelChildId(voxPos, traversedLevel + 1);
-		}	
-
-		// Mat out
-		if(traversedLevel > (dimDepth.y - offsetCascade.x) || 
-		   traversedLevel == fetchLevel)
-		{
-			// Mid or Leaf Level
-			uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
-			
-			// .w component used to average so change it
-			uvec2 mat = svoMaterial[loc].xy;
-			if(traversedLevel == fetchLevel) mat.y |= 0xFF000000;
-
-			if(i < 2)
-			{
-				matAB[(i % 2) * 2 + 0] = mat.x;
-				matAB[(i % 2) * 2 + 1] = mat.y;
-			}
-			else if(i < 4)
-			{
-				matCD[(i % 2) * 2 + 0] = mat.x;
-				matCD[(i % 2) * 2 + 1] = mat.y;
-			}
-			else if(i < 6)
-			{
-				matEF[(i % 2) * 2 + 0] = mat.x;
-				matEF[(i % 2) * 2 + 1] = mat.y;
-			}
-			else if(i < 8)
-			{
-				matGH[(i % 2) * 2 + 0] = mat.x;
-				matGH[(i % 2) * 2 + 1] = mat.y;
-			}				
 		}
+
+		// Up until fetch
+		uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
+		uvec2 mat = svoMaterial[loc].xy;
+
+		// mat shouldnt be zero ever if it is allocated
+		if((mat.x == 0x0 && mat.y == 0x0)) 
+		{
+			if(traversedLevel == (dimDepth.w + 1))
+			{
+				vec3 levelUV = LevelVoxIdF(worldPos, dimDepth.w);
+				uvec2 mat = texelFetch(tSVOMat, ivec3(floor(levelUV)), 0).xy;
+				MatWrite(matAB, matCD, matEF, matGH, mat, i);
+				continue;
+			}
+			else
+			{
+				loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w - 1] + lastValid;
+				mat = svoMaterial[loc].xy;
+			}
+		}
+		
+		if(traversedLevel == dimDepth.y) mat.y |= 0xFF000000;
+		MatWrite(matAB, matCD, matEF, matGH, mat, i);
 	}
 	
 	// Out

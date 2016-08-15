@@ -33,7 +33,8 @@ AOBar::AOBar()
  , sampleFactor(1.0f)
  , maxDistance(250.0f)
  , falloffFactor(1.0f)
- , intensity(1.15f)
+ , intensityAO(1.15f)
+ , intensityGI(2.85f)
  , bar(nullptr)
  , hidden(true)
 {
@@ -51,10 +52,13 @@ AOBar::AOBar()
 	TwAddVarRW(bar, "maxDist", TW_TYPE_FLOAT, &maxDistance,
 			   " label='Max Distance' help='Maximum Cone Trace Distance' "
 			   " min=10.0 max=300.0 step=0.1 ");
-	TwAddVarRW(bar, "intensity", TW_TYPE_FLOAT, &intensity,
-			   " label='Intensity' help='Occlusion Intensity' "
+	TwAddVarRW(bar, "intensityAO", TW_TYPE_FLOAT, &intensityAO,
+			   " label='AO Intensity' help='Occlusion Intensity' "
 			   " min=0.5 max=5.0 step=0.01 ");
-	TwDefine(" ConeBar size='220 115' ");
+	TwAddVarRW(bar, "intensityGI", TW_TYPE_FLOAT, &intensityGI,
+			   " label='GI Intensity' help='Illumination Intensity' "
+			   " min=0.5 max=5.0 step=0.01 ");
+	TwDefine(" ConeBar size='220 135' ");
 	TwDefine(" ConeBar position='227 25' ");
 	TwDefine(" ConeBar valueswidth=fit ");
 	
@@ -664,7 +668,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 					aoBar.maxDistance,
 					aoBar.falloffFactor,
 					aoBar.sampleFactor,
-					aoBar.intensity,
+					aoBar.intensityAO,
+					aoBar.intensityGI,
 					giOn,
 					aoOn
 				);

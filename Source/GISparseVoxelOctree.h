@@ -231,7 +231,8 @@ class GISparseVoxelOctree
 																   float maxDistance,
 																   float falloffFactor,
 																   float sampleDistanceRatio,
-																   float intensityFactor,
+																   float intensityFactorAO,
+																   float intensityFactorGI,
 																   bool giOn,
 																   bool aoOn);
 

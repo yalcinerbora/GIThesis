@@ -152,7 +152,7 @@ void main(void)
 	vec3 voxelCoord = floor((fPos - aabbMin) / span);
 	ivec3 iCoord = ivec3(voxelCoord);
 
-	vec3 color = texture2D(colorTex, fUV).rgb;
+	vec4 color = texture2D(colorTex, fUV).rgba;
 
 	if(iCoord.x < texSize3D &&
 	   iCoord.y < texSize3D &&
@@ -161,7 +161,7 @@ void main(void)
 	   iCoord.y >= 0 &&
 	   iCoord.z >= 0)
 	{
-		AtomicAverage(fNormal, color, 1.0f, iCoord);
+		AtomicAverage(fNormal, color.rgb, color.a, iCoord);
 
 		// Weight write
 		uvec2 weights;

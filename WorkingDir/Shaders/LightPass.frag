@@ -299,7 +299,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// Diffuse Factor
 	// Lambert Diffuse Model
-	lightIntensity = GI_ONE_OVER_PI * vec3(max(dot(worldNormal, worldLight), 0.0f));
+	float lambertFactor = GI_ONE_OVER_PI * max(dot(worldNormal, worldLight), 0.0f);
 
 	//// Burley Diffuse Model (Disney)
 	//float rougness = 0.5f;
@@ -317,13 +317,15 @@ vec3 PhongBDRF(in vec3 worldPos)
 
 	// Early Bail From Light Occulusion
 	// This also eliminates some self shadowing artifacts
-	if(lightIntensity == vec3(0.0f))
-		return vec3(0.0f);
+	if(lambertFactor <= 0.0f) return vec3(0.0f);
 
 	// Check Light Occulusion (ShadowMap)
 	float shadowIntensity = ShadowSample(shadowUV);
 	//float shadowIntensity = ShadowSampleFlat(shadowUV);
 	
+	// Early Bail from specular
+	if(shadowIntensity <= 0.0f) return vec3(0.0f);
+
 	////DEBUG	
 	//// Cascade Check
 	//if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
@@ -341,8 +343,11 @@ vec3 PhongBDRF(in vec3 worldPos)
 	//	lightIntensity *= 0.1f;
 	//}
 
+	// Lambert
+	lightIntensity = vec3(lambertFactor);
+
 	// Specular
-	float specPower = texture(gBuffColor, gBuffUV).a * 4096.0f;
+	float specPower = 32.0f + (texture(gBuffColor, gBuffUV).a) * 2048.0f;
 
 	// Phong
 	//lightIntensity += vec3(pow(max(dot(worldReflect, worldEye), 0.0f), specPower));

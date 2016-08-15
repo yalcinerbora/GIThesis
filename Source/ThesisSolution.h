@@ -44,7 +44,8 @@ class AOBar
 		float	sampleFactor;
 		float	maxDistance;
 		float	falloffFactor;
-		float	intensity;
+		float	intensityAO;
+		float	intensityGI;
 		bool	hidden;
 
 				AOBar();

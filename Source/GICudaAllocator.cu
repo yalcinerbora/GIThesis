@@ -100,8 +100,8 @@ __global__ void DetermineSegmentObjId(SegmentObjData* gSegmentObjectId,
 
 	uint32_t transformId = gObjTransformIds[globalId];
 	float3 scaling = ExtractScaleInfo(gObjTransforms[transformId].transform);
-	assert(fabs(scaling.x - scaling.y) < 0.0001f);
-	assert(fabs(scaling.y - scaling.z) < 0.0001f);
+	assert(fabs(scaling.x - scaling.y) < 0.1f);
+	assert(fabs(scaling.y - scaling.z) < 0.1f);
 	unsigned int voxelDim = static_cast<unsigned int>((gVoxelInfo[globalId].span * scaling.x + 0.1f) / gGridInfo.span);
 	unsigned int segmentCount = (gVoxelInfo[globalId].voxelCount + GI_SEGMENT_SIZE - 1) / GI_SEGMENT_SIZE;
 	unsigned int voxStart = (voxelDim == 0) ? 0xFFFFFFFF : globalId;
@@ -165,6 +165,8 @@ void GICudaAllocator::LinkOGLVoxelCache(GLuint aabbBuffer,
 {
 	CudaTimer timer(0);
 	timer.Start();
+
+	if(voxelCount == 0) return;
 
 	transformLinks.emplace_back();
 	transformIdLinks.emplace_back();

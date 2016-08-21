@@ -183,9 +183,11 @@ class GISparseVoxelOctree
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
 															   unsigned int allocatorIndex);
-		double									ConstructFullAtomic();
-		double									ConstructLevelByLevel();
-		double									LightInject(InjectParams);
+		double									ConstructFullAtomic(const IEVector3& ambientColor);
+		double									ConstructLevelByLevel(const IEVector3& ambientColor);
+		double									LightInject(InjectParams,
+															const std::vector<IEMatrix4x4>& projMatrices,
+															const std::vector<IEMatrix4x4>& invViewProj);
 		double									AverageNodes();
 
 		static const GLsizei					TraceWidth;
@@ -212,7 +214,10 @@ class GISparseVoxelOctree
 		void									UpdateSVO(double& reconstTime,
 														  double& injectTime,
 														  double& averageTime,
-														  InjectParams);
+														  const IEVector3& ambientColor,
+														  const InjectParams&,
+														  const std::vector<IEMatrix4x4>& lightProjMatrices,
+														  const std::vector<IEMatrix4x4>& lightInvViewProjMatrices);
 		
 		// Traces entire scene with the given ray params
 		// Writes results to intensity texture
@@ -234,7 +239,8 @@ class GISparseVoxelOctree
 																   float intensityFactorAO,
 																   float intensityFactorGI,
 																   bool giOn,
-																   bool aoOn);
+																   bool aoOn,
+																   bool specular);
 
 		double									DebugTraceSVO(DeferredRenderer&,
 															  const Camera& camera,

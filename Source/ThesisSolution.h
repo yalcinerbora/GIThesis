@@ -47,6 +47,7 @@ class AOBar
 		float	intensityAO;
 		float	intensityGI;
 		bool	hidden;
+		bool	specular;
 
 				AOBar();
 				~AOBar();

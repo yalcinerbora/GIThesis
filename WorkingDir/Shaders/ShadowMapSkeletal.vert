@@ -59,11 +59,11 @@ void main(void)
 {
 	// Animations
 	vec4 pos = vec4(0.0f);
-	pos += (jointTransforms[vWIndex[0]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[0];
-	pos += (jointTransforms[vWIndex[1]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[1];
-	pos += (jointTransforms[vWIndex[2]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[2];
-	pos += (jointTransforms[vWIndex[3]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[3];
+	pos += (jointTransforms[vWIndex[0]].final * vec4(vPos, 1.0f)) * vWeight[0];
+	pos += (jointTransforms[vWIndex[1]].final * vec4(vPos, 1.0f)) * vWeight[1];
+	pos += (jointTransforms[vWIndex[2]].final * vec4(vPos, 1.0f)) * vWeight[2];
+	pos += (jointTransforms[vWIndex[3]].final * vec4(vPos, 1.0f)) * vWeight[3];
 	
 	// Rasterizer
-	gl_Position = pos;
+	gl_Position = modelTransforms[vTransIndex].model * pos;
 }

@@ -231,7 +231,7 @@ void EmptyGISolution::Init(SceneI& s)
 		}
 
 		params = " Ligths/Light#" + std::to_string(i);
-		params+= " group = 'Lights' ";
+		params += " group = 'Lights' ";
 		TwDefine(params.c_str()); 
 		params = " Ligths/Light#" + std::to_string(i);
 

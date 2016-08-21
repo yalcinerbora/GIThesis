@@ -392,7 +392,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 	CUDA_KERNEL_CHECK();
 }
 
-double GISparseVoxelOctree::ConstructFullAtomic()
+double GISparseVoxelOctree::ConstructFullAtomic(const IEVector3& ambientColor)
 {
 	CudaTimer timer;
 	timer.Start();
@@ -400,8 +400,7 @@ double GISparseVoxelOctree::ConstructFullAtomic()
 	// Fully Atomic Version
 	for(unsigned int i = 0; i < allocators.size(); i++)
 	{
-		uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) /
-							GI_THREAD_PER_BLOCK;
+		uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 		SVOReconstruct<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(
 			dSVOMaterial,
@@ -416,6 +415,7 @@ double GISparseVoxelOctree::ConstructFullAtomic()
 			allocators[i]->GetVoxelPagesDevice(),
 			allocators[i]->GetObjRenderCacheDevice(),
 
+			{ambientColor.getX(), ambientColor.getY(), ambientColor.getZ()},
 			0,
 			i,
 			*dSVOConstants.Data()
@@ -433,7 +433,7 @@ double GISparseVoxelOctree::ConstructFullAtomic()
 	return timer.ElapsedMilliS();
 }
 
-double GISparseVoxelOctree::ConstructLevelByLevel()
+double GISparseVoxelOctree::ConstructLevelByLevel(const IEVector3& ambientColor)
 {
 	CudaTimer timer;
 	timer.Start();
@@ -485,6 +485,7 @@ double GISparseVoxelOctree::ConstructLevelByLevel()
 			allocators[i]->GetObjRenderCacheDevice(),
 
 			// Constants
+			{ambientColor.getX(), ambientColor.getY(), ambientColor.getZ()},
 			0,
 			i,
 			*dSVOConstants.Data()
@@ -496,25 +497,62 @@ double GISparseVoxelOctree::ConstructLevelByLevel()
 	return timer.ElapsedMilliS();
 }
 
-double GISparseVoxelOctree::LightInject(InjectParams params)
+double GISparseVoxelOctree::LightInject(InjectParams params,
+										const std::vector<IEMatrix4x4>& projMatrices,
+										const std::vector<IEMatrix4x4>& invViewProj)
 {
+	CudaTimer t;
+	t.Start();
 
-	/*params.inject,
-		params.span,
-		params.outerCascadePos,
+	dim3 gridSize = dim3
+	(
+		(SceneLights::shadowMapWH + GI_THREAD_PER_BLOCK_XY - 1) / GI_THREAD_PER_BLOCK_XY,
+		(SceneLights::shadowMapWH + GI_THREAD_PER_BLOCK_XY - 1) / GI_THREAD_PER_BLOCK_XY
+	);
+	dim3 blockSize = dim3(GI_THREAD_PER_BLOCK_XY, GI_THREAD_PER_BLOCK_XY);
 
-		params.camPos,
-		params.camDir,
+	unsigned int currentLight = 0;
+	unsigned int cascade = 3;
 
-		dLightVPArray,
-		dLightParamArray,
+	CMatrix4x4 proj, invVP;
+	std::memcpy(&proj, projMatrices.data() + currentLight * 6 + cascade, sizeof(CMatrix4x4));
+	std::memcpy(&invVP, invViewProj.data() + currentLight * 6 + cascade, sizeof(CMatrix4x4));
 
-		params.depthNear,
-		params.depthFar,
+	//SVOLightInject<<<gridSize, blockSize>>>
+	//(	// SVO Related
+	//	dSVOMaterial,
+	//	dSVOSparse,
+	//	dSVODense,
+	//	dSVOLevelSizes.Data(),
 
-		tShadowMapArray,
-		params.lightCount*/
-	return 0.0;
+	//	dSVOOffsets,
+	//	dSVOLevelTotalSizes.Data(),
+
+	//	dLightParamArray[currentLight],
+	//	*dSVOConstants.Data(),
+
+	//	0,
+
+	//	params.span,
+	//	params.outerCascadePos,
+
+	//	params.camPos,
+	//	params.camDir,
+	//	
+	//	params.depthNear,
+	//	params.depthFar,
+
+	//	tShadowMapArray,
+
+	//	proj,
+	//	invVP,
+	//
+	//	currentLight * 6  + cascade,
+	//	SceneLights::shadowMapWH
+	//);
+
+	t.Stop();
+	return t.ElapsedMilliS();
 }
 
 double GISparseVoxelOctree::AverageNodes()
@@ -578,7 +616,10 @@ double GISparseVoxelOctree::AverageNodes()
 void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 									double& injectTime,
 									double& averageTime,
-									InjectParams p)
+									const IEVector3& ambientColor,
+									const InjectParams& p,
+									const std::vector<IEMatrix4x4>& projMatrices,
+									const std::vector<IEMatrix4x4>& invViewProj)
 {
 	// Clear Mat Texture
 	GLuint ff[2] = {0x00000000, 0x00000000};
@@ -633,11 +674,11 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 	// Maxwell is faster with fully atomic code (CAS Locks etc.)
 	// However kepler sucks(660ti) (100ms compared to 5ms) 
 	if(CudaInit::CapabilityMajor() >= 5)
-		reconstTime = ConstructFullAtomic();
+		reconstTime = ConstructFullAtomic(ambientColor);
 	else
-		reconstTime = ConstructLevelByLevel();
+		reconstTime = ConstructLevelByLevel(ambientColor);
 
-	injectTime = LightInject(p);
+	injectTime = LightInject(p, projMatrices, invViewProj);
 	averageTime = AverageNodes();
 
 	//// DEBUG
@@ -674,8 +715,11 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 											   float intensityFactorAO,
 											   float intensityFactorGI,
 											   bool giOn,
-											   bool aoOn)
+											   bool aoOn,
+											   bool specular)
 {
+	maxDistance = 900.0f;
+
 	// Light Intensity Texture
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	glClearTexImage(traceTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
@@ -725,9 +769,8 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	dRenderer.BindLightBuffers(scene);
 
 	// Uniforms
-	glUniform1ui(U_SHADOW_MIP_COUNT, static_cast<GLuint>(SceneLights::mipSampleCount));
-	glUniform1ui(U_SHADOW_MAP_WH, static_cast<GLuint>(SceneLights::shadowMapWH));
 	glUniform1ui(U_LIGHT_INDEX, static_cast<GLuint>(0));
+	glUniform1ui(U_ON_OFF_SWITCH, specular ? 1u : 0u);
 
 	// Buffers
 	svoNodeBuffer.BindAsShaderStorageBuffer(LU_SVO_NODE);

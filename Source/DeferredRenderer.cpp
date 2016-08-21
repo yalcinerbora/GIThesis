@@ -7,8 +7,8 @@
 #include "DrawBuffer.h"
 #include "MeshBatchSkeletal.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920;*//*2560;*///3840;
-const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*//*1440;*///2160;
+const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*//*1280;*/1920;/*2560;*///3840;
+const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*/1080;/*1440;*///2160;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
@@ -227,6 +227,9 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 														   currentLight.position + SceneLights::pLightDir[j],
 														   SceneLights::pLightUp[j]);
 					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * view;
+					scene.getSceneLights().lightProjMatrices[i * 6 + j] = projection;
+					scene.getSceneLights().lightInvViewProjMatrices[i * 6 + j] = (projection * view).Inverse();
+
 				}
 				break;
 			}
@@ -266,6 +269,8 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 					IEMatrix4x4 texelTranslateMatrix = IEMatrix4x4::Translate(texelTranslate);
 
 					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * texelTranslateMatrix * view;
+					scene.getSceneLights().lightProjMatrices[i * 6 + j] = projection;
+					scene.getSceneLights().lightInvViewProjMatrices[i * 6 + j] = (projection * texelTranslateMatrix * view).Inverse();
 				}
 				break;
 			}
@@ -284,7 +289,9 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 														   currentLight.position + SceneLights::aLightDir[j],
 														   SceneLights::aLightUp[j]);
 
-					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projections[projIndex] * view;	
+					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projections[projIndex] * view;
+					scene.getSceneLights().lightProjMatrices[i * 6 + j] = projections[projIndex];
+					scene.getSceneLights().lightInvViewProjMatrices[i * 6 + j] = (projections[projIndex] * view).Inverse();
 				}	
 				break;
 			}
@@ -405,6 +412,11 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 	glColorMask(true, true, true, true);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	// Without Depth Prepass
+	glDepthMask(true);
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glDepthFunc(GL_LEQUAL);
+	
 	// Camera Transform
 	cameraTransform.Update(camera.generateTransform());
 	cameraTransform.Bind();
@@ -662,7 +674,7 @@ void DeferredRenderer::RefreshInvFTransform(const Camera& camera,
 void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
 {
 	// Depth Pre-Pass
-	DPass(scene, camera);
+//	DPass(scene, camera);
 
 	// Actual Render
 	// G Pass

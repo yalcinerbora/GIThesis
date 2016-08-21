@@ -52,6 +52,7 @@ struct VoxelObjectCache
 		, voxelIds(std::move(other.voxelIds))
 		, objInfo(std::move(other.objInfo))
 		, voxelRenderData(std::move(other.voxelRenderData))
+		, voxelWeightData(std::move(other.voxelWeightData))
 		, voxelVAO(std::move(other.voxelVAO))
 		, batchVoxCacheCount(other.batchVoxCacheCount)
 		, batchVoxCacheSize(other.batchVoxCacheSize)

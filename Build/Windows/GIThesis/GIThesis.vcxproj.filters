@@ -401,6 +401,8 @@
     <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu">
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\SVOLightInject.cu" />
+    <CudaCompile Include="..\..\..\Source\SVOLightInject.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

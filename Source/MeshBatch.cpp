@@ -38,6 +38,7 @@ MeshBatch::MeshBatch(const char* sceneFileName,
 const char* MeshBatch::sponzaFileName = "sponza.gfg";
 const char*	MeshBatch::cornellboxFileName = "cornell.gfg";
 const char* MeshBatch::sibernikFileName = "sibernik.gfg";
+const char* MeshBatch::nyraStaticFileName = "nyraFloor.gfg";
 
 // Interface
 void MeshBatch::Update(double elapsedS)

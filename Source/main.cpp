@@ -19,7 +19,7 @@
 #include "Macros.h"
 #include "CudaInit.h"
 
-#include "MeshBatchSkeletal.h"
+#include "MeshBatchNyra.h"
 #include "MeshBatchCornell.h"
 #include "MeshBatchSponza.h"
 #include "MeshBatchCube.h"
@@ -28,6 +28,7 @@
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
 #include "IEUtility/IETimer.h"
+#include "IEUtility/IERandom.h"
 #include <GLFW/glfw3.h>
 
 int main()
@@ -67,6 +68,7 @@ int main()
 		1280,
 		720,
 		WindowScreenType::WINDOWED
+		//WindowScreenType::FULLSCREEN
 	};
 	Window mainWindow(nullInput,
 					  winProps);
@@ -115,7 +117,7 @@ int main()
 		},
 		//Point Lights
 		{
-			{-250.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
+			{-80.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
 			{0.0f, 0.0f, 0.0f, 1000.0f},
 			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
 		},
@@ -125,7 +127,7 @@ int main()
 			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
 		},
 		{
-			{200.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
+			{80.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
 			{0.0f, 0.0f, 0.0f, 1000.0f},
 			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
 		}
@@ -158,6 +160,9 @@ int main()
 	MeshBatchOscillate crySponzaDyno(MeshBatch::sponzaFileName,
 									 ThesisSolution::CascadeSpan,
 									 IEVector3::Zaxis);
+	MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
+							ThesisSolution::CascadeSpan);
+	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
 
 	// Cornell Box Scene
 	MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
@@ -166,20 +171,38 @@ int main()
 	MeshBatchCornell cornellDynamic(MeshBatchCornell::cornellDynamicFileName,
 									ThesisSolution::CascadeSpan);
 
-	// Cube Scene
-	MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
-								  ThesisSolution::CascadeSpan);
-	
 	// Sibernik Scene
 	MeshBatch sibernikStatic(MeshBatch::sibernikFileName,
 							 ThesisSolution::CascadeSpan,
 							 false);
 
+	// Cube Scene
+	//MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
+	//							  ThesisSolution::CascadeSpan);
+	
+	// Nyra Inception Scene
+	//IERandom rng;
+	//const int nyraCount = 9;
+	//const float nyraRange = 200;
+	//std::vector<MeshBatchI*> nyraVector;
+	//for(int i = 0; i < nyraCount; i++)
+	//{
+	//	int nyraPos = i - nyraCount / 2;
+	//	IEVector3 initalOffsetZ = IEVector3(0.0f, 0.0f, nyraPos * (nyraRange / (nyraCount / 2)));
 
-	// Nyra Solo Scene
-	MeshBatchSkeletal nyraBatch(MeshBatchSkeletal::nyraFileName,
-								  ThesisSolution::CascadeSpan);
-	nyraBatch.AnimationParams(1.4f, 1.3f, AnimationType::OSCILLATE);
+	//	double velocity = rng.Double(MeshBatchNyra::velocityBase.getZ(), 4.0f);
+	//	double animSpeed = 0.6 * velocity / MeshBatchNyra::velocityBase.getZ();
+
+	//	nyraVector.emplace_back(new MeshBatchNyra(MeshBatchSkeletal::nyraFileName,
+	//											  ThesisSolution::CascadeSpan,
+	//											  MeshBatchNyra::velocityBase + IEVector3(0.0f, 0.0f, static_cast<float>(velocity)),
+	//											  MeshBatchNyra::initalPosBase + initalOffsetZ));
+	//	static_cast<MeshBatchNyra*>(nyraVector.back())->AnimationParams(0.0f, static_cast<float>(animSpeed), AnimationType::REPEAT);
+	//}
+	//// Floor
+	//nyraVector.emplace_back(new MeshBatch(MeshBatch::nyraStaticFileName,
+	//									  ThesisSolution::CascadeSpan,
+	//									  false));
 
 	// Scene Interfaces
 	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
@@ -196,38 +219,45 @@ int main()
 
 	MeshBatchI* sibernikBatches[] = {&sibernikStatic};
 	Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
-				   Array32<Light>{sibernikLights, 4},
+				   Array32<Light>{sibernikLights, 1},
 				   Scene::bigTotalSize,
 				   Scene::bigSizes);
 
 	// Scaling Scenes
 	MeshBatchI* sponzaDynoBatches[] = {&crySponzaDyno, &crySponzaDynamic, &nyraBatch};
-	Scene dynoSponza(Array32<MeshBatchI*>{sponzaDynoBatches, 1},
+	Scene dynoSponza(Array32<MeshBatchI*>{sponzaDynoBatches, 3},
 					 Array32<Light>{sponzaLights, 1},
 					 Scene::bigTotalSize,
 					 Scene::bigSizes);
 
-	// Debug Scenes
-	MeshBatchI* nyraBatches[] = {&nyraBatch};
-	Scene nyra(Array32<MeshBatchI*>{nyraBatches, 1},
-			   Array32<Light>{sponzaLights, 1},
-			   Scene::bigTotalSize,
-			   Scene::bigSizes);
+	//Scene nyraSecption(Array32<MeshBatchI*>{nyraVector.data(), nyraCount + 1},
+	//		   Array32<Light>{sponzaLights, 1},
+	//		   Scene::bigTotalSize,
+	//		   Scene::bigSizes);
+	
 
-	MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
-	Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
-					 Array32<Light>{sponzaLights, 1},
-					 Scene::bigTotalSize,
-					 Scene::bigSizes);
+	//// Debug Scenes
+	//MeshBatchI* nyraBatches[] = {&nyraBatch};
+	//Scene nyra(Array32<MeshBatchI*>{nyraBatches, 1},
+	//		   Array32<Light>{sponzaLights, 1},
+	//		   Scene::bigTotalSize,
+	//		   Scene::bigSizes);
+
+	//MeshBatchI* cubeBatches[] = {&cubeRotateBatch};
+	//Scene cubeRotate(Array32<MeshBatchI*>{cubeBatches, 1},
+	//				 Array32<Light>{sponzaLights, 1},
+	//				 Scene::bigTotalSize,
+	//				 Scene::bigSizes);
 
 	// Scenes
 	scenes.push_back(&crySponza);
 	scenes.push_back(&dynoSponza);
 	scenes.push_back(&cornellBox);
 	scenes.push_back(&sibernik);
+	//scenes.push_back(&nyraSecption);
 	// Test Scenes
-	scenes.push_back(&cubeRotate);
-	scenes.push_back(&nyra);
+	//scenes.push_back(&cubeRotate);
+	//scenes.push_back(&nyra);
 
 	// Solutions
 	EmptyGISolution emptySolution(deferredRenderer);
@@ -299,5 +329,11 @@ int main()
 		t.Lap();
 		solution->SetFPS(t.ElapsedMilliS());
 	}
+
+	//for(MeshBatchI*& batch : nyraVector)
+	//{
+	//	delete batch;
+	//	batch = nullptr;
+	//}
 	return 0;
 }

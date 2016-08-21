@@ -64,6 +64,8 @@ SceneLights::SceneLights(const Array32<Light>& lights)
 	, lightViewProjMatrices(6 * lights.length)
 	, lightDrawParams(3)
 	, lightIndexBuffer(lights.length)
+	, lightProjMatrices(6 * lights.length)
+	, lightInvViewProjMatrices(6 * lights.length)
 {
 	lightViewProjMatrices.RecieveData(6 * lights.length);
 	glGenTextures(1, &lightShadowMaps);
@@ -240,6 +242,16 @@ GLuint SceneLights::GetShadowArrayGL()
 GLuint SceneLights::GetVPMatrixGL()
 {
 	return lightViewProjMatrices.getGLBuffer();
+}
+
+const std::vector<IEMatrix4x4>&	SceneLights::GetLightProjMatrices()
+{
+	return lightProjMatrices;
+}
+
+const std::vector<IEMatrix4x4>& SceneLights::GetLightInvViewProjMatrices()
+{
+	return lightInvViewProjMatrices;
 }
 
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)

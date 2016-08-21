@@ -41,7 +41,8 @@ class MeshBatch : public MeshBatchI
 		static const char*		sponzaFileName;
 		static const char*		cornellboxFileName;
 		static const char*		sibernikFileName;
-		
+		static const char*		nyraStaticFileName;
+
 		static size_t			sponzaVoxelSizes[];
 		static size_t			cornellVoxelSizes[];
 		static size_t			sibernikVoxelSizes[];

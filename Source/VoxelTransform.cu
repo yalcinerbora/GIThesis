@@ -208,15 +208,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	worldPos.z = objAABBMin.z + voxPos.z * objSpan;
 
 	// Transformations
-	// Model multiplication
-	MultMatrixSelf(worldPos, sTransformMatrices[0]);
-	MultMatrixSelf(normal, sRotationMatrices[0]);
-	//// Unoptimized Matrix Load
-	//CMatrix4x4 transform = gObjTransforms[segObj.batchId][gObjTransformIds[segObj.batchId][segObj.objId]].transform;
-	//CMatrix4x4 rotation = gObjTransforms[segObj.batchId][gObjTransformIds[segObj.batchId][segObj.objId]].transform;
-	//MultMatrixSelf(worldPos, transform);
-	//MultMatrixSelf(normal, rotation);
-
+	// Joint
 	if(objType == CVoxelObjectType::SKEL_DYNAMIC)
 	{
 		float4 weightUnorm;
@@ -284,6 +276,15 @@ __global__ void VoxelTransform(// Voxel Pages
 
 		normal = norm;
 	}
+
+	// Model multiplication
+	MultMatrixSelf(worldPos, sTransformMatrices[0]);
+	MultMatrixSelf(normal, sRotationMatrices[0]);
+	//// Unoptimized Matrix Load
+	//CMatrix4x4 transform = gObjTransforms[segObj.batchId][gObjTransformIds[segObj.batchId][segObj.objId]].transform;
+	//CMatrix4x4 rotation = gObjTransforms[segObj.batchId][gObjTransformIds[segObj.batchId][segObj.objId]].transform;
+	//MultMatrixSelf(worldPos, transform);
+	//MultMatrixSelf(normal, rotation);
 
 	// Reconstruct Voxel Indices relative to the new pos of the grid
 	worldPos.x -= hNewGridPosition.x;

@@ -2,6 +2,44 @@
 template <class T>
 size_t StructuredBuffer<T>::resizeFactor = 2;
 
+//template <class T>
+//StructuredBuffer<T>::StructuredBuffer(const StructuredBuffer& cp)
+//	: bufferId(0)
+//	, bufferCapacity(cp.bufferCapacity)
+//{
+//	glGenBuffers(1, &bufferId);
+//	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
+//	glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),
+//				 nullptr, GL_DYNAMIC_DRAW);
+//
+//	glBindBuffer(GL_COPY_READ_BUFFER, cp.bufferId);
+//	glCopyBufferSubData(GL_COPY_READ_BUFFER,
+//						GL_COPY_WRITE_BUFFER,
+//						0, 0,
+//						bufferCapacity * sizeof(T));
+//}
+
+//template <class T>
+//const StructuredBuffer&	StructuredBuffer<T>::operator=(const StructuredBuffer& other)
+//{
+//	assert(*this != other);
+//	
+//
+//	glGenBuffers(1, &bufferId);
+//	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
+//	glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),
+//				 nullptr, GL_DYNAMIC_DRAW);
+//
+//	glBindBuffer(GL_COPY_READ_BUFFER, cp.bufferId);
+//	glCopyBufferSubData(GL_COPY_READ_BUFFER,
+//						GL_COPY_WRITE_BUFFER,
+//						0, 0,
+//						bufferCapacity * sizeof(T));
+//
+//	if(bufferCapacity >= other.buffer)
+//
+//}
+
 template <class T>
 StructuredBuffer<T>::StructuredBuffer(size_t initialCapacity)
 	: bufferId(0)

@@ -60,10 +60,10 @@ U_FTRANSFORM uniform FrameTransform
 void main(void)
 {
 	vec4 pos = vec4(0.0f);
-	pos += jointTransforms[vWIndex[0]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f) * vWeight[0];
-	pos += jointTransforms[vWIndex[1]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f) * vWeight[1];
-	pos += jointTransforms[vWIndex[2]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f) * vWeight[2];
-	pos += jointTransforms[vWIndex[3]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f) * vWeight[3];
+	pos += modelTransforms[vTransIndex].model * jointTransforms[vWIndex[0]].final * vec4(vPos, 1.0f) * vWeight[0];
+	pos += modelTransforms[vTransIndex].model * jointTransforms[vWIndex[1]].final * vec4(vPos, 1.0f) * vWeight[1];
+	pos += modelTransforms[vTransIndex].model * jointTransforms[vWIndex[2]].final * vec4(vPos, 1.0f) * vWeight[2];
+	pos += modelTransforms[vTransIndex].model * jointTransforms[vWIndex[3]].final * vec4(vPos, 1.0f) * vWeight[3];
 
 	// Rasterizer
 	gl_Position =  projection * view * pos;

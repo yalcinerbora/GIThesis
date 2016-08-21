@@ -84,17 +84,20 @@ void main(void)
 {
 	// Animations
 	vec4 pos = vec4(0.0f);
-	pos += (jointTransforms[vWIndex[0]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[0];
-	pos += (jointTransforms[vWIndex[1]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[1];
-	pos += (jointTransforms[vWIndex[2]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[2];
-	pos += (jointTransforms[vWIndex[3]].final * modelTransforms[vTransIndex].model * vec4(vPos, 1.0f)) * vWeight[3];
+	pos += (jointTransforms[vWIndex[0]].final * vec4(vPos, 1.0f)) * vWeight[0];
+	pos += (jointTransforms[vWIndex[1]].final * vec4(vPos, 1.0f)) * vWeight[1];
+	pos += (jointTransforms[vWIndex[2]].final * vec4(vPos, 1.0f)) * vWeight[2];
+	pos += (jointTransforms[vWIndex[3]].final * vec4(vPos, 1.0f)) * vWeight[3];
 
 	vec3 norm = vec3(0.0f);	
-	norm += (mat3(jointTransforms[vWIndex[0]].finalRot) * mat3(modelTransforms[vTransIndex].modelRotation) * vNormal) * vWeight[0];
-	norm += (mat3(jointTransforms[vWIndex[1]].finalRot) * mat3(modelTransforms[vTransIndex].modelRotation) * vNormal) * vWeight[1];
-	norm += (mat3(jointTransforms[vWIndex[2]].finalRot) * mat3(modelTransforms[vTransIndex].modelRotation) * vNormal) * vWeight[2];
-	norm += (mat3(jointTransforms[vWIndex[3]].finalRot) * mat3(modelTransforms[vTransIndex].modelRotation) * vNormal) * vWeight[3];
+	norm += (mat3(jointTransforms[vWIndex[0]].finalRot) * vNormal) * vWeight[0];
+	norm += (mat3(jointTransforms[vWIndex[1]].finalRot) * vNormal) * vWeight[1];
+	norm += (mat3(jointTransforms[vWIndex[2]].finalRot) * vNormal) * vWeight[2];
+	norm += (mat3(jointTransforms[vWIndex[3]].finalRot) * vNormal) * vWeight[3];
 	
+	pos = modelTransforms[vTransIndex].model * pos;
+	norm = mat3(modelTransforms[vTransIndex].modelRotation) * norm;		   
+
 	// Rasterizer
 	fUV = vUV;
 	fNormal = norm;

@@ -61,6 +61,7 @@ void MeshBatchSkeletal::Update(double elapsedS)
 	float weight;
 	FindKeys(keyFrom, keyTo, weight, static_cast<float>(elapsedS));
 	UpdateAnimMatrices(keyFrom, keyTo, weight);
+	finalTransforms.SendData();
 }
 
 VoxelObjectType MeshBatchSkeletal::MeshType() const
@@ -109,7 +110,7 @@ void  MeshBatchSkeletal::FindKeys(uint32_t& keyFrom,
 
 	// Find nearest frame
 	// TODO: Look for better algo here O(n) looks kinda dumb
-	keyFrom = -1;
+	keyFrom = static_cast<uint32_t>(keyTimes.size() - 1);
 	keyTo = 0;
 	for(unsigned int i = 0; i < keyTimes.size(); i++)
 	{	
@@ -120,18 +121,11 @@ void  MeshBatchSkeletal::FindKeys(uint32_t& keyFrom,
 			keyTo = i + 1;
 		}
 	}
-	if(keyFrom == -1)
-	{
-		weight = 0.0f;
-		keyFrom = 0;
-		keyTo = 0;
-	}
+	if(keyFrom == keyTimes.size() - 1)
+		weight = (time / keyTimes[keyTo]);
 	else
-	{
-		// Keys found now interpolate
 		weight = (time - keyTimes[keyFrom]) / (keyTimes[keyTo] - keyTimes[keyFrom]);
-		assert(weight >= 0.0f && weight <= 1.0f);
-	}
+	assert(weight >= 0.0f && weight <= 1.0f);
 	//GI_LOG("Time %f, KeyFromTo {%d, %d}, Weight %f", time, keyFrom, keyTo, weight);
 }
 
@@ -169,7 +163,6 @@ void MeshBatchSkeletal::UpdateAnimMatrices(uint32_t keyFrom, uint32_t keyTo, flo
 		finalTransforms.CPUData()[boneId].model = transform * invBindPose[boneId].model;
 		finalTransforms.CPUData()[boneId].modelRotation = rotation * invBindPose[boneId].modelRotation;
 	}
-	finalTransforms.SendData();
 }
 
 void  MeshBatchSkeletal::AnimationParams(float delay, float speedMod, AnimationType type)

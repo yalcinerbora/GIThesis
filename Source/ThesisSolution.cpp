@@ -15,8 +15,8 @@
 #include <sstream>
 
 const size_t ThesisSolution::InitialObjectGridSize = 512;
-const float ThesisSolution::CascadeSpan = 0.6f;
-const uint32_t ThesisSolution::CascadeDim = 512;
+const float ThesisSolution::CascadeSpan = 0.3f;
+const uint32_t ThesisSolution::CascadeDim = 1024;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
@@ -37,6 +37,7 @@ AOBar::AOBar()
  , intensityGI(2.85f)
  , bar(nullptr)
  , hidden(true)
+ , specular(true)
 {
 	bar = TwNewBar("ConeBar");
 	TwDefine(" ConeBar visible = false ");
@@ -58,6 +59,8 @@ AOBar::AOBar()
 	TwAddVarRW(bar, "intensityGI", TW_TYPE_FLOAT, &intensityGI,
 			   " label='GI Intensity' help='Illumination Intensity' "
 			   " min=0.5 max=5.0 step=0.01 ");
+	TwAddVarRW(bar, "specular", TW_TYPE_BOOLCPP, &specular,
+			   " label='Specular' help='Launch Specular Cone' ");
 	TwDefine(" ConeBar size='220 135' ");
 	TwDefine(" ConeBar position='227 25' ");
 	TwDefine(" ConeBar valueswidth=fit ");
@@ -137,7 +140,7 @@ void ThesisSolution::Init(SceneI& s)
 	Array32<MeshBatchI*> batches = currentScene->getBatches();
 	for(unsigned int i = 0; i < batches.length; i++)
 	{
-		LoadBatchVoxels(batches.arr[i]);
+		voxelTotaltime += LoadBatchVoxels(batches.arr[i]);
 	}
 
 	for(unsigned int i = 0; i < voxelCaches.size(); i++)
@@ -156,7 +159,7 @@ void ThesisSolution::Init(SceneI& s)
 	
 	// Voxel Page System Linking
 	for(unsigned int j = 0; j < GI_CASCADE_COUNT; j++)
-		LinkCacheWithVoxScene(voxelScenes[j], voxelCaches[j], 1.5f);
+		LinkCacheWithVoxScene(voxelScenes[j], voxelCaches[j], 1.0f);
 	
 	// Allocators Link
 	// Ordering is reversed svo tree needs cascades from other to inner
@@ -596,7 +599,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 												   static_cast<float>(0x1 << (3 - i - 1)));
 		ioTime += ioTimeSegment;
 		transformTime += transformTimeSegment;
-		if(i == 0) outerCascadePos = pos;
+		if(i == GI_CASCADE_COUNT - 1) outerCascadePos = pos;
 	}
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
@@ -609,19 +612,21 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	InjectParams p;
 	p.camDir = {camDir.getX(), camDir.getY(), camDir.getZ()};
 	p.camPos = {camPos.getX(), camPos.getY(), camPos.getZ(), DeferredRenderer::CalculateCascadeLength(mainRenderCamera.far, 0)};
-
 	float depthRange[2];
 	glGetFloatv(GL_DEPTH_RANGE, depthRange);
 	p.depthNear = depthRange[0];
 	p.depthFar = depthRange[1];
-	
 	p.lightCount = currentScene->getSceneLights().Count();
 	p.outerCascadePos = {outerCascadePos.getX(), outerCascadePos.getY(), outerCascadePos.getZ()};
 	p.span = CascadeSpan;
-
 	p.inject = true;
 	
-	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAvgTime, p);
+	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
+
+	const auto& lightProjs = currentScene->getSceneLights().GetLightProjMatrices();
+	const auto& lightInvVP = currentScene->getSceneLights().GetLightInvViewProjMatrices();
+	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAvgTime, aColor, 
+						  p, lightProjs, lightInvVP);
 
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
@@ -644,9 +649,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		case GI_LIGHT_INTENSITY:
 		{
 			aoBar.HideBar(false);
-
-			IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
-
+			
 			// Shadow Map Generation
 			dRenderer.GenerateShadowMaps(*currentScene, mainRenderCamera);
 
@@ -671,7 +674,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 					aoBar.intensityAO,
 					aoBar.intensityGI,
 					giOn,
-					aoOn
+					aoOn,
+					aoBar.specular
 				);
 			}
 

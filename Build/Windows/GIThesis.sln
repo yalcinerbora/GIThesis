@@ -55,7 +55,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxTrace", "VoxTrace", "{41
 		..\..\WorkingDir\Shaders\SurfAO.glsl = ..\..\WorkingDir\Shaders\SurfAO.glsl
 		..\..\WorkingDir\Shaders\VoxAO.glsl = ..\..\WorkingDir\Shaders\VoxAO.glsl
 		..\..\WorkingDir\Shaders\VoxGI.glsl = ..\..\WorkingDir\Shaders\VoxGI.glsl
-		..\..\WorkingDir\Shaders\VoxGISprial.glsl = ..\..\WorkingDir\Shaders\VoxGISprial.glsl
 		..\..\WorkingDir\Shaders\VoxTraceDeferred.glsl = ..\..\WorkingDir\Shaders\VoxTraceDeferred.glsl
 		..\..\WorkingDir\Shaders\VoxTraceDeferredLerp.glsl = ..\..\WorkingDir\Shaders\VoxTraceDeferredLerp.glsl
 		..\..\WorkingDir\Shaders\VoxTraceWorld.glsl = ..\..\WorkingDir\Shaders\VoxTraceWorld.glsl

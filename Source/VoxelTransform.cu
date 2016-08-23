@@ -309,15 +309,21 @@ __global__ void VoxelTransform(// Voxel Pages
 	}
 	outOfBounds |= inInnerCascade;
 
+	// Voxel Space
+	float invSpan = 1.0f / gGridInfo.span;
+	voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan + 0.5f);
+	voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan + 0.5f);
+	voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan + 0.5f);
+	
+	outOfBounds |= (voxPos.x >= gGridInfo.dimension.x);
+	outOfBounds |= (voxPos.y >= gGridInfo.dimension.y);
+	outOfBounds |= (voxPos.z >= gGridInfo.dimension.z);
+
 	// Now Write
 	// Discard the out of bound voxels
+	//outOfBounds = false;
 	if(!outOfBounds)
 	{
-		float invSpan = 1.0f / gGridInfo.span;
-		voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan + 0.5f);
-		voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan + 0.5f);
-		voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan + 0.5f);
-
 		// Write to page
 		uint2 packedVoxNormPos;
 		normalWithOcc = {normal.x, normal.y, normal.z, 0.0f};

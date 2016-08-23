@@ -7,8 +7,8 @@
 #include "DrawBuffer.h"
 #include "MeshBatchSkeletal.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*//*1280;*/1920;/*2560;*///3840;
-const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*/1080;/*1440;*///2160;
+const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920;*//*2560;*///3840;
+const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*//*1440;*///2160;
 
 const float DeferredRenderer::postProcessTriData[6] =
 {
@@ -249,7 +249,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 																	//-230.0f, 230.0f,
 																	-radius, radius,
 																	radius, -radius,
-																	-1000.0f, 1000.0f);
+																	-800.0f, 800.0f);
 
 					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f),
 														   viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f) + currentLight.direction,

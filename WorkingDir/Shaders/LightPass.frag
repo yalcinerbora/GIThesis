@@ -164,7 +164,7 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 	vec3 ndc = clip.xyz / clip.w;
 
 	// NDC to Tex
-	float depth = 0.5 * ((2.0f * depthNearFar.x + 1.0f) + 
+	float depth = 0.5f * ((2.0f * depthNearFar.x + 1.0f) + 
 						(depthNearFar.y - depthNearFar.x) * ndc.z);
 
 	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)

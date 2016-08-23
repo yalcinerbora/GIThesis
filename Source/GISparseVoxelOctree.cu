@@ -511,45 +511,56 @@ double GISparseVoxelOctree::LightInject(InjectParams params,
 	);
 	dim3 blockSize = dim3(GI_THREAD_PER_BLOCK_XY, GI_THREAD_PER_BLOCK_XY);
 
+
 	unsigned int currentLight = 0;
-	unsigned int cascade = 3;
+	for(unsigned int i = 0; i < SceneLights::numShadowCascades; i++)
+	{
+		unsigned int cascade = i;
+		CMatrix4x4 proj, invVP;
+		std::memcpy(&proj, projMatrices.data() + currentLight * 6 + cascade, sizeof(CMatrix4x4));
+		std::memcpy(&invVP, invViewProj.data() + currentLight * 6 + cascade, sizeof(CMatrix4x4));
 
-	CMatrix4x4 proj, invVP;
-	std::memcpy(&proj, projMatrices.data() + currentLight * 6 + cascade, sizeof(CMatrix4x4));
-	std::memcpy(&invVP, invViewProj.data() + currentLight * 6 + cascade, sizeof(CMatrix4x4));
+		SVOLightInject<<<gridSize, blockSize>>>
+		(	// SVO Related
+			dSVOMaterial,
+			dSVOSparse,
+			dSVODense,
+			dSVOLevelSizes.Data(),
 
-	//SVOLightInject<<<gridSize, blockSize>>>
-	//(	// SVO Related
-	//	dSVOMaterial,
-	//	dSVOSparse,
-	//	dSVODense,
-	//	dSVOLevelSizes.Data(),
+			dSVOOffsets,
+			dSVOLevelTotalSizes.Data(),
 
-	//	dSVOOffsets,
-	//	dSVOLevelTotalSizes.Data(),
+			dLightParamArray[currentLight],
+			*dSVOConstants.Data(),
 
-	//	dLightParamArray[currentLight],
-	//	*dSVOConstants.Data(),
+			0,
 
-	//	0,
+			params.span,
+			params.outerCascadePos,
 
-	//	params.span,
-	//	params.outerCascadePos,
+			params.camPos,
+			params.camDir,
+			
+			params.depthNear,
+			params.depthFar,
 
-	//	params.camPos,
-	//	params.camDir,
-	//	
-	//	params.depthNear,
-	//	params.depthFar,
+			tShadowMapArray,
 
-	//	tShadowMapArray,
+			proj,
+			invVP,
+		
+			currentLight * 6  + cascade,
+			SceneLights::shadowMapWH
+		);
+	}
 
-	//	proj,
-	//	invVP,
-	//
-	//	currentLight * 6  + cascade,
-	//	SceneLights::shadowMapWH
-	//);
+	// Copy Level Sizes
+	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data(),
+		dSVOLevelSizes.Data(),
+		hSVOLevelSizes.size() * sizeof(uint32_t),
+		cudaMemcpyDeviceToHost));
+
+	CopyFromBufferToTex(dSVODenseNodeArray, dSVODense);
 
 	t.Stop();
 	return t.ElapsedMilliS();

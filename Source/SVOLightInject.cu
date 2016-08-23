@@ -163,6 +163,8 @@ __device__ inline float3 DepthToWorld(volatile float2& uv,
 											   lightMapIndex,
 											   0.0f);
 
+	if(shadowDepth == 1.0f) return float3{INFINITY, INFINITY, INFINITY};
+
 	// Normalize Device Coordinates
 	float3 ndc =
 	{
@@ -181,7 +183,7 @@ __device__ inline float3 DepthToWorld(volatile float2& uv,
 	
 	// From Clip Space to World Space
 	MultMatrixSelf(clip, invViewProjection);
-	return {clip.x, clip.y, clip.z};
+	return {clip.x * clip.w, clip.y * clip.w, clip.z * clip.w};
 }
 
 
@@ -464,13 +466,16 @@ __global__ void SVOLightInject(// SVO Related
 		static_cast<float>(globalId.y) / static_cast<float>(mapWH)
 	};
 
-	volatile float3 worldPoint = DepthToWorld(shadowUV,
-											  dLightProjection,
-											  dLightInvViewProjection,
-											  shadowMaps,
-											  lightMapIndex,
-											  depthNear,
-											  depthFar);
+	float3 worldPoint = DepthToWorld(shadowUV,
+									 dLightProjection,
+									 dLightInvViewProjection,
+									 shadowMaps,
+									 lightMapIndex,
+									 depthNear,
+									 depthFar);
+
+	//float3 worldPoint = float3{(mapWH * shadowUV.x), -0.0f, (mapWH * shadowUV.y)};
+	//worldPoint.y = 0.0f;
 
 	// Traverse a Leaf
 	int3 voxPos =
@@ -524,7 +529,7 @@ __global__ void SVOLightInject(// SVO Related
 	//}
 
 	unsigned int location;
-	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - 0);
+	unsigned int cascadeMaxLevel = svoConstants.totalDepth - 1;// -(svoConstants.numCascades - 0);
 	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
 	{
 		unsigned int levelIndex = i - svoConstants.denseDepth;
@@ -552,12 +557,7 @@ __global__ void SVOLightInject(// SVO Related
 		location += childId;
 	}
 
-	gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location] = 
-	{0xFFFFFFFFFFFFFFFF};
-
-
-	
-
+	gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location] = {0xFFFFFFFFFFFFFFFF};
 }
 
 

@@ -600,6 +600,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		ioTime += ioTimeSegment;
 		transformTime += transformTimeSegment;
 		if(i == GI_CASCADE_COUNT - 1) outerCascadePos = pos;
+		//if(i == 0) outerCascadePos = pos;
 	}
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
@@ -708,6 +709,9 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 		}
 		case GI_SVO_LEVELS:
 		{
+			// Shadow Map Generation
+			dRenderer.GenerateShadowMaps(*currentScene, mainRenderCamera);
+
 			// Start Render
 			glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
 			miscTime = DebugRenderSVO(mainRenderCamera);

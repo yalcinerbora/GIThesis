@@ -27,10 +27,10 @@ MeshBatch::MeshBatch(const char* sceneFileName,
 
 	GI_LOG("Loading \"%s\" complete", sceneFileName);
 	GI_LOG("\tDuration : %f ms", timer.ElapsedMilliS());
-	GI_LOG("\tMaterials : %d", batchParams.materialCount);
-	GI_LOG("\tMeshes : %d", batchParams.objectCount);
-	GI_LOG("\tDrawPoints : %d", batchParams.drawCallCount);
-	GI_LOG("\tPolyCount : %d", batchParams.totalPolygons);
+	GI_LOG("\tMaterials : %zd", batchParams.materialCount);
+	GI_LOG("\tMeshes : %zd", batchParams.objectCount);
+	GI_LOG("\tDrawPoints : %zd", batchParams.drawCallCount);
+	GI_LOG("\tPolyCount : %zd", batchParams.totalPolygons);
 	GI_LOG("----------");
 }
 

@@ -1189,7 +1189,7 @@ uint64_t GISparseVoxelOctree::MemoryUsage() const
 {
 	uint64_t totalBytes = 0;
 	totalBytes += svoNodeBuffer.Capacity() * sizeof(CSVONode);
-	totalBytes += svoMaterialBuffer.Capacity() * sizeof(CSVOMaterial);
+	totalBytes += svoMaterialBuffer.Capacity() * (sizeof(CSVOMaterial) + 8) ;
 	totalBytes += dSVOLevelSizes.Size() * sizeof(unsigned int);
 	totalBytes += sizeof(unsigned int);
 	totalBytes += GI_DENSE_SIZE_CUBE * sizeof(CSVONode);	// Dense Tex

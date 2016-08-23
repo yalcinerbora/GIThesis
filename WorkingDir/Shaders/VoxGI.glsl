@@ -746,7 +746,7 @@ void main(void)
 				// Specular cone
 				float specularity = texture(gBuffColor, gBuffUV).a;
 				if(specularity < 0.5f) continue;
-				coneAperture = mix(coneParams1.z * 2.0f , coneParams1.z * 0.1f, specularity);
+				coneAperture = mix(coneParams1.z, coneParams1.z * 0.3f, specularity);
 
 				// Find Corner points of the surface
 				vec3 worldEye = normalize(camPos.xyz - worldPos);

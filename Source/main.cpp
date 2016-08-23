@@ -208,8 +208,10 @@ int main()
 	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
 	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
 					Array32<Light>{sponzaLights, 1},
-					Scene::bigTotalSize,
-					Scene::bigSizes);
+					Scene::sponzaSceneTotalSize,
+					Scene::sponzaSceneLevelSizes);
+                    //Scene::bigTotalSize,
+                    //Scene::bigSizes);
 
 	//MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
 	//Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},

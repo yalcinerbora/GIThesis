@@ -68,84 +68,6 @@ __device__ inline float Clamp(float x, float min, float max)
 	return  (x < min) ? min : ((x > max) ? max : x);
 }
 
-__device__ inline float4 CalculateShadowUV(const CMatrix4x4* lightVP,
-										   const CLight& lightStruct,
-										   const float3& worldPos,
-										   const float4& camPos,
-										   const float3& camDir,
-										   float depthNear,
-										   float depthFar)
-{
-	float viewIndex = 0.0f;
-	float3 lightVec;
-	if(lightStruct.position.w == GI_LIGHT_POINT ||
-	   lightStruct.position.w == GI_LIGHT_AREA)
-	{
-		// Determine which side of the light is the point
-		// minimum absolute value
-		lightVec.x = worldPos.x - lightStruct.position.x;
-		lightVec.y = worldPos.y - lightStruct.position.y;
-		lightVec.z = worldPos.z - lightStruct.position.z;
-
-		float maxVal = fmaxf(abs(lightVec.x), fmaxf(abs(lightVec.y), abs(lightVec.z)));
-		float3 axis;
-		axis.x = (abs(lightVec.x) == maxVal) ? 1.0f : 0.0f;
-		axis.y = (abs(lightVec.y) == maxVal) ? 1.0f : 0.0f;
-		axis.z = (abs(lightVec.z) == maxVal) ? 1.0f : 0.0f;
-
-		float3 lightVecSigns;
-		lightVecSigns.x = ((lightVec.x * axis.x) < 0.0f) ? -1.0f : 1.0f;
-		lightVecSigns.y = ((lightVec.y * axis.y) < 0.0f) ? -1.0f : 1.0f;
-		lightVecSigns.z = ((lightVec.z * axis.z) < 0.0f) ? -1.0f : 1.0f;
-
-		lightVecSigns.x = abs(lightVecSigns.x) * (abs((lightVecSigns.x - 1.0f) * 0.5f) + 0.0f);
-		lightVecSigns.y = abs(lightVecSigns.y) * (abs((lightVecSigns.x - 1.0f) * 0.5f) + 2.0f);
-		lightVecSigns.z = abs(lightVecSigns.z) * (abs((lightVecSigns.x - 1.0f) * 0.5f) + 4.0f);
-
-		viewIndex = lightVecSigns.x + lightVecSigns.y + lightVecSigns.z;
-
-		// Area light is half sphere
-		if(lightStruct.position.w == GI_LIGHT_AREA)
-			viewIndex = (lightVec.y < 0.0f) ? viewIndex : 2.0f;
-	}
-	else
-	{
-		// Determine Cascade
-		float3 distVec;
-		distVec.x = worldPos.x - camPos.x;
-		distVec.y = worldPos.y - camPos.y;
-		distVec.z = worldPos.z - camPos.z;
-		
-		float worldDist = fmaxf(0.0f, Dot(distVec, camDir));
-
-		// Inv geom sum
-		const float exponent = 1.2f;
-		viewIndex = worldDist / camPos.w;
-		viewIndex = floor(log2(viewIndex * (exponent - 1.0f) + 1.0f) / log2(exponent));
-	}
-
-	// Mult with proper cube side matrix
-	float4 wPos = {worldPos.x, worldPos.y, worldPos.z, 1.0f};
-	float4 clip = MultMatrix(wPos, lightVP[static_cast<int>(viewIndex)]);
-
-	// Convert to NDC
-	float3 ndc;
-	ndc.x = clip.x / clip.w;
-	ndc.y = clip.y / clip.w;
-	ndc.z = clip.z / clip.w;
-
-	// NDC to Tex
-	float depth = 0.5 * ((2.0f * depthNear + 1.0f) + 
-						 (depthFar - depthNear) * ndc.z);
-	if(lightStruct.position.w == GI_LIGHT_DIRECTIONAL)
-	{
-		lightVec.x = 0.5f * ndc.x + 0.5f;
-		lightVec.y = 0.5f * ndc.y + 0.5f;
-		lightVec.z = viewIndex;
-	}
-	return float4{lightVec.x, lightVec.y, lightVec.z, depth};
-}
-
 __device__ inline float3 DepthToWorld(volatile float2& uv,
 									  const CMatrix4x4& projection,
 									  const CMatrix4x4& invViewProjection,
@@ -175,15 +97,14 @@ __device__ inline float3 DepthToWorld(volatile float2& uv,
 	};
 
 	// Clip Space
-	float4 clip;
-	clip.w = 1.0f;
+	float3 clip;
 	clip.z = ndc.z;
 	clip.y = ndc.y;
 	clip.x = ndc.x;
 	
 	// From Clip Space to World Space
 	MultMatrixSelf(clip, invViewProjection);
-	return {clip.x * clip.w, clip.y * clip.w, clip.z * clip.w};
+	return {clip.x, clip.y, clip.z};
 }
 
 
@@ -192,18 +113,11 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 								   const float3& camDir,
 
 								   // Light Related
-								   const CMatrix4x4* lightVP,
 								   const CLight& lightStruct,
-
-								   float depthNear,
-								   float depthFar,
 
 								   // SVO Surface Voxel
 								   const float4& colorSVO,
-								   const float4& normalSVO,
-
-								   cudaTextureObject_t shadowTex,
-								   uint32_t lightIndex)
+								   const float4& normalSVO)
 {
 	float3 lightIntensity = {0.0f, 0.0f, 0.0f};
 
@@ -245,16 +159,6 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 	biasedWorld.y += worldLight.y * 3.0f;
 	biasedWorld.z += worldLight.z * 3.0f;
 
-	float4 shadowUV = CalculateShadowUV(lightVP,
-										lightStruct,
-										biasedWorld,
-										camPos,
-										camDir,
-										depthNear,
-										depthFar);
-
-
-
 	float3 worldHalf;
 	worldHalf.x = worldLight.x + worldEye.x;
 	worldHalf.y = worldLight.y + worldEye.y;
@@ -271,38 +175,13 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 	// This also eliminates some self shadowing artifacts
 	if(intensity == 0.0f) return lightIntensity;
 
-	// Check Light Occulusion (ShadowMap)
-	float shadowDepth = 0.0f;
-	if(lightStruct.position.w == GI_LIGHT_DIRECTIONAL)
-	{
-		// Texture Array Fetch
-		shadowDepth = tex2DLayeredLod<float>(shadowTex,
-											 shadowUV.x,
-											 shadowUV.y,
-											 static_cast<float>(lightIndex * 6) + shadowUV.z,
-											 0.0f);
-	}
-	else
-	{
-		// Cube Fetch if applicable
-		shadowDepth = texCubemapLayeredLod<float>(shadowTex,
-												  shadowUV.x,
-												  shadowUV.y,
-												  shadowUV.z,
-												  lightIndex,
-												  0.0f);
-	}
-
-	// Cull if occluded
-	if(shadowDepth < shadowUV.w) return float3{0.0f, 0.0f, 0.0f};
-
 	// Specular
 	// Blinn-Phong
-	//float specPower = colorSVO.w * 4096.0f;
-	//float power = pow(fmaxf(Dot(worldHalf, worldNormal), 0.0f), specPower);
-	//lightIntensity.x += power;
-	//lightIntensity.y += power;
-	//lightIntensity.z += power;
+	float specPower = colorSVO.w * 4096.0f;
+	float power = pow(fmaxf(Dot(worldHalf, worldNormal), 0.0f), specPower);
+	lightIntensity.x += power;
+	lightIntensity.y += power;
+	lightIntensity.z += power;
 
 	// Falloff
 	lightIntensity.x *= falloff;
@@ -328,104 +207,50 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 	return result;
 }
 
-__device__ inline float3 LightInject(const float3& worldPos,
-
-									 // SVO Surface Voxel
-									 const float4& colorSVO,
-									 const float4& normalSVO,
-
-									 // Camera Related
-									 const float4& camPos,
-									 const float3& camDir,
-
-									 // Light View Projection
-									 const CMatrix4x4* lightVP,
-									 const CLight* lightStruct,
-
-									 float depthNear,
-									 float depthFar,
-
-									 // Shadow Tex
-									 cudaTextureObject_t shadowTex,
-
-									 const int lightCount)
-{
-	// For Each Light
-	float3 totalIllum = {0.0f, 0.0f, 0.0f};
-	for(int i = 0; i < lightCount; i++)
-	{
-		const CMatrix4x4* currentLightVP = lightVP + (i * 6);
-		const CLight light = lightStruct[i];
-
-		float3 illum = PhongBRDF(worldPos,
-								 camPos,
-								 camDir,
-								 currentLightVP,
-								 light,
-								 depthNear,
-								 depthFar,
-								 colorSVO,
-								 normalSVO,
-								 shadowTex,
-								 i);
-
-		totalIllum.x += illum.x;
-		totalIllum.y += illum.y;
-		totalIllum.z += illum.z;
-	}
-	return totalIllum;
-}
-
-
-inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int& gLevelAllocator)
-{
-	// Release Configuration Optimization fucks up the code
-	// Prob changes some memory i-o ordering
-	// Its fixed but comment is here for future
-	// Problem here was cople threads on the same warp waits eachother and
-	// after some memory ordering changes by compiler responsible thread waits
-	// other threads execution to be done
-	// Code becomes something like this after compiler changes some memory orderings
-	//
-	//	while(old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE) == 0xFFFFFFFE); <-- notice semicolon
-	//	 if(old == 0xFFFFFF)
-	//		location = allocate();
-	//	location = old;
-	//	return location;
-	//
-	// first allocating thread will never return from that loop since 
-	// its warp threads are on infinite loop (so deadlock)
-
-	// much cooler version can be warp level exchange intrinsics
-	// which slightly reduces atomic pressure on the single node (on lower tree levels atleast)
-	if(*gNode < 0xFFFFFFFE) return *gNode;
-
-	CSVONode old = 0xFFFFFFFE;
-	while(old == 0xFFFFFFFE)
-	{
-		old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE);
-		if(old == 0xFFFFFFFF)
-		{
-			// Allocate
-			unsigned int location = atomicAdd(&gLevelAllocator, 8);
-			*reinterpret_cast<volatile CSVONode*>(gNode) = location;
-			old = location;
-		}
-		__threadfence();	// This is important somehow compiler changes this and makes infinite loop on same warp threads
-	}
-	return old;
-}
-
-
-
-
-
+//inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int& gLevelAllocator)
+//{
+//	// Release Configuration Optimization fucks up the code
+//	// Prob changes some memory i-o ordering
+//	// Its fixed but comment is here for future
+//	// Problem here was cople threads on the same warp waits eachother and
+//	// after some memory ordering changes by compiler responsible thread waits
+//	// other threads execution to be done
+//	// Code becomes something like this after compiler changes some memory orderings
+//	//
+//	//	while(old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE) == 0xFFFFFFFE); <-- notice semicolon
+//	//	 if(old == 0xFFFFFF)
+//	//		location = allocate();
+//	//	location = old;
+//	//	return location;
+//	//
+//	// first allocating thread will never return from that loop since 
+//	// its warp threads are on infinite loop (so deadlock)
+//
+//	// much cooler version can be warp level exchange intrinsics
+//	// which slightly reduces atomic pressure on the single node (on lower tree levels atleast)
+//	if(*gNode < 0xFFFFFFFE) return *gNode;
+//
+//	CSVONode old = 0xFFFFFFFE;
+//	while(old == 0xFFFFFFFE)
+//	{
+//		old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE);
+//		if(old == 0xFFFFFFFF)
+//		{
+//			// Allocate
+//			unsigned int location = atomicAdd(&gLevelAllocator, 8);
+//			*reinterpret_cast<volatile CSVONode*>(gNode) = location;
+//			old = location;
+//		}
+//		__threadfence();	// This is important somehow compiler changes this and makes infinite loop on same warp threads
+//	}
+//	return old;
+//}
 
 __global__ void SVOLightInject(// SVO Related
 							   CSVOMaterial* gSVOMat,
-							   /*const*/ CSVONode* gSVOSparse,
-							   /*const*/ CSVONode* gSVODense,
-							   /*const*/ unsigned int* gLevelAllocators,
+							   const CSVONode* gSVOSparse,
+							   const CSVONode* gSVODense,
+							   const unsigned int* gLevelAllocators,
 
 							   const unsigned int* gLevelOffsets,
 							   const unsigned int* gLevelTotalSizes,
@@ -474,15 +299,12 @@ __global__ void SVOLightInject(// SVO Related
 									 depthNear,
 									 depthFar);
 
-	//float3 worldPoint = float3{(mapWH * shadowUV.x), -0.0f, (mapWH * shadowUV.y)};
-	//worldPoint.y = 0.0f;
-
-	// Traverse a Leaf
+	// Convert to voxel integer space
 	int3 voxPos =
 	{
-		static_cast<int>(floorf(worldPoint.x - outerCascadePos.x / span)),
-		static_cast<int>(floorf(worldPoint.y - outerCascadePos.y / span)),
-		static_cast<int>(floorf(worldPoint.z - outerCascadePos.z / span))
+		static_cast<int>(floorf((worldPoint.x - outerCascadePos.x) / span)),
+		static_cast<int>(floorf((worldPoint.y - outerCascadePos.y) / span)),
+		static_cast<int>(floorf((worldPoint.z - outerCascadePos.z) / span))
 	};
 
 	// Cull if out of bounds
@@ -493,72 +315,70 @@ __global__ void SVOLightInject(// SVO Related
 		return;
 	}
 
-	uint3 voxPosUnsigned =
-	{
-		static_cast<unsigned int>(voxPos.x),
-		static_cast<unsigned int>(voxPos.y),
-		static_cast<unsigned int>(voxPos.z)
+    uint3 voxPosUnsigned =
+    {
+        static_cast<unsigned int>(voxPos.x),
+        static_cast<unsigned int>(voxPos.y),
+        static_cast<unsigned int>(voxPos.z)
 	};
 
-	//// Traverse SVO
-	//uint3 levelVoxId = CalculateLevelVoxId(voxPosUnsigned, svoConstants.denseDepth, svoConstants.totalDepth);
-	//CSVONode nodeIndex = gSVODense[svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
-	//							  svoConstants.denseDim * levelVoxId.y +
-	//							  levelVoxId.x];
-	//if(nodeIndex == 0xFFFFFFFF) return;
-	//nodeIndex += CalculateLevelChildId(voxPosUnsigned, svoConstants.denseDepth + 1, svoConstants.totalDepth);
+	// Traverse SVO
+	uint3 levelVoxId = CalculateLevelVoxId(voxPosUnsigned, svoConstants.denseDepth, svoConstants.totalDepth);
+	CSVONode nodeIndex = gSVODense[svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+								  svoConstants.denseDim * levelVoxId.y +
+								  levelVoxId.x];
+	if(nodeIndex == 0xFFFFFFFF) return;
+	nodeIndex += CalculateLevelChildId(voxPosUnsigned, svoConstants.denseDepth + 1, svoConstants.totalDepth);
 
-	//unsigned int traverseLevel;
-	//for(traverseLevel = svoConstants.denseDepth + 1; 
-	//	traverseLevel < svoConstants.totalDepth; 
-	//	traverseLevel++)
-	//{
-	//	unsigned int levelIndex = traverseLevel - svoConstants.denseDepth;
-	//	const CSVONode currentNode = gSVOSparse[gLevelOffsets[levelIndex] + nodeIndex];
-	//	if(currentNode == 0xFFFFFFFF) break;
-	//	// Offset child
-	//	unsigned int childId = CalculateLevelChildId(voxPosUnsigned, traverseLevel + 1, svoConstants.totalDepth);
-	//	nodeIndex = currentNode + childId;
-	//}
-	//if(traverseLevel == svoConstants.totalDepth ||
-	//   traverseLevel > (svoConstants.totalDepth - svoConstants.numCascades))
-	//{
-	//	// Write data to Location
-	//	gSVOMat[matSparseOffset + gLevelOffsets[traverseLevel - svoConstants.denseDepth] + nodeIndex] =
-	//	{0xFFFFFFFFFFFFFFFF};
-	//}
-
-	unsigned int location;
-	unsigned int cascadeMaxLevel = svoConstants.totalDepth - 1;// -(svoConstants.numCascades - 0);
-	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
+	unsigned int traverseLevel;
+	for(traverseLevel = svoConstants.denseDepth + 1; 
+		traverseLevel < svoConstants.totalDepth; 
+		traverseLevel++)
 	{
-		unsigned int levelIndex = i - svoConstants.denseDepth;
-		CSVONode* node = nullptr;
-		if(i == svoConstants.denseDepth)
-		{
-			uint3 levelVoxId = CalculateLevelVoxId(voxPosUnsigned, i, svoConstants.totalDepth);
-			node = gSVODense +
-				svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
-				svoConstants.denseDim * levelVoxId.y +
-				levelVoxId.x;
-		}
-		else
-		{
-			node = gSVOSparse + gLevelOffsets[levelIndex] + location;
-		}
-
-		// Allocate (or acquire) next location
-		location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
-		assert(location < gLevelTotalSizes[levelIndex + 1]);
-		if(location >= gLevelTotalSizes[levelIndex + 1]) return;
-
+		unsigned int levelIndex = traverseLevel - svoConstants.denseDepth;
+		const CSVONode currentNode = gSVOSparse[gLevelOffsets[levelIndex] + nodeIndex];
+		if(currentNode == 0xFFFFFFFF) break;
 		// Offset child
-		unsigned int childId = CalculateLevelChildId(voxPosUnsigned, i + 1, svoConstants.totalDepth);
-		location += childId;
+		unsigned int childId = CalculateLevelChildId(voxPosUnsigned, traverseLevel + 1, svoConstants.totalDepth);
+		nodeIndex = currentNode + childId;
+	}
+	if(traverseLevel == svoConstants.totalDepth ||
+	   traverseLevel > (svoConstants.totalDepth - svoConstants.numCascades))
+	{
+		// Write data to Location
+        CSVOMaterial mat = gSVOMat[matSparseOffset + gLevelOffsets[traverseLevel - svoConstants.denseDepth] + nodeIndex];
 	}
 
-	gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location] = {0xFFFFFFFFFFFFFFFF};
+    // Debug SVO reconst 
+	//unsigned int location;
+    //unsigned int cascadeMaxLevel = svoConstants.totalDepth - 1;// (svoConstants.numCascades - 0);
+	//for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
+	//{
+	//	unsigned int levelIndex = i - svoConstants.denseDepth;
+	//	CSVONode* node = nullptr;
+	//	if(i == svoConstants.denseDepth)
+	//	{
+	//		uint3 levelVoxId = CalculateLevelVoxId(voxPosUnsigned, i, svoConstants.totalDepth);
+	//		node = gSVODense +
+	//			svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+	//			svoConstants.denseDim * levelVoxId.y +
+	//			levelVoxId.x;
+	//	}
+	//	else
+	//	{
+	//		node = gSVOSparse + gLevelOffsets[levelIndex] + location;
+	//	}
+
+	//	// Allocate (or acquire) next location
+	//	location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
+	//	assert(location < gLevelTotalSizes[levelIndex + 1]);
+	//	if(location >= gLevelTotalSizes[levelIndex + 1]) return;
+
+	//	// Offset child
+	//	unsigned int childId = CalculateLevelChildId(voxPosUnsigned, i + 1, svoConstants.totalDepth);
+	//	location += childId;
+	//}
+
+ //   gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location] = {0xFFFFFFFFFFFFFFFF};
 }
-
-
 #endif //__SVOLIGHTINJECT_H__

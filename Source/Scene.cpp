@@ -26,14 +26,15 @@ const uint32_t Scene::sponzaSceneLevelSizes[] =
 	8,
 	64,
 	512,
-	1024,
+    8192,
 	4 * 1024,
-	20 * 1024,
-	62 * 1024,
-	300 * 1024,
+	16 * 1024,
+	128 * 1024,
+	400 * 1024,
 	1400 * 1024,
-	4800 * 1024,
-	7400 * 1024
+	5500 * 1024,
+	13000 * 1024,
+	5500 * 1024
 };
 
 const uint32_t Scene::cornellSceneLevelSizes[] =
@@ -42,6 +43,7 @@ const uint32_t Scene::cornellSceneLevelSizes[] =
 	8,
 	64,
 	512,
+    1024,
 	1024,
 	1024,
 	4096,
@@ -60,6 +62,7 @@ const uint32_t Scene::cubeSceneLevelSizes[] =
 	512,
 	1024,
 	1024,
+    1024,
 	1024,
 	3 * 1024,
 	8 * 1024,
@@ -75,6 +78,7 @@ const uint32_t Scene::sibernikSceneLevelSizes[] =
 	64,
 	512,
 	1024,
+    1024,
 	8192,
 	45 * 1024,
 	120 * 1024,
@@ -101,15 +105,15 @@ const uint32_t Scene::tinmanSceneLevelSizes[]
 };
 
 const uint32_t Scene::bigTotalSize = 68 * 1024 * 1024;
-const uint32_t Scene::sponzaSceneTotalSize = 15000 * 1024;
+const uint32_t Scene::sponzaSceneTotalSize = 25948 * 1024;
 const uint32_t Scene::cornellSceneTotalSize = 5877 * 1024;
 const uint32_t Scene::cubeSceneTotalSize = 1064 * 1024;
 const uint32_t Scene::sibernikSceneTotalSize = 10400 * 1024;
 const uint32_t Scene::tinmanSceneTotalSize = 71 * 1024;
 
-static_assert(sizeof(Scene::sponzaSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
-static_assert(sizeof(Scene::cornellSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
-static_assert(sizeof(Scene::cubeSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::sponzaSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::cornellSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::cubeSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
 
 Scene::Scene(const Array32<MeshBatchI*> batches,
 			 const Array32<Light>& lights,

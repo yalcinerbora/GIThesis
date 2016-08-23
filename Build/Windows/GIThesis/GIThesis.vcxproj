@@ -18,19 +18,19 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 7.5.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 8.0.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -72,10 +72,11 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_50,sm_50</CodeGeneration>
+      <CodeGeneration>compute_52,sm_52</CodeGeneration>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <GenerateLineInfo>true</GenerateLineInfo>
       <MaxRegCount>32</MaxRegCount>
+      <AdditionalOptions>-Xptxas="-dlcm=ca" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -107,12 +108,13 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_50,sm_50</CodeGeneration>
+      <CodeGeneration>compute_52,sm_52</CodeGeneration>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <FastMath>true</FastMath>
       <GPUDebugInfo>false</GPUDebugInfo>
       <GenerateLineInfo>true</GenerateLineInfo>
       <MaxRegCount>32</MaxRegCount>
+      <AdditionalOptions>-Xptxas="-dlcm=ca" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -259,6 +261,6 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 7.5.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 8.0.targets" />
   </ImportGroup>
 </Project>

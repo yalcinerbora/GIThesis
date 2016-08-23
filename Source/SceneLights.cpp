@@ -8,7 +8,7 @@
 #include "IEUtility/IEMath.h"
 #include "GFG/GFGFileLoader.h"
 
-const GLsizei SceneLights::shadowMapWH = 1024;
+const GLsizei SceneLights::shadowMapWH = 1536;
 
 const uint32_t SceneLights::numShadowCascades = 4;
 const uint32_t SceneLights::shadowMipCount = 8;

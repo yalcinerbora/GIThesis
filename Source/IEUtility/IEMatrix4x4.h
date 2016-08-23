@@ -55,7 +55,7 @@ class IEMatrix4x4
 		void						setColumn(int, const float[4]);
 		void						setRow(int, const float[4]);
 		void						setData(const float[16]);
-		IEMatrix4x4&				operator=(const IEMatrix4x4&);
+		IEMatrix4x4&				operator=(const IEMatrix4x4&) = default;
 
 		// Modify		
 		IEVector4					operator*(const IEVector3&) const;	
@@ -157,9 +157,9 @@ inline void IEMatrix4x4::setData(const float* data)
 	std::copy(data, data + 16, v);
 }
 
-inline IEMatrix4x4& IEMatrix4x4::operator=(const IEMatrix4x4& matrix)
-{
-	std::copy(matrix.v, matrix.v + 16, v);
-	return *this;
-}
+//inline IEMatrix4x4& IEMatrix4x4::operator=(const IEMatrix4x4& matrix)
+//{
+//	std::copy(matrix.v, matrix.v + 16, v);
+//	return *this;
+//}
 #endif //__IE_MATRIX4X4_H__

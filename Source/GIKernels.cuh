@@ -174,9 +174,9 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 extern __global__ void SVOLightInject(// SVO Related
 									  CSVOMaterial* gSVOMat,
-									  /*const*/ CSVONode* gSVOSparse,
-									  /*const*/ CSVONode* gSVODense,
-									  /*const*/ unsigned int* gLevelAllocators,
+									  const CSVONode* gSVOSparse,
+									  const CSVONode* gSVODense,
+									  const unsigned int* gLevelAllocators,
 
 									  const unsigned int* gLevelOffsets,
 									  const unsigned int* gLevelTotalSizes,

@@ -48,10 +48,10 @@ MeshBatchSkeletal::MeshBatchSkeletal(const char* sceneFileName,
 	finalTransforms.Resize(jointKeys.size());
 	finalTransforms.CPUData().resize(jointKeys.size());
 
-	GI_LOG("Animation load complete", sceneFileName, timer.ElapsedMilliS());
+	GI_LOG("Animation load complete");
 	GI_LOG("\tDuration : %f ms", timer.ElapsedMilliS());
 	GI_LOG("\tKey Count : %d", header.keyCount);
-	GI_LOG("\tJoint Count : %d", jointKeys.size());
+	GI_LOG("\tJoint Count : %zd", jointKeys.size());
 	GI_LOG("----------");
 }
 

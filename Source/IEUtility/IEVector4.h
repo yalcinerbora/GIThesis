@@ -29,8 +29,8 @@ class IEVector4
 								IEVector4(const float v[4]);
 								IEVector4(const IEVector3&);
 								IEVector4(const IEVector3&, float w);
-								IEVector4(const IEVector4&) = default;
-								~IEVector4() = default;
+								//IEVector4(const IEVector4&) = default;
+								//~IEVector4() = default;
 
 		// Statics
 		static const IEVector4	ZeroVector;
@@ -51,7 +51,7 @@ class IEVector4
 		void					setZ(float);
 		void					setW(float);
 		void					setData(const float[4]);
-		IEVector4&				operator=(const IEVector4&);
+		IEVector4&				operator=(const IEVector4&) = default;
 
 		// Modify
 		void					operator+=(const IEVector4&);
@@ -101,6 +101,6 @@ inline void IEVector4::setY(float t) { y = t; }
 inline void IEVector4::setZ(float t) { z = t; }
 inline void IEVector4::setW(float t) { w = t; }
 inline void IEVector4::setData(const float data[]) { std::copy(data, data + 4, v); }
-inline IEVector4& IEVector4::operator=(const IEVector4& vector) { std::copy(vector.v, vector.v + 4, v); return *this; }
+//inline IEVector4& IEVector4::operator=(const IEVector4& vector) { std::copy(vector.v, vector.v + 4, v); return *this; }
 
 #endif //__IE_VECTOR4_H__

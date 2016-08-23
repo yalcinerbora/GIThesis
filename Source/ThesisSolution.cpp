@@ -34,7 +34,7 @@ AOBar::AOBar()
  , maxDistance(250.0f)
  , falloffFactor(1.0f)
  , intensityAO(1.15f)
- , intensityGI(2.85f)
+ , intensityGI(1.00f)
  , bar(nullptr)
  , hidden(true)
  , specular(true)
@@ -383,9 +383,8 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 			if(isSkeletal) currentCache.voxelWeightData.SendData();
 		}
 
-		GI_LOG("\tCascade#%d Voxels : %d", i, mesh.headerCore.vertexCount);
+		GI_LOG("\tCascade#%d Voxels : %zd", i, mesh.headerCore.vertexCount);
 	}
-
 	return true;
 }
 

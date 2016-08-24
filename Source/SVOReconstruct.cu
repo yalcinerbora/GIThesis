@@ -79,15 +79,12 @@ inline __device__ CSVOMaterial AddMat(const CSVOMaterial& material,
 }
 
 inline __device__ CSVOMaterial AtomicColorNormalAvg(CSVOMaterial* gMaterial,
+                                                    CSVOLight* gLight,
 													const CSVOColor& color,
 													const CVoxelNorm& voxelNormal,
 													const float3& ambientColor)
 {
 	float4 colorUnpack = UnpackSVOColor(color);
-	//colorUnpack.x *= ambientColor.x;
-	//colorUnpack.y *= ambientColor.y;
-	//colorUnpack.z *= ambientColor.z;
-
 	float4 normalUnpack = ExpandOnlyNormal(voxelNormal);
 	CSVOMaterial assumed, old = *gMaterial;
 	do
@@ -98,6 +95,10 @@ inline __device__ CSVOMaterial AtomicColorNormalAvg(CSVOMaterial* gMaterial,
 						{normalUnpack.x, normalUnpack.y, normalUnpack.z}));
 	}
 	while(assumed != old);
+
+    if(old == 0x0000000000000000)
+        *gLight = PackSVOColor(float4{ambientColor.x, ambientColor.y, ambientColor.z, 1.0f});
+
 	return old;
 }
 
@@ -306,6 +307,7 @@ __global__ void SVOReconstructAllocateLevel(CSVONode* gSVOLevel,
 }
 
 __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
+                                           CSVOLight* gSVOLight,
 
 										   // Const SVO Data
 										   const CSVONode* gSVOSparse,
@@ -389,9 +391,13 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][cacheVoxelId].color);
 
 	// Atomic Average
+    unsigned int lightOffset = gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] -
+                               gLevelOffsets[svoConstants.totalDepth - svoConstants.numCascades - svoConstants.denseDepth + 1];
+
 	AtomicColorNormalAvg(gSVOMat + matSparseOffset +
 						 gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] +
 						 nodeIndex,
+                         gSVOLight + lightOffset + nodeIndex,
 						 voxelColorPacked,
 						 voxelNormPacked,
 						 ambientColor);
@@ -402,13 +408,14 @@ __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 
 }
 
-__global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
+__global__ void SVOReconstructAverageNode(CSVOMaterial* __restrict__ gSVOMat,
 										  cudaSurfaceObject_t sDenseMat,
 
-										  const CSVONode* gSVODense,
-										  const CSVONode* gSVOSparse,
+                                          const CSVOLight* __restrict__ gSVOLight,
+										  const CSVONode* __restrict__ gSVODense,
+										  const CSVONode* __restrict__ gSVOSparse,
 
-										  const unsigned int* gLevelOffsets,
+										  const unsigned int* __restrict__ gLevelOffsets,
 										  const unsigned int& gSVOLevelOffset,
 										  const unsigned int& gSVONextLevelOffset,
 
@@ -448,9 +455,19 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 		float4 color = UnpackSVOColor(colorPacked);
 		float4 normal = ExpandOnlyNormal(normalPacked);
 
-		colorAvg.x = 8 * color.x;
-		colorAvg.y = 8 * color.y;
-		colorAvg.z = 8 * color.z;
+        float4 light = float4{1.0f, 1.0f, 1.0f, 1.0f};
+        if(currentLevel > (svoConstants.totalDepth - svoConstants.numCascades))
+        {
+            // Incorporate Light
+            volatile unsigned int lightOffset = gLevelOffsets[currentLevel - svoConstants.denseDepth] -
+                                       gLevelOffsets[svoConstants.totalDepth - svoConstants.numCascades - svoConstants.denseDepth + 1];
+            CSVOLight l = gSVOLight[lightOffset + globalId];
+            light = UnpackSVOColor(l);
+        }
+
+		colorAvg.x = 8 * color.x * light.x;
+		colorAvg.y = 8 * color.y * light.y;
+		colorAvg.z = 8 * color.z * light.z;
 		colorAvg.w = 8 * color.w;
 
 		normalAvg.x = 8 * normal.x;
@@ -477,9 +494,20 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			float4 color = UnpackSVOColor(colorPacked);
 			float4 normal = ExpandOnlyNormal(normalPacked);
 
-			colorAvg.x += color.x;
-			colorAvg.y += color.y;
-			colorAvg.z += color.z;
+            float4 light = float4{1.0f, 1.0f, 1.0f, 1.0f};
+            //if(currentLevel > (svoConstants.totalDepth - svoConstants.numCascades))
+            if(currentLevel == (svoConstants.totalDepth - 1))
+            {
+                // Incorporate Light
+                unsigned int lightOffset = gLevelOffsets[currentLevel + 1 - svoConstants.denseDepth] -
+                                           gLevelOffsets[svoConstants.totalDepth - svoConstants.numCascades - svoConstants.denseDepth + 1];
+                CSVOLight l = gSVOLight[lightOffset + nodeId];
+                light = UnpackSVOColor(l);
+            }
+
+			colorAvg.x += color.x * light.x;
+			colorAvg.y += color.y * light.y;
+			colorAvg.z += color.z * light.z;
 			colorAvg.w += color.w;
 
 			normalAvg.x += normal.x;
@@ -487,6 +515,19 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 			normalAvg.z += normal.z;
 			normalAvg.w += (currentLevel == (svoConstants.totalDepth - 1)) ? ceil(normal.w) : normal.w;
 
+            if(currentLevel == (svoConstants.totalDepth - 1))
+            {
+                float4 materialColor = 
+                {
+                    color.x * light.x,
+                    color.y * light.y,
+                    color.z * light.z,
+                    color.w
+                };
+                if(ceil(normal.w) == 1.0f) normalPacked |= 0xFF000000;
+                CSVOMaterial matPack = PackSVOMaterial(PackSVOColor(materialColor), normalPacked);
+                gSVOMat[matOffset + gSVONextLevelOffset + nodeId] = matPack;
+            }
 			count++;
 		}
 	}
@@ -605,9 +646,10 @@ __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatChild,
 	}
 }
 
-__global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
-							   CSVONode* gSVOSparse,
-							   CSVONode* gSVODense,
+__global__ void SVOReconstruct(CSVOMaterial* __restrict__ gSVOMat,
+                               CSVOLight* __restrict__ gSVOLight,
+							   CSVONode* __restrict__ gSVOSparse,
+							   CSVONode* __restrict__ gSVODense,
 							   unsigned int* gLevelAllocators,
 
 							   const unsigned int* gLevelOffsets,
@@ -681,8 +723,12 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
 	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][cacheVoxelId].color);
 
+
+    unsigned int lightOffset = gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] - 
+                               gLevelOffsets[svoConstants.totalDepth - svoConstants.numCascades - svoConstants.denseDepth + 1];
 	AtomicColorNormalAvg(gSVOMat + matSparseOffset +
 						 gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location,
+                         gSVOLight + lightOffset + location,
 						 voxelColorPacked,
 						 voxelNormPacked,
 						 ambientColor);

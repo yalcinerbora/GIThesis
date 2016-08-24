@@ -242,20 +242,7 @@ bool InterpolateSparse(out vec4 color,
 	//vec4 normalF = UnpackNormalSVO(materialF.y); 
 	//vec4 normalG = UnpackNormalSVO(materialG.y); 
 	//vec4 normalH = UnpackNormalSVO(materialH.y);
-	
-	// .w component used to average so change it
-	if(depth == dimDepth.y)
-	{
-		normalA.w = ceil(normalA.w);
-		//normalB.w = ceil(normalB.w);
-		//normalC.w = ceil(normalC.w);
-		//normalD.w = ceil(normalD.w);
-		//normalE.w = ceil(normalE.w);
-		//normalF.w = ceil(normalF.w);
-		//normalG.w = ceil(normalG.w);
-		//normalH.w = ceil(normalH.w);
-	}
-	
+		
 	//normalA = mix(normalA, normalB, interpValue.x);
 	//normalB = mix(normalC, normalD, interpValue.x);
 	//normalC = mix(normalE, normalF, interpValue.x);

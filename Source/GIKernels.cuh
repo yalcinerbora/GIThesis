@@ -117,6 +117,7 @@ extern __global__ void SVOReconstructAllocateLevel(CSVONode* gSVOLevel,
 												   const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
+                                                  CSVOLight* gSVOLight,
 
 												  // Const SVO Data
 												  const CSVONode* gSVOSparse,
@@ -138,6 +139,7 @@ extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
 												 cudaSurfaceObject_t sDenseMat,
 
+                                                 const CSVOLight* gSVOLight,
 												 const CSVONode* gSVODense,
 												 const CSVONode* gSVOSparse,
 
@@ -156,6 +158,7 @@ extern __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatCh
 												 const unsigned int parentSize);
 
 extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
+                                      CSVOLight* gSVOLight,
 									  CSVONode* gSVOSparse,
 									  CSVONode* gSVODense,
 									  unsigned int* gLevelAllocators,
@@ -173,7 +176,8 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 									  const CSVOConstants& svoConstants);
 
 extern __global__ void SVOLightInject(// SVO Related
-									  CSVOMaterial* gSVOMat,
+                                      CSVOLight* gSVOLight,
+									  const CSVOMaterial* gSVOMat,
 									  const CSVONode* gSVOSparse,
 									  const CSVONode* gSVODense,
 									  const unsigned int* gLevelAllocators,

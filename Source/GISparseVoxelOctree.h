@@ -108,8 +108,10 @@ class GISparseVoxelOctree
 		// SVO Data (Sparse)
 		StructuredBuffer<CSVONode>				svoNodeBuffer;
 		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
+        StructuredBuffer<CSVOLight>			    svoLightBuffer;
 		StructuredBuffer<uint32_t>				svoLevelOffsets;
-		// SVO Data (Dense)
+		
+        // SVO Data (Dense)
 		GLuint									svoDenseNode;
 		GLuint									svoDenseMat;
 		GLuint									nodeSampler;
@@ -128,6 +130,7 @@ class GISparseVoxelOctree
 		// SVO Ptrs Cuda
 		CSVOMaterial*							dSVOMaterial;
 		CSVONode*								dSVOSparse;
+        CSVOLight*                              dSVOLight;
 		CSVONode*								dSVODense;
 		uint32_t*								dSVOOffsets;
 		cudaArray_t								dSVODenseNodeArray;
@@ -146,6 +149,7 @@ class GISparseVoxelOctree
 		cudaGraphicsResource_t					svoNodeResource;
 		cudaGraphicsResource_t					svoLevelOffsetResource;
 		cudaGraphicsResource_t					svoMaterialResource;
+        cudaGraphicsResource_t					svoLightResource;
 		cudaGraphicsResource_t					svoDenseNodeResource;
 		cudaGraphicsResource_t					svoDenseTexResource;
 		

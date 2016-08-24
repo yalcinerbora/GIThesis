@@ -594,10 +594,7 @@ bool SampleSVO(out vec4 color,
 		{
 			// Mid or Leaf Level
 			uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
-			
-			// .w component used to average so change it
 			uvec2 mat = svoMaterial[loc].xy;
-			if(traversedLevel == fetchLevel) mat.y |= 0xFF000000;
 			MatWrite(matAB, matCD, matEF, matGH, mat, i);			
 		}
 	}

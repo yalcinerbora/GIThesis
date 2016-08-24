@@ -272,7 +272,7 @@ float FindMarchLength(out vec3 outData,
 				else if(renderType == RENDER_TYPE_OCCLUSION)
 				{
 					outData = vec3(UnpackOcclusion(mat.y));
-					if(i == dimDepth.y) outData = ceil(outData);
+					//if(i == dimDepth.y) outData = ceil(outData);
 				}
 				else if(renderType == RENDER_TYPE_NORMAL)
 					outData = UnpackNormal(mat.y);

@@ -116,7 +116,7 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 								   const CLight& lightStruct,
 
 								   // SVO Surface Voxel
-								   const float4& colorSVO,
+                                   const float& specular,
 								   const float4& normalSVO)
 {
 	float3 lightIntensity = {0.0f, 0.0f, 0.0f};
@@ -140,7 +140,7 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 		worldLight.y = lightStruct.position.y - worldPos.y;
 		worldLight.z = lightStruct.position.z - worldPos.z;
 
-		// Falloff Linear
+		// Falloff
 		float lightRadius = lightStruct.direction.w;
 		float distSqr = worldLight.x * worldLight.x +
 						worldLight.y * worldLight.y +
@@ -177,7 +177,7 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 
 	// Specular
 	// Blinn-Phong
-	float specPower = colorSVO.w * 4096.0f;
+    float specPower = 32.0f + specular * 2048.0f;
 	float power = pow(fmaxf(Dot(worldHalf, worldNormal), 0.0f), specPower);
 	lightIntensity.x += power;
 	lightIntensity.y += power;
@@ -193,18 +193,7 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 	lightIntensity.y *= lightStruct.color.y * lightStruct.color.w;
 	lightIntensity.z *= lightStruct.color.z * lightStruct.color.w;
 
-	// Out
-	float3 result =
-	{
-		lightIntensity.x * colorSVO.x,
-		lightIntensity.y * colorSVO.y,
-		lightIntensity.z * colorSVO.z
-	};
-
-	result.x = Clamp(result.x, 0.0f, 1.0f);
-	result.y = Clamp(result.y, 0.0f, 1.0f);
-	result.z = Clamp(result.z, 0.0f, 1.0f);
-	return result;
+	return lightIntensity;
 }
 
 //inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int& gLevelAllocator)
@@ -247,13 +236,14 @@ __device__ inline float3 PhongBRDF(const float3& worldPos,
 //}
 
 __global__ void SVOLightInject(// SVO Related
-							   CSVOMaterial* gSVOMat,
-							   const CSVONode* gSVOSparse,
-							   const CSVONode* gSVODense,
-							   const unsigned int* gLevelAllocators,
+                               CSVOLight* gSVOLight,
+							   const CSVOMaterial* __restrict__ gSVOMat,
+							   const CSVONode* __restrict__ gSVOSparse,
+							   const CSVONode* __restrict__ gSVODense,
+							   const unsigned int* __restrict__ gLevelAllocators,
 
-							   const unsigned int* gLevelOffsets,
-							   const unsigned int* gLevelTotalSizes,
+							   const unsigned int* __restrict__ gLevelOffsets,
+							   const unsigned int* __restrict__ gLevelTotalSizes,
 
 							   const CLight& gLightStruct,
 							   const CSVOConstants& svoConstants,
@@ -278,7 +268,9 @@ __global__ void SVOLightInject(// SVO Related
 							   const unsigned int lightMapIndex,
 							   const unsigned int mapWH)
 {
-	// For each pixel in the shadow map
+    assert(gLightStruct.position.w == GI_LIGHT_DIRECTIONAL);
+
+  	// For each pixel in the shadow map
 	uint2 globalId =
 	{
 		threadIdx.x + blockIdx.x * blockDim.x,
@@ -298,6 +290,25 @@ __global__ void SVOLightInject(// SVO Related
 									 lightMapIndex,
 									 depthNear,
 									 depthFar);
+
+    float3 direction
+    {
+        -gLightStruct.direction.x,
+        -gLightStruct.direction.y,
+        -gLightStruct.direction.z
+    };
+    if(gLightStruct.position.w != GI_LIGHT_DIRECTIONAL)
+    {
+        direction.x = gLightStruct.position.x - worldPoint.x;
+        direction.y = gLightStruct.position.y - worldPoint.y;
+        direction.z = gLightStruct.position.z - worldPoint.z;
+    }
+    direction = Normalize(direction);
+
+    // Adjust position a little
+    worldPoint.x += span * 2.5f * direction.x;
+    worldPoint.y += span * 2.5f * direction.y;
+    worldPoint.z += span * 2.5f * direction.z;
 
 	// Convert to voxel integer space
 	int3 voxPos =
@@ -347,7 +358,38 @@ __global__ void SVOLightInject(// SVO Related
 	{
 		// Write data to Location
         CSVOMaterial mat = gSVOMat[matSparseOffset + gLevelOffsets[traverseLevel - svoConstants.denseDepth] + nodeIndex];
-	}
+
+        CSVOColor col;
+        CVoxelNorm norm;
+        UnpackSVOMaterial(col, norm, mat);
+
+        float4 normal = ExpandOnlyNormal(norm);
+        float4 color = UnpackSVOColor(col);
+
+        // Illuminate
+        float3 luminance = PhongBRDF(worldPoint,
+                                     camPos,
+                                     camDir,
+                                     gLightStruct,
+
+                                     color.w,
+                                     normal);
+        
+        // Write
+        unsigned int lightOffset = gLevelOffsets[traverseLevel - svoConstants.denseDepth] -
+                                   gLevelOffsets[svoConstants.totalDepth - svoConstants.numCascades - svoConstants.denseDepth + 1];
+        float4 light = UnpackSVOColor(gSVOLight[lightOffset + nodeIndex]);
+        light.x += luminance.x;
+        light.y += luminance.y;
+        light.z += luminance.z;
+        
+        // Out
+        light.x = Clamp(light.x, 0.0f, 1.0f);
+        light.y = Clamp(light.y, 0.0f, 1.0f);
+        light.z = Clamp(light.z, 0.0f, 1.0f);
+
+        gSVOLight[lightOffset + nodeIndex] = PackSVOColor(light);
+    }
 
     // Debug SVO reconst 
 	//unsigned int location;

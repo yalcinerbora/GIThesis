@@ -15,6 +15,7 @@ Sparse voxel octree types that used in cuda funcs
 // first 32 bit is children index
 typedef unsigned int CSVONode;
 typedef unsigned int CSVOColor;
+typedef unsigned int CSVOLight;
 
 typedef uint64_t CSVOMaterial;
 

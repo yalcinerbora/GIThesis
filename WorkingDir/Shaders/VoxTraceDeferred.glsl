@@ -263,14 +263,7 @@ uint SampleSVO(in vec3 worldPos)
 				return svoMaterial[loc].x;
 			else if(renderType == RENDER_TYPE_OCCLUSION)
 			{
-				if(i == dimDepth.y)
-				{
-					float occ = UnpackOcculusion(svoMaterial[loc].y);
-					occ = ceil(occ);
-					return uint(occ * 255.0f) << 24;
-				}
-				else
-					return svoMaterial[loc].y;
+				return svoMaterial[loc].y;
 			}
 			else if(renderType == RENDER_TYPE_NORMAL)
 				return svoMaterial[loc].y;

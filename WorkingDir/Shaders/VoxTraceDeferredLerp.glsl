@@ -408,8 +408,6 @@ bool SampleSVO(out vec4 color,
 				mat = svoMaterial[loc].xy;
 			}
 		}
-		
-		if(traversedLevel == dimDepth.y) mat.y |= 0xFF000000;
 		MatWrite(matAB, matCD, matEF, matGH, mat, i);
 	}
 	

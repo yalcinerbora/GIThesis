@@ -35,6 +35,7 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, svoNodeResource(nullptr)
 	, svoLevelOffsetResource(nullptr)
 	, svoMaterialResource(nullptr)
+    , svoLightResource(nullptr)
 	, svoDenseNodeResource(nullptr)
 	, sceneShadowMapResource(nullptr)
 	, sceneLightParamResource(nullptr)
@@ -167,11 +168,21 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 	hSVOLevelSizes.resize(sparseNodeCount);
 	svoLevelOffsets.Resize(sparseNodeCount);
 
+    // Light Alloc Count
+    // Only Leaf Cascades Required
+    size_t lightAlloc = 0;
+    for(unsigned int i = totalLevel - newAllocators.length + 1; i <= totalLevel; i++)
+    {
+        lightAlloc += levelCounts[i];
+    }
+
 	// Sparse Portion
 	svoNodeBuffer.Resize(totalAlloc + GI_DENSE_SIZE_CUBE);
 	svoMaterialBuffer.Resize(totalAlloc);
+    svoLightBuffer.Resize(lightAlloc);
 	
 	// Register
+    if(svoLightResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoLightResource));
 	if(svoNodeResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoNodeResource));
 	if(svoMaterialResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoMaterialResource));
 	if(svoLevelOffsetResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoLevelOffsetResource));
@@ -181,6 +192,9 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoMaterialResource, 
 											svoMaterialBuffer.getGLBuffer(), 
 											cudaGLMapFlagsWriteDiscard));
+    CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoLightResource,
+                                            svoLightBuffer.getGLBuffer(),
+                                            cudaGLMapFlagsWriteDiscard));
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&svoLevelOffsetResource,
 											svoLevelOffsets.getGLBuffer(),
 											cudaGLMapFlagsReadOnly));
@@ -194,6 +208,9 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 
 	glBindBuffer(GL_COPY_WRITE_BUFFER, svoMaterialBuffer.getGLBuffer());
 	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero);
+
+    glBindBuffer(GL_COPY_WRITE_BUFFER, svoLightBuffer.getGLBuffer());
+    glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero);
 
 	dSVOLevelSizes.Memset(0x00, 0, dSVOLevelSizes.Size());
 	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
@@ -404,6 +421,7 @@ double GISparseVoxelOctree::ConstructFullAtomic(const IEVector3& ambientColor)
 		SVOReconstruct<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(
 			dSVOMaterial,
+            dSVOLight,
 			dSVOSparse,
 			dSVODense,
 			dSVOLevelSizes.Data(),
@@ -472,6 +490,7 @@ double GISparseVoxelOctree::ConstructLevelByLevel(const IEVector3& ambientColor)
 		SVOReconstructMaterialLeaf<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(
 			dSVOMaterial,
+            dSVOLight,
 
 			// Const SVO Data
 			dSVOSparse,
@@ -522,6 +541,7 @@ double GISparseVoxelOctree::LightInject(InjectParams params,
 
 		SVOLightInject<<<gridSize, blockSize>>>
 		(	// SVO Related
+            dSVOLight,
 			dSVOMaterial,
 			dSVOSparse,
 			dSVODense,
@@ -552,6 +572,7 @@ double GISparseVoxelOctree::LightInject(InjectParams params,
 			currentLight * 6  + cascade,
 			SceneLights::shadowMapWH
 		);
+        CUDA_KERNEL_CHECK();
 	}
 
 	// Copy Level Sizes
@@ -588,6 +609,7 @@ double GISparseVoxelOctree::AverageNodes()
 			dSVOMaterial,
 			sSVODenseMat[0],
 
+            dSVOLight,
 			dSVODense,
 			dSVOSparse,
 
@@ -644,6 +666,7 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 
 	// SVO Nodes
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoMaterialResource));
+    CUDA_CHECK(cudaGraphicsMapResources(1, &svoLightResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoNodeResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoLevelOffsetResource));
 	CUDA_CHECK(cudaGraphicsMapResources(1, &svoDenseNodeResource));
@@ -654,6 +677,8 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 													 &size, svoNodeResource));
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVOMaterial),
 													 &size, svoMaterialResource));
+    CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVOLight),
+                                                    &size, svoLightResource));
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&dSVOOffsets),
 													&size, svoLevelOffsetResource));
 	CUDA_CHECK(cudaGraphicsSubResourceGetMappedArray(&dSVODenseNodeArray, svoDenseNodeResource, 0, 0));
@@ -678,6 +703,7 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 	uint32_t usedNodeCount = hSVOLevelSizes.back() + svoLevelOffsets.CPUData().back();
 	CUDA_CHECK(cudaMemset(dSVODense, 0xFF, sizeof(CSVONode) * (usedNodeCount + GI_DENSE_SIZE_CUBE)));
 	CUDA_CHECK(cudaMemset(dSVOMaterial, 0x00, sizeof(CSVOMaterial) * (usedNodeCount)));
+    CUDA_CHECK(cudaMemset(dSVOLight, 0x00, sizeof(CSVOLight) * (svoLightBuffer.Capacity())));
 
 	dSVOLevelSizes.Memset(0x00, 0, dSVOLevelSizes.Size());
 	std::fill(hSVOLevelSizes.begin(), hSVOLevelSizes.end(), 0);
@@ -710,6 +736,7 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &sceneVPMatrixResource));
 
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoMaterialResource));
+    CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoLightResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoNodeResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoLevelOffsetResource));
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &svoDenseNodeResource));
@@ -1189,7 +1216,8 @@ uint64_t GISparseVoxelOctree::MemoryUsage() const
 {
 	uint64_t totalBytes = 0;
 	totalBytes += svoNodeBuffer.Capacity() * sizeof(CSVONode);
-	totalBytes += svoMaterialBuffer.Capacity() * (sizeof(CSVOMaterial) + 8) ;
+	totalBytes += svoMaterialBuffer.Capacity() * sizeof(CSVOMaterial);
+    totalBytes += svoLightBuffer.Capacity() * sizeof(CSVOLight);
 	totalBytes += dSVOLevelSizes.Size() * sizeof(unsigned int);
 	totalBytes += sizeof(unsigned int);
 	totalBytes += GI_DENSE_SIZE_CUBE * sizeof(CSVONode);	// Dense Tex

@@ -10,10 +10,11 @@ const IEVector4 IEVector4::XAxis = IEVector4(1.0f, 0.0f, 0.0f, 0.0f);
 const IEVector4 IEVector4::YAxis = IEVector4(0.0f, 1.0f, 0.0f, 0.0f);
 const IEVector4 IEVector4::ZAxis = IEVector4(0.0f, 0.0f, 1.0f, 0.0f);
 
-IEVector4::IEVector4() : x(0.0f),
-							y(0.0f),
-							z(0.0f),
-							w(0.0f)
+IEVector4::IEVector4()
+	: x(0.0f)
+	, y(0.0f)
+	, z(0.0f)
+	, w(0.0f)
 {}
 
 IEVector4::IEVector4(float xx, float yy, float zz, float ww) : x(xx),

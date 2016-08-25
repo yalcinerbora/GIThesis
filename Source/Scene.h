@@ -38,11 +38,15 @@ class Scene : public SceneI
 		static const uint32_t	cornellSceneLevelSizes[];
 		static const uint32_t	cubeSceneLevelSizes[];
 		static const uint32_t	sibernikSceneLevelSizes[];
+		static const uint32_t	tinmanSceneLevelSizes[];
+		static const uint32_t	bigSizes[];
 
+		static const uint32_t	tinmanSceneTotalSize;
 		static const uint32_t	sponzaSceneTotalSize;
 		static const uint32_t	cornellSceneTotalSize;
 		static const uint32_t	cubeSceneTotalSize;
 		static const uint32_t	sibernikSceneTotalSize;
+		static const uint32_t	bigTotalSize;
 		
 		Array32<MeshBatchI*>	getBatches() override;
 		SceneLights&			getSceneLights() override;

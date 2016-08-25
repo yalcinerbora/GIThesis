@@ -18,19 +18,19 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 7.5.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 8.0.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -52,7 +52,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(SolutionDir)..\..\Source;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
       <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;GI_DEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
@@ -72,9 +72,11 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50</CodeGeneration>
+      <CodeGeneration>compute_52,sm_52</CodeGeneration>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <GenerateLineInfo>true</GenerateLineInfo>
+      <MaxRegCount>32</MaxRegCount>
+      <AdditionalOptions>-Xptxas="-dlcm=ca" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -84,7 +86,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(SolutionDir)..\..\Source;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
       <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;NDEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
@@ -106,11 +108,13 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50</CodeGeneration>
+      <CodeGeneration>compute_52,sm_52</CodeGeneration>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <FastMath>true</FastMath>
       <GPUDebugInfo>false</GPUDebugInfo>
       <GenerateLineInfo>true</GenerateLineInfo>
+      <MaxRegCount>32</MaxRegCount>
+      <AdditionalOptions>-Xptxas="-dlcm=ca" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -139,6 +143,7 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEQuaternion.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IERandom.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IETimer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector4.cpp" />
@@ -147,8 +152,11 @@
     <ClCompile Include="..\..\..\Source\MayaInput.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchCornell.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchCube.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchNyra.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchOscillate.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchSponza.cpp" />
-    <ClCompile Include="..\..\..\Source\MeshBatchStatic.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatch.cpp" />
     <ClCompile Include="..\..\..\Source\Scene.cpp" />
     <ClCompile Include="..\..\..\Source\SceneLights.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
@@ -163,11 +171,16 @@
     <ClInclude Include="..\..\..\Source\GICudaStructMatching.h" />
     <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h" />
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchCornell.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchCube.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchNyra.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchSponza.h" />
-    <ClInclude Include="..\..\..\Source\MeshBatchStatic.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatch.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchI.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchOscillate.h" />
+    <ClInclude Include="..\..\..\Source\OGLTimer.h" />
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
@@ -177,7 +190,9 @@
     <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
+    <ClInclude Include="..\..\..\Source\SVOLightInject.cuh" />
     <ClInclude Include="..\..\..\Source\SVOTexPool.h" />
+    <ClInclude Include="..\..\..\Source\VoxelCacheData.h" />
     <ClInclude Include="..\..\..\Source\VoxelCopyToVAO.cuh" />
     <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h" />
     <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h" />
@@ -221,6 +236,7 @@
     <ClInclude Include="..\..\..\Source\TGALoad.h" />
     <ClInclude Include="..\..\..\Source\CVoxel.cuh" />
     <ClInclude Include="..\..\..\Source\ThesisSolution.h" />
+    <ClInclude Include="..\..\..\Source\VoxelSceneCache.h" />
     <ClInclude Include="..\..\..\Source\Window.h" />
     <ClInclude Include="..\..\..\Source\WindowInput.h" />
   </ItemGroup>
@@ -243,6 +259,6 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 7.5.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 8.0.targets" />
   </ImportGroup>
 </Project>

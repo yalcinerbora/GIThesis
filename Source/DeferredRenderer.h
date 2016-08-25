@@ -41,9 +41,11 @@ class DeferredRenderer
 	private:
 		static const float		postProcessTriData[6];
 
-		Shader					vertexGBufferWrite;
-		Shader					fragmentGBufferWrite;
+		Shader					vertGBufferSkeletal;
+		Shader					vertGBufferWrite;
+		Shader					fragGBufferWrite;
 		Shader					vertDPass;
+		Shader					vertDPassSkeletal;
 
 		Shader					vertLightPass;
 		Shader					fragLightPass;
@@ -51,14 +53,21 @@ class DeferredRenderer
 		Shader					vertPPGeneric;
 		Shader					fragLightApply;
 		Shader					fragPPGeneric;
+		Shader					fragPPNormal;
+		Shader					fragPPDepth;
+
+		
 
 		// Shader for shadowmap
 		Shader					fragShadowMap;
 		Shader					vertShadowMap;
+		Shader					vertShadowMapSkeletal;
 
 		Shader					geomAreaShadowMap;
 		Shader					geomPointShadowMap;
 		Shader					geomDirShadowMap;
+
+		Shader					computeHierZ;
 
 		GBuffer					gBuffer;
 		FrameTransformBuffer	cameraTransform;
@@ -82,15 +91,7 @@ class DeferredRenderer
 														float cascadeFar,
 														const Camera& camera,
 														const IEVector3& lightDir);
-		static float			CalculateCascadeLength(float frustumFar, 
-													   unsigned int cascadeNo);
-
 	protected:
-		void					GenerateShadowMaps(SceneI&, const Camera&);
-		void					DPass(SceneI&, const Camera&);
-		void					GPass(SceneI&, const Camera&);
-		void					LightPass(SceneI&, const Camera&);
-		void					LightMerge(const Camera&);
 
 	public:
 		// Constructors & Destructor
@@ -107,18 +108,34 @@ class DeferredRenderer
 		InvFrameTransformBuffer&	GetInvFTransfrom();
 		FrameTransformBuffer&		GetFTransform();
 
+		static float				CalculateCascadeLength(float frustumFar,
+														   unsigned int cascadeNo);
+
 		void						RefreshInvFTransform(const Camera&,
 														 GLsizei width,
 														 GLsizei height);
 
-		void						Render(SceneI&, const Camera&);
+		void						Render(SceneI&, const Camera&, bool directLight, const IEVector3& ambientColor);
 		void						PopulateGBuffer(SceneI&, const Camera&);
+
+		// Do stuff by function
+		void						GenerateShadowMaps(SceneI&, const Camera&);
+		void						DPass(SceneI&, const Camera&);
+		void						GPass(SceneI&, const Camera&);
+		void						ClearLI(const IEVector3& ambientColor);
+		void						LightPass(SceneI&, const Camera&);
+		void						Present(const Camera&);
 
 		// Directly Renders Buffers
 		void						ShowColorGBuffer(const Camera& camera);
+		void						ShowNormalGBuffer(const Camera& camera);
+		void						ShowDepthGBuffer(const Camera& camera);
 		void						ShowLIBuffer(const Camera& camera);
-		void						ShowTexture(const Camera& camera, GLuint tex);
+		void						ShowTexture(const Camera& camera, GLuint tex, RenderTargetLocation location = RenderTargetLocation::COLOR);
 		
 		void						AddToLITexture(GLuint texture);
+
+		void						BindShadowMaps(SceneI&);
+		void						BindLightBuffers(SceneI&);
 };
 #endif //__DEFERREDRENDERER_H__

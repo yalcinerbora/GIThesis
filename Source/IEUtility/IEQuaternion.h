@@ -7,7 +7,7 @@ Column Major Vector Matrix
 #ifndef __IE_QUATERNION_H__
 #define __IE_QUATERNION_H__
 
-#define SLERP_TO_LERP_SWITCH_THRESHOLD 0.01f
+#define SLERP_TO_LERP_SWITCH_THRESHOLD 0.05f
 
 #include <algorithm>
 #include <cassert>
@@ -50,7 +50,7 @@ class IEQuaternion
 		void						setY(float);
 		void						setZ(float);
 		void						setData(const float[4]);
-		IEQuaternion&				operator=(const IEQuaternion&);
+		IEQuaternion&				operator=(const IEQuaternion&) = default;
 
 		// Operators
 		IEQuaternion				operator*(const IEQuaternion&) const;
@@ -106,6 +106,6 @@ inline void IEQuaternion::setX(float xx) { x = xx; }
 inline void IEQuaternion::setY(float yy) { y = yy; }
 inline void IEQuaternion::setZ(float zz) { z = zz; }
 inline void IEQuaternion::setData(const float data[]) { std::copy(data, data + 4, v); }
-inline IEQuaternion& IEQuaternion::operator=(const IEQuaternion& quaternion) { std::copy(quaternion.v, quaternion.v + 4, v); return *this; }
+//inline IEQuaternion& IEQuaternion::operator=(const IEQuaternion& quaternion) { std::copy(quaternion.v, quaternion.v + 4, v); return *this; }
 
 #endif //__IE_QUATERNION_H__

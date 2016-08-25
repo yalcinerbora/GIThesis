@@ -12,6 +12,7 @@ Just Renders the scene
 #include <AntTweakBar.h>
 #include <cstdint>
 #include <vector>
+#include "IEUtility/IEVector3.h"
 
 class DeferredRenderer;
 class EmptyGISolution;
@@ -25,9 +26,6 @@ struct TwLightCallbackLookup
 class EmptyGISolution : public SolutionI
 {
 	private:
-		SceneI*					currentScene;
-		DeferredRenderer&		dRenderer;
-
 		TwBar*					bar;
 		double					frameTime;
 
@@ -55,6 +53,13 @@ class EmptyGISolution : public SolutionI
 		static void TW_CALL		SetLightRadius(const void *value, void *clientData);
 
 	protected:
+		DeferredRenderer&		dRenderer;
+		SceneI*					currentScene;
+
+		bool					directLighting;
+		bool					ambientLighting;
+		IEVector3				ambientColor;
+		
 	public:
 								EmptyGISolution(DeferredRenderer&);
 								~EmptyGISolution() = default;

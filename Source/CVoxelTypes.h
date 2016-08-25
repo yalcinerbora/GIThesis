@@ -36,28 +36,16 @@ typedef unsigned int CVoxelNorm;
 
 // Voxel Rendering Data
 #pragma pack(push, 1)
-struct CVoxelRender
+struct CVoxelColor
 {
 	//unsigned int	voxelTransformType;
 	uchar4			color;		// Color
-
-	// Transform Related Data
-	// For Skeletal mesh these shows index of the transforms and weights
-	// For Morph target this shows the neigbouring vertices and their morph related index
-	//uchar4		weightIndex;
-	//uchar4		weight;
 };
 
-struct CVoxelRenderSkelMorph
+struct CVoxelWeight
 {
-	//unsigned int	voxelTransformType;
-	uchar4			color;		// Color
-
-	// Transform Related Data
-	// For Skeletal mesh these shows index of the transforms and weights
-	// For Morph target this shows the neigbouring vertices and their morph related index
-	uchar4			weightIndex;
 	uchar4			weight;
+	uchar4			weightIndex;
 };
 #pragma pack(pop)
 #endif //__CVOXELTYPES_H__

@@ -10,18 +10,19 @@ Vao for rendering voxel debug
 #include "GLHeaderLite.h"
 #include <cstdint>
 #include <vector_types.h>
+#include <array>
+#include "VoxelCacheData.h"
+#include "StructuredBuffer.h"
 
 #define IN_POS 0
 #define IN_VOX_COLOR 1
 #define IN_VOX_NORM_POS 2
 #define IN_VOX_IDS 3
+#define IN_VOX_WEIGHT 4
 
-struct VoxelNormPos;
-struct VoxelIds;
-struct VoxelRenderData;
-
-template<class T>
-class StructuredBuffer;
+//template<class T>
+//class StructuredBuffer;
+//
 
 struct CubeData
 {
@@ -47,7 +48,9 @@ class VoxelDebugVAO
 		// Cosntructors & Destructor
 								VoxelDebugVAO(StructuredBuffer<VoxelNormPos>&,
 											  StructuredBuffer<VoxelIds>&,
-											  StructuredBuffer<VoxelRenderData>&);
+											  StructuredBuffer<VoxelColorData>&,
+											  StructuredBuffer<VoxelWeightData>&,
+											  bool isSkeletal);
 								VoxelDebugVAO(StructuredBuffer<VoxelNormPos>&,
 											  StructuredBuffer<uchar4>&);
 								VoxelDebugVAO(const VoxelDebugVAO&) = delete;

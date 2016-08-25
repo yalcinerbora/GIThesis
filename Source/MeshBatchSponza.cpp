@@ -2,9 +2,8 @@
 #include "BatchFunctors.h"
 
 MeshBatchSponza::MeshBatchSponza(const char* sceneFileName,
-								 float minVoxSpan,
-								 const Array32<size_t> maxVoxelCounts)
-	: MeshBatchStatic(sceneFileName, minVoxSpan, maxVoxelCounts)
+								 float minVoxSpan)
+	: MeshBatch(sceneFileName, minVoxSpan, false)
 {}
 
 // Static Files
@@ -49,7 +48,7 @@ void MeshBatchSponza::Update(double elapsedS)
 
 	// Cube Rotation
 	static const float cubeSpeedRGB = 130.123f;
-	static const float cubeSpeedRGW = 100.123f;
+	static const float cubeSpeedRGW = 1.13f;
 	rotationFunctor(cubeRGB, cubeSpeedRGB * elapsedS, IEVector3::Xaxis);
 	rotationFunctor(cubeRGB, cubeSpeedRGB * elapsedS, IEVector3::Yaxis);
 	rotationFunctor(cubeRGW, cubeSpeedRGW * elapsedS, IEVector3::Xaxis);

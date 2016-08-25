@@ -3,7 +3,7 @@
 #include "IEUtility/IETimer.h"
 #include "Macros.h"
 
-const uint32_t Scene::sponzaSceneLevelSizes[] =
+const uint32_t Scene::bigSizes[] =
 {
 	1,
 	8,
@@ -11,12 +11,30 @@ const uint32_t Scene::sponzaSceneLevelSizes[] =
 	512,
 	1024,
 	8192,
-	45 * 1024,
-	200 * 1024,
-	600 * 1024,
-	2500 * 1024,
-	2000 * 1024,
-	2200 * 1024
+	5320 * 1024,
+	1560 * 1024,
+	12000 * 1024,
+	12000 * 1024,
+	12000 * 1024,
+	15000 * 1024,
+	12000 * 1024,
+};
+
+const uint32_t Scene::sponzaSceneLevelSizes[] =
+{
+	1,                  // Root
+	8,                  // 1
+	64,                 // 2
+	512,                // 3
+    8192,               // 4
+	4 * 1024,           // 5
+	16 * 1024,          // 6
+	128 * 1024,         // 7
+	400 * 1024,         // 8
+	1400 * 1024,        // 9
+	5500 * 1024,        // 10
+	13000 * 1024,       // 11
+	5500 * 1024         // 12
 };
 
 const uint32_t Scene::cornellSceneLevelSizes[] =
@@ -25,6 +43,7 @@ const uint32_t Scene::cornellSceneLevelSizes[] =
 	8,
 	64,
 	512,
+    1024,
 	1024,
 	1024,
 	4096,
@@ -43,6 +62,7 @@ const uint32_t Scene::cubeSceneLevelSizes[] =
 	512,
 	1024,
 	1024,
+    1024,
 	1024,
 	3 * 1024,
 	8 * 1024,
@@ -58,23 +78,42 @@ const uint32_t Scene::sibernikSceneLevelSizes[] =
 	64,
 	512,
 	1024,
+    1024,
 	8192,
-	145 * 1024,
-	220 * 1024,
+	45 * 1024,
+	120 * 1024,
 	400 * 1024,
-	3000 * 1024,
-	6200 * 1024,
-	6600 * 1024
+	2000 * 1024,
+	3800 * 1024,
+	4000 * 1024
 };
 
-const uint32_t Scene::sponzaSceneTotalSize = 7555 * 1024;
+const uint32_t Scene::tinmanSceneLevelSizes[]
+{
+	1,
+	8,
+	64,
+	512,
+	1024,
+	1024,
+	1024,
+	1024,
+	1024,
+	5 * 1024,
+	10 * 1024,
+	50 * 1024
+};
+
+const uint32_t Scene::bigTotalSize = 68 * 1024 * 1024;
+const uint32_t Scene::sponzaSceneTotalSize = 25948 * 1024;
 const uint32_t Scene::cornellSceneTotalSize = 5877 * 1024;
 const uint32_t Scene::cubeSceneTotalSize = 1064 * 1024;
-const uint32_t Scene::sibernikSceneTotalSize = 16569 * 1024;
+const uint32_t Scene::sibernikSceneTotalSize = 10400 * 1024;
+const uint32_t Scene::tinmanSceneTotalSize = 71 * 1024;
 
-static_assert(sizeof(Scene::sponzaSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
-static_assert(sizeof(Scene::cornellSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
-static_assert(sizeof(Scene::cubeSceneLevelSizes) / sizeof(uint32_t) == 12, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::sponzaSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::cornellSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::cubeSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
 
 Scene::Scene(const Array32<MeshBatchI*> batches,
 			 const Array32<Light>& lights,

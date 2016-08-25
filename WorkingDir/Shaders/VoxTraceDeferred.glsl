@@ -2,7 +2,7 @@
 /*	
 	**Voxel Deferred Sampled Compute Shader**
 	
-	File Name	: VoxTraceAO.glsl
+	File Name	: VoxTraceAO.vert
 	Author		: Bora Yalciner
 	Description	:
 
@@ -12,9 +12,9 @@
 
 #define I_COLOR_FB layout(rgba8, binding = 2) restrict writeonly
 
-#define LU_SVO_NODE layout(std430, binding = 0) readonly
-#define LU_SVO_MATERIAL layout(std430, binding = 1) readonly
-#define LU_SVO_LEVEL_OFFSET layout(std430, binding = 2) readonly
+#define LU_SVO_NODE layout(std430, binding = 2) readonly
+#define LU_SVO_MATERIAL layout(std430, binding = 3) readonly
+#define LU_SVO_LEVEL_OFFSET layout(std430, binding = 4) readonly
 
 #define U_RENDER_TYPE layout(location = 0)
 #define U_FETCH_LEVEL layout(location = 1)
@@ -26,6 +26,9 @@
 #define T_DEPTH layout(binding = 2)
 #define T_DENSE_NODE layout(binding = 5)
 #define T_DENSE_MAT layout(binding = 6)
+
+// Ratio Between TraceBuffer and GBuffer
+#define TRACE_RATIO 1
 
 #define RENDER_TYPE_COLOR 0
 #define RENDER_TYPE_OCCLUSION 1
@@ -111,6 +114,54 @@ vec3 DepthToWorld(vec2 gBuffUV)
 
 	// From Clip Space to World Space
 	return (invViewProjection * clip).xyz;
+}
+
+float IntersectDistance(in vec3 relativePos, 
+						in vec3 dir, 
+						in float gridDim)
+{
+	// 6 Plane intersection on cube normalized coordinates
+	// Since planes axis aligned writing code is optimized 
+	// (instead of dot products)
+
+	// P is normCoord (ray position)
+	// D is dir (ray direction)
+	// N is plane normal (since axis aligned (1, 0, 0), (0, 1, 0), (0, 0, 1)
+	// d is gridDim (plane distance from origin) (for "far" planes)
+
+	// d - (P dot N) (P dot N returns Px Py Pz for each plane)
+	vec3 tClose = vec3(0.0f) - relativePos;	
+	vec3 tFar = vec3(gridDim) - relativePos;
+	
+	// Negate zeroes from direction
+	// (D dot N) returns Dx Dy Dz for each plane
+	// IF perpendicaular make it intersect super far
+	bvec3 dirMask = greaterThan(abs(dir), vec3(EPSILON));
+	dir.x = (dirMask.x) ? dir.x : EPSILON;
+	dir.y = (dirMask.y) ? dir.y : EPSILON;
+	dir.z = (dirMask.z) ? dir.z : EPSILON;
+
+	// acutal T value
+	// d - (P dot N) / (N dot D)
+	vec3 dirInv = vec3(1.0f) / dir;
+	tClose *= dirInv;
+	tFar *= dirInv;
+
+	// Negate Negative
+	// Write FLT_MAX if its <= EPSILON
+	bvec3 tCloseMask = greaterThan(tClose, vec3(EPSILON));
+	bvec3 tFarMask = greaterThan(tFar, vec3(EPSILON));
+	tClose.x = (tCloseMask.x) ? tClose.x : FLT_MAX;
+	tClose.y = (tCloseMask.y) ? tClose.y : FLT_MAX;
+	tClose.z = (tCloseMask.z) ? tClose.z : FLT_MAX;
+	tFar.x = (tFarMask.x) ? tFar.x : FLT_MAX;
+	tFar.y = (tFarMask.y) ? tFar.y : FLT_MAX;
+	tFar.z = (tFarMask.z) ? tFar.z : FLT_MAX;
+
+	// Reduction
+	float minClose = min(min(tClose.x, tClose.y), tClose.z);
+	float minFar = min(min(tFar.x, tFar.y), tFar.z);
+	return min(minClose, minFar) + 0.01f;
 }
 
 ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
@@ -212,14 +263,7 @@ uint SampleSVO(in vec3 worldPos)
 				return svoMaterial[loc].x;
 			else if(renderType == RENDER_TYPE_OCCLUSION)
 			{
-				if(i == dimDepth.y)
-				{
-					float occ = UnpackOcculusion(svoMaterial[loc].y);
-					occ = ceil(occ);
-					return uint(occ * 255.0f) << 24;
-				}
-				else
-					return svoMaterial[loc].y;
+				return svoMaterial[loc].y;
 			}
 			else if(renderType == RENDER_TYPE_NORMAL)
 				return svoMaterial[loc].y;
@@ -241,16 +285,31 @@ uint SampleSVO(in vec3 worldPos)
 	return 0;
 }
 
+vec3 InterpolatePos(in vec3 worldPos)
+{
+	// Interpolate position if gBufferTex > traceTex
+	if(TRACE_RATIO == 1) return worldPos;
+	else
+	{
+		// TODO: Implement
+		// Use sibling cone threads and shared memory to reduce neigbouring pixels
+		// dimensional difference has to be power of two
+		return worldPos;
+	}
+}
+
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 void main(void)
 {
-	// Thread Logic is per pixel
+	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	if(any(greaterThanEqual(globalId, imageSize(traceTex).xy))) return;
+	uvec2 pixelId = globalId / TRACE_RATIO;
+	if(any(greaterThanEqual(pixelId, imageSize(traceTex).xy))) return;
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
-	vec2 gBuffUV = vec2(globalId + vec2(0.5f) - viewport.xy) / viewport.zw;
+	vec2 gBuffUV = vec2(pixelId + vec2(0.5f) - viewport.xy) / viewport.zw;
 	vec3 worldPos = DepthToWorld(gBuffUV);
+	worldPos = InterpolatePos(worldPos); 
 
 	uint data = SampleSVO(worldPos);
 	vec3 color = vec3(1.0f, 0.0f, 1.0f);

@@ -14,15 +14,17 @@ Does not interfere with keyboard mouse input
 
 #include "InputManI.h"
 #include "ArrayStruct.h"
+#include "Camera.h"
 #include <map>
 
-struct Camera;
 class SolutionI;
 class SceneI;
 class Window;
 
 using CallbackArray = std::multimap<std::pair<int, int>, 
 									std::pair<void(*)(void*), void*>>;
+
+
 
 class WindowInput : public InputManI
 {
@@ -34,7 +36,8 @@ class WindowInput : public InputManI
 		CallbackArray			callbacks;
 
 	protected:
-		Camera&				camera;
+		Camera&					camera;
+		static const Camera		savedCamera;
 
 	public:
 							WindowInput(Camera& cam,

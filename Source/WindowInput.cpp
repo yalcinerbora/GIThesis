@@ -3,6 +3,45 @@
 #include "Macros.h"
 #include <GLFW/glfw3.h>
 
+//// Sponza
+//const Camera WindowInput::savedCamera = 
+//{
+//	90.0f,
+//	0.15f,
+//	600.0f,
+//	1280,
+//	720,
+//	IEVector3(-194, 108.5, 2.49),
+//	IEVector3(25.6, 38.42, -14.37),
+//	IEVector3::Yaxis
+//};
+
+// Cornell
+const Camera WindowInput::savedCamera =
+{
+	90.0f,
+	0.15f,
+	600.0f,
+	1280,
+	720,
+	// Sponza
+	//IEVector3(-194f, 108.5f, 2.49f),
+	//IEVector3(25.6f, 38.42f, -14.37f),
+	// Cornell
+	//IEVector3(-295.594666f, 135.253632f, 47.2294273f),
+	//IEVector3(-72.7732697f, 87.5113068f, 8.60756302f),
+	// Sponza 2
+	//IEVector3(-182.487885f, 105.104980f, -18.5853291f),
+	//IEVector3(30.7673531f, 16.5779095f, -8.26121616f),
+	// Sponza 3
+	//IEVector3(-112.188194f, 29.4227695f, -1.11264169f),
+	//IEVector3(82.5518875f, 13.7036791f, 122.393143f),
+	// Sibernik
+	IEVector3(-190.550354f, 119.162132f, 44.7449226f),
+	IEVector3(23.1233673f, 46.8825302f, -5.65195084f),
+	IEVector3::Yaxis
+};
+
 WindowInput::WindowInput(Camera& cam,
 						 uint32_t& currentSolution,
 						 uint32_t& currentScene,
@@ -11,8 +50,7 @@ WindowInput::WindowInput(Camera& cam,
 	, currentSolution(currentSolution)
 	, currentScene(currentScene)
 	, currentInput(currentInput)
-{
-}
+{}
 
 void WindowInput::WindowPosChangedFunc(int x, int y)
 {
@@ -85,7 +123,9 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 			GI_LOG("Changing Input Scheme");
 			currentInput++;
 			break;
-
+		case GLFW_KEY_KP_2:
+			GI_LOG("Saved Camera");
+			camera = savedCamera;
 		default:
 			break;
 	}

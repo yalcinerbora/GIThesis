@@ -10,42 +10,14 @@ Voxel Representation of the Scene
 #include "GICudaAllocator.h"
 #include "StructuredBuffer.h"
 #include "VoxelDebugVAO.h"
+#include "VoxelCacheData.h"
 
 class IEVector3;
-
-#pragma pack(push, 1)
-struct VoxelNormPos
-{
-	uint32_t vNormPos[2];
-};
-
-struct VoxelIds
-{
-	uint32_t vIds[2];
-};
-
-struct VoxelRenderData
-{
-	uint32_t color;				// Color
-	// That is it for transform dynamic options
-};
-
-struct VoxelRenderSkelMorphData
-{
-	uchar4			color;		// Color
-
-	// Transform Related Data
-	// For Skeletal mesh these shows index of the transforms and weights
-	// For Morph target this shows the neigbouring vertices and their morph related index
-	uchar4			weightIndex;
-	uchar4			weight;
-};
-#pragma pack(pop)
 
 class GICudaVoxelScene
 {
 	private:
-		GICudaAllocator						allocator;
+		GICudaAllocator		allocator;
 
 	protected:
 
@@ -60,11 +32,13 @@ class GICudaVoxelScene
 		// Determines and Allocates the initial Page Size for the first frame
 		void				LinkOGL(GLuint aabbBuffer,
 									GLuint transformBuffer,
+									GLuint jointTransformBuffer,
 									GLuint transformIDBuffer,
 									GLuint infoBufferID,
 									GLuint voxelCacheNormPos,
 									GLuint voxelCacheIds,
 									GLuint voxelCacheRender,
+									GLuint weightBuffer,
 									uint32_t objCount,
 									uint32_t voxelCount);
 		void				AllocateWRTLinkedData(float coverageRatio);
@@ -75,7 +49,7 @@ class GICudaVoxelScene
 		// Adds newly entered voxels from the cache
 		// Repositions existing voxels which is already in the grid
 		// Reconstructs SVO tree
-		void				VoxelUpdate(double& ioTiming,
+		IEVector3			VoxelUpdate(double& ioTiming,
 										double& updateTiming,
 										const IEVector3& playerPos,
 										float cascadeMultiplier);
@@ -95,5 +69,6 @@ class GICudaVoxelScene
 										uint32_t& voxCount,
 										uint32_t maxVoxelCount);
 		GICudaAllocator*	Allocator();
+
 };
 #endif //__GICUDAVOXELSCENE_H__

@@ -5,9 +5,9 @@
 #ifndef __MESHBATCHCUBE_H__
 #define __MESHBATCHCUBE_H__
 
-#include "MeshBatchStatic.h"
+#include "MeshBatch.h"
 
-class MeshBatchCube : public MeshBatchStatic
+class MeshBatchCube : public MeshBatch
 {
 	private:
 
@@ -16,8 +16,7 @@ class MeshBatchCube : public MeshBatchStatic
 	public:
 		// Constructors & Destructor
 								MeshBatchCube(const char* sceneFileName,
-											  float minVoxSpan,
-											  const Array32<size_t> maxVoxelCounts);
+											  float minVoxSpan);
 
 		// Static Files
 		static const char*		rotatingCubeFileName;
@@ -27,5 +26,4 @@ class MeshBatchCube : public MeshBatchStatic
 		void					Update(double elapsedS) override;
 		VoxelObjectType			MeshType() const override;
 };
-
 #endif //__MESHBATCHCUBE_H__

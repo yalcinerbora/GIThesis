@@ -5,9 +5,9 @@
 #ifndef __MESHBATCHCORNELL_H__
 #define __MESHBATCHCORNELL_H__
 
-#include "MeshBatchStatic.h"
+#include "MeshBatch.h"
 
-class MeshBatchCornell : public MeshBatchStatic
+class MeshBatchCornell : public MeshBatch
 {
 	private:
 
@@ -16,8 +16,7 @@ class MeshBatchCornell : public MeshBatchStatic
 	public:
 		// Constructors & Destructor
 								MeshBatchCornell(const char* sceneFileName,
-												 float minVoxSpan,
-												 const Array32<size_t> maxVoxelCounts);
+												 float minVoxSpan);
 
 		// Static Files
 		static const char*		cornellDynamicFileName;

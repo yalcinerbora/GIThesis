@@ -8,48 +8,63 @@
 #include "SceneLights.h"
 #include "IEUtility/IEMath.h"
 #include <cuda_gl_interop.h>
+#include "OGLTimer.h"
+#include "IEUtility/IETimer.h"
+#include "GFGLoader.h"
+#include "MeshBatchSkeletal.h"
+#include <sstream>
 
-const size_t ThesisSolution::InitialObjectGridSize = 256;
-const float ThesisSolution::CascadeSpan = 0.6f;//1.0f;
-const uint32_t ThesisSolution::CascadeDim = 512;//256;
+const size_t ThesisSolution::InitialObjectGridSize = 512;
+const float ThesisSolution::CascadeSpan = 0.6f;
+const uint32_t ThesisSolution::CascadeDim = 512;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
 	{ GI_DEFERRED, "Deferred" }, 
-	{ GI_LIGHT_INTENSITY, "LI Buffer Only" },
-	{ GI_SVO_DEFERRED, "Render SVO Deferred" },
-	{ GI_SVO_LEVELS, "Render SVO Levels"},
-	{ GI_VOXEL_PAGE, "Render Voxel Page" },
-	{ GI_VOXEL_CACHE2048, "Render Voxel Cache 2048" },
-	{ GI_VOXEL_CACHE1024, "Render Voxel Cache 1024" },
-	{ GI_VOXEL_CACHE512, "Render Voxel Cache 512" }
+	{ GI_LIGHT_INTENSITY, "Light Intesity" },
+	{ GI_SVO_DEFERRED, "SVO Lookup" },
+	{ GI_SVO_LEVELS, "Voxel Octree"},
+	{ GI_VOXEL_PAGE, "Voxel Pages" },
+	{ GI_VOXEL_CACHE, "Voxel Caches" }
 };
 
 AOBar::AOBar()
  : angleDegree(30.0f)
- , sampleFactor(1.0f)
- , maxDistance(250.0f)
- , intensity(1.15f)
+ , sampleFactor(1.19f)
+ , maxDistance(100.0f)
+ , falloffFactor(0.05f)
+ , intensityAO(1.40f)
+ , intensityGI(4.60f)
  , bar(nullptr)
  , hidden(true)
+ , specular(true)
 {
-	bar = TwNewBar("AOBar");
-	TwDefine(" AOBar visible = false ");
+	bar = TwNewBar("ConeBar");
+	TwDefine(" ConeBar visible = false ");
 	TwAddVarRW(bar, "cAngle", TW_TYPE_FLOAT, &angleDegree,
 			   " label='Cone Angle' help='Cone Angle' "
 			   " min=1.0 max=90.0 step= 0.01 ");
 	TwAddVarRW(bar, "sFactor", TW_TYPE_FLOAT, &sampleFactor,
 			   " label='Sample Factor' help='Adjusts Sampling Rate' "
 			   " min=0.5 max=10.0 step=0.01 ");
+	TwAddVarRW(bar, "fFactor", TW_TYPE_FLOAT, &falloffFactor,
+			   " label='Falloff Factor' help='Falloff Factor or the cone sample' "
+			   " min=0.01 max=10.0 step=0.01 ");
 	TwAddVarRW(bar, "maxDist", TW_TYPE_FLOAT, &maxDistance,
 			   " label='Max Distance' help='Maximum Cone Trace Distance' "
 			   " min=10.0 max=300.0 step=0.1 ");
-	TwAddVarRW(bar, "intensity", TW_TYPE_FLOAT, &intensity,
-			   " label='Intensity' help='Occlusion Intensity' "
+	TwAddVarRW(bar, "intensityAO", TW_TYPE_FLOAT, &intensityAO,
+			   " label='AO Intensity' help='Occlusion Intensity' "
 			   " min=0.5 max=5.0 step=0.01 ");
-	TwDefine(" AOBar valueswidth=fit ");
-	TwDefine(" AOBar position='20 500' ");
-	TwDefine(" AOBar size='220 100' ");
+	TwAddVarRW(bar, "intensityGI", TW_TYPE_FLOAT, &intensityGI,
+			   " label='GI Intensity' help='Illumination Intensity' "
+			   " min=0.5 max=10.0 step=0.1 ");
+	TwAddVarRW(bar, "specular", TW_TYPE_BOOLCPP, &specular,
+			   " label='Specular' help='Launch Specular Cone' ");
+	TwDefine(" ConeBar size='220 135' ");
+	TwDefine(" ConeBar position='227 25' ");
+	TwDefine(" ConeBar valueswidth=fit ");
+	
 }
 
 void AOBar::HideBar(bool hide)
@@ -57,9 +72,9 @@ void AOBar::HideBar(bool hide)
 	if(hide != hidden)
 	{
 		if(hide)
-			TwDefine(" AOBar visible=false ");
+			TwDefine(" ConeBar visible=false ");
 		else
-			TwDefine(" AOBar visible=true ");
+			TwDefine(" ConeBar visible=true ");
 		hidden = hide;
 	}
 }
@@ -71,25 +86,22 @@ AOBar::~AOBar()
 }
 
 ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& intialCamPos)
-	: currentScene(nullptr)
-	, dRenderer(dRenderer)
-	, vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
+	: vertexDebugVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
+	, vertexDebugVoxelSkeletal(ShaderType::VERTEX, "Shaders/VoxRenderSkeletal.vert")
 	, vertexDebugWorldVoxel(ShaderType::VERTEX, "Shaders/VoxRenderWorld.vert")
 	, fragmentDebugVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
-	, vertexVoxelizeObject(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert")
-	, geomVoxelizeObject(ShaderType::GEOMETRY, "Shaders/VoxelizeGeom.geom")
-	, fragmentVoxelizeObject(ShaderType::FRAGMENT, "Shaders/VoxelizeGeom.frag")
-	, computeVoxelizeCount(ShaderType::COMPUTE, "Shaders/VoxelizeGeomCount.glsl")
-	, computePackObjectVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.glsl")
-	, computeDetermineVoxSpan(ShaderType::COMPUTE, "Shaders/DetermineVoxSpan.glsl")
 	, bar(nullptr)
 	, renderScheme(GI_VOXEL_PAGE)
-	//, renderScheme(GI_VOXEL_CACHE2048)
+	//, renderScheme(GI_DEFERRED)
+	//, renderScheme(GI_VOXEL_CACHE)
 	, gridInfoBuffer(1)
 	, voxelNormPosBuffer(512)
 	, voxelColorBuffer(512)
 	, voxelOctree()
 	, traceType(0)
+	, aoOn(true)
+	, giOn(true)
+	, EmptyGISolution(dRenderer)
 {
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, GI_END);
 	gridInfoBuffer.AddData({});
@@ -115,9 +127,12 @@ void ThesisSolution::Init(SceneI& s)
 	{
 		voxelScenes[i].Reset();
 		voxelCaches.emplace_back();
+		voxelCaches.back().span = CascadeSpan * (1 << i);
+		voxelCaches.back().depth = (GI_CASCADE_COUNT - i - 1) + static_cast<uint32_t>(IEMath::Log2F(static_cast<float>(CascadeDim)));	
+		voxelCaches[i].voxOctreeCount = 0;
+		voxelCaches[i].voxOctreeSize = 0;
 	}
-	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
-	currentScene = &s;
+	EmptyGISolution::Init(s);
 
 	// Voxelization
 	// and Voxel Cache Creation
@@ -125,16 +140,7 @@ void ThesisSolution::Init(SceneI& s)
 	Array32<MeshBatchI*> batches = currentScene->getBatches();
 	for(unsigned int i = 0; i < batches.length; i++)
 	{
-		for(unsigned int j = 0; j < GI_CASCADE_COUNT; j++)
-		{
-			uint32_t multiplier = 0x1 << j;
-			voxelCaches[j].cache.emplace_back(InitialObjectGridSize, batches.arr[i]->VoxelCacheMax(j));
-			voxelTotaltime += Voxelize(voxelCaches[j].cache.back(), 
-									   batches.arr[i],
-									   CascadeSpan * multiplier, 
-									   multiplier, 
-									   j == 0);
-		}
+		voxelTotaltime += LoadBatchVoxels(batches.arr[i]);
 	}
 
 	for(unsigned int i = 0; i < voxelCaches.size(); i++)
@@ -164,6 +170,7 @@ void ThesisSolution::Init(SceneI& s)
 	voxelOctree.LinkAllocators(Array32<GICudaAllocator*>{allocators.data(), GI_CASCADE_COUNT},
 							   currentScene->SVOTotalSize(),
 							   currentScene->SVOLevelSizes());
+	voxelOctree.LinkSceneShadowMaps(currentScene);
 	svoRenderLevel = voxelOctree.SVOConsts().totalDepth;
 
 	// Memory Usage Total
@@ -179,15 +186,16 @@ void ThesisSolution::Init(SceneI& s)
 	bar = TwNewBar("ThesisGI");
 	TwDefine(" ThesisGI refresh=0.01 ");
 
-	// FPS Show
-	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
-			   " label='Frame(ms)' precision=2 help='Frame Time in milliseconds.' ");
+	// Stuff
 	TwAddVarRW(bar, "rendering", renderType,
 			   &renderScheme,
 			   " label='Render' help='Change what to show on screen' ");
 	TwAddVarRW(bar, "giOn", TW_TYPE_BOOLCPP,
 			   &giOn,
 			   " label='GI On' help='Cone Tracing GI On off' ");
+	TwAddVarRW(bar, "aoOn", TW_TYPE_BOOLCPP,
+			   &aoOn,
+			   " label='AO On' help='Ambient Occlusion On off' ");
 	TwAddSeparator(bar, NULL, NULL);
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
@@ -200,6 +208,7 @@ void ThesisSolution::Init(SceneI& s)
 		TwAddVarRO(bar, (std::string("voxCacheSize") + std::to_string(i)).c_str(), TW_TYPE_DOUBLE, &voxelCaches[i].totalCacheSize,
 				   (start + endSize).c_str());
 	}
+	TwDefine(" ThesisGI/'Voxel Cache' opened=false ");
 	TwAddSeparator(bar, NULL, NULL);
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
@@ -218,190 +227,167 @@ void ThesisSolution::Init(SceneI& s)
 			   " label='I-O Time (ms)' group='Timings' precision=2 help='Voxel Include Exclude Timing per frame.' ");
 	TwAddVarRO(bar, "updateTime", TW_TYPE_DOUBLE, &transformTime,
 			   " label='Update Time (ms)' group='Timings' precision=2 help='Voxel Grid Update Timing per frame.' ");
-	TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoTime,
-			   " label='SVO Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
-	TwAddVarRO(bar, "transferTime", TW_TYPE_DOUBLE, &debugVoxTransferTime,
-			   " label='Dbg Transfer Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
-	TwDefine(" ThesisGI size='325 430' ");
+	TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoReconTime,
+			   " label='SVO Recon Time (ms)' group='Timings' precision=2 help='SVO Reconstruct Timing per frame.' ");
+	TwAddVarRO(bar, "svoInjectTime", TW_TYPE_DOUBLE, &svoInjectTime,
+			   " label='SVO Inject Time (ms)' group='Timings' precision=2 help='SVO Inject Timing per frame.' ");
+	TwAddVarRO(bar, "svoAvgTime", TW_TYPE_DOUBLE, &svoAvgTime,
+			   " label='SVO Avg Time (ms)' group='Timings' precision=2 help='SVO Average Timing per frame.' ");
+	TwAddVarRO(bar, "giTime", TW_TYPE_DOUBLE, &giTime,
+			   " label='GI Time (ms)' group='Timings' precision=2 help='GI cone trace timing per frame.' ");
+	TwAddVarRO(bar, "miscTime", TW_TYPE_DOUBLE, &miscTime,
+			   " label='Misc Time (ms)' group='Timings' precision=2 help='Voxel Copy to OGL Timing.' ");
+	TwAddSeparator(bar, "Total", NULL);
+	TwAddVarRO(bar, "Time", TW_TYPE_DOUBLE, &totalTime,
+			   " label='Total (ms)' precision=2 help='Total Timing.' ");
+	TwDefine(" ThesisGI size='250 400' ");
 	TwDefine(" ThesisGI valueswidth=fit ");
+	TwDefine(" ThesisGI position='5 278' ");
 }
 
 void ThesisSolution::Release()
 {
+	EmptyGISolution::Release();
 	if(bar) TwDeleteBar(bar);
 	bar = nullptr;
 }
 
-double ThesisSolution::Voxelize(VoxelObjectCache& cache,
-								MeshBatchI* batch,
-								float gridSpan, unsigned int minSpanMultiplier,
-								bool isInnerCascade)
+double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 {
-	cache.objectGridInfo.Resize(batch->DrawCount());
+	IETimer t;
+	t.Start();
 
-	// Timing Voxelization Process
-	GLuint queryID;
-	glGenQueries(1, &queryID);
-	glBeginQuery(GL_TIME_ELAPSED, queryID);
-
-	//
-	glClear(GL_COLOR_BUFFER_BIT);
-	DrawBuffer& dBuffer = batch->getDrawBuffer();
-	VoxelRenderTexture voxelRenderTexture;
-
-	// Determine Voxel Sizes
-	computeDetermineVoxSpan.Bind();
-	cache.objectGridInfo.Resize(batch->DrawCount());
-	batch->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
-	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
-	glUniform1ui(U_TOTAL_OBJ_COUNT, static_cast<GLuint>(batch->DrawCount()));
-	glUniform1f(U_MIN_SPAN, batch->MinSpan());
-	glUniform1ui(U_MAX_GRID_DIM, VOXEL_GRID_SIZE);
-
-	size_t blockCount = (batch->DrawCount() / 128);
-	size_t factor = ((batch->DrawCount() % 128) == 0) ? 0 : 1;
-	blockCount += factor;
-	glDispatchCompute(static_cast<GLuint>(blockCount), 1, 1);
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-	cache.objectGridInfo.RecieveData(batch->DrawCount());
-
-	// Buffers
-	cameraTransform.Bind();
-	dBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
-	cache.objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
+	// Voxelization
+	std::stringstream voxPrefix;
+	voxPrefix << "vox_" << CascadeSpan << "_" << GI_CASCADE_COUNT << "_";
 	
-	// Render Objects to Voxel Grid
-	// Use MSAA to prevent missing small triangles on voxels
-	// (testing conservative rendering on maxwell)
-	glEnable(GL_MULTISAMPLE);
-	//glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
+	// Load GFG
+	std::string batchVoxFile = voxPrefix.str() + batch->BatchName() + ".gfg";
+	LoadVoxel(voxelCaches, batchVoxFile.c_str(), GI_CASCADE_COUNT,
+			  batch->MeshType() == VoxelObjectType::SKEL_DYNAMIC);
 
-	// State
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
-	glDepthMask(false);
-	glStencilMask(0x0000);
-	glColorMask(false, false, false, false);
-	glViewport(0, 0, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE);
-
-	// Reset Cache
-	cache.voxelCacheUsageSize.CPUData()[0] = 0;
-	cache.voxelCacheUsageSize.SendData();
-
-	// isMip
-	std::vector<GLuint> isMip(batch->DrawCount(), 0);
-	for(unsigned int i = 0; i < isMip.size(); i++)
-	{
-		if(cache.objectGridInfo.CPUData()[i].span < batch->MinSpan() * minSpanMultiplier)
-		{
-			isMip[i] = (isInnerCascade) ? 0 : 1;
-			cache.objectGridInfo.CPUData()[i].span = batch->MinSpan() * minSpanMultiplier;
-		}
-			
-	}
-	cache.objectGridInfo.SendData();
-
-	// For Each Object
-	voxelRenderTexture.Clear();
-	for(unsigned int i = 0; i < batch->DrawCount(); i++)
-	{
-		// Skip objects that cant fit
-		if(cache.objectGridInfo.CPUData()[i].span != batch->MinSpan() * minSpanMultiplier)
-			continue;
-
-		// First Call Voxelize over 3D Texture
-		batch->getDrawBuffer().getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
-		voxelRenderTexture.BindAsImage(I_VOX_WRITE, GL_WRITE_ONLY);
-		vertexVoxelizeObject.Bind();
-		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-		geomVoxelizeObject.Bind();
-		fragmentVoxelizeObject.Bind();
-		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-		batch->getGPUBuffer().Bind();
-
-		// Material Buffer we need to fetch color from material
-		dBuffer.BindMaterialForDraw(i);
-
-		// Draw Call
-		glDrawElementsIndirect(GL_TRIANGLES,
-							   GL_UNSIGNED_INT,
-							   (void *) (i * sizeof(DrawPointIndexed)));
-
-		// Reflect Changes for the next process
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-		// Second Call: Determine voxel count
-		// We need to set viewport coords to match the voxel dims
-		const AABBData& objAABB = batch->getDrawBuffer().getAABBBuffer().CPUData()[i];
-		GLuint voxDimX, voxDimY, voxDimZ;
-		voxDimX = static_cast<GLuint>(std::floor((objAABB.max.getX() - objAABB.min.getX()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
-		voxDimY = static_cast<GLuint>(std::floor((objAABB.max.getY() - objAABB.min.getY()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
-		voxDimZ = static_cast<GLuint>(std::floor((objAABB.max.getZ() - objAABB.min.getZ()) / cache.objectGridInfo.CPUData()[i].span)) + 1;
-
-		computeVoxelizeCount.Bind();
-		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_ONLY);
-		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
-		glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
-
-		// Reflect Voxel Size
-		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-		// Create sparse voxel array according to the size of voxel count
-		// Last Call: Pack Draw Calls to the buffer
-		computePackObjectVoxels.Bind();
-		cache.voxelNormPos.BindAsShaderStorageBuffer(LU_VOXEL_NORM_POS);
-		cache.voxelIds.BindAsShaderStorageBuffer(LU_VOXEL_IDS);
-		cache.voxelRenderData.BindAsShaderStorageBuffer(LU_VOXEL_RENDER);
-		cache.voxelCacheUsageSize.BindAsShaderStorageBuffer(LU_INDEX_CHECK);
-		voxelRenderTexture.BindAsImage(I_VOX_READ, GL_READ_WRITE);
-		glUniform1ui(U_OBJ_TYPE, static_cast<GLuint>(batch->MeshType()));
-		glUniform1ui(U_OBJ_ID, static_cast<GLuint>(i));
-		glUniform3ui(U_TOTAL_VOX_DIM, voxDimX, voxDimY, voxDimZ);
-		glUniform1ui(U_MAX_CACHE_SIZE, static_cast<GLuint>(cache.voxelNormPos.Capacity()));
-		glUniform1ui(U_IS_MIP, static_cast<GLuint>(isMip[i]));
-		glDispatchCompute(voxDimX + 7 / 8, voxDimY + 7 / 8, voxDimZ + 7 / 8);
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-		// Voxelization Done!
-	}
-	//glDisable(GL_CONSERVATIVE_RASTERIZATION_NV);
-	glEndQuery(GL_TIME_ELAPSED);
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-	GLuint64 timeElapsed = 0;
-	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
-	cache.objectGridInfo.RecieveData(batch->DrawCount());
-	cache.voxelCacheUsageSize.RecieveData(1);
-	cache.batchVoxCacheCount = 0;
-	for(int i = 0; i < batch->DrawCount(); i++)
-		cache.batchVoxCacheCount += cache.objectGridInfo.CPUData()[i].voxCount;
-	assert(cache.voxelCacheUsageSize.CPUData()[0] == cache.batchVoxCacheCount);
-
-	// Check if we exceeded the max (normally we didnt write bu we incremented counter)
-	cache.batchVoxCacheCount = std::min(cache.batchVoxCacheCount, 
-										static_cast<uint32_t>(cache.voxelNormPos.Capacity()));
-	cache.batchVoxCacheSize = static_cast<double>(cache.batchVoxCacheCount *
-												  (sizeof(CVoxelNormPos) +
-												  sizeof(VoxelRenderData) +
-												  sizeof(CVoxelIds))) /
-												  1024.0 /
-												  1024.0;
-
-	double time = timeElapsed / 1000000.0;
-	GI_LOG("------------------------------------");
-	GI_LOG("Voxelization Complete");
-	GI_LOG("Cascade Parameters: ");
-	GI_LOG("\tObject Span Multiplier: %d", minSpanMultiplier);
-	GI_LOG("\tGrid Span %f", gridSpan);
-	GI_LOG("Scene Voxelization Time: %f ms", time);
-	GI_LOG("Total Vox : %d", cache.batchVoxCacheCount);
-	GI_LOG("Total Vox Memory: %f MB", cache.batchVoxCacheSize);
-	GI_LOG("------------------------------------");
-
-	glDeleteQueries(1, &queryID);
-	return time;
-	return 0.0;
+	t.Stop();
+	// Voxel Load Complete
+	GI_LOG("Loading \"%s\" complete", batchVoxFile.c_str());
+	GI_LOG("\tDuration : %f ms", t.ElapsedMilliS());
+	GI_LOG("------");
+	return t.ElapsedMilliS();
 }
+
+bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
+							   const char* gfgFileName, uint32_t cascadeCount,
+							   bool isSkeletal)
+{
+	std::ifstream stream(gfgFileName, std::ios_base::in | std::ios_base::binary);
+	GFGFileReaderSTL stlFileReader(stream);
+	GFGFileLoader gfgFile(&stlFileReader);
+
+	GFGFileError e = gfgFile.ValidateAndOpen();
+	assert(e == GFGFileError::OK);
+
+	// Assertions
+	const auto& header = gfgFile.Header();
+	assert((header.meshes.size() - 1) == cascadeCount);
+
+	// First mesh contains objInfos
+	const auto& meshObjCount = header.meshes.back();
+	assert(meshObjCount.components.size() == cascadeCount);
+
+	uint32_t objCount = static_cast<uint32_t>(meshObjCount.headerCore.vertexCount);
+	std::vector<uint8_t> objectInfoData(gfgFile.MeshVertexDataSize(cascadeCount));
+	gfgFile.MeshVertexData(objectInfoData.data(), cascadeCount);
+
+	// Determine VoxelCount
+	for(uint32_t i = 0; i < cascadeCount; i++)
+	{
+		const auto& mesh = header.meshes[i];
+
+		// Special case aabbmin show span count
+		assert(scenes[i].span == mesh.headerCore.aabb.min[0]);
+		scenes[i].cache.emplace_back(mesh.headerCore.vertexCount, objCount, isSkeletal);
+
+		// Load to Mem
+		std::vector<uint8_t> meshData(gfgFile.MeshVertexDataSize(i));
+		gfgFile.MeshVertexData(meshData.data(), i);
+
+		auto& currentCache = scenes[i].cache.back();
+
+		// Object gridInfo
+		const auto& component = meshObjCount.components[i];
+		assert(component.dataType == GFGDataType::UINT32_2);
+		assert(sizeof(ObjGridInfo) == GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)]);
+		assert(component.internalOffset == 0);
+		assert(component.logic == GFGVertexComponentLogic::POSITION);
+		assert(component.stride == sizeof(ObjGridInfo));
+
+		currentCache.objInfo.CPUData().resize(objCount);
+		std::memcpy(currentCache.objInfo.CPUData().data(),
+					objectInfoData.data() + component.startOffset,
+					objCount * component.stride);
+
+		// Voxel Data
+		for(const auto& component : mesh.components)
+		{
+			if(component.logic == GFGVertexComponentLogic::POSITION)
+			{
+				// NormPos
+				assert(component.dataType == GFGDataType::UINT32_2);
+				auto& normPosVector = currentCache.voxelNormPos.CPUData();
+
+				normPosVector.resize(mesh.headerCore.vertexCount);
+				std::memcpy(normPosVector.data(), meshData.data() +
+							component.startOffset,
+							mesh.headerCore.vertexCount * component.stride);
+			}
+			else if(component.logic == GFGVertexComponentLogic::NORMAL)
+			{
+				// Vox Ids
+				assert(component.dataType == GFGDataType::UINT32_2);
+				auto& voxIdsVector = currentCache.voxelIds.CPUData();
+
+				voxIdsVector.resize(mesh.headerCore.vertexCount);
+				std::memcpy(voxIdsVector.data(), meshData.data() +
+							component.startOffset,
+							mesh.headerCore.vertexCount * component.stride);
+			}
+			else if(component.logic == GFGVertexComponentLogic::COLOR)
+			{
+				// Color
+				assert(component.dataType == GFGDataType::UNORM8_4);
+				auto& voxColorVector = currentCache.voxelRenderData.CPUData();
+
+				voxColorVector.resize(mesh.headerCore.vertexCount);
+				std::memcpy(voxColorVector.data(), meshData.data() +
+							component.startOffset,
+							mesh.headerCore.vertexCount * component.stride);
+			}
+			else if(component.logic == GFGVertexComponentLogic::WEIGHT)
+			{
+				// Weight
+				assert(component.dataType == GFGDataType::UINT32_2);
+				auto& voxWeightVector = currentCache.voxelWeightData.CPUData();
+
+				voxWeightVector.resize(mesh.headerCore.vertexCount);
+				std::memcpy(voxWeightVector.data(), meshData.data() +
+							component.startOffset,
+							mesh.headerCore.vertexCount * component.stride);
+			}
+			else
+			{
+				assert(false);
+			}
+			currentCache.voxelRenderData.SendData();
+			currentCache.voxelNormPos.SendData();
+			currentCache.voxelIds.SendData();
+			currentCache.objInfo.SendData();
+			if(isSkeletal) currentCache.voxelWeightData.SendData();
+		}
+
+		GI_LOG("\tCascade#%d Voxels : %zd", i, mesh.headerCore.vertexCount);
+	}
+	return true;
+}
+
 
 void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene, 
 										   SceneVoxCache& cache,
@@ -412,13 +398,18 @@ void ThesisSolution::LinkCacheWithVoxScene(GICudaVoxelScene& scene,
 	assert(batches.length == cache.cache.size());
 	for(unsigned int i = 0; i < cache.cache.size(); i++)
 	{
+		GLuint jointBuffer = 0;
+		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+			jointBuffer = static_cast<MeshBatchSkeletal*>(batches.arr[i])->getJointTransforms().getGLBuffer();
 		scene.LinkOGL(batches.arr[i]->getDrawBuffer().getAABBBuffer().getGLBuffer(),
 					  batches.arr[i]->getDrawBuffer().getModelTransformBuffer().getGLBuffer(),
+					  jointBuffer,
 					  batches.arr[i]->getDrawBuffer().getModelTransformIndexBuffer().getGLBuffer(),
-					  cache.cache[i].objectGridInfo.getGLBuffer(),
+					  cache.cache[i].objInfo.getGLBuffer(),
 					  cache.cache[i].voxelNormPos.getGLBuffer(),
 					  cache.cache[i].voxelIds.getGLBuffer(),
 					  cache.cache[i].voxelRenderData.getGLBuffer(),
+					  cache.cache[i].voxelWeightData.getGLBuffer(),
 					  static_cast<uint32_t>(batches.arr[i]->DrawCount()),
 					  cache.cache[i].batchVoxCacheCount);
 	}
@@ -452,9 +443,14 @@ void ThesisSolution::TraceTypeDec()
 	//GI_LOG("Trace Type %d", traceType % 3);
 }
 
-void ThesisSolution::DebugRenderVoxelCache(const Camera& camera, 
-										   SceneVoxCache& cache)
+double ThesisSolution::DebugRenderVoxelCache(const Camera& camera, 
+											 SceneVoxCache& cache)
 {
+	// Timing
+	GLuint queryID;
+	glGenQueries(1, &queryID);
+	glBeginQuery(GL_TIME_ELAPSED, queryID);
+
 	//DEBUG VOXEL RENDER
 	// Frame Viewport
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -476,8 +472,6 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 
 	// Debug Voxelize Scene
 	Shader::Unbind(ShaderType::GEOMETRY);
-	vertexDebugVoxel.Bind();
-	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(traceType % 2));
 	fragmentDebugVoxel.Bind();
 
 	cameraTransform.Bind();
@@ -485,19 +479,40 @@ void ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 
 	Array32<MeshBatchI*> batches = currentScene->getBatches();
 	for(unsigned int i = 0; i < cache.cache.size(); i++)
-	{
-		cache.cache[i].objectGridInfo.BindAsShaderStorageBuffer(LU_OBJECT_GRID_INFO);
-		
+	{		
 		DrawBuffer& dBuffer = batches.arr[i]->getDrawBuffer();
 		dBuffer.getAABBBuffer().BindAsShaderStorageBuffer(LU_AABB);
 		dBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
 		dBuffer.getModelTransformIndexBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM_INDEX);
 
+		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+		{
+			// Shader Vert
+			vertexDebugVoxelSkeletal.Bind();
+			glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(traceType % 2));
+			glUniform1f(U_SPAN, cache.span);
+
+			// Joint Transforms
+			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[i]);
+			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
+		}
+		else
+		{
+			// Shader Vert
+			vertexDebugVoxel.Bind();
+			glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(traceType % 2));
+			glUniform1f(U_SPAN, cache.span);
+		}
+
 		cache.cache[i].voxelVAO.Bind();
 		cache.cache[i].voxelVAO.Draw(cache.cache[i].batchVoxCacheCount, 0);
 	}
 
-	
+	// Timer
+	GLuint64 timeElapsed = 0;
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
+	return timeElapsed / 1000000.0;
 }
 
 void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, 
@@ -560,31 +575,58 @@ double ThesisSolution::DebugRenderSVO(const Camera& camera)
 void ThesisSolution::Frame(const Camera& mainRenderCamera)
 {
 	// Zero out debug transfer time since it may not be used
-	debugVoxTransferTime = 0;
+	miscTime = 0.0;
 
 	// VoxelSceneUpdate
 	double ioTimeSegment, transformTimeSegment;
-	ioTime = 0;
-	transformTime = 0;
-	svoTime = 0;
+	ioTime = 0.0;
+	transformTime = 0.0;
+	svoReconTime = 0.0;
+	svoInjectTime = 0.0;
+	svoAvgTime = 0.0;
+	giTime = 0.0;
 
+	IEVector3 outerCascadePos;
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
 		voxelScenes[i].MapGLPointers();
 
 		// Cascade Update
-		voxelScenes[i].VoxelUpdate(ioTimeSegment,
-								   transformTimeSegment,
-								   mainRenderCamera.pos,
-								   static_cast<float>(0x1 << (3 - i - 1)));
+		IEVector3 pos = voxelScenes[i].VoxelUpdate(ioTimeSegment,
+												   transformTimeSegment,
+												   mainRenderCamera.pos,
+												   static_cast<float>(0x1 << (3 - i - 1)));
 		ioTime += ioTimeSegment;
 		transformTime += transformTimeSegment;
+		if(i == GI_CASCADE_COUNT - 1) outerCascadePos = pos;
+		//if(i == 0) outerCascadePos = pos;
 	}
 	ioTime += ioTimeSegment;
 	transformTime += transformTimeSegment;
 	
 	// Octree Update
-	svoTime = voxelOctree.UpdateSVO();
+	// TODO Light Inject
+	IEVector3 camDir = (mainRenderCamera.centerOfInterest - mainRenderCamera.pos).NormalizeSelf();
+	IEVector3 camPos = mainRenderCamera.pos;
+
+	InjectParams p;
+	p.camDir = {camDir.getX(), camDir.getY(), camDir.getZ()};
+	p.camPos = {camPos.getX(), camPos.getY(), camPos.getZ(), DeferredRenderer::CalculateCascadeLength(mainRenderCamera.far, 0)};
+	float depthRange[2];
+	glGetFloatv(GL_DEPTH_RANGE, depthRange);
+	p.depthNear = depthRange[0];
+	p.depthFar = depthRange[1];
+	p.lightCount = currentScene->getSceneLights().Count();
+	p.outerCascadePos = {outerCascadePos.getX(), outerCascadePos.getY(), outerCascadePos.getZ()};
+	p.span = CascadeSpan;
+	p.inject = true;
+	
+	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
+
+	const auto& lightProjs = currentScene->getSceneLights().GetLightProjMatrices();
+	const auto& lightInvVP = currentScene->getSceneLights().GetLightInvViewProjMatrices();
+	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAvgTime, aColor, 
+						  p, lightProjs, lightInvVP);
 
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
@@ -604,48 +646,74 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	switch(renderScheme)
 	{
 		case GI_DEFERRED:
-		{
-			dRenderer.Render(*currentScene, mainRenderCamera);
-			dRenderer.ShowColorGBuffer(mainRenderCamera);
-			break;
-		}
 		case GI_LIGHT_INTENSITY:
 		{
 			aoBar.HideBar(false);
-				
-	//		dRenderer.Render(*currentScene, mainRenderCamera);
-	//		dRenderer.ShowLIBuffer(mainRenderCamera);
-		
+			
+			// Shadow Map Generation
+			dRenderer.GenerateShadowMaps(*currentScene, mainRenderCamera);
+
+			// GPass
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
-			debugVoxTransferTime = voxelOctree.AmbientOcclusion
-			(
-				dRenderer,
-				mainRenderCamera,
-				IEMath::ToRadians(aoBar.angleDegree),
-				aoBar.maxDistance,
-				aoBar.sampleFactor,
-				aoBar.intensity
-			);
 
+			// Clear LI
+			dRenderer.ClearLI(aColor);
+
+			// AO GI Pass
+			if(aoOn || giOn)
+			{
+				giTime = voxelOctree.GlobalIllumination
+				(
+					dRenderer,
+					mainRenderCamera,
+					*currentScene,
+					IEMath::ToRadians(aoBar.angleDegree),
+					aoBar.maxDistance,
+					aoBar.falloffFactor,
+					aoBar.sampleFactor,
+					aoBar.intensityAO,
+					aoBar.intensityGI,
+					giOn,
+					aoOn,
+					aoBar.specular
+				);
+			}
+
+			// Light Pass
+			if(directLighting)
+			{
+				dRenderer.LightPass(*currentScene, mainRenderCamera);
+			}
+
+			// Light Intensity Merge
+			if(renderScheme == GI_DEFERRED)
+			{
+				dRenderer.Present(mainRenderCamera);
+			}
+			else if(renderScheme == GI_LIGHT_INTENSITY)
+			{
+				dRenderer.ShowLIBuffer(mainRenderCamera);
+			}
 			break;
-		}		
-
+		}
 		case GI_SVO_DEFERRED:
 		{
 			SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
 			dRenderer.PopulateGBuffer(*currentScene, mainRenderCamera);
-			debugVoxTransferTime = voxelOctree.DebugDeferredSVO(dRenderer,
-																mainRenderCamera,
-																svoRenderLevel,
-																traceTypeEnum);
+			miscTime = voxelOctree.DebugDeferredSVO(dRenderer,
+													mainRenderCamera,
+													svoRenderLevel,
+													traceTypeEnum);
 			break;
 		}
-
 		case GI_SVO_LEVELS:
 		{
+			// Shadow Map Generation
+			dRenderer.GenerateShadowMaps(*currentScene, mainRenderCamera);
+
 			// Start Render
 			glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
-			debugVoxTransferTime = DebugRenderSVO(mainRenderCamera);
+			miscTime = DebugRenderSVO(mainRenderCamera);
 			break;
 		}
 		case GI_VOXEL_PAGE:
@@ -653,6 +721,8 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			unsigned int totalVoxCount = 0;
 			for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 				totalVoxCount += voxelCaches[i].voxOctreeCount;
+
+			if(totalVoxCount == 0) break;
 
 			voxelNormPosBuffer.Resize(totalVoxCount);
 			voxelColorBuffer.Resize(totalVoxCount);
@@ -686,22 +756,22 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 
 			// Start Render
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			glClear(GL_COLOR_BUFFER_BIT |
+			glClear(GL_COLOR_BUFFER_BIT | 
 					GL_DEPTH_BUFFER_BIT);
 			
 			
 			uint32_t voxelCount = 0, voxelOffset = 0;
 			std::vector<CVoxelGrid> voxGrids(GI_CASCADE_COUNT);
 			
-			debugVoxTransferTime = 0;
+			miscTime = 0;
 			for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 			{
 				offsets.push_back(voxelOffset);
-				debugVoxTransferTime += voxelScenes[i].VoxDataToGL(dVoxNormPos + voxelOffset,
-																   dVoxColor + voxelOffset,
-																   voxGrids[i],
-																   voxelCount,
-																   voxelCaches[i].voxOctreeCount);
+				miscTime += voxelScenes[i].VoxDataToGL(dVoxNormPos + voxelOffset,
+													   dVoxColor + voxelOffset,
+													   voxGrids[i],
+													   voxelCount,
+													   voxelCaches[i].voxOctreeCount);
 				voxelOffset += voxelCount;
 				counts.push_back(voxelCount);
 			}
@@ -720,36 +790,25 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 			}
 			break;
 		}
-		case GI_VOXEL_CACHE2048:
+		case GI_VOXEL_CACHE:
 		{
+			uint32_t level = voxelOctree.MaxLevel() - svoRenderLevel;
+			level = std::min(level, GI_CASCADE_COUNT - 1u);
+
 			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			DebugRenderVoxelCache(mainRenderCamera, voxelCaches[0]);
-			break;
-		}
-		case GI_VOXEL_CACHE1024:
-		{
-			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			DebugRenderVoxelCache(mainRenderCamera, voxelCaches[1]);
-			break;
-		}
-		case GI_VOXEL_CACHE512:
-		{
-			glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-			DebugRenderVoxelCache(mainRenderCamera, voxelCaches[2]);
+			miscTime = DebugRenderVoxelCache(mainRenderCamera, voxelCaches[level]);
 			break;
 		}
 	}
-}
-
-void ThesisSolution::SetFPS(double fpsMS)
-{
-	frameTime = fpsMS;
+	totalTime = ioTime + transformTime + svoReconTime + svoInjectTime +
+				+ svoAvgTime + giTime + miscTime;
 }
 
 void ThesisSolution::LevelIncrement(void* solPtr)
 {
 	static_cast<ThesisSolution*>(solPtr)->LevelIncrement();
 }
+
 void ThesisSolution::LevelDecrement(void* solPtr)
 {
 	static_cast<ThesisSolution*>(solPtr)->LevelDecrement();

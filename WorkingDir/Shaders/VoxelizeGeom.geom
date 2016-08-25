@@ -34,6 +34,7 @@ in gl_PerVertex
 out OUT_NORMAL vec3 fNormal;
 out OUT_UV vec2 fUV;
 out OUT_POS vec3 fPos;
+
 out gl_PerVertex 
 {
     vec4  gl_Position;

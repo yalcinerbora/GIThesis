@@ -31,16 +31,18 @@ GICudaVoxelScene::~GICudaVoxelScene()
 
 void GICudaVoxelScene::LinkOGL(GLuint aabbBuffer,
 							   GLuint transformBuffer,
+							   GLuint jointTransformBuffer,
 							   GLuint transformIDBuffer,
 							   GLuint infoBufferID,
 							   GLuint voxelCacheNormPos,
 							   GLuint voxelCacheIds,
 							   GLuint voxelCacheRender,
+							   GLuint weightBuffer,
 							   uint32_t objCount,
 							   uint32_t voxelCount)
 {
-	allocator.LinkOGLVoxelCache(aabbBuffer, transformBuffer, transformIDBuffer, infoBufferID,
-								voxelCacheNormPos, voxelCacheIds, voxelCacheRender, 
+	allocator.LinkOGLVoxelCache(aabbBuffer, transformBuffer, jointTransformBuffer, transformIDBuffer, infoBufferID,
+								voxelCacheNormPos, voxelCacheIds, voxelCacheRender, weightBuffer,
 								objCount, voxelCount);
 }
 
@@ -55,13 +57,13 @@ void GICudaVoxelScene::Reset()
 	allocator.ResetSceneData();
 }
 
-void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
-								   double& updateTiming,
-								   const IEVector3& playerPos,
-								   float cascadeMultiplier)
+IEVector3 GICudaVoxelScene::VoxelUpdate(double& ioTiming,
+										double& updateTiming,
+										const IEVector3& playerPos,
+										float cascadeMultiplier)
 {
 	// Pass if there is not any linked objects
-	if(allocator.NumSegments() == 0) return;
+	if(allocator.NumSegments() == 0) return IEVector3(0.0f, 0.0f, 0.0f);
 
 	// Manages Voxel Pages
 	assert(allocator.IsGLMapped() == true);
@@ -88,42 +90,10 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			 allocator.NumObjectSegments(i),
 			 
 			 // Per Object Related
-			 allocator.GetWriteSignals(i),
 			 allocator.GetObjectAABBDevice(i),
 			 allocator.GetTransformsDevice(i),
 			 allocator.GetTransformIDDevice(i));
 		CUDA_KERNEL_CHECK();
-
-		// Call Logic Per Voxel
-		gridSize = (allocator.NumVoxels(i) + GI_THREAD_PER_BLOCK - 1) /
-					GI_THREAD_PER_BLOCK;
-		
-		// KC OBJECT VOXEL INCLUDE
-		VoxelObjectInclude<<<gridSize, GI_THREAD_PER_BLOCK>>>
-			(// Voxel System
-			 allocator.GetVoxelPagesDevice(),
-			 *allocator.GetVoxelGridDevice(),
-			 
-			 // Per Object Segment Related
-			 allocator.GetSegmentAllocLoc(i),
-			 allocator.NumObjectSegments(i),
-			 
-			 // Per Object Related
-			 allocator.GetWriteSignals(i),
-			 allocator.GetVoxelStrides(i),
-			 allocator.GetObjectAllocationIndexLookup(i),
-			 			 
-			 // Per Voxel Related
-			 allocator.GetObjCacheIdsDevice(i),
-			 allocator.NumVoxels(i),
-			 allocator.NumObjects(i),
-
-			 // Batch(ObjectGroup in terms of OGL) Id
-			 i);
-		CUDA_KERNEL_CHECK();
-
-		// Clear Write Signals
-		CUDA_CHECK(cudaMemset(allocator.GetWriteSignals(i), 0, sizeof(char) * allocator.NumObjects(i)));
 	}
 
 	for(unsigned int i = 0; i < allocator.NumObjectBatches(); i++)
@@ -146,7 +116,6 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 			allocator.NumObjectSegments(i),
 
 			// Per Object Related
-			allocator.GetWriteSignals(i),
 			allocator.GetObjectAABBDevice(i),
 			allocator.GetTransformsDevice(i),
 			allocator.GetTransformIDDevice(i));
@@ -206,16 +175,14 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	   allocator.GetVoxelPagesDevice(),
 	   *allocator.GetVoxelGridDevice(),
 	   float3{gridNewPos.getX(), gridNewPos.getY(), gridNewPos.getZ()},
-	   
-	   // Per Object Segment
-	   allocator.GetSegmentAllocLoc2D(),				   
 
 	   // Object Related
-	   allocator.GetObjectAllocationIndexLookup2D(),
 	   allocator.GetTransformsDevice(),
+	   allocator.GetJointTransformDevice(),
 	   allocator.GetTransformIDDevice(),
 	   allocator.GetObjCacheNormPosDevice(),
 	   allocator.GetObjRenderCacheDevice(),
+	   allocator.GetObjWeightDevice(),
 	   allocator.GetObjectInfoDevice(),
 	   allocator.GetObjectAABBDevice());
 	CUDA_KERNEL_CHECK();	
@@ -224,6 +191,7 @@ void GICudaVoxelScene::VoxelUpdate(double& ioTiming,
 	
 	timer.Stop();
 	updateTiming = timer.ElapsedMilliS();
+	return gridNewPos;
 }
 
 uint64_t GICudaVoxelScene::AllocatorMemoryUsage() const

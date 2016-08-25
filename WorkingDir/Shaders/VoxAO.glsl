@@ -11,9 +11,9 @@
 
 #define I_LIGHT_INENSITY layout(rgba8, binding = 2) restrict writeonly
 
-#define LU_SVO_NODE layout(std430, binding = 0) readonly
-#define LU_SVO_MATERIAL layout(std430, binding = 1) readonly
-#define LU_SVO_LEVEL_OFFSET layout(std430, binding = 2) readonly
+#define LU_SVO_NODE layout(std430, binding = 2) readonly
+#define LU_SVO_MATERIAL layout(std430, binding = 3) readonly
+#define LU_SVO_LEVEL_OFFSET layout(std430, binding = 4) readonly
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
@@ -40,15 +40,15 @@ uniform vec2 CONE_ORTHO[4] =
 
 uniform ivec3 NEIG_MASK[8] = 
 {
-	ivec3( 0, 0, 0),
-    ivec3( 1, 0, 0),
-    ivec3( 0, 1, 0),
-    ivec3( 1, 1, 0),
+	ivec3(0, 0, 0),
+    ivec3(1, 0, 0),
+    ivec3(0, 1, 0),
+    ivec3(1, 1, 0),
 
-	ivec3( 0, 0, 1),
-	ivec3( 1, 0, 1),
-	ivec3( 0, 1, 1),
-	ivec3( 1, 1, 1)
+	ivec3(0, 0, 1),
+	ivec3(1, 0, 1),
+	ivec3(0, 1, 1),
+	ivec3(1, 1, 1)
 };
 
 LU_SVO_NODE buffer SVONode
@@ -170,14 +170,9 @@ uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
 	return bitSet;
 }
 
-vec3 UnpackColor(in uint colorPacked)
+vec4 UnpackColorSVO(in uint colorPacked)
 {
-	//vec3 color;
-	//color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
-	//color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
-	//color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
-	//return color;
-	return unpackUnorm4x8(colorPacked).xyz;
+	return unpackUnorm4x8(colorPacked);
 }
 
 vec3 UnpackNormalGBuff(in uvec2 norm)
@@ -190,142 +185,196 @@ vec3 UnpackNormalGBuff(in uvec2 norm)
 	return result;
 }
 
-vec3 UnpackNormalSVO(in uint voxNormPosY)
+vec4 UnpackNormalSVO(in uint voxNormPosY)
 {
-	vec3 result;
-	result.x = ((float(voxNormPosY & 0xFFFF) / 0xFFFF) - 0.5f) * 2.0f;
-	result.y = ((float((voxNormPosY >> 16) & 0x7FFF) / 0x7FFF) - 0.5f) * 2.0f;
-	result.z = sqrt(abs(1.0f - dot(result.xy, result.xy)));
-	result.z *= sign(int(voxNormPosY));
-	
-	return result;
+	return vec4(unpackSnorm4x8(voxNormPosY).xyz,
+		        unpackUnorm4x8(voxNormPosY).w);
 }
 
-float UnpackOcclusion(in uint colorPacked)
+bool InterpolateSparse(out vec4 color,
+					   out vec4 normal,
+
+					   in vec3 worldPos,
+					   in uint depth,
+					   in uint matLoc)
 {
-	return unpackUnorm4x8(colorPacked).w;
-	//return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
-}
-
-float InterpolateOcclusion(in vec3 worldPos,
-						   in uint depth,
-						   in uint matLoc)
-{
-	// Bigass fetch (its fast tho L1 cache doing work! on GPU!!!)
-	vec4 first, last;
-	first.x = UnpackOcclusion(svoMaterial[matLoc + 0].y);
-	first.y = UnpackOcclusion(svoMaterial[matLoc + 1].y);
-	first.z = UnpackOcclusion(svoMaterial[matLoc + 2].y);
-	first.w = UnpackOcclusion(svoMaterial[matLoc + 3].y);
-
-	last.x = UnpackOcclusion(svoMaterial[matLoc + 4].y);
-	last.y = UnpackOcclusion(svoMaterial[matLoc + 5].y);
-	last.z = UnpackOcclusion(svoMaterial[matLoc + 6].y);
-	last.w = UnpackOcclusion(svoMaterial[matLoc + 7].y);
-
-	// Last level AO value is invalid (it used as avg count)
-	if(depth == dimDepth.y)
-	{
-		first = ceil(first);
-		last = ceil(last);
-	}
-
 	ivec3 voxPosLevel = LevelVoxId(worldPos, depth - 1);
 	vec3 voxPosWorld = worldPosSpan.xyz + vec3(voxPosLevel) * (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
-	voxPosWorld = (worldPos - voxPosWorld) / (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
+	vec3 interpValue = (worldPos - voxPosWorld) / (worldPosSpan.w * (0x1 << dimDepth.y - (depth - 1)));
 
-	vec4 lerpBuff;
-	lerpBuff.x = mix(first.x, first.y, voxPosWorld.x);
-	lerpBuff.y = mix(first.z, first.w, voxPosWorld.x);
-	lerpBuff.z = mix(last.x, last.y, voxPosWorld.x);
-	lerpBuff.w = mix(last.z, last.w, voxPosWorld.x);
+	// Bigass fetch (its fast tho L1 cache doing work on GPU!!!)
+	uvec2 materialA = svoMaterial[matLoc + 0].xy;
+	//uvec2 materialB = svoMaterial[matLoc + 1].xy;
+	//uvec2 materialC = svoMaterial[matLoc + 2].xy;
+	//uvec2 materialD = svoMaterial[matLoc + 3].xy;
+	//uvec2 materialE = svoMaterial[matLoc + 4].xy;
+	//uvec2 materialF = svoMaterial[matLoc + 5].xy;
+	//uvec2 materialG = svoMaterial[matLoc + 6].xy;
+	//uvec2 materialH = svoMaterial[matLoc + 7].xy;
 
-	lerpBuff.x = mix(lerpBuff.x, lerpBuff.y, voxPosWorld.y);
-	lerpBuff.y = mix(lerpBuff.z, lerpBuff.w, voxPosWorld.y);
+	// Interp Color
+	vec4 colorA = UnpackColorSVO(materialA.x);
+	//vec4 colorB = UnpackColorSVO(materialB.x); 
+	//vec4 colorC = UnpackColorSVO(materialC.x);
+	//vec4 colorD = UnpackColorSVO(materialD.x); 
+	//vec4 colorE = UnpackColorSVO(materialE.x); 
+	//vec4 colorF = UnpackColorSVO(materialF.x); 
+	//vec4 colorG = UnpackColorSVO(materialG.x); 
+	//vec4 colorH = UnpackColorSVO(materialH.x);
 
-	lerpBuff.x = mix(lerpBuff.x, lerpBuff.y, voxPosWorld.z);
-	return lerpBuff.x;
+	//colorA = mix(colorA, colorB, interpValue.x);
+	//colorB = mix(colorC, colorD, interpValue.x);
+	//colorC = mix(colorE, colorF, interpValue.x);
+	//colorD = mix(colorG, colorH, interpValue.x);
+
+	//colorA = mix(colorA, colorB, interpValue.y);
+	//colorB = mix(colorC, colorD, interpValue.y);
+
+	//color = mix(colorA, colorB, interpValue.z);
+
+	color = colorA;
+	
+	vec4 normalA = UnpackNormalSVO(materialA.y);
+	//vec4 normalB = UnpackNormalSVO(materialB.y); 
+	//vec4 normalC = UnpackNormalSVO(materialC.y);
+	//vec4 normalD = UnpackNormalSVO(materialD.y); 
+	//vec4 normalE = UnpackNormalSVO(materialE.y); 
+	//vec4 normalF = UnpackNormalSVO(materialF.y); 
+	//vec4 normalG = UnpackNormalSVO(materialG.y); 
+	//vec4 normalH = UnpackNormalSVO(materialH.y);
+		
+	//normalA = mix(normalA, normalB, interpValue.x);
+	//normalB = mix(normalC, normalD, interpValue.x);
+	//normalC = mix(normalE, normalF, interpValue.x);
+	//normalD = mix(normalG, normalH, interpValue.x);
+
+	//normalA = mix(normalA, normalB, interpValue.y);
+	//normalB = mix(normalC, normalD, interpValue.y);
+
+	//normal = mix(normalA, normalB, interpValue.z);
+
+	normal = normalA;
+
+	if(normal.w == 0.0f) return false;
+	return true;
 }
 
-float InterpolateOcclusion(in vec3 levelUV, in int level)
+void InterpolateDense(out vec4 color,
+					   out vec4 normal,
+					
+					   in vec3 levelUV, 
+					   in int level)
 {
 	vec3 interpolId = levelUV - floor(levelUV);
 	ivec3 uvInt = ivec3(floor(levelUV));
 
-	float occA = UnpackOcclusion(texelFetch(tSVOMat, uvInt + NEIG_MASK[0], level).y);
-	float occB = UnpackOcclusion(texelFetch(tSVOMat, uvInt + NEIG_MASK[1], level).y);
-	float occC = UnpackOcclusion(texelFetch(tSVOMat, uvInt + NEIG_MASK[2], level).y);
-	float occD = UnpackOcclusion(texelFetch(tSVOMat, uvInt + NEIG_MASK[3], level).y);
+	uvec2 materialA = texelFetch(tSVOMat, uvInt + NEIG_MASK[0], level).xy;
+	uvec2 materialB = texelFetch(tSVOMat, uvInt + NEIG_MASK[1], level).xy;
+	uvec2 materialC = texelFetch(tSVOMat, uvInt + NEIG_MASK[2], level).xy;
+	uvec2 materialD = texelFetch(tSVOMat, uvInt + NEIG_MASK[3], level).xy;
+	uvec2 materialE = texelFetch(tSVOMat, uvInt + NEIG_MASK[4], level).xy;
+	uvec2 materialF = texelFetch(tSVOMat, uvInt + NEIG_MASK[5], level).xy;
+	uvec2 materialG = texelFetch(tSVOMat, uvInt + NEIG_MASK[6], level).xy;
+	uvec2 materialH = texelFetch(tSVOMat, uvInt + NEIG_MASK[7], level).xy;
 
-	float occE = UnpackOcclusion(texelFetch(tSVOMat, uvInt + NEIG_MASK[4], level).y);
-	float occF = UnpackOcclusion(texelFetch(tSVOMat, uvInt + NEIG_MASK[5], level).y);
-	float occG = UnpackOcclusion(texelFetch(tSVOMat, uvInt + NEIG_MASK[6], level).y);
-	float occH = UnpackOcclusion(texelFetch(tSVOMat, uvInt + NEIG_MASK[7], level).y);
+	vec4 colorA = UnpackColorSVO(materialA.x);
+	vec4 colorB = UnpackColorSVO(materialB.x);
+	vec4 colorC = UnpackColorSVO(materialC.x);
+	vec4 colorD = UnpackColorSVO(materialD.x);
+	vec4 colorE = UnpackColorSVO(materialE.x);
+	vec4 colorF = UnpackColorSVO(materialF.x);
+	vec4 colorG = UnpackColorSVO(materialG.x);
+	vec4 colorH = UnpackColorSVO(materialH.x);
+	
+	colorA = mix(colorA, colorB, interpolId.x);
+	colorB = mix(colorC, colorD, interpolId.x);
+	colorC = mix(colorE, colorF, interpolId.x);
+	colorD = mix(colorG, colorH, interpolId.x);
 
-	vec4 lerpBuff;
-	occA = mix(occA, occB, interpolId.x);
-	occB = mix(occC, occD, interpolId.x);
-	occC = mix(occE, occF, interpolId.x);
-	occD = mix(occG, occH, interpolId.x);
+	colorA = mix(colorA, colorB, interpolId.y);
+	colorB = mix(colorC, colorD, interpolId.y);
 
-	occA = mix(occA, occB, interpolId.y);
-	occB = mix(occC, occD, interpolId.y);
+	color = mix(colorA, colorB, interpolId.z);
+	//color = colorA;
 
-	return mix(occA, occB, interpolId.z);
+	vec4 normalA = UnpackNormalSVO(materialA.y);
+	vec4 normalB = UnpackNormalSVO(materialB.y);
+	vec4 normalC = UnpackNormalSVO(materialC.y);
+	vec4 normalD = UnpackNormalSVO(materialD.y);
+	vec4 normalE = UnpackNormalSVO(materialE.y);
+	vec4 normalF = UnpackNormalSVO(materialF.y);
+	vec4 normalG = UnpackNormalSVO(materialG.y);
+	vec4 normalH = UnpackNormalSVO(materialH.y);
+
+	normalA = mix(normalA, normalB, interpolId.x);
+	normalB = mix(normalC, normalD, interpolId.x);
+	normalC = mix(normalE, normalF, interpolId.x);
+	normalD = mix(normalG, normalH, interpolId.x);
+
+	normalA = mix(normalA, normalB, interpolId.y);
+	normalB = mix(normalC, normalD, interpolId.y);
+
+	normal = mix(normalA, normalB, interpolId.z);
+	//normal = normalA;
 }
 
 // SVO Fetch
-float FetchSVOOcclusion(in vec3 worldPos, in uint depth)
-{	
-	// Start tracing (stateless start from root (dense))
+bool SampleSVO(out vec4 color,
+			   out vec4 normal,
+			   in vec3 worldPos,
+			   in uint depth)
+{
 	ivec3 voxPos = LevelVoxId(worldPos, dimDepth.y);
-
+	
 	// Cull if out of bounds
+	// Since cam is centered towards grid
+	// Out of bounds means its cannot come towards the grid
+	// directly cull
 	if(any(lessThan(voxPos, ivec3(0))) ||
 	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
-		return 0;
+		return false;
 
-	// Tripolation is different if its sparse or dense
-	// Fetch from 3D Tex here
-	if(depth < offsetCascade.w)
+	// Dense Fetch
+	if(depth <= dimDepth.w &&
+	   depth >= offsetCascade.w)
 	{
-		// Not every voxel level is available
-		return 0.0f;
-	}
-	else if(depth <= dimDepth.w)
-	{
-		// Dense Fetch
 		uint mipId = dimDepth.w - depth;
 		uint levelDim = dimDepth.z >> mipId;
 		vec3 levelUV = LevelVoxIdF(worldPos, depth);
-		return InterpolateOcclusion(levelUV, int(mipId));
+			
+		InterpolateDense(color, normal, levelUV, int(mipId));
+		return true;
 	}
-	else
+
+	// Initialize Traverse
+	unsigned int nodeIndex = 0;
+	ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
+	vec3 texCoord = vec3(denseVox) / dimDepth.z;
+	nodeIndex = texture(tSVODense, texCoord).x;
+	if(nodeIndex == 0xFFFFFFFF) return false;
+	nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
+
+	// Tree Traverse
+	uint traversedLevel;
+	for(traversedLevel = dimDepth.w + 1; 
+		traversedLevel < depth;
+		traversedLevel++)
 	{
-		ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
-		vec3 texCoord = vec3(denseVox) / dimDepth.z;
-		unsigned int nodeIndex = texture(tSVODense, texCoord).x;
-
-		if(nodeIndex == 0xFFFFFFFF) return 0.0f;
-		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
-
-		uint i;
-		for(i = dimDepth.w + 1; i < depth; i++)
-		{
-			// Fetch Next Level
-			uint newNodeIndex = svoNode[offsetCascade.y + svoLevelOffset[i - dimDepth.w] + nodeIndex];
-
-			// Node check
-			// If valued node go deeper else return no occlusion
-			if(newNodeIndex == 0xFFFFFFFF) break;
-			nodeIndex = newNodeIndex + CalculateLevelChildId(voxPos, i + 1);
-		}
-		// Finally At requested level
-		// BackTrack From Child
-		nodeIndex -= CalculateLevelChildId(voxPos, i);
-		uint matLoc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
-		return InterpolateOcclusion(worldPos, depth, matLoc); 
+		uint currentNode = svoNode[offsetCascade.y + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex];
+		if(currentNode == 0xFFFFFFFF) return false;//break;
+		nodeIndex = currentNode + CalculateLevelChildId(voxPos, traversedLevel + 1);
 	}
+	//nodeIndex -= CalculateLevelChildId(voxPos, traversedLevel);
+
+	// Mat out
+	if(traversedLevel > (dimDepth.y - offsetCascade.x) || 
+	   traversedLevel == depth)
+	{
+		// Mid or Leaf Level
+		uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
+		return InterpolateSparse(color, normal, worldPos, traversedLevel, loc);
+	}
+	return false;
 }
 
 void SumPixelData(inout vec4 coneColorOcc)
@@ -417,7 +466,8 @@ void main(void)
 		// and its corresponding depth
 		float diameter = max(cascadeSpan, coneParams1.z * 2.0f * traversedDistance);
 		uint nodeDepth = SpanToDepth(uint(round(diameter / worldPosSpan.w)));
-		nodeDepth = min(nodeDepth, 8);
+		//nodeDepth = 7;
+
 
 		// Determine Coverage Span of the surface 
 		// (wrt cone angle and distance from pixel)
@@ -425,9 +475,11 @@ void main(void)
 		float surfacePoint = (traversedDistance + diameter * 0.5f);
 				
 		// start sampling from that surface (interpolate)
-		//float surfOcclusion = SampleSurface(coneDir * traversedDistance);
-		float surfOcclusion = FetchSVOOcclusion(worldPos + coneDir * traversedDistance,
-												nodeDepth);
+		vec4 color, normal;
+		bool found = SampleSVO(color, normal,
+							   worldPos + coneDir * traversedDistance,
+							   nodeDepth);
+		float surfOcclusion = (found) ? normal.w : 0.0f;
 
 		// Omit if %100 occuluded in closer ranges
 		// Since its not always depth pos aligned with voxel pos
@@ -444,8 +496,9 @@ void main(void)
 		nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDistance / diameterVoxelSize);
 		
 		// Occlusion falloff (linear)
-		//nodeOcclusion *= (1.0f / (1.0f + traversedDistance));
-		nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
+		nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * diameter));
+		//nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * traversedDistance);
+		//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 0.5f)));
 
 		// Average total occlusion value
 		totalConeOcclusion += (1 - totalConeOcclusion) * nodeOcclusion;

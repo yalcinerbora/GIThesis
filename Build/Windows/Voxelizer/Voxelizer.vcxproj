@@ -1,0 +1,130 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{8686D002-D45B-4AD6-993F-CE724CA0A4EE}</ProjectGuid>
+    <RootNamespace>Voxelizer</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)..\..\Bin\Windows\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\..\Bin\Windows\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)..\..\Bin\Windows\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\..\Bin\Windows\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(SolutionDir)..\..\Source;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;GI_DEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\Lib\x64;$(SolutionDir)..\..\Lib\x64\$(Configuration);$(CudaToolkitLibDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glew32.lib;glfw3dll.lib;GFGFileIO.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(SolutionDir)..\..\Source;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;NDEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\Lib\x64;$(SolutionDir)..\..\Lib\x64\$(Configuration);$(CudaToolkitLibDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glew32.lib;glfw3dll.lib;GFGFileIO.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\Source\DrawBuffer.cpp" />
+    <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
+    <ClCompile Include="..\..\..\Source\GPUBuffer.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IEQuaternion.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IETimer.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IEVector3.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IEVector4.cpp" />
+    <ClCompile Include="..\..\..\Source\Material.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatch.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp" />
+    <ClCompile Include="..\..\..\Source\Shader.cpp" />
+    <ClCompile Include="..\..\..\Source\Voxelizer\GL3DTexture.cpp" />
+    <ClCompile Include="..\..\..\Source\Voxelizer\main.cpp" />
+    <ClCompile Include="..\..\..\Source\Voxelizer\OGLVoxelizer.cpp" />
+    <ClCompile Include="..\..\..\Source\Voxelizer\VoxFramebuffer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\Source\DrawBuffer.h" />
+    <ClInclude Include="..\..\..\Source\GFGLoader.h" />
+    <ClInclude Include="..\..\..\Source\GPUBuffer.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEFunctions.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEMath.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEMatrix3x3.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEMatrix4x4.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEQuaternion.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IETimer.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEVector3.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEVector4.h" />
+    <ClInclude Include="..\..\..\Source\Material.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatch.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h" />
+    <ClInclude Include="..\..\..\Source\Shader.h" />
+    <ClInclude Include="..\..\..\Source\StructuredBuffer.h" />
+    <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\ASCIIProgressBar.h" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\BindPoints.h" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\GL3DTexture.h" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\OGLVoxelizer.h" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\VoxFramebuffer.h" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\VoxWriter.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

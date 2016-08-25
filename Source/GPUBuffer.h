@@ -34,6 +34,7 @@ struct VertexElement
 {
 	uint32_t			inputPosition;		
 	GPUDataType			type;
+	bool				isNormInt;
 	uint32_t			typeCount;			
 	uint32_t			offset;				
 	uint32_t			stride;				
@@ -61,17 +62,19 @@ class GPUBuffer
 		// Constructors & Destructor
 									GPUBuffer(const Array32<const VertexElement>);
 									GPUBuffer(const GPUBuffer&) = delete;
-		const GPUBuffer&			operator= (const GPUBuffer&) = delete;
+		const GPUBuffer&			operator=(const GPUBuffer&) = delete;
 									~GPUBuffer();
 
 		//
 		bool						AddMesh(DrawPointIndexed& result,
 											const uint8_t data[],
 											const uint8_t indexData[],
+											size_t vertexStride,
 											size_t vertexCount,
 											size_t indexCount);
 		
-		bool						IsSuitedGFGMesh(const GFGMeshHeader &);
+		bool						IsSuitedGFGMesh(const GFGMeshHeader&);
+		bool						IsSuitedGFGMeshSkeletal(const GFGMeshHeader&);
 		bool						HasEnoughSpaceFor(uint64_t vertexCount,
 													  uint64_t indexCount);
 

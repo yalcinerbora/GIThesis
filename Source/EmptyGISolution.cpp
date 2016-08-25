@@ -80,7 +80,7 @@ void TW_CALL EmptyGISolution::GetLightDirection(void *value, void *clientData)
 {
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
 	IEVector3 intensity = lookup->solution->currentScene->getSceneLights().GetLightDir(lookup->lightID);
-	*static_cast<IEVector3*>(value) = intensity;
+	*static_cast<IEVector3*>(value) = intensity.Normalize();
 }
 
 void TW_CALL EmptyGISolution::SetLightDirection(const void *value, void *clientData)
@@ -108,6 +108,9 @@ EmptyGISolution::EmptyGISolution(DeferredRenderer& defferedRenderer)
 	: currentScene(nullptr)
 	, dRenderer(defferedRenderer)
 	, bar(nullptr)
+	, directLighting(true)
+	, ambientLighting(true)
+	, ambientColor(0.1f, 0.1f, 0.1f)
 {}
 
 bool EmptyGISolution::IsCurrentScene(SceneI& scene)
@@ -120,12 +123,22 @@ void EmptyGISolution::Init(SceneI& s)
 	currentScene = &s;
 
 	// Bar Creation
-	bar = TwNewBar("EmptyGI");
-	TwDefine(" EmptyGI refresh=0.01 ");
+	bar = TwNewBar("Ligths");
+	TwDefine(" Ligths refresh=0.01 ");
 
 	// FPS Show
 	TwAddVarRO(bar, "fTime", TW_TYPE_DOUBLE, &frameTime,
 			   " label='Frame(ms)' help='Frame Time in milliseconds..' ");
+	TwAddVarRW(bar, "directLightOn", TW_TYPE_BOOLCPP,
+			   &directLighting,
+			   " label='Direct Light' help='Direct Ligting On Off' ");
+	TwAddVarRW(bar, "ambientOn", TW_TYPE_BOOLCPP,
+			   &ambientLighting,
+			   " label='Ambient On' help='Ambient Ligting On Off' ");
+	TwAddVarRW(bar, "aColor", TW_TYPE_COLOR3F,
+			   &ambientColor,
+			   " label='Ambient Color' help='Ambient Color'");
+
 	TwAddSeparator(bar, NULL, NULL);
 		
 	std::string name;
@@ -187,6 +200,7 @@ void EmptyGISolution::Init(SceneI& s)
 			name = "lDirection" + std::to_string(i);
 			params = " label='Direction' group='Light#" + std::to_string(i);
 			params += "' help='Light Direction' ";
+			if(i == 0) params += " opened=true ";
 			TwAddVarCB(bar, name.c_str(), TW_TYPE_DIR3F,
 					   SetLightDirection,
 					   GetLightDirection,
@@ -216,15 +230,20 @@ void EmptyGISolution::Init(SceneI& s)
 					   params.c_str());
 		}
 
-		params = " EmptyGI/Light#" + std::to_string(i);
-		params+= " group = 'Lights' ";
+		params = " Ligths/Light#" + std::to_string(i);
+		params += " group = 'Lights' ";
 		TwDefine(params.c_str()); 
-		params = " EmptyGI/Light#" + std::to_string(i);
-		params += " opened=false ";
+		params = " Ligths/Light#" + std::to_string(i);
+
+		if(i == 0)
+			params += " opened=true ";
+		else
+			params += " opened=false ";
 		TwDefine(params.c_str());
 	}
-	TwDefine(" EmptyGI size='300 250' ");
-	TwDefine(" EmptyGI valueswidth=180 ");
+	TwDefine(" Ligths size='220 250' ");
+	TwDefine(" Ligths valueswidth=fit ");
+	TwDefine(" Ligths position='5 25' ");
 }
 
 void EmptyGISolution::Release()
@@ -236,7 +255,12 @@ void EmptyGISolution::Release()
 
 void EmptyGISolution::Frame(const Camera& mainRenderCamera)
 {
-	dRenderer.Render(*currentScene, mainRenderCamera);
+	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
+	dRenderer.Render(*currentScene, mainRenderCamera, directLighting, aColor);
+
+	//dRenderer.ShowColorGBuffer(mainRenderCamera);
+	//dRenderer.ShowNormalGBuffer(mainRenderCamera);
+	//dRenderer.ShowDepthGBuffer(mainRenderCamera);
 }
 
 void EmptyGISolution::SetFPS(double fpsMS)

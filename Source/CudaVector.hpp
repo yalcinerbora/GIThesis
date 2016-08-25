@@ -211,6 +211,23 @@ static std::ostream& operator<< (std::ostream& ostr, const SegmentOccupation& se
 	return ostr;
 }
 
+static std::ostream& operator<< (std::ostream& ostr, const SegmentObjData& segObj)
+{
+	uint16_t objType = segObj.packed >> 14;
+	uint16_t occupation = (segObj.packed >> 11) & 0x000F;
+	uint16_t segmentO = segObj.packed & 0x07FF;
+
+	ostr << segObj.batchId << " ";
+	ostr << segObj.objId << " | ";
+	ostr << segObj.objectSegmentId << " | ";
+	ostr << objType << " ";
+	ostr << occupation << " ";
+	ostr << segmentO << " ";
+	ostr << segObj.voxStride;
+
+	return ostr;
+}
+
 template<class T>
 void CudaVector<T>::DumpToFile(const char* fName) const
 {
@@ -230,7 +247,7 @@ void CudaVector<T>::DumpToFile(const char* fName,
 	fOut.open(fName);
 
 	for(const T& data : cpuData)
-		fOut << "0x" << std::hex << data << std::endl;
+		fOut << /*"0x" << std::hex <<*/ data << std::endl;
 }
 
 inline void CudaVector<unsigned char>::DumpToFile(const char* fName,

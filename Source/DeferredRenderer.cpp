@@ -5,6 +5,7 @@
 #include "Camera.h"
 #include "RectPrism.h"
 #include "DrawBuffer.h"
+#include "MeshBatchSkeletal.h"
 
 const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920;*//*2560;*///3840;
 const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*//*1440;*///2160;
@@ -18,19 +19,25 @@ const float DeferredRenderer::postProcessTriData[6] =
 
 DeferredRenderer::DeferredRenderer()
 	: gBuffer(gBuffWidth, gBuffHeight)
-	, vertexGBufferWrite(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert")
-	, fragmentGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag")
+	, vertGBufferSkeletal(ShaderType::VERTEX, "Shaders/GWriteSkeletal.vert")
+	, vertGBufferWrite(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert")
+	, fragGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag")
 	, vertDPass(ShaderType::VERTEX, "Shaders/DPass.vert")
+	, vertDPassSkeletal(ShaderType::VERTEX, "Shaders/DPassSkeletal.vert")
 	, vertLightPass(ShaderType::VERTEX, "Shaders/LightPass.vert")
 	, fragLightPass(ShaderType::FRAGMENT, "Shaders/LightPass.frag")
 	, vertPPGeneric(ShaderType::VERTEX, "Shaders/PProcessGeneric.vert")
 	, fragLightApply(ShaderType::FRAGMENT, "Shaders/PPLightPresent.frag")
 	, fragPPGeneric(ShaderType::FRAGMENT, "Shaders/PProcessGeneric.frag")
+	, fragPPNormal(ShaderType::FRAGMENT, "Shaders/PProcessNormal.frag")
+	, fragPPDepth(ShaderType::FRAGMENT, "Shaders/PProcessDepth.frag")
 	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
 	, vertShadowMap(ShaderType::VERTEX, "Shaders/ShadowMap.vert")
+	, vertShadowMapSkeletal(ShaderType::VERTEX, "Shaders/ShadowMapSkeletal.vert")
 	, geomAreaShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapA.geom")
 	, geomDirShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapD.geom")
 	, geomPointShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapP.geom")
+	, computeHierZ(ShaderType::COMPUTE, "Shaders/HierZ.glsl")
 	, lightIntensityTex(0)
 	, lightIntensityFBO(0)
 	, invFrameTransform(1)
@@ -45,7 +52,7 @@ DeferredRenderer::DeferredRenderer()
 	glGenFramebuffers(1, &lightIntensityFBO);
 
 	glBindTexture(GL_TEXTURE_2D, lightIntensityTex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB16F, gBuffWidth, gBuffHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, gBuffWidth, gBuffHeight);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
@@ -92,9 +99,9 @@ DeferredRenderer::DeferredRenderer()
 	glSamplerParameteri(linearSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
+	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+	//glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	//glSamplerParameteri(shadowMapSampler, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 	glSamplerParameteri(shadowMapSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
@@ -186,11 +193,12 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 										  const Camera& camera)
 {
 	fragShadowMap.Bind();
-	vertShadowMap.Bind();
+	unsigned int lightCount = static_cast<unsigned int>(scene.getSceneLights().lightsGPU.CPUData().size());
 
 	// State
 	// Rendering with polygon offset to eliminate shadow acne
-	glColorMask(false, false, false, false);
+	glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
+	glColorMask(true, false, false, false);
 	glDepthMask(true);
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
@@ -200,7 +208,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	glViewport(0, 0, SceneLights::shadowMapWH, SceneLights::shadowMapWH);
 
 	// Render From Dir of the light	with proper view params
-	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
+	for(unsigned int i = 0; i < lightCount; i++)
 	{
 		const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
 		// Determine light type
@@ -219,6 +227,9 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 														   currentLight.position + SceneLights::pLightDir[j],
 														   SceneLights::pLightUp[j]);
 					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * view;
+					scene.getSceneLights().lightProjMatrices[i * 6 + j] = projection;
+					scene.getSceneLights().lightInvViewProjMatrices[i * 6 + j] = (projection * view).Inverse();
+
 				}
 				break;
 			}
@@ -238,7 +249,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 																	//-230.0f, 230.0f,
 																	-radius, radius,
 																	radius, -radius,
-																	-1000.0f, 1000.0f);
+																	-800.0f, 800.0f);
 
 					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f),
 														   viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f) + currentLight.direction,
@@ -246,6 +257,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 
 					// To eliminate shadow shimmering only change pixel sized frusutm changes
 					IEVector3 unitPerTexel = (2.0f * IEVector3(radius, radius, radius)) / IEVector3(static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH));
+					unitPerTexel *= static_cast<float>(1 << (SceneLights::mipSampleCount));
 					IEVector3 translatedOrigin = view * IEVector3::ZeroVector;
 					IEVector3 texelTranslate;
 					texelTranslate.setX(fmod(translatedOrigin.getX(), unitPerTexel.getX()));
@@ -257,6 +269,8 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 					IEMatrix4x4 texelTranslateMatrix = IEMatrix4x4::Translate(texelTranslate);
 
 					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * texelTranslateMatrix * view;
+					scene.getSceneLights().lightProjMatrices[i * 6 + j] = projection;
+					scene.getSceneLights().lightInvViewProjMatrices[i * 6 + j] = (projection * texelTranslateMatrix * view).Inverse();
 				}
 				break;
 			}
@@ -275,7 +289,9 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 														   currentLight.position + SceneLights::aLightDir[j],
 														   SceneLights::aLightUp[j]);
 
-					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projections[projIndex] * view;	
+					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projections[projIndex] * view;
+					scene.getSceneLights().lightProjMatrices[i * 6 + j] = projections[projIndex];
+					scene.getSceneLights().lightInvViewProjMatrices[i * 6 + j] = (projections[projIndex] * view).Inverse();
 				}	
 				break;
 			}
@@ -288,11 +304,11 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	scene.getSceneLights().lightViewProjMatrices.BindAsShaderStorageBuffer(LU_LIGHT_MATRIX);
 
 	// Render Loop
-	for(int i = 0; i < scene.getSceneLights().lightsGPU.CPUData().size(); i++)
+	for(unsigned int i = 0; i < lightCount; i++)
 	{
 		// FBO Bind and render calls
 		glBindFramebuffer(GL_FRAMEBUFFER, scene.getSceneLights().shadowMapFBOs[i]);
-		glClear(GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		if(!scene.getSceneLights().lightShadowCast[i])
 			continue;
@@ -301,6 +317,17 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 		Array32<MeshBatchI*> batches = scene.getBatches();
 		for(unsigned int j = 0; j < batches.length; j++)
 		{
+			if(batches.arr[j]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+			{
+				vertShadowMapSkeletal.Bind();
+				auto batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[j]);
+				batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
+			}
+			else
+			{
+				vertShadowMap.Bind();
+			}
+
 			GPUBuffer& currentGPUBuffer = batches.arr[j]->getGPUBuffer();
 			DrawBuffer& currentDrawBuffer = batches.arr[j]->getDrawBuffer();
 
@@ -316,7 +343,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 			{
 				case LightType::POINT: geomPointShadowMap.Bind(); break;
 				case LightType::DIRECTIONAL: geomDirShadowMap.Bind();
-					glPolygonOffset(4.12f, 1024.0f); // Higher offset req since camera span is large
+					glPolygonOffset(6.12f, 1024.0f); // Higher offset req since camera span is large
 					break;
 				case LightType::AREA: geomAreaShadowMap.Bind(); break;
 			}
@@ -339,12 +366,39 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 			//}
 		}
 	}
+
+	glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
+	glFlush();
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// Hierarchical z-buffers
+	GLuint lightTex = scene.getSceneLights().shadowMapArrayView;
+	computeHierZ.Bind();
+	for(unsigned int i = 0; i < SceneLights::shadowMipCount - 1; i++)
+	{
+		// Reduce Entire Level at once
+		// TODO:
+		GLuint depthSize = SceneLights::shadowMapWH >> (i + 1);
+		GLuint totalPixelCount = (depthSize * depthSize) * lightCount * 6;
+		
+		glUniform1ui(U_DEPTH_SIZE, depthSize);
+		glUniform1ui(U_PIX_COUNT, totalPixelCount);
+		
+		glBindImageTexture(I_DEPTH_READ, lightTex, i, true, 0, GL_READ_ONLY, GL_R32F);
+		glBindImageTexture(I_DEPTH_WRITE, lightTex, i + 1, true, 0, GL_WRITE_ONLY, GL_R32F);
+				
+		// Dispatch
+		unsigned int gridSize = (totalPixelCount + 256 - 1) / 256;
+		glDispatchCompute(gridSize, 1, 1);
+
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	}
+
 	glDisable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(0.0f, 0.0f);
 }
 
-void DeferredRenderer::GPass(SceneI& scene,
-							 const Camera& camera)
+void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 {
 	gBuffer.BindAsFBO();
 	gBuffer.AlignViewport();
@@ -358,20 +412,35 @@ void DeferredRenderer::GPass(SceneI& scene,
 	glColorMask(true, true, true, true);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	// Without Depth Prepass
+	glDepthMask(true);
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glDepthFunc(GL_LEQUAL);
+	
 	// Camera Transform
 	cameraTransform.Update(camera.generateTransform());
 	cameraTransform.Bind();
 
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);
-	vertexGBufferWrite.Bind();
-	fragmentGBufferWrite.Bind();
+	fragGBufferWrite.Bind();
 
 	// DrawCall
 	// Draw Batches
 	Array32<MeshBatchI*> batches = scene.getBatches();
 	for(unsigned int i = 0; i < batches.length; i++)
 	{
+		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+		{
+			vertGBufferSkeletal.Bind();
+			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[i]);
+			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
+		}
+		else
+		{
+			vertGBufferWrite.Bind();
+		}
+
 		GPUBuffer& currentGPUBuffer = batches.arr[i]->getGPUBuffer();
 		DrawBuffer& currentDrawBuffer = batches.arr[i]->getDrawBuffer();
 
@@ -389,28 +458,33 @@ void DeferredRenderer::GPass(SceneI& scene,
 	}
 }
 
+void DeferredRenderer::ClearLI(const IEVector3& ambientColor)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
+	glClearColor(ambientColor.getX(), ambientColor.getY(), ambientColor.getZ(), 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 {
 	// Light pass
 	// Texture Binds
-	glActiveTexture(GL_TEXTURE0 + T_SHADOW);
-	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, scene.getSceneLights().lightShadowMaps);
-	glActiveTexture(GL_TEXTURE0 + T_SHADOW_DIR);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, scene.getSceneLights().shadowMapArrayView);
 	gBuffer.BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
 	gBuffer.BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
 	gBuffer.BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	glBindSampler(T_COLOR, flatSampler);
 	glBindSampler(T_NORMAL, flatSampler);
 	glBindSampler(T_DEPTH, flatSampler);
-	glBindSampler(T_SHADOW, shadowMapSampler);
-	glBindSampler(T_SHADOW_DIR, shadowMapSampler);
+
+	// ShadowMap Binds
+	BindShadowMaps(scene);
+	BindLightBuffers(scene);
 
 	// Buffer Binds
 	FrameTransformBufferData ft = camera.generateTransform();
 	cameraTransform.Update(ft);
 	cameraTransform.Bind();
-	scene.getSceneLights().lightsGPU.BindAsShaderStorageBuffer(LU_LIGHT);
 
 	// Inverse Frame Transforms
 	invFrameTransform.BindAsUniformBuffer(U_INVFTRANSFORM);
@@ -419,13 +493,13 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	// Bind LightIntensity Buffer as framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glViewport(0, 0, gBuffWidth, gBuffHeight);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
 
 	// Get VAO from Scene Lights
 	Shader::Unbind(ShaderType::GEOMETRY);
 	vertLightPass.Bind();
 	fragLightPass.Bind();
+	glUniform1ui(U_SHADOW_MIP_COUNT, static_cast<GLuint>(SceneLights::mipSampleCount));
+	glUniform1ui(U_SHADOW_MAP_WH, static_cast<GLuint>(SceneLights::shadowMapWH));
 
 	// Open Additive Blending
 	// Intensity of different lights will be added
@@ -468,19 +542,27 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 	
 	// Shaders
 	fragShadowMap.Bind();
-	vertDPass.Bind();
 	Shader::Unbind(ShaderType::GEOMETRY);
 
 	// Camera Transform
 	cameraTransform.Update(camera.generateTransform());
 	cameraTransform.Bind();
 
-	
-	
 	// Draw Batches
 	Array32<MeshBatchI*> batches = scene.getBatches();
 	for(unsigned int i = 0; i < batches.length; i++)
 	{
+		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+		{
+			vertDPassSkeletal.Bind();
+			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[i]);
+			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
+		}
+		else
+		{
+			vertDPass.Bind();
+		}
+
 		GPUBuffer& currentGPUBuffer = batches.arr[i]->getGPUBuffer();
 		DrawBuffer& currentDrawBuffer = batches.arr[i]->getDrawBuffer();
 
@@ -504,7 +586,7 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 	}
 }
 
-void DeferredRenderer::LightMerge(const Camera& camera)
+void DeferredRenderer::Present(const Camera& camera)
 {
 	// Render to main framebuffer as post process
 	// Shaders
@@ -592,14 +674,15 @@ void DeferredRenderer::RefreshInvFTransform(const Camera& camera,
 void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
 {
 	// Depth Pre-Pass
-	DPass(scene, camera);
+//	DPass(scene, camera);
 
 	// Actual Render
 	// G Pass
 	GPass(scene, camera);
 }
 
-void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
+void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLight,
+							  const IEVector3& ambientColor)
 {
 	// Shadow Map Generation
 	GenerateShadowMaps(scene, camera);
@@ -607,16 +690,22 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera)
 	// GPass
 	PopulateGBuffer(scene, camera);
 	
+	// Clear LI with ambient color
+	ClearLI(ambientColor);
+
 	// Light Pass
-	LightPass(scene, camera);
-	
+	if(directLight)
+	{
+		LightPass(scene, camera);
+	}
+
 	// Light Intensity Merge
-	LightMerge(camera);
+	Present(camera);
 
 	// All Done!
 }
 
-void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex)
+void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex, RenderTargetLocation location)
 {
 	// Only Draw Color Buffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -637,8 +726,19 @@ void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex)
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);
 	vertPPGeneric.Bind();
-	fragPPGeneric.Bind();
 
+	if(location == RenderTargetLocation::COLOR)
+		fragPPGeneric.Bind();
+	else if(location == RenderTargetLocation::NORMAL)
+	{
+		fragPPNormal.Bind();
+	}
+	else if(location == RenderTargetLocation::DEPTH)
+	{
+		fragPPDepth.Bind();
+		glUniform2f(U_NEAR_FAR, camera.near, camera.far);
+	}
+	
 	// Texture
 	glActiveTexture(GL_TEXTURE0 + T_COLOR);
 	glBindTexture(GL_TEXTURE_2D, tex);
@@ -656,7 +756,33 @@ void DeferredRenderer::ShowColorGBuffer(const Camera& camera)
 	ShowTexture(camera, gBuffer.getColorGL());
 }
 
+void DeferredRenderer::ShowNormalGBuffer(const Camera& camera)
+{
+	ShowTexture(camera, gBuffer.getNormalGL(), RenderTargetLocation::NORMAL);
+}
+
+void DeferredRenderer::ShowDepthGBuffer(const Camera& camera)
+{
+	ShowTexture(camera, gBuffer.getDepthGL(), RenderTargetLocation::DEPTH);
+}
+
 void DeferredRenderer::ShowLIBuffer(const Camera& camera)
 {
 	ShowTexture(camera, lightIntensityTex);
+}
+
+void DeferredRenderer::BindShadowMaps(SceneI& scene)
+{
+	glActiveTexture(GL_TEXTURE0 + T_SHADOW);
+	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, scene.getSceneLights().lightShadowMaps);
+	glBindSampler(T_SHADOW, shadowMapSampler);
+	glActiveTexture(GL_TEXTURE0 + T_SHADOW_DIR);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, scene.getSceneLights().shadowMapArrayView);
+	glBindSampler(T_SHADOW_DIR, shadowMapSampler);
+}
+
+void DeferredRenderer::BindLightBuffers(SceneI& scene)
+{
+	scene.getSceneLights().lightsGPU.BindAsShaderStorageBuffer(LU_LIGHT);
+	scene.getSceneLights().lightViewProjMatrices.BindAsShaderStorageBuffer(LU_LIGHT_MATRIX);
 }

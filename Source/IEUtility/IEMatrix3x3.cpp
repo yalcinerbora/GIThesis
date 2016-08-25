@@ -315,7 +315,7 @@ IEMatrix3x3 IEMatrix3x3::Rotate(const IEQuaternion& quat)
 	result.v[4] = (1.0f - (2.0f * (xx + zz)));
 	result.v[7] = (2.0f * (yz - xw));
 	
-	result.v[3] = (2.0f * (xz - yw));
+	result.v[2] = (2.0f * (xz - yw));
 	result.v[5] = (2.0f * (yz + xw));
 	result.v[8] = (1.0f - (2.0f * (xx + yy)));
 	return result;

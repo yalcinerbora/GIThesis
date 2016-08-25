@@ -2,17 +2,19 @@
 #include "GFG/GFGFileLoader.h"
 #include "GFG/GFGMaterialTypes.h"
 #include "Macros.h"
-#include "MeshBatchStatic.h"
+#include "MeshBatch.h"
 #include "Material.h"
 #include "IEUtility/IEMatrix4x4.h"
 #include "Scene.h"
+#include "Globals.h"
 
 GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 								GPUBuffer& buffer,
 								DrawBuffer& drawBuffer,
-								const char* gfgFilename)
+								const char* gfgFileName,
+								bool isSkeletal)
 {
-	std::ifstream stream(gfgFilename, std::ios_base::in | std::ios_base::binary);
+	std::ifstream stream(gfgFileName, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
 	GFGFileLoader gfgFile(&stlFileReader);
 	std::vector<DrawPointIndexed> drawCalls;
@@ -24,8 +26,11 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 	uint64_t indexCount = 0;
 	for(const GFGMeshHeader mesh : gfgFile.Header().meshes)
 	{
-		if(!buffer.IsSuitedGFGMesh(mesh))
+		if(isSkeletal && !buffer.IsSuitedGFGMeshSkeletal(mesh))
 			return GFGLoadError::VAO_MISMATCH;
+		else if(!isSkeletal && !buffer.IsSuitedGFGMesh(mesh))
+			return GFGLoadError::VAO_MISMATCH;
+
 		vertexCount += mesh.headerCore.vertexCount;
 		indexCount += mesh.headerCore.indexCount;
 	}
@@ -33,7 +38,6 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 		return GFGLoadError::NOT_ENOUGH_SIZE;
 	params.totalPolygons = indexCount / 3;
 	
-
 	// Get All Mesh Vertex Data
 	std::vector<uint8_t> vertexData;
 	std::vector<uint8_t> indexData;
@@ -41,13 +45,13 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 	indexData.resize(gfgFile.AllMeshIndexDataSize());
 	if(gfgFile.AllMeshVertexData(vertexData.data()) != GFGFileError::OK)
 	{
-		GI_ERROR_LOG("Failed to Load mesh vertex data on file %s", gfgFilename);
+		GI_ERROR_LOG("Failed to Load mesh vertex data on file %s", gfgFileName);
 		return GFGLoadError::FATAL_ERROR;
 	}
 		
 	if(gfgFile.AllMeshIndexData(indexData.data()) != GFGFileError::OK)
 	{
-		GI_ERROR_LOG("Failed to Load Mesh Index Data on file %s", gfgFilename);
+		GI_ERROR_LOG("Failed to Load Mesh Index Data on file %s", gfgFileName);
 		return GFGLoadError::FATAL_ERROR;
 	}
 
@@ -59,16 +63,16 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 		if(!buffer.AddMesh(drawCalls.back(),
 							vertexData.data() + (mesh.headerCore.vertexStart - gfgFile.Header().meshes[0].headerCore.vertexStart),
 							indexData.data() + (mesh.headerCore.indexStart - gfgFile.Header().meshes[0].headerCore.indexStart),
+							isSkeletal ? sizeof(VAOSkel) : sizeof(VAO),
 							mesh.headerCore.vertexCount,
 							mesh.headerCore.indexCount))
 		{ 
-			GI_ERROR_LOG("Failed to Load Mesh to GPU Buffer %s", gfgFilename);
+			GI_ERROR_LOG("Failed to Load Mesh to GPU Buffer %s", gfgFileName);
 			return GFGLoadError::FATAL_ERROR;
 		}
 		params.objectCount++;
 	}
 	
-
 	int matIndex = -1;
 	for(const GFGMaterialHeader& mat : gfgFile.Header().materials)
 	{
@@ -114,14 +118,11 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 		{
 			const GFGTransform& t = gfgFile.Header().transformData.transforms[parent->transformIndex];
 
-			transform = IEMatrix4x4::Rotate(t.rotate[0], IEVector3::Xaxis) * transform;
-			transform = IEMatrix4x4::Rotate(t.rotate[1], IEVector3::Yaxis) * transform;
-			transform = IEMatrix4x4::Rotate(t.rotate[2], IEVector3::Zaxis) * transform;
+			IEMatrix4x4 trans, rot;
+			MeshBatch::GenTransformMatrix(trans, rot, t);
 
-			transformRotation = transform;
-
-			transform = IEMatrix4x4::Scale(t.scale[0], t.scale[1], t.scale[2]) * transform;
-			transform = IEMatrix4x4::Translate({t.translate[0], t.translate[1], t.translate[2]}) * transform;
+			transform = transform * trans;
+			transformRotation = transformRotation * rot;
 
 			parent = &gfgFile.Header().sceneHierarchy.nodes[parent->parentIndex];
 		}
@@ -156,5 +157,68 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 		params.drawCallCount++;
 	}
 	buffer.AttachMTransformIndexBuffer(drawBuffer.getModelTransformIndexBuffer().getGLBuffer());
+	return GFGLoadError::OK;
+}
+
+GFGLoadError GFGLoader::LoadAnim(GFGAnimationHeader& header,
+								 std::vector<IEVector3>& hipTranslations,
+								 std::vector<float>& keyTimes,
+								 std::vector<std::vector<IEQuaternion>>& jointKeys,
+								 std::vector<GFGTransform>& bindPose,
+								 std::vector<uint32_t>& jointHierarchy,
+								 const char* gfgFileName)
+{
+	std::ifstream stream(gfgFileName, std::ios_base::in | std::ios_base::binary);
+	GFGFileReaderSTL stlFileReader(stream);
+	GFGFileLoader gfgFile(&stlFileReader);
+	gfgFile.ValidateAndOpen();
+
+	// 
+	assert(gfgFile.Header().animations.size() == 1);
+	const GFGAnimationHeader anim = gfgFile.Header().animations[0];
+	header = anim;
+	assert(anim.quatType == GFGQuatLayout::WXYZ);		
+	assert(anim.type == GFGAnimType::WITH_HIP_TRANSLATE);
+	assert(anim.layout == GFGAnimationLayout::KEYS_OF_BONES);
+	assert(anim.keyCount > 1);
+
+	// Now Load
+	uint32_t boneCount = gfgFile.Header().skeletons[anim.skeletonIndex].boneAmount;
+	uint64_t dataPtr = 0;
+	std::vector<uint8_t> data(gfgFile.AnimationKeyframeDataSize(0));
+	gfgFile.AnimationKeyframeData(data.data(), 0);
+
+	keyTimes.resize(anim.keyCount);
+	std::memcpy(keyTimes.data(), data.data() + dataPtr,
+				sizeof(float) * anim.keyCount);
+	dataPtr += sizeof(float) * anim.keyCount;
+
+	hipTranslations.resize(anim.keyCount);
+	std::memcpy(hipTranslations.data(), data.data() + dataPtr,
+				sizeof(float) * 3 * anim.keyCount);
+	dataPtr += sizeof(float) * 3 * anim.keyCount;
+
+	jointKeys.resize(boneCount);
+	for(unsigned int i = 0; i < boneCount; i++)
+	{
+		jointKeys[i].resize(anim.keyCount);
+		std::memcpy(jointKeys[i].data(), data.data() + dataPtr,
+					sizeof(IEQuaternion) * anim.keyCount);
+		dataPtr += sizeof(IEQuaternion) * anim.keyCount;
+	}
+
+	// Load Transforms
+	bindPose = gfgFile.Header().bonetransformData.transforms;
+
+	// Generate Joint Key Down Top Hierarchy
+	bindPose.resize(boneCount);
+	jointHierarchy.resize(boneCount);
+	uint32_t index = 0;
+	for(const GFGBone& bone : gfgFile.Header().skeletons[anim.skeletonIndex].bones)
+	{
+		bindPose[index] = gfgFile.Header().bonetransformData.transforms[bone.transformIndex];
+		jointHierarchy[index] = bone.parentIndex;
+		index++;
+	}
 	return GFGLoadError::OK;
 }

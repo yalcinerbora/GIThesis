@@ -48,7 +48,7 @@ class IEVector3
 		inline void				setY(float);
 		inline void				setZ(float);
 		inline void				setData(const float[3]);
-		inline IEVector3&		operator=(const IEVector3&);
+		inline IEVector3&		operator=(const IEVector3&) = default;
 
 		// Modify
 		void					operator+=(const IEVector3&);
@@ -97,6 +97,6 @@ void IEVector3::setX(float t) {x = t;}
 void IEVector3::setY(float t) {y = t;}
 void IEVector3::setZ(float t) {z = t;}
 void IEVector3::setData(const float* t) {std::copy(t, t + 3, v);}
-IEVector3& IEVector3::operator=(const IEVector3& vector){std::copy(vector.v, vector.v + 3, v); return *this;}
+//IEVector3& IEVector3::operator=(const IEVector3& vector){std::copy(vector.v, vector.v + 3, v); return *this;}
 
 #endif //__IE_VECTOR3_H__

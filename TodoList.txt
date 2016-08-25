@@ -6,34 +6,22 @@
 -- [Frustum Culling]
 	FPS is low and bottleneck is shadowmap generation need some culling to increase perf
 	since point light frustums are small
--- [Batch materials]
-	This makes everything to rendered with one draw call
--- [Cuda Conversion]
-	Send necessary data to CUDA
--- [Input System]
-	Implement(Find) some GUI(like Ant tweakbar like) to rotate move lights
 -- [Light Positions]
 	2D Icons for point light positions
 -- [Area Lights]
 	Implement area lights properly (atm its shitty point light)
 	Read some stuff about it.
 
--- [Implement Dynamic Voxel]
-	Implement dynamic voxel, cascaded voxel generation
--- [Homogenious Transform  Support]
-	Add Support for Homogenious Transforms to Voxel Hierarchy
-
--- [Implement Skeleton Meshes]
--- [Skeleton Backed Transform Support]
-	Add Support for Skeleton backed Transforms to Voxel Hierarchy
-
--- [Implement Morph Target Transform]
--- [Morph Target Transform Support]
-	Add Support for Morphtarget animated mesh to Voxel Hierarchy
+# REMOVED FROM THESIS (Not enough time)
+#-- [Implement Morph Target Transform]
+#-- [Morph Target Transform Support]
+#	Add Support for Morphtarget animated mesh to Voxel Hierarchy
+#
+#
 
 -- [GI Implement]
-	Add GI Implementation (Path Tracing)
-	Add GI Implementation (Cone Tracing)
+	Add GI Implementation (Path Tracing) ??? (i was going to implement this??)
+	Add GI Implementation (Cone Tracing) (Partially works buggy shadow map fetch is buggy)
 
 -- [Compare Images]
 	Create Comparison Images between mental ray and mental ray

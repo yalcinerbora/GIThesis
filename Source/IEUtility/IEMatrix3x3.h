@@ -58,7 +58,7 @@ class IEMatrix3x3
 	void						setRow(int, const float[3]);
 	void						setData(const float[9]);
 	IEMatrix3x3&				operator=(const IEMatrix4x4&);
-	IEMatrix3x3&				operator=(const IEMatrix3x3&);
+	IEMatrix3x3&				operator=(const IEMatrix3x3&) = default;
 
 	// Modify		
 	IEVector3					operator*(const IEVector3&) const;
@@ -155,9 +155,9 @@ inline IEMatrix3x3& IEMatrix3x3::operator=(const IEMatrix4x4& matrix)
 	return *this;
 }
 
-inline IEMatrix3x3& IEMatrix3x3::operator=(const IEMatrix3x3& matrix)
-{
-	std::copy(matrix.v, matrix.v + 9, v);
-	return *this;
-}
+//inline IEMatrix3x3& IEMatrix3x3::operator=(const IEMatrix3x3& matrix)
+//{
+//	std::copy(matrix.v, matrix.v + 9, v);
+//	return *this;
+//}
 #endif //__IE_MATRIX3X3_H__

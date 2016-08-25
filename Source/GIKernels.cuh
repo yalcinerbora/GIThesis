@@ -15,7 +15,7 @@ typedef CAABB CObjectAABB;
 typedef uint2 CVoxelNormPos;
 typedef uint2 CVoxelIds;
 struct CObjectTransform;
-struct CVoxelRender;
+struct CVoxelColor;
 struct CVoxelPage;
 struct CVoxelGrid;
 struct CSVOConstants;
@@ -28,15 +28,14 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 									   const CVoxelGrid& gGridInfo,
 									   const float3 hNewGridPosition,
 
-									   // Per Object Segment
-									   ushort2** gObjectAllocLocations,
-
 									   // Object Related
-									   unsigned int** gObjectAllocIndexLookup,
 									   CObjectTransform** gObjTransforms,
+									   CObjectTransform** gJointTransforms,
 									   uint32_t** gObjTransformIds,
 									   CVoxelNormPos** gVoxNormPosCacheData,
-									   CVoxelRender** gVoxRenderData,
+									   CVoxelColor** gVoxRenderData,
+									   CVoxelWeight** gVoxWeightData,
+
 									   CObjectVoxelInfo** gObjInfo,
 									   CObjectAABB** gObjectAABB);
 
@@ -50,11 +49,10 @@ extern __global__ void VoxelObjectDealloc(// Voxel System
 
 										  // Per Object Segment Related
 										  ushort2* gObjectAllocLocations,
-										  const unsigned int* gSegmentObjectId,
+										  const SegmentObjData* gSegmentObjectData,
 										  const uint32_t totalSegments,
 
 										  // Per Object Related
-										  char* gWriteToPages,
 										  const CObjectAABB* gObjectAABB,
 										  const CObjectTransform* gObjTransforms,
 										  const unsigned int* gObjTransformIds);
@@ -66,11 +64,10 @@ extern __global__ void VoxelObjectAlloc(// Voxel System
 
 										// Per Object Segment Related
 										ushort2* gObjectAllocLocations,
-										const unsigned int* gSegmentObjectId,
+										const SegmentObjData* gSegmentObjectData,
 										const uint32_t totalSegments,
 
 										// Per Object Related
-										char* gWriteToPages,
 										const CObjectAABB* gObjectAABB,
 										const CObjectTransform* gObjTransforms,
 										const unsigned int* gObjTransformIds);
@@ -85,32 +82,6 @@ __global__ void VoxelClearMarked(CVoxelPage* gVoxelData);
 // Logic per segment in page system
 __global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
 								 const uint32_t numPages);
-
-// Voxel Include
-// Introduces existing voxel to the voxel grid
-// Call Logic "per voxel"
-// Each voxel writes its data to allocated segments
-extern __global__ void VoxelObjectInclude(// Voxel System
-										  CVoxelPage* gVoxelData,
-										  const CVoxelGrid& gGridInfo,
-
-										  // Per Object Segment Related
-										  ushort2* gObjectAllocLocations,
-										  const uint32_t segmentCount,
-										  
-										  // Per Object Related
-										  char* gWriteToPages,
-										  const unsigned int* gObjectVoxStrides,
-										  const unsigned int* gObjectAllocIndexLookup,					  
-
-										  // Per Voxel Related
-										  const CVoxelIds* gVoxelIdsCache,
-										  uint32_t voxCount,
-										  uint32_t objCount,
-
-										  // Batch(ObjectGroup in terms of OGL) Id
-										  uint32_t batchId);
-
 
 // Reconstruct SVO
 // Creates SVO tree top down manner
@@ -147,78 +118,91 @@ extern __global__ void SVOReconstructAllocateLevel(CSVONode* gSVOLevel,
 
 extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
 
-												  // Const SVO Data
-												  const CSVONode* gSVOSparse,
-												  const unsigned int* gLevelOffsets,
-												  cudaTextureObject_t tSVODense,
+                                                  // Const SVO Data
+                                                  const CSVONode* gSVOSparse,
+                                                  const unsigned int* gLevelOffsets,
+                                                  cudaTextureObject_t tSVODense,
 
-												  // Page Data
-												  const CVoxelPage* gVoxelData,
+                                                  // Page Data
+                                                  const CVoxelPage* gVoxelData,
 
-												  // For Color Lookup
-												  CVoxelRender** gVoxelRenderData,
+                                                  // For Color Lookup
+                                                  CVoxelColor** gVoxelRenderData,
 
-												  // Constants
-												  const unsigned int matSparseOffset,
-												  const unsigned int cascadeNo,
-												  const CSVOConstants& svoConstants);
+                                                  // Constants
+                                                  const unsigned int matSparseOffset,
+                                                  const unsigned int cascadeNo,
+                                                  const CSVOConstants& svoConstants,
+
+                                                  // Light Inject Related
+                                                  bool inject,
+                                                  float span,
+                                                  const float3 outerCascadePos,
+                                                  const float3 ambientColor,
+
+                                                  const float4 camPos,
+                                                  const float3 camDir,
+
+                                                  const CMatrix4x4* lightVP,
+                                                  const CLight* lightStruct,
+
+                                                  const float depthNear,
+                                                  const float depthFar,
+
+                                                  cudaTextureObject_t shadowMaps,
+                                                  const unsigned int lightCount);
 
 extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
-												 cudaSurfaceObject_t sDenseMat,
+                                                 cudaSurfaceObject_t sDenseMat,
 
-												 const CSVONode* gSVODense,
-												 const CSVONode* gSVOSparse,
-												 const unsigned int* gNodeID,
+                                                 const CSVONode* gSVODense,
+                                                 const CSVONode* gSVOSparse,
 
-												 const unsigned int* gLevelOffsets,
-												 const unsigned int& gSVOLevelOffset,
-												 const unsigned int& gSVONextLevelOffset,
+                                                 const unsigned int* gLevelOffsets,
+                                                 const unsigned int& gSVOLevelOffset,
+                                                 const unsigned int& gSVONextLevelOffset,
 
-												 const unsigned int levelNodeCount,
-												 const unsigned int matOffset,
-												 const unsigned int currentLevel,
-												 const CSVOConstants& svoConstants);
+                                                 const unsigned int levelNodeCount,
+                                                 const unsigned int matOffset,
+                                                 const unsigned int currentLevel,
+                                                 const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatChild,
 												 cudaSurfaceObject_t sDenseMatParent,
 
 												 const unsigned int parentSize);
 
-extern __global__ void SVOParentHalf(CSVOMaterial* gSVOMat,
-									 const CSVONode* gSVOSparse,
-									 const unsigned int& gSVOLevelOffset,
-									 const unsigned int levelNodeCount,
-									 const unsigned int matSparseOffset);
-
 extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
-									  CSVONode* gSVOSparse,
-									  CSVONode* gSVODense,
-									  unsigned int* gNodeIds,
-									  unsigned int* gLevelAllocators,
+                                      CSVONode* gSVOSparse,
+                                      CSVONode* gSVODense,
+                                      unsigned int* gLevelAllocators,
 
-									  const unsigned int* gLevelOffsets,
-									  const unsigned int* gLevelTotalSizes,
-									  
-									  // For Color Lookup
-									  const CVoxelPage* gVoxelData,
-									  CVoxelRender** gVoxelRenderData,
+                                      const unsigned int* gLevelOffsets,
+                                      const unsigned int* gLevelTotalSizes,
 
-									  const unsigned int matSparseOffset,
-									  const unsigned int cascadeNo,
-									  const CSVOConstants& svoConstants);
+                                      // For Color Lookup
+                                      const CVoxelPage* gVoxelData,
+                                      CVoxelColor** gVoxelRenderData,
 
-extern __global__ void SVOReconstruct(CSVONode* gSVOSparse,
-									  CSVONode* gSVODense,
-									  unsigned int* gNodeIds,
-									  unsigned int* gLevelAllocators,
+                                      const unsigned int matSparseOffset,
+                                      const unsigned int cascadeNo,
+                                      const CSVOConstants& svoConstants,
 
-									  const unsigned int& gSVOLevelOffset,
-									  const unsigned int* gLevelOffsets,
-									  const unsigned int* gLevelTotalSizes,
+                                      // Light Inject Related
+                                      bool inject,
+                                      float span,
+                                      const float3 outerCascadePos,
+                                      const float3 ambientColor,
 
-									  const unsigned int levelNodeCount,
-									  const unsigned int levelNo,
-									  const CSVOConstants& svoConstants);
+                                      const float4 camPos,
+                                      const float3 camDir,
 
+                                      const CMatrix4x4* lightVP,
+                                      const CLight* lightStruct,
 
+                                      const float depthNear,
+                                      const float depthFar,
+
+                                      cudaTextureObject_t shadowMaps,
+                                      const unsigned int lightCount);
 #endif //__GIKERNELS_H__

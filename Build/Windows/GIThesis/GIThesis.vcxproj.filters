@@ -83,9 +83,6 @@
     <ClCompile Include="..\..\..\Source\CudaInit.cpp">
       <Filter>Utility</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\MeshBatchStatic.cpp">
-      <Filter>MeshBatch</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\MeshBatchSponza.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
@@ -97,6 +94,21 @@
     </ClCompile>
     <ClCompile Include="..\..\..\Source\SVOTexPool.cpp">
       <Filter>GI\Thesis\OGL</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchNyra.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatch.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchOscillate.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IERandom.cpp">
+      <Filter>IEUtility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -283,9 +295,6 @@
     <ClInclude Include="..\..\..\Source\MeshBatchI.h">
       <Filter>MeshBatch</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\MeshBatchStatic.h">
-      <Filter>MeshBatch</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatchSponza.h">
       <Filter>MeshBatch</Filter>
     </ClInclude>
@@ -303,6 +312,33 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\SVOTexPool.h">
       <Filter>GI\Thesis\OGL</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchNyra.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatch.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelCacheData.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\OGLTimer.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelSceneCache.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchOscillate.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\SVOLightInject.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

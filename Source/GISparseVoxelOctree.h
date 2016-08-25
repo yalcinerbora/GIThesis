@@ -14,10 +14,11 @@
 #include "GICudaVoxelScene.h"
 #include "CSVOTypes.cuh"
 #include "Shader.h"
+#include "SceneI.h"
 
 #define GI_DENSE_TEX_COUNT 5
-#define GI_DENSE_LEVEL 7
-#define GI_DENSE_SIZE 128
+#define GI_DENSE_LEVEL 6
+#define GI_DENSE_SIZE 64
 #define GI_DENSE_SIZE_CUBE (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)
 
 static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
@@ -77,6 +78,23 @@ struct SVOConeParams
 	float4 coneParams2;
 };
 
+struct InjectParams
+{
+	bool inject;
+	float span;
+	float3 outerCascadePos;
+
+	float4 camPos;
+	float3 camDir;
+	
+	float depthNear;
+	float depthFar;
+
+
+	
+	unsigned int lightCount;
+};
+
 struct InvFrameTransform;
 
 class GISparseVoxelOctree
@@ -88,13 +106,13 @@ class GISparseVoxelOctree
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
-		CudaVector<unsigned int>				dNodeIds;
 
 		// SVO Data (Sparse)
 		StructuredBuffer<CSVONode>				svoNodeBuffer;
 		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
 		StructuredBuffer<uint32_t>				svoLevelOffsets;
-		// SVO Data (Dense)
+		
+        // SVO Data (Dense)
 		GLuint									svoDenseNode;
 		GLuint									svoDenseMat;
 		GLuint									nodeSampler;
@@ -102,7 +120,7 @@ class GISparseVoxelOctree
 		GLuint									gaussSampler;
 
 		// Light Intensity Texture (for SVO GI)
-		GLuint									liTexture;
+		GLuint									traceTexture;
 		GLuint									gaussTex;
 		GLuint									edgeTex;
 
@@ -126,7 +144,7 @@ class GISparseVoxelOctree
 		std::vector<uint32_t>					hSVOLevelTotalSizes;
 		CudaVector<uint32_t>					dSVOLevelSizes;
 		std::vector<uint32_t>					hSVOLevelSizes;
-		
+				
 		// Interop Data
 		cudaGraphicsResource_t					svoNodeResource;
 		cudaGraphicsResource_t					svoLevelOffsetResource;
@@ -134,27 +152,46 @@ class GISparseVoxelOctree
 		cudaGraphicsResource_t					svoDenseNodeResource;
 		cudaGraphicsResource_t					svoDenseTexResource;
 		
+		cudaGraphicsResource_t					sceneShadowMapResource;
+		cudaGraphicsResource_t					sceneLightParamResource;
+		cudaGraphicsResource_t					sceneVPMatrixResource;
+
+		// Shadows
+		cudaMipmappedArray_t					shadowMapArray;
+		cudaTextureObject_t						tShadowMapArray;
+		CLight*									dLightParamArray;
+		CMatrix4x4* 							dLightVPArray;
+		
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;
 		Shader									computeVoxTraceDeferred;
 		Shader									computeVoxTraceDeferredLerp;
 		Shader									computeAO;
+		Shader									computeGI;
 		Shader									computeGauss32;
 		Shader									computeEdge;
+		Shader									computeAOSurf;
+		Shader									computeLIApply;
 
-		void									CreateSurfFromArray(cudaArray_t&,
+		static void								CreateSurfFromArray(cudaArray_t&,
 																	cudaSurfaceObject_t&);
-		void									CreateTexFromArray(cudaArray_t&,
+		static void								CreateTexFromArray(cudaArray_t&,
 																   cudaTextureObject_t&);
-		void									CopyFromBufferToTex(cudaArray_t&, unsigned int* dPtr);
+		static void								CopyFromBufferToTex(cudaArray_t&, 
+																	unsigned int* dPtr);
+		static void								CreateTexLayeredFromArray(cudaMipmappedArray_t&,
+																		  cudaTextureObject_t&);
 
 		//
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
 															   unsigned int allocatorIndex);
-		void									ConstructFullAtomic();
-		void									ConstructLevelByLevel();
-		void									AverageNodes(bool skipLeaf);
+		double									ConstructFullAtomic(const IEVector3& ambientColor, const InjectParams& p);
+		double									ConstructLevelByLevel(const IEVector3& ambientColor, const InjectParams& p);
+		double									LightInject(InjectParams,
+															const std::vector<IEMatrix4x4>& projMatrices,
+															const std::vector<IEMatrix4x4>& invViewProj);
+		double									AverageNodes();
 
 		static const GLsizei					TraceWidth;
 		static const GLsizei					TraceHeight;
@@ -173,8 +210,17 @@ class GISparseVoxelOctree
 															   uint32_t totalCount,
 															   const uint32_t levelCounts[]);
 
+		// Link
+		void									LinkSceneShadowMaps(SceneI* scene);
+
 		// Updates SVO Tree depending on the changes of the allocators
-		double									UpdateSVO();
+		void									UpdateSVO(double& reconstTime,
+														  double& injectTime,
+														  double& averageTime,
+														  const IEVector3& ambientColor,
+														  const InjectParams&,
+														  const std::vector<IEMatrix4x4>& lightProjMatrices,
+														  const std::vector<IEMatrix4x4>& lightInvViewProjMatrices);
 		
 		// Traces entire scene with the given ray params
 		// Writes results to intensity texture
@@ -183,8 +229,21 @@ class GISparseVoxelOctree
 																 const Camera& camera,
 																 float coneAngle,
 																 float maxDistance,
+																 float falloffFactor,
 																 float sampleDistanceRatio,
 																 float intensityFactor);
+		double									GlobalIllumination(DeferredRenderer& dRenderer,
+																   const Camera& camera,
+																   SceneI& scene,
+																   float coneAngle,
+																   float maxDistance,
+																   float falloffFactor,
+																   float sampleDistanceRatio,
+																   float intensityFactorAO,
+																   float intensityFactorGI,
+																   bool giOn,
+																   bool aoOn,
+																   bool specular);
 
 		double									DebugTraceSVO(DeferredRenderer&,
 															  const Camera& camera,

@@ -10,7 +10,7 @@ Solution implementtion
 #include <vector>
 #include <list>
 #include <AntTweakBar.h>
-#include "SolutionI.h"
+#include "EmptyGISolution.h"
 #include "Shader.h"
 #include "FrameTransformBuffer.h"
 #include "GICudaVoxelScene.h"
@@ -21,22 +21,9 @@ Solution implementtion
 #include "DrawBuffer.h"
 #include "MeshBatchI.h"
 #include "GISparseVoxelOctree.h"
+#include "VoxelSceneCache.h"
 
 class DeferredRenderer;
-
-#pragma pack(push, 1)
-struct ObjGridInfo
-{
-	float span;
-	uint32_t voxCount;
-};
-
-struct VoxelGridInfoGL
-{
-	IEVector4		posSpan;
-	uint32_t		dimension[4];
-};
-#pragma pack(pop)
 
 enum ThesisRenderScheme
 {
@@ -45,109 +32,37 @@ enum ThesisRenderScheme
 	GI_SVO_DEFERRED,
 	GI_SVO_LEVELS,
 	GI_VOXEL_PAGE,
-	GI_VOXEL_CACHE2048,
-	GI_VOXEL_CACHE1024,
-	GI_VOXEL_CACHE512,
+	GI_VOXEL_CACHE,
 	GI_END,
 };
 
 class AOBar
 {
 	public:
-	TwBar* bar;
-	float angleDegree;
-	float sampleFactor;
-	float maxDistance;
-	float intensity;
-	bool hidden;
+		TwBar*	bar;
+		float	angleDegree;
+		float	sampleFactor;
+		float	maxDistance;
+		float	falloffFactor;
+		float	intensityAO;
+		float	intensityGI;
+		bool	hidden;
+		bool	specular;
 
-	AOBar();
-	~AOBar();
+				AOBar();
+				~AOBar();
 
 	void HideBar(bool);
 };
 
-struct VoxelObjectCache
-{
-	StructuredBuffer<ObjGridInfo>			objectGridInfo;
-	StructuredBuffer<VoxelNormPos>			voxelNormPos;
-	StructuredBuffer<VoxelIds>				voxelIds;
-	StructuredBuffer<VoxelRenderData>		voxelRenderData;
-	StructuredBuffer<uint32_t>				voxelCacheUsageSize;
-	VoxelDebugVAO							voxelVAO;
-	
-	uint32_t								batchVoxCacheCount;
-	double									batchVoxCacheSize;
-
-	VoxelObjectCache(size_t objectCount, size_t voxelCount)
-		: objectGridInfo(objectCount)
-		, voxelNormPos(voxelCount)
-		, voxelIds(voxelCount)
-		, voxelRenderData(voxelCount)
-		, voxelCacheUsageSize(1)
-		, voxelVAO(voxelNormPos, voxelIds, voxelRenderData)
-	{
-		voxelCacheUsageSize.AddData(0);
-	}
-
-	VoxelObjectCache(VoxelObjectCache&& other)
-		: objectGridInfo(std::move(other.objectGridInfo))
-		, voxelNormPos(std::move(other.voxelNormPos))
-		, voxelIds(std::move(other.voxelIds))
-		, voxelRenderData(std::move(other.voxelRenderData))
-		, voxelCacheUsageSize(std::move(other.voxelCacheUsageSize))
-		, voxelVAO(std::move(other.voxelVAO))
-		, batchVoxCacheCount(other.batchVoxCacheCount)
-		, batchVoxCacheSize(other.batchVoxCacheSize)
-	{}
-
-	VoxelObjectCache(const VoxelObjectCache&) = delete;
-};
-
-struct SceneVoxCache
-{
-	uint32_t						depth;
-	std::vector<VoxelObjectCache>	cache;
-
-	uint32_t						voxOctreeCount;
-	double							voxOctreeSize;
-
-	uint32_t						totalCacheCount;
-	double							totalCacheSize;
-
-	SceneVoxCache() = default;
-
-	SceneVoxCache(SceneVoxCache&& other)
-	: depth(other.depth)
-	, cache(std::move(other.cache))
-	, voxOctreeCount(other.voxOctreeCount)
-	, voxOctreeSize(other.voxOctreeSize)
-	, totalCacheCount(other.totalCacheCount)
-	, totalCacheSize(other.totalCacheSize)
-	{}
-
-	SceneVoxCache(const SceneVoxCache&) = delete;
-};
-
-class ThesisSolution : public SolutionI
+class ThesisSolution : public EmptyGISolution
 {
 	private:
-		SceneI*					currentScene;
-
-		DeferredRenderer&		dRenderer;
-
 		// Voxel Render Shaders
 		Shader					vertexDebugVoxel;
+		Shader					vertexDebugVoxelSkeletal;
 		Shader					vertexDebugWorldVoxel;
 		Shader					fragmentDebugVoxel;
-
-		// Voxelization Shaders
-		Shader					vertexVoxelizeObject;
-		Shader					geomVoxelizeObject;
-		Shader					fragmentVoxelizeObject;
-		Shader					computeVoxelizeCount;
-		Shader					computePackObjectVoxels;
-		Shader					computeDetermineVoxSpan;
 
 		FrameTransformBuffer	cameraTransform;
 
@@ -158,7 +73,7 @@ class ThesisSolution : public SolutionI
 		std::vector<GICudaVoxelScene>		voxelScenes;
 		GISparseVoxelOctree					voxelOctree;
 
-		// Utility(Debug) Buffers
+		// Utility(Debug) Buffers (Page Voxel Rendering)
 		StructuredBuffer<VoxelGridInfoGL>	gridInfoBuffer;
 		StructuredBuffer<VoxelNormPos>		voxelNormPosBuffer;
 		StructuredBuffer<uchar4>			voxelColorBuffer;
@@ -169,18 +84,24 @@ class ThesisSolution : public SolutionI
 		// GUI								
 		TwBar*								bar;
 		bool								giOn;
-		double								frameTime;
+		bool								aoOn;
+
+		// Times
 		double								ioTime;
 		double								transformTime;
-		double								svoTime;
-		double								debugVoxTransferTime;
+		double								svoReconTime;
+		double								svoInjectTime;
+		double								svoAvgTime;
+		double								giTime;
+		double								miscTime;
+		double								totalTime;
 											
 		ThesisRenderScheme					renderScheme;
 		static const TwEnumVal				renderSchemeVals[];
 		TwType								renderType;
 											
 		// Debug Rendering					
-		void								DebugRenderVoxelCache(const Camera& camera, 
+		double								DebugRenderVoxelCache(const Camera& camera,
 																  SceneVoxCache&);
 		void								DebugRenderVoxelPage(const Camera& camera,
 																 VoxelDebugVAO& pageVoxels,
@@ -190,24 +111,16 @@ class ThesisSolution : public SolutionI
 		double								DebugRenderSVO(const Camera& camera);
 
 		 // Voxelizes the scene for a cache level
-		double								Voxelize(VoxelObjectCache&,
-													 MeshBatchI* batch,
-													 float gridSpan, 
-													 unsigned int minSpanMultiplier,
-													 bool isInnerCascade);
+		double								LoadBatchVoxels(MeshBatchI* batch);
+		bool								LoadVoxel(std::vector<SceneVoxCache>& scenes,
+													  const char* gfgFileName, uint32_t cascadeCount,
+													  bool isSkeletal);
 		void								LinkCacheWithVoxScene(GICudaVoxelScene&, 
 																  SceneVoxCache&,
 																  float coverageRatio);
 													 
 		// Cuda Segment
 		static const size_t		InitialObjectGridSize;
-		static const size_t		InitialVoxelBufferSizes;
-
-		// Pre Allocating withput determining total size
-		// These are pre calculated
-		static const size_t		MaxVoxelCacheSize2048;
-		static const size_t		MaxVoxelCacheSize1024;
-		static const size_t		MaxVoxelCacheSize512;
 
 		AOBar					aoBar;
 		void					LevelIncrement();
@@ -234,7 +147,7 @@ class ThesisSolution : public SolutionI
 		void					Init(SceneI&) override;
 		void					Release() override;
 		void					Frame(const Camera&) override;
-		void					SetFPS(double fpsMS) override;
+		
 
 		static void				LevelIncrement(void*);
 		static void				LevelDecrement(void*);

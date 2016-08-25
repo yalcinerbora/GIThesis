@@ -2,7 +2,7 @@
 /*	
 	**Voxel Raytrace Compute Shader**
 	
-	File Name	: VoxTraceWorld.glsl
+	File Name	: VoxTraceWorld.vert
 	Author		: Bora Yalciner
 	Description	:
 
@@ -13,9 +13,9 @@
 // Definitions
 #define I_COLOR_FB layout(rgba8, binding = 2) restrict writeonly
 
-#define LU_SVO_NODE layout(std430, binding = 0) readonly
-#define LU_SVO_MATERIAL layout(std430, binding = 1) readonly
-#define LU_SVO_LEVEL_OFFSET layout(std430, binding = 2) readonly
+#define LU_SVO_NODE layout(std430, binding = 2) readonly
+#define LU_SVO_MATERIAL layout(std430, binding = 3) readonly
+#define LU_SVO_LEVEL_OFFSET layout(std430, binding = 4) readonly
 
 #define U_RENDER_TYPE layout(location = 0)
 #define U_FETCH_LEVEL layout(location = 1)
@@ -135,11 +135,9 @@ uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
 
 vec3 UnpackColor(in uint colorPacked)
 {
-	vec3 color;
-	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
-	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
-	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
-	return color;
+	//vec3 color;
+	return unpackUnorm4x8(colorPacked).xyz;
+	//return unpackUnorm4x8(colorPacked).www;
 }
 
 vec3 UnpackNormal(in uint voxNormPosY)
@@ -262,21 +260,22 @@ float FindMarchLength(out vec3 outData,
 		   i == fetchLevel)
 		{
 			// Mid Leaf Level
-			uint loc;
+			uvec2 mat;
 			if(i > dimDepth.w)
 			{
 				// Sparse Fetch
-				loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
+				uint loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
+				mat = svoMaterial[loc];
 
 				if(renderType == RENDER_TYPE_COLOR)
-					outData = UnpackColor(svoMaterial[loc].x);		
+					outData = UnpackColor(mat.x);		
 				else if(renderType == RENDER_TYPE_OCCLUSION)
 				{
-					outData = vec3(UnpackOcclusion(svoMaterial[loc].y));
-					if(i == dimDepth.y) outData = ceil(outData);
+					outData = vec3(UnpackOcclusion(mat.y));
+					//if(i == dimDepth.y) outData = ceil(outData);
 				}
 				else if(renderType == RENDER_TYPE_NORMAL)
-					outData = UnpackNormal(svoMaterial[loc].y);
+					outData = UnpackNormal(mat.y);
 			}
 			else
 			{
@@ -285,17 +284,18 @@ float FindMarchLength(out vec3 outData,
 				uint levelDim = dimDepth.z >> mipId;
 				vec3 levelUV = LevelVoxIdF(marchPos, i) / float(levelDim);
 				
+				mat = textureLod(tSVOMat, levelUV, float(mipId)).xy;
 				if(renderType == RENDER_TYPE_COLOR)
-					outData = UnpackColor(textureLod(tSVOMat, levelUV, float(mipId)).x);
+					outData = UnpackColor(mat.x);
 				else if(renderType == RENDER_TYPE_OCCLUSION)
 				{
-					outData = vec3(UnpackOcclusion(textureLod(tSVOMat, levelUV, float(mipId)).y));
+					outData = vec3(UnpackOcclusion(mat.y));
 					if(i == dimDepth.y) outData = ceil(outData);
 				}
 				else if(renderType == RENDER_TYPE_NORMAL)
-					outData = UnpackNormal(textureLod(tSVOMat, levelUV, float(mipId)).y);
+					outData = UnpackNormal(mat.y);
 			}
-			if(any(notEqual(outData, vec3(0.0f)))) return 0.0f;
+			if(mat.y != uvec2(0x00000000)) return 0.0f;
 		}
 
 		// Node check
@@ -364,5 +364,5 @@ void main(void)
 			marchPos += marchLength * rayDir;
 		}
 	}
-	imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 1.0f, 0.0f)); 
+	imageStore(fbo, ivec2(globalId), vec4(0.0f, 0.0f, 0.0f, 0.0f)); 
 }

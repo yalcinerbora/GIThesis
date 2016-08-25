@@ -28,7 +28,7 @@ class StructuredBuffer
 
 	public:
 		// Constructors & Destructor
-								StructuredBuffer(size_t initialCapacity);
+								StructuredBuffer(size_t initialCapacity = 0);
 								StructuredBuffer(StructuredBuffer&&);
 								StructuredBuffer(const StructuredBuffer&) = delete;
 		const StructuredBuffer&	operator= (const StructuredBuffer&) = delete;
@@ -39,6 +39,7 @@ class StructuredBuffer
 		size_t					Count() const;
 		size_t					Capacity() const;
 
+		void					Memset(uint8_t);
 		void					BindAsUniformBuffer(GLuint location, 
 													GLuint countOffset,
 													GLuint countSize);

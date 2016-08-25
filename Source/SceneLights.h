@@ -43,15 +43,11 @@ class SceneLights
 	private:
 		friend class DeferredRenderer;
 
-		static const GLsizei	shadowMapWH;
-
 		static const IEVector3	pLightDir[6];
 		static const IEVector3	pLightUp[6];
 
 		static const IEVector3	aLightDir[6];
 		static const IEVector3	aLightUp[6];	
-
-		static const uint32_t	numShadowCascades;
 
 		// Sparse texture cubemap array
 		// One Shadowmap for each light
@@ -61,9 +57,13 @@ class SceneLights
 		StructuredBuffer<IEMatrix4x4>		lightViewProjMatrices;
 		GLuint								lightShadowMaps;
 		GLuint								shadowMapArrayView;
+		GLuint								shadowMapCubeDepth;
 		std::vector<GLuint>					shadowMapViews;
 		std::vector<GLuint>					shadowMapFBOs;
 		std::vector<bool>					lightShadowCast;
+
+		std::vector<IEMatrix4x4>			lightProjMatrices;
+		std::vector<IEMatrix4x4>			lightInvViewProjMatrices;
 
 		// Light Shape Related
 		static const char*					lightAOIFileName;
@@ -78,28 +78,38 @@ class SceneLights
 	protected:
 	public:
 		// Constructors & Destructor
-									SceneLights(const Array32<Light>& lights);
-									SceneLights(const SceneLights&) = delete;
-		SceneLights&				operator=(const SceneLights&) = delete;
-									~SceneLights();
+										SceneLights(const Array32<Light>& lights);
+										SceneLights(const SceneLights&) = delete;
+		SceneLights&					operator=(const SceneLights&) = delete;
+										~SceneLights();
 
-		uint32_t					Count() const;
-		GLuint						GetLightBufferGL();
+		uint32_t						Count() const;
+		GLuint							GetLightBufferGL();
+		GLuint							GetShadowArrayGL();
+		GLuint							GetVPMatrixGL();
 		
-		void						ChangeLightPos(uint32_t index, IEVector3 position);
-		void						ChangeLightDir(uint32_t index, IEVector3 direction);
-		void						ChangeLightColor(uint32_t index, IEVector3 color);
-		void						ChangeLightRadius(uint32_t index, float radius);
-		void						ChangeLightIntensity(uint32_t index, float intensity);
-		void						ChangeLightShadow(uint32_t index, bool shadowStatus);
+		const std::vector<IEMatrix4x4>&	GetLightProjMatrices();
+		const std::vector<IEMatrix4x4>& GetLightInvViewProjMatrices();
 
-		IEVector3					GetLightPos(uint32_t index) const;
-		LightType					GetLightType(uint32_t index) const;
-		IEVector3					GetLightDir(uint32_t index) const;
-		IEVector3					GetLightColor(uint32_t index) const;
-		float						GetLightRadius(uint32_t index) const;
-		float						GetLightIntensity(uint32_t index) const;
-		bool						GetLightShadow(uint32_t index) const;
+		void							ChangeLightPos(uint32_t index, IEVector3 position);
+		void							ChangeLightDir(uint32_t index, IEVector3 direction);
+		void							ChangeLightColor(uint32_t index, IEVector3 color);
+		void							ChangeLightRadius(uint32_t index, float radius);
+		void							ChangeLightIntensity(uint32_t index, float intensity);
+		void							ChangeLightShadow(uint32_t index, bool shadowStatus);
+
+		IEVector3						GetLightPos(uint32_t index) const;
+		LightType						GetLightType(uint32_t index) const;
+		IEVector3						GetLightDir(uint32_t index) const;
+		IEVector3						GetLightColor(uint32_t index) const;
+		float							GetLightRadius(uint32_t index) const;
+		float							GetLightIntensity(uint32_t index) const;
+		bool							GetLightShadow(uint32_t index) const;
+
+		static const GLsizei			shadowMapWH;
+		static const uint32_t			numShadowCascades;
+		static const uint32_t			shadowMipCount;
+		static const uint32_t			mipSampleCount;
 };
 
 #endif //__SCENE_H__

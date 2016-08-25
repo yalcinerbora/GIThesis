@@ -89,6 +89,8 @@ struct InjectParams
 	
 	float depthNear;
 	float depthFar;
+
+
 	
 	unsigned int lightCount;
 };
@@ -108,7 +110,6 @@ class GISparseVoxelOctree
 		// SVO Data (Sparse)
 		StructuredBuffer<CSVONode>				svoNodeBuffer;
 		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
-        StructuredBuffer<CSVOLight>			    svoLightBuffer;
 		StructuredBuffer<uint32_t>				svoLevelOffsets;
 		
         // SVO Data (Dense)
@@ -130,7 +131,6 @@ class GISparseVoxelOctree
 		// SVO Ptrs Cuda
 		CSVOMaterial*							dSVOMaterial;
 		CSVONode*								dSVOSparse;
-        CSVOLight*                              dSVOLight;
 		CSVONode*								dSVODense;
 		uint32_t*								dSVOOffsets;
 		cudaArray_t								dSVODenseNodeArray;
@@ -149,7 +149,6 @@ class GISparseVoxelOctree
 		cudaGraphicsResource_t					svoNodeResource;
 		cudaGraphicsResource_t					svoLevelOffsetResource;
 		cudaGraphicsResource_t					svoMaterialResource;
-        cudaGraphicsResource_t					svoLightResource;
 		cudaGraphicsResource_t					svoDenseNodeResource;
 		cudaGraphicsResource_t					svoDenseTexResource;
 		
@@ -187,8 +186,8 @@ class GISparseVoxelOctree
 		void									ConstructDense();
 		void									ConstructLevel(unsigned int levelIndex,
 															   unsigned int allocatorIndex);
-		double									ConstructFullAtomic(const IEVector3& ambientColor);
-		double									ConstructLevelByLevel(const IEVector3& ambientColor);
+		double									ConstructFullAtomic(const IEVector3& ambientColor, const InjectParams& p);
+		double									ConstructLevelByLevel(const IEVector3& ambientColor, const InjectParams& p);
 		double									LightInject(InjectParams,
 															const std::vector<IEMatrix4x4>& projMatrices,
 															const std::vector<IEMatrix4x4>& invViewProj);

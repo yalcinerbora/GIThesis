@@ -164,17 +164,17 @@ int main()
 							ThesisSolution::CascadeSpan);
 	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
 
-	//// Cornell Box Scene
-	//MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
-	//						ThesisSolution::CascadeSpan,
-	//						false);
-	//MeshBatchCornell cornellDynamic(MeshBatchCornell::cornellDynamicFileName,
-	//								ThesisSolution::CascadeSpan);
+	// Cornell Box Scene
+	MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
+							ThesisSolution::CascadeSpan,
+							false);
+	MeshBatchCornell cornellDynamic(MeshBatchCornell::cornellDynamicFileName,
+									ThesisSolution::CascadeSpan);
 
-	//// Sibernik Scene
-	//MeshBatch sibernikStatic(MeshBatch::sibernikFileName,
-	//						 ThesisSolution::CascadeSpan,
-	//						 false);
+	// Sibernik Scene
+	MeshBatch sibernikStatic(MeshBatch::sibernikFileName,
+							 ThesisSolution::CascadeSpan,
+							 false);
 
 	// Cube Scene
 	//MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
@@ -213,24 +213,24 @@ int main()
                     //Scene::bigTotalSize,
                     //Scene::bigSizes);
 
-	//MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
-	//Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
-	//				 Array32<Light>{cornellLights, 1},
-	//				 Scene::bigTotalSize,
-	//				 Scene::bigSizes);
+	MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
+	Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
+					 Array32<Light>{cornellLights, 1},
+					 Scene::bigTotalSize,
+					 Scene::bigSizes);
 
-	//MeshBatchI* sibernikBatches[] = {&sibernikStatic};
-	//Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
-	//			   Array32<Light>{sibernikLights, 1},
-	//			   Scene::bigTotalSize,
-	//			   Scene::bigSizes);
+	MeshBatchI* sibernikBatches[] = {&sibernikStatic};
+	Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
+				   Array32<Light>{sibernikLights, 1},
+				   Scene::bigTotalSize,
+				   Scene::bigSizes);
 
-	//// Scaling Scenes
-	//MeshBatchI* sponzaDynoBatches[] = {&crySponzaDyno, &crySponzaDynamic, &nyraBatch};
-	//Scene dynoSponza(Array32<MeshBatchI*>{sponzaDynoBatches, 3},
-	//				 Array32<Light>{sponzaLights, 1},
-	//				 Scene::bigTotalSize,
-	//				 Scene::bigSizes);
+	// Scaling Scenes
+	MeshBatchI* sponzaDynoBatches[] = {&crySponzaDyno, &crySponzaDynamic, &nyraBatch};
+	Scene dynoSponza(Array32<MeshBatchI*>{sponzaDynoBatches, 3},
+					 Array32<Light>{sponzaLights, 1},
+					 Scene::bigTotalSize,
+					 Scene::bigSizes);
 
 	Scene nyraSecption(Array32<MeshBatchI*>{nyraVector.data(), nyraCount + 1},
 			   Array32<Light>{sponzaLights, 1},
@@ -253,10 +253,10 @@ int main()
 
 	// Scenes
 	scenes.push_back(&crySponza);
-	//scenes.push_back(&dynoSponza);
-	//scenes.push_back(&cornellBox);
-	//scenes.push_back(&sibernik);
-	//scenes.push_back(&nyraSecption);
+	scenes.push_back(&dynoSponza);
+	scenes.push_back(&cornellBox);
+	scenes.push_back(&sibernik);
+	scenes.push_back(&nyraSecption);
 	// Test Scenes
 	//scenes.push_back(&cubeRotate);
 	//scenes.push_back(&nyra);
@@ -311,6 +311,8 @@ int main()
 			solutions[oldSolution % solutions.size()]->Release();
 			oldSolution = currentSolution;
 		}
+
+
 			
 		SolutionI* solution = solutions[currentSolution % solutions.size()];
 		if(!solution->IsCurrentScene(*scenes[currentScene % scenes.size()]) ||
@@ -320,6 +322,9 @@ int main()
 			solution->Init(*scenes[currentScene % scenes.size()]);
 		}
 
+  /*      scenes[currentScene % scenes.size()]->getSceneLights().ChangeLightDir(0, IEQuaternion(IEMath::ToRadians(t.ElapsedS() * 5.0f), 
+                -IEVector3::Xaxis).ApplyRotation(scenes[currentScene % scenes.size()]->getSceneLights().GetLightDir(0)));
+*/
 		// Render frame
 		scenes[currentScene % scenes.size()]->Update(t.ElapsedS());
 		solution->Frame(mainRenderCamera);

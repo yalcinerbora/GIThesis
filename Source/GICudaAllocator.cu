@@ -600,7 +600,7 @@ IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos, float casc
 {
 	// only grid span increments are allowed
 	float rootSpan = hVoxelGridInfo.span * cascadeMultiplier;
-	float rootSnapLevelMultiplier = 16.0f;
+	float rootSnapLevelMultiplier = 32.0f;
 	//float rootSnapLevelMultiplier = 1.0f;
 
 	float3 voxelCornerPos;

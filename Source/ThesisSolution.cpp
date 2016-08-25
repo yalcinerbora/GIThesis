@@ -15,8 +15,8 @@
 #include <sstream>
 
 const size_t ThesisSolution::InitialObjectGridSize = 512;
-const float ThesisSolution::CascadeSpan = 0.3f;
-const uint32_t ThesisSolution::CascadeDim = 1024;
+const float ThesisSolution::CascadeSpan = 0.6f;
+const uint32_t ThesisSolution::CascadeDim = 512;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 
@@ -30,11 +30,11 @@ const TwEnumVal ThesisSolution::renderSchemeVals[] =
 
 AOBar::AOBar()
  : angleDegree(30.0f)
- , sampleFactor(1.0f)
- , maxDistance(250.0f)
- , falloffFactor(1.0f)
- , intensityAO(1.15f)
- , intensityGI(1.00f)
+ , sampleFactor(1.19f)
+ , maxDistance(100.0f)
+ , falloffFactor(0.05f)
+ , intensityAO(1.40f)
+ , intensityGI(4.60f)
  , bar(nullptr)
  , hidden(true)
  , specular(true)
@@ -58,7 +58,7 @@ AOBar::AOBar()
 			   " min=0.5 max=5.0 step=0.01 ");
 	TwAddVarRW(bar, "intensityGI", TW_TYPE_FLOAT, &intensityGI,
 			   " label='GI Intensity' help='Illumination Intensity' "
-			   " min=0.5 max=5.0 step=0.01 ");
+			   " min=0.5 max=10.0 step=0.1 ");
 	TwAddVarRW(bar, "specular", TW_TYPE_BOOLCPP, &specular,
 			   " label='Specular' help='Launch Specular Cone' ");
 	TwDefine(" ConeBar size='220 135' ");

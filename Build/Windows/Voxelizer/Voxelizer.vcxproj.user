@@ -3,11 +3,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)..\..\WorkingDir\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-f nyraFloor.gfg -span 0.3 -splat 1.0 -cas 3</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-f sibernik.gfg cornell.gfg -span 4.8 -splat 1.0 -cas 3</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)..\..\WorkingDir\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-f nyraFloor.gfg -span 0.3 -splat 1.0 -cas 3</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-f sibernik.gfg cornell.gfg -span 4.8 -splat 1.0 -cas 3</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

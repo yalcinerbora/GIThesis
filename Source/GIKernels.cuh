@@ -117,40 +117,55 @@ extern __global__ void SVOReconstructAllocateLevel(CSVONode* gSVOLevel,
 												   const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
-                                                  CSVOLight* gSVOLight,
 
-												  // Const SVO Data
-												  const CSVONode* gSVOSparse,
-												  const unsigned int* gLevelOffsets,
-												  cudaTextureObject_t tSVODense,
+                                                  // Const SVO Data
+                                                  const CSVONode* gSVOSparse,
+                                                  const unsigned int* gLevelOffsets,
+                                                  cudaTextureObject_t tSVODense,
 
-												  // Page Data
-												  const CVoxelPage* gVoxelData,
+                                                  // Page Data
+                                                  const CVoxelPage* gVoxelData,
 
-												  // For Color Lookup
-												  CVoxelColor** gVoxelRenderData,
+                                                  // For Color Lookup
+                                                  CVoxelColor** gVoxelRenderData,
 
-												  // Constants
-												  const float3 ambientColor,
-												  const unsigned int matSparseOffset,
-												  const unsigned int cascadeNo,
-												  const CSVOConstants& svoConstants);
+                                                  // Constants
+                                                  const unsigned int matSparseOffset,
+                                                  const unsigned int cascadeNo,
+                                                  const CSVOConstants& svoConstants,
+
+                                                  // Light Inject Related
+                                                  bool inject,
+                                                  float span,
+                                                  const float3 outerCascadePos,
+                                                  const float3 ambientColor,
+
+                                                  const float4 camPos,
+                                                  const float3 camDir,
+
+                                                  const CMatrix4x4* lightVP,
+                                                  const CLight* lightStruct,
+
+                                                  const float depthNear,
+                                                  const float depthFar,
+
+                                                  cudaTextureObject_t shadowMaps,
+                                                  const unsigned int lightCount);
 
 extern __global__ void SVOReconstructAverageNode(CSVOMaterial* gSVOMat,
-												 cudaSurfaceObject_t sDenseMat,
+                                                 cudaSurfaceObject_t sDenseMat,
 
-                                                 const CSVOLight* gSVOLight,
-												 const CSVONode* gSVODense,
-												 const CSVONode* gSVOSparse,
+                                                 const CSVONode* gSVODense,
+                                                 const CSVONode* gSVOSparse,
 
-												 const unsigned int* gLevelOffsets,
-												 const unsigned int& gSVOLevelOffset,
-												 const unsigned int& gSVONextLevelOffset,
+                                                 const unsigned int* gLevelOffsets,
+                                                 const unsigned int& gSVOLevelOffset,
+                                                 const unsigned int& gSVONextLevelOffset,
 
-												 const unsigned int levelNodeCount,
-												 const unsigned int matOffset,
-												 const unsigned int currentLevel,
-												 const CSVOConstants& svoConstants);
+                                                 const unsigned int levelNodeCount,
+                                                 const unsigned int matOffset,
+                                                 const unsigned int currentLevel,
+                                                 const CSVOConstants& svoConstants);
 
 extern __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatChild,
 												 cudaSurfaceObject_t sDenseMatParent,
@@ -158,53 +173,36 @@ extern __global__ void SVOReconstructAverageNode(cudaSurfaceObject_t sDenseMatCh
 												 const unsigned int parentSize);
 
 extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
-                                      CSVOLight* gSVOLight,
-									  CSVONode* gSVOSparse,
-									  CSVONode* gSVODense,
-									  unsigned int* gLevelAllocators,
+                                      CSVONode* gSVOSparse,
+                                      CSVONode* gSVODense,
+                                      unsigned int* gLevelAllocators,
 
-									  const unsigned int* gLevelOffsets,
-									  const unsigned int* gLevelTotalSizes,
+                                      const unsigned int* gLevelOffsets,
+                                      const unsigned int* gLevelTotalSizes,
 
-									  // For Color Lookup
-									  const CVoxelPage* gVoxelData,
-									  CVoxelColor** gVoxelRenderData,
+                                      // For Color Lookup
+                                      const CVoxelPage* gVoxelData,
+                                      CVoxelColor** gVoxelRenderData,
 
-									  const float3 ambientColor,
-									  const unsigned int matSparseOffset,
-									  const unsigned int cascadeNo,
-									  const CSVOConstants& svoConstants);
+                                      const unsigned int matSparseOffset,
+                                      const unsigned int cascadeNo,
+                                      const CSVOConstants& svoConstants,
 
-extern __global__ void SVOLightInject(// SVO Related
-                                      CSVOLight* gSVOLight,
-									  const CSVOMaterial* gSVOMat,
-									  const CSVONode* gSVOSparse,
-									  const CSVONode* gSVODense,
-									  const unsigned int* gLevelAllocators,
+                                      // Light Inject Related
+                                      bool inject,
+                                      float span,
+                                      const float3 outerCascadePos,
+                                      const float3 ambientColor,
 
-									  const unsigned int* gLevelOffsets,
-									  const unsigned int* gLevelTotalSizes,
+                                      const float4 camPos,
+                                      const float3 camDir,
 
-									  const CLight& gLightStruct,
-									  const CSVOConstants& svoConstants,
+                                      const CMatrix4x4* lightVP,
+                                      const CLight* lightStruct,
 
-									  const unsigned int matSparseOffset,
+                                      const float depthNear,
+                                      const float depthFar,
 
-									  // Light Inject Related
-									  float span,
-									  const float3 outerCascadePos,
-
-									  const float4 camPos,
-									  const float3 camDir,
-
-									  const float depthNear,
-									  const float depthFar,
-
-									  cudaTextureObject_t shadowMaps,
-
-									  const CMatrix4x4 dLightProjection,
-									  const CMatrix4x4 dLightInvViewProjection,
-
-									  const unsigned int lightMapIndex,
-									  const unsigned int mapWH);
+                                      cudaTextureObject_t shadowMaps,
+                                      const unsigned int lightCount);
 #endif //__GIKERNELS_H__

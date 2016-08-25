@@ -337,6 +337,9 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h">
       <Filter>IEUtility</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\SVOLightInject.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -400,9 +403,6 @@
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu">
       <Filter>GI\Thesis</Filter>
-    </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\SVOLightInject.cu">
-      <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

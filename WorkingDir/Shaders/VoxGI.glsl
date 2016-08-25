@@ -641,7 +641,7 @@ vec3 IllumFactor(in vec3 coneDir,
 
 	// Sampled Lobe Factor
 //	lightIntensity *= normalSVO.w;
-//	lightIntensity *= lobeFactor;
+	lightIntensity *= lobeFactor;
 
 	return lightIntensity * colorSVO.xyz * GI_ONE_OVER_PI;
 	//return abs(voxNormal.xyz) * 2.0f;//0.005f;
@@ -748,7 +748,7 @@ void main(void)
 				// Specular cone
 				float specularity = texture(gBuffColor, gBuffUV).a;
 				if(specularity < 0.5f) continue;
-				coneAperture = mix(coneParams1.z, coneParams1.z * 0.3f, specularity);
+				coneAperture = mix(coneParams1.z, coneParams1.z * 0.15f, specularity);
 
 				// Find Corner points of the surface
 				vec3 worldEye = normalize(camPos.xyz - worldPos);
@@ -794,10 +794,10 @@ void main(void)
 		
 			// than interpolate with your previous surface's value to simulate quadlinear interpolation
 			float ratio = (traversedDistance - prevSurfPoint) / (surfacePoint - prevSurfPoint);
-//			float nodeOcclusion = mix(prevOcclusion, surfOcclusion, ratio);
-//			vec3 illumination = mix(prevIllumination, illumSample, ratio);
-			vec3 illumination = illumSample;
-			float nodeOcclusion = surfOcclusion;
+			float nodeOcclusion = mix(prevOcclusion, surfOcclusion, ratio);
+			vec3 illumination = mix(prevIllumination, illumSample, ratio);
+//			vec3 illumination = illumSample;
+//			float nodeOcclusion = surfOcclusion;
 		
 			// do AO calculations from this value (or values)
 			// Correction Term to prevent intersecting samples error
@@ -820,10 +820,10 @@ void main(void)
 
 			// Incorporation
 			float factor = 1.0f;
-			if(i != CONE_COUNT) factor = 2.0f;
+			if(i != CONE_COUNT) factor = 4.0f;
 
-			//totals[location].xyz += (vec3(1.0f) - totals[location].xyz) * illumination * dot(worldNorm, coneDir);
-			totals[location].xyz += (1.0f - totals[location].w) * illumination /** dot(worldNorm, coneDir)*/ * factor;
+			totals[location].xyz += (vec3(1.0f) - totals[location].xyz) * illumination * dot(worldNorm, coneDir) * factor;
+			//totals[location].xyz += (1.0f - totals[location].w) * illumination * dot(worldNorm, coneDir) * factor;
 			totals[location].w += (1.0f - totals[location].w) * nodeOcclusion * dot(worldNorm, coneDir);
 
 			// Store Current Surface values as previous values

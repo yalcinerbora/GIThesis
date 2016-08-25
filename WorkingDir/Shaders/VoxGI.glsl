@@ -40,7 +40,8 @@
 #define BLOCK_SIZE_Y 16
 
 #define TRACE_NEIGBOUR 8
-#define LOGICAL_CONES 3
+#define LOGICAL_CONES 1
+#define NEIG 4
 
 #define GI_LIGHT_POINT 0.0f
 #define GI_LIGHT_DIRECTIONAL 1.0f
@@ -639,8 +640,8 @@ vec3 IllumFactor(in vec3 coneDir,
 	//lightIntensity *= max(dot(voxNormal.xyz, coneDir), 0.0f);
 
 	// Sampled Lobe Factor
-	lightIntensity *= normalSVO.w;
-	lightIntensity *= lobeFactor;
+//	lightIntensity *= normalSVO.w;
+//	lightIntensity *= lobeFactor;
 
 	return lightIntensity * colorSVO.xyz * GI_ONE_OVER_PI;
 	//return abs(voxNormal.xyz) * 2.0f;//0.005f;
@@ -680,6 +681,10 @@ void main(void)
 	ortho1 = mix(ortho1, vec3(0.0f, 1.0f, 0.0f), floor(worldNorm.x));
 	vec3 ortho2 = normalize(cross(worldNorm, ortho1));
 	
+
+	uint dirId = ((pixelId.x  % (NEIG / 2)) * (NEIG / 2)) + (pixelId.y % (NEIG / 2));
+	//uint dirId = pixelId.x  % NEIG;
+
 	vec4 totals[LOGICAL_CONES + 1];
 	for(uint i = 0; i < LOGICAL_CONES + 1; i++)
 	{
@@ -751,9 +756,16 @@ void main(void)
 			}
 			else
 			{			
-				coneDir = normalize(worldNorm + coneAperture * CalculateConeDir(ortho1, ortho2, 
-																				(coneNo % LOGICAL_CONES) * (2.0f * PI / LOGICAL_CONES)));
+				//coneDir = normalize(worldNorm + coneAperture * CalculateConeDir(ortho1, ortho2, 
+				//																(coneNo % LOGICAL_CONES) * (2.0f * PI / LOGICAL_CONES)));
 
+				coneAperture = tan(atan(coneAperture) * 1.5f);
+				coneDir = normalize(worldNorm + coneAperture * CalculateConeDir(ortho1, ortho2, 
+																				dirId * (2.0f * PI / NEIG)));
+
+				//coneDir = normalize(worldNorm + 
+				//					ortho1 * coneParams1.z * CONE_ORTHO[dirId].x + 
+				//					ortho2 * coneParams1.z * CONE_ORTHO[dirId].y);
 				//coneDir = normalize(worldNorm + 
 				//					ortho1 * coneParams1.z * CONE_ORTHO[coneNo % 4].x + 
 				//					ortho2 * coneParams1.z * CONE_ORTHO[coneNo % 4].y);
@@ -799,7 +811,7 @@ void main(void)
 			//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 2.0f)));
 			
 			//illumination *= (1.0f / (1.0f + coneParams2.w * diameter));
-			//illumination *= (1.0f / (1.0f + coneParams2.w * traversedDistance));
+			illumination *= (1.0f / (1.0f + coneParams2.w * traversedDistance));
 			//illumination *= (1.0f / (1.0f + pow(traversedDistance, 2.0f)));
 
 			// Average total occlusion value
@@ -807,8 +819,11 @@ void main(void)
 			if(i == CONE_COUNT) location = LOGICAL_CONES;
 
 			// Incorporation
+			float factor = 1.0f;
+			if(i != CONE_COUNT) factor = 2.0f;
+
 			//totals[location].xyz += (vec3(1.0f) - totals[location].xyz) * illumination * dot(worldNorm, coneDir);
-			totals[location].xyz += (1.0f - totals[location].w) * illumination * dot(worldNorm, coneDir);
+			totals[location].xyz += (1.0f - totals[location].w) * illumination /** dot(worldNorm, coneDir)*/ * factor;
 			totals[location].w += (1.0f - totals[location].w) * nodeOcclusion * dot(worldNorm, coneDir);
 
 			// Store Current Surface values as previous values

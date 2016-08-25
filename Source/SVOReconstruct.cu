@@ -495,8 +495,7 @@ __global__ void SVOReconstructAverageNode(CSVOMaterial* __restrict__ gSVOMat,
 			float4 normal = ExpandOnlyNormal(normalPacked);
 
             float4 light = float4{1.0f, 1.0f, 1.0f, 1.0f};
-            //if(currentLevel > (svoConstants.totalDepth - svoConstants.numCascades))
-            if(currentLevel == (svoConstants.totalDepth - 1))
+            if(currentLevel > (svoConstants.totalDepth - svoConstants.numCascades))
             {
                 // Incorporate Light
                 unsigned int lightOffset = gLevelOffsets[currentLevel + 1 - svoConstants.denseDepth] -

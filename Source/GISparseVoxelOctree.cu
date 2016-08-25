@@ -838,53 +838,53 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	//// Detect Edge
-	//computeEdge.Bind();
-	//glUniform2f(U_TRESHOLD, 0.007f, IEMath::CosF(IEMath::ToRadians(20.0f)));
-	//glUniform2f(U_NEAR_FAR, camera.near, camera.far);
-	//dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
-	//dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
-	//glBindImageTexture(I_OUT, edgeTex, 0, false, 0, GL_WRITE_ONLY, GL_RG8);
-	//
-	//gridSize.x = (TraceWidth + 16 - 1) / 16;
-	//gridSize.y = (TraceHeight + 16 - 1) / 16;
-	//glDispatchCompute(gridSize.x, gridSize.y, 1);
-	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	// Detect Edge
+	computeEdge.Bind();
+	glUniform2f(U_TRESHOLD, 0.007f, IEMath::CosF(IEMath::ToRadians(20.0f)));
+	glUniform2f(U_NEAR_FAR, camera.near, camera.far);
+	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
+	dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
+	glBindImageTexture(I_OUT, edgeTex, 0, false, 0, GL_WRITE_ONLY, GL_RG8);
+	
+	gridSize.x = (TraceWidth + 16 - 1) / 16;
+	gridSize.y = (TraceHeight + 16 - 1) / 16;
+	glDispatchCompute(gridSize.x, gridSize.y, 1);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	////dRenderer.ShowTexture(camera, edgeTex);
+	dRenderer.ShowTexture(camera, edgeTex);
 
-	//// Edge Aware Gauss
-	//computeGauss32.Bind();
-	//glActiveTexture(GL_TEXTURE0 + T_EDGE);
-	//glBindTexture(GL_TEXTURE_2D, svoDenseMat);
-	//glBindSampler(T_EDGE, gaussSampler);
+	// Edge Aware Gauss
+	computeGauss32.Bind();
+	glActiveTexture(GL_TEXTURE0 + T_EDGE);
+	glBindTexture(GL_TEXTURE_2D, svoDenseMat);
+	glBindSampler(T_EDGE, gaussSampler);
 
-	//// Call #1 (Vertical)
-	//GLuint inTex = traceTexture;
-	//GLuint outTex = gaussTex;
-	//for(unsigned int i = 0; i < 8; i++)
-	//{
-	//	glActiveTexture(GL_TEXTURE0 + T_IN);
-	//	glBindTexture(GL_TEXTURE_2D, inTex);
-	//	glBindSampler(T_EDGE, gaussSampler);
-	//	glBindImageTexture(I_OUT, outTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
-	//	glUniform1ui(U_DIRECTION, 0);
-	//	glDispatchCompute(gridSize.x, gridSize.y, 1);
-	//	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	// Call #1 (Vertical)
+	GLuint inTex = traceTexture;
+	GLuint outTex = gaussTex;
+	for(unsigned int i = 0; i < 1; i++)
+	{
+		glActiveTexture(GL_TEXTURE0 + T_IN);
+		glBindTexture(GL_TEXTURE_2D, inTex);
+		glBindSampler(T_EDGE, gaussSampler);
+		glBindImageTexture(I_OUT, outTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+		glUniform1ui(U_DIRECTION, 0);
+		glDispatchCompute(gridSize.x, gridSize.y, 1);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	//	// Call #2 (Horizontal)
-	//	glActiveTexture(GL_TEXTURE0 + T_IN);
-	//	glBindTexture(GL_TEXTURE_2D, outTex);
-	//	glBindSampler(T_EDGE, gaussSampler);
-	//	glBindImageTexture(I_OUT, inTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
-	//	glUniform1ui(U_DIRECTION, 1);
-	//	glDispatchCompute(gridSize.x, gridSize.y, 1);
+		// Call #2 (Horizontal)
+		glActiveTexture(GL_TEXTURE0 + T_IN);
+		glBindTexture(GL_TEXTURE_2D, outTex);
+		glBindSampler(T_EDGE, gaussSampler);
+		glBindImageTexture(I_OUT, inTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+		glUniform1ui(U_DIRECTION, 1);
+		glDispatchCompute(gridSize.x, gridSize.y, 1);
 
-	//	GLuint temp = inTex;
-	//	inTex = outTex;
-	//	outTex = temp;
-	//}
-	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		//GLuint temp = inTex;
+		//inTex = outTex;
+		//outTex = temp;
+	}
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	// Apply to DRenderer Li Tex
 	computeLIApply.Bind();

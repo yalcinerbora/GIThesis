@@ -1,6 +1,4 @@
 #version 430
-#extension GL_NV_shader_thread_group : require
-#extension GL_NV_shader_thread_shuffle : require
 /*	
 	**Voxel Global Illumination Compute Shader**
 	
@@ -35,13 +33,11 @@
 #define T_DENSE_MAT layout(binding = 6)
 
 #define CONE_COUNT 1
+#define TRACE_NEIGBOUR 8
+#define NEIGBOURS 4
 
 #define BLOCK_SIZE_X 16
 #define BLOCK_SIZE_Y 16
-
-#define TRACE_NEIGBOUR 8
-#define LOGICAL_CONES 1
-#define NEIG 4
 
 #define GI_LIGHT_POINT 0.0f
 #define GI_LIGHT_DIRECTIONAL 1.0f
@@ -60,6 +56,23 @@ uniform vec2 CONE_ORTHO[4] =
     vec2( -1.0f, 1.0f),
     vec2( 1.0f, -1.0f),
     vec2( 1.0f, 1.0f)
+};
+
+
+uniform vec4 COLORS[12] = 
+{
+	vec4( 0 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 1 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 2 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 3 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 4 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 5 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 6 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 7 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 8 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 9 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 10 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f),
+	vec4( 11 * (1.0f / 12.0f), 0.0f, 0.0f, 0.3f)
 };
 
 uniform ivec3 NEIG_MASK[8] = 
@@ -208,9 +221,9 @@ vec3 VoxPosToWorld(in ivec3  voxPos, in uint depth)
 	return worldPosSpan.xyz + (vec3(voxPos) * (worldPosSpan.w * float(0x1 << (dimDepth.y - depth))));
 }
 
-uint SpanToDepth(in uint number)
+uint DiameterToDepth(in float diameter)
 {
-	return dimDepth.y - findMSB(number);
+	return dimDepth.y - findMSB(uint(floor(diameter / worldPosSpan.w)));
 }
 
 uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
@@ -252,7 +265,7 @@ bool InterpolateSparse(out vec4 color,
 					   in uvec4 matGH,
 
 					   in vec3 interpValue,
-					   in bool specular)
+					   in bool interpolate)
 {
 	// Bigass fetch (its fast tho L1 cache doing work on GPU!!!)
 	uvec2 materialA = matAB.xy;
@@ -274,7 +287,7 @@ bool InterpolateSparse(out vec4 color,
 	vec4 colorG = UnpackColorSVO(materialG.x); 
 	vec4 colorH = UnpackColorSVO(materialH.x);
 
-	if(TRACE_NEIGBOUR == 1 || specular)
+	if(TRACE_NEIGBOUR == 1 || !interpolate)
 	{
 		color = colorA;
 	}
@@ -300,7 +313,7 @@ bool InterpolateSparse(out vec4 color,
 	vec4 normalG = UnpackNormalSVO(materialG.y); 
 	vec4 normalH = UnpackNormalSVO(materialH.y);
 		
-	if(TRACE_NEIGBOUR == 1 || specular)
+	if(TRACE_NEIGBOUR == 1 || !interpolate)
 	{
 		normal = normalA;
 	}
@@ -413,7 +426,7 @@ bool SampleSVO(out vec4 color,
 			   out vec4 normal,
 			   in vec3 worldPos,
 			   in uint depth,
-			   in bool specular)
+			   in bool interpolate)
 {
 	uint fetchLevel = depth;
 
@@ -552,7 +565,7 @@ bool SampleSVO(out vec4 color,
 	uvec4 matGH = uvec4(0);
 
 	
-	for(uint i = 0; i < ((specular) ? 1 : TRACE_NEIGBOUR); i++)
+	for(uint i = 0; i < ((interpolate) ? TRACE_NEIGBOUR : 1); i++)
 	{
 		vec3 currentWorld = VoxPosToWorld(voxPosLevel + NEIG_MASK[i], fetchLevel);
 		ivec3 voxPos = LevelVoxId(currentWorld, dimDepth.y);
@@ -610,20 +623,10 @@ bool SampleSVO(out vec4 color,
 					  matGH,
 							 
 					  interp,
-					  specular);
+					  interpolate);
 
 	if(normal.w == 0.0f) return false;
 	return true;
-}
-
-void SumPixelData(inout vec4 coneColorOcc)
-{
-	for(int offset = (CONE_COUNT / 2); offset > 0; offset /= 2)
-	{
-		vec4 neigNode = shuffleDownNV(coneColorOcc, offset, CONE_COUNT);
-		coneColorOcc = mix(coneColorOcc, neigNode, 0.5f);
-		//coneColorOcc += neigNode;
-	}
 }
 
 vec3 IllumFactor(in vec3 coneDir,
@@ -636,14 +639,15 @@ vec3 IllumFactor(in vec3 coneDir,
 	vec3 voxNormal = normalize(normalSVO.xyz);
 	float lobeFactor = length(normalSVO.xyz);
 	
+	// TODO
 	// Lambert Diffuse
 	//lightIntensity *= max(dot(voxNormal.xyz, coneDir), 0.0f);
 
 	// Sampled Lobe Factor
-//	lightIntensity *= normalSVO.w;
-	lightIntensity *= lobeFactor;
+	//lightIntensity *= normalSVO.w;
+	//lightIntensity *= ((1.0f - lobeFactor) / lobeFactor);
 
-	return lightIntensity * colorSVO.xyz * GI_ONE_OVER_PI;
+	return lightIntensity * colorSVO.xyz;// * GI_ONE_OVER_PI;
 	//return abs(voxNormal.xyz) * 2.0f;//0.005f;
 }
 
@@ -652,17 +656,40 @@ vec3 CalculateConeDir(in vec3 ortho1, in vec3 ortho2, float angleRadian)
 	return normalize(ortho1 * cos(angleRadian) + ortho2 * sin(angleRadian));
 }
 
+
+void SampleCone(out vec4 color, out vec4 normal, 
+				in vec3 worldPos, in float coneDiameter,
+				in bool interpolate)
+{
+	// Convert Diameter to interpolation weight and levels	
+	float diameterRatio = coneDiameter / worldPosSpan.w;
+    diameterRatio = max(diameterRatio, 1.0f);
+    unsigned int closestPow = uint(floor(log2(diameterRatio)));
+    float interp = (diameterRatio - float(0x1 << closestPow)) / float(0x1 << closestPow);
+    unsigned int nodeLevel = dimDepth.y - closestPow;
+	//nodeDepth = 8;
+
+	vec4 colorA = vec4(0.0f), normalA = vec4(0.0f);
+	vec4 colorB = vec4(0.0f), normalB = vec4(0.0f);
+	SampleSVO(colorA, normalA, worldPos, nodeLevel, interpolate);
+
+	if(interpolate) SampleSVO(colorB, normalB, worldPos, nodeLevel - 1, interpolate);
+	else interp = 0.0f;
+
+	color = mix(colorA, colorB,  interp);
+	normal = mix(normalA, normalB,  interp);
+}
+
 layout (local_size_x = BLOCK_SIZE_X, local_size_y = BLOCK_SIZE_Y, local_size_z = 1) in;
 void main(void)
 {
 	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	uvec2 pixelId = globalId;
 
-	if(any(greaterThanEqual(pixelId, imageSize(liTex).xy))) return;
+	if(any(greaterThanEqual(globalId, imageSize(liTex).xy))) return;
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
-	vec2 gBuffUV = vec2(pixelId + vec2(0.5f) - viewport.xy) / viewport.zw;
+	vec2 gBuffUV = vec2(globalId + vec2(0.5f) - viewport.xy) / viewport.zw;
 	vec3 worldPos = DepthToWorld(gBuffUV);
 	vec3 worldNorm = UnpackNormalGBuff(texture(gBuffNormal, gBuffUV).xy);
 
@@ -681,180 +708,115 @@ void main(void)
 	ortho1 = mix(ortho1, vec3(0.0f, 1.0f, 0.0f), floor(worldNorm.x));
 	vec3 ortho2 = normalize(cross(worldNorm, ortho1));
 	
+	// Determine Diffuse Cone ID (multiple Neigbours Fetch Different Cones then gets blurred)
+	uint dirId = ((globalId.x  % (NEIGBOURS / 2)) * (NEIGBOURS / 2)) + (globalId.y % (NEIGBOURS / 2));
 
-	uint dirId = ((pixelId.x  % (NEIG / 2)) * (NEIG / 2)) + (pixelId.y % (NEIG / 2));
-	//uint dirId = pixelId.x  % NEIG;
+	// Specular cone
+	float specularity = texture(gBuffColor, gBuffUV).a;
+	float specConeAperture = mix(coneParams1.y, coneParams1.y * 0.15f, specularity);
+	bool skipSpec = specularity < 0.5f;
+	vec3 worldEye = normalize(camPos.xyz - worldPos);
+	vec3 specConeDir = normalize(-reflect(worldEye, worldNorm));
 
-	vec4 totals[LOGICAL_CONES + 1];
-	for(uint i = 0; i < LOGICAL_CONES + 1; i++)
-	{
-		totals[i] = vec4(0.0f);
-	}
+	// Diffuse Cone
+	float diffuseConeAperture = coneParams1.y;
+	vec3 diffuseConeDir = normalize(worldNorm + tan(atan(coneParams1.z) * 1.5f) * 
+									CalculateConeDir(ortho1, ortho2, 
+													 dirId * (2.0f * PI / NEIGBOURS)));
 
-	float surfaceOcclusion = 0.0f;
-	vec3 surfaceIllumination = vec3(0.0f);
+	//vec3 diffuseConeDir = normalize(worldNorm + 
+	//								ortho1 * diffuseConeAperture * CONE_ORTHO[dirId].x + 
+	//								ortho2 * diffuseConeAperture * CONE_ORTHO[dirId].y);
+
+
+	// TEST
+	//diffuseConeDir = worldNorm;
+	
+
+
+	vec4 surfaceAccumulation = vec4(0.0f);
 	uint coneCount = (specular == 0) ? CONE_COUNT : CONE_COUNT + 1;
 	for(unsigned int i = 0; i < coneCount; i++)
 	{
-		// Previous surface point and occlusion data
-		vec3 prevIllumination = vec3(0.0f);
-		float prevOcclusion = 0.0f;
-		float prevSurfPoint = 0.0f;
-
 		// Initally Start the cone away from the surface since 
 		// voxel system and polygon system are not %100 aligned
 		vec3 initalTraceStart = worldPos + worldNorm * cascadeSpan * coneParams2.z * 2.0f;
-
-
-		//// Find Corner points of the surface
-		//float coneAperture = coneParams1.z;
-		//vec3 coneDir;
-		//if(i == CONE_COUNT)
-		//{
-		//	// Specular cone
-		//	float specularity = texture(gBuffColor, gBuffUV).a;
-		//	coneAperture = mix(coneParams1.z * 2.0f , coneParams1.z * 0.1f, specularity);
-
-		//	// Find Corner points of the surface
-		//	vec3 worldEye = normalize(camPos.xyz - worldPos);
-		//	coneDir = normalize(-reflect(worldEye, worldNorm));
-		//}
-		//else
-		//{			
-		//	coneDir = normalize(worldNorm + coneAperture * CalculateConeDir(ortho1, ortho2, 
-		//																	(i % LOGICAL_CONES) * (2.0f * PI / LOGICAL_CONES)));
-
-		//	//coneDir = normalize(worldNorm + 
-		//	//					ortho1 * coneParams1.z * CONE_ORTHO[i % 4].x + 
-		//	//					ortho2 * coneParams1.z * CONE_ORTHO[i % 4].y);
-		//}
-
-
-
+		vec4 totalAccumulation = vec4(0.0f);
+		
 		// Start sampling towards that direction
 		// Loop Traverses until MaxDistance Exceeded
 		// March distance is variable per iteration
-		uint coneNo = 0;
+		bool lastFetch = false;
 		float marchDistance = cascadeSpan;
-		for(float traversedDistance = cascadeSpan;
+		for(float traversedDistance = 0.0f;
 			traversedDistance <= coneParams1.x;
 			traversedDistance += marchDistance)
 		{
 			// Find Corner points of the surface
-			float coneAperture = coneParams1.z;
-			vec3 coneDir;
-			if(i == CONE_COUNT)
-			{
-				// Specular cone
-				float specularity = texture(gBuffColor, gBuffUV).a;
-				if(specularity < 0.5f) continue;
-				coneAperture = mix(coneParams1.z, coneParams1.z * 0.15f, specularity);
-
-				// Find Corner points of the surface
-				vec3 worldEye = normalize(camPos.xyz - worldPos);
-				coneDir = normalize(-reflect(worldEye, worldNorm));
-			}
-			else
-			{			
-				//coneDir = normalize(worldNorm + coneAperture * CalculateConeDir(ortho1, ortho2, 
-				//																(coneNo % LOGICAL_CONES) * (2.0f * PI / LOGICAL_CONES)));
-
-				coneAperture = tan(atan(coneAperture) * 1.5f);
-				coneDir = normalize(worldNorm + coneAperture * CalculateConeDir(ortho1, ortho2, 
-																				dirId * (2.0f * PI / NEIG)));
-
-				//coneDir = normalize(worldNorm + 
-				//					ortho1 * coneParams1.z * CONE_ORTHO[dirId].x + 
-				//					ortho2 * coneParams1.z * CONE_ORTHO[dirId].y);
-				//coneDir = normalize(worldNorm + 
-				//					ortho1 * coneParams1.z * CONE_ORTHO[coneNo % 4].x + 
-				//					ortho2 * coneParams1.z * CONE_ORTHO[coneNo % 4].y);
-			}
-			
+			float coneAperture = (i != CONE_COUNT) ? diffuseConeAperture : specConeAperture;
+			vec3 coneDir = (i != CONE_COUNT) ? diffuseConeDir : specConeDir;
+			if(skipSpec && i == CONE_COUNT) break;
+						
 			vec3 currentPos = initalTraceStart + coneDir * traversedDistance;
-
-			// Current Cone Sample Diameter
-			// and its corresponding depth and ratio
-			float diameter = max(cascadeSpan, coneAperture * 2.0f * traversedDistance);
-			uint nodeDepth = SpanToDepth(uint(floor(diameter / worldPosSpan.w)));
-			//nodeDepth = 8;
-		
-			// Determine Coverage Span of the surface 
-			// (wrt cone angle and distance from pixel)
-			// And Store 3x3 voxels
-			float surfacePoint = (traversedDistance + diameter * 0.5f);
-				
+			float diameter = max(cascadeSpan, coneAperture * traversedDistance);
+			
 			// start sampling from that surface (interpolate)
 			vec4 color = vec4(0.0f), normal = vec4(0.0f);
-			bool found = SampleSVO(color, normal, currentPos, nodeDepth, false/*i == CONE_COUNT*/);
+			SampleCone(color, normal, currentPos, diameter, i != CONE_COUNT);
+			//SampleCone(color, normal, currentPos, diameter, true);
 
 			// Calculate Illumination & Occlusion
-			float surfOcclusion = normal.w;
-			vec3 illumSample = IllumFactor(coneDir, color, normal);
+			float nodeOcclusion = normal.w;
+			vec3 illumination = IllumFactor(coneDir, color, normal);
 		
-			// than interpolate with your previous surface's value to simulate quadlinear interpolation
-			float ratio = (traversedDistance - prevSurfPoint) / (surfacePoint - prevSurfPoint);
-			float nodeOcclusion = mix(prevOcclusion, surfOcclusion, ratio);
-			vec3 illumination = mix(prevIllumination, illumSample, ratio);
-//			vec3 illumination = illumSample;
-//			float nodeOcclusion = surfOcclusion;
-		
-			// do AO calculations from this value (or values)
 			// Correction Term to prevent intersecting samples error
-			float diameterVoxelSize = worldPosSpan.w * (0x1 << (dimDepth.y - nodeDepth));
-			nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDistance / diameterVoxelSize);
-			illumination = vec3(1.0f) - pow(vec3(1.0f) - illumination, vec3(marchDistance / diameterVoxelSize));
-		
+			nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDistance / diameter);
+			illumination = vec3(1.0f) - pow(vec3(1.0f) - illumination, vec3(marchDistance / diameter));
+				
 			// Occlusion falloff (linear)
-			//nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * diameter));
-			nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * traversedDistance));
+			nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * diameter));
+			//nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * traversedDistance));
 			//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 2.0f)));
 			
-			//illumination *= (1.0f / (1.0f + coneParams2.w * diameter));
-			illumination *= (1.0f / (1.0f + coneParams2.w * traversedDistance));
+			illumination *= (1.0f / (1.0f + coneParams2.w * diameter));
+			//illumination *= (1.0f / (1.0f + coneParams2.w * traversedDistance));
 			//illumination *= (1.0f / (1.0f + pow(traversedDistance, 2.0f)));
 
-			// Average total occlusion value
-			uint location = coneNo % LOGICAL_CONES;
-			if(i == CONE_COUNT) location = LOGICAL_CONES;
+			// Incorporation 
+			float factor = (i == CONE_COUNT) ? 1.0f : 4.0f;
+			illumination *= dot(worldNorm, coneDir) * factor;
+			nodeOcclusion *= dot(worldNorm, coneDir);
 
-			// Incorporation
-			float factor = 1.0f;
-			if(i != CONE_COUNT) factor = 4.0f;
+			//totalAccumulation.xyz += illumination;
+			totalAccumulation.xyz += (vec3(1.0f) - totalAccumulation.xyz) * illumination;
+			//totalAccumulation.xyz += (1.0f - totalAccumulation.w) * illumination;
 
-			totals[location].xyz += (vec3(1.0f) - totals[location].xyz) * illumination * dot(worldNorm, coneDir) * factor;
-			//totals[location].xyz += (1.0f - totals[location].w) * illumination * dot(worldNorm, coneDir) * factor;
-			totals[location].w += (1.0f - totals[location].w) * nodeOcclusion * dot(worldNorm, coneDir);
-
-			// Store Current Surface values as previous values
-			prevSurfPoint = surfacePoint;
-			prevOcclusion = surfOcclusion;
-			prevIllumination = illumSample;
+			if(i != CONE_COUNT) totalAccumulation.w += (1.0f - totalAccumulation.w) * nodeOcclusion;
 
 			// Advance sample point (from sampling diameter)
 			marchDistance = diameter * coneParams1.w;
-			coneNo++;
+			if(!lastFetch && traversedDistance > coneParams1.x) 
+			{
+				lastFetch = true;
+				traversedDistance = coneParams1.x;
+			}
+			else if(lastFetch) break;
+
 		}
 		// Cos tetha multiplication
-		//totalConeOcclusion *= dot(worldNorm, coneDir) * coneParams2.x;
-		//totalIllumination *= dot(worldNorm, coneDir) * coneParams2.y;
-
-		totals[0] *= (1.0f / LOGICAL_CONES);
-		for(uint i = 1; i < LOGICAL_CONES; i++)
-		{
-			totals[0] += totals[i] * (1.0f / LOGICAL_CONES);
-		}
-		totals[0].xyz += totals[LOGICAL_CONES].xyz;
-		totals[0].xyz *= coneParams2.y;
-		totals[0].w *= coneParams2.x;
+		surfaceAccumulation += totalAccumulation;
 	}
-
-	// Sum occlusion data
-	vec4 result = vec4(totals[0].xyz, 1.0f - totals[0].w);
-		
+	surfaceAccumulation.xyz *=  coneParams2.y;
+	surfaceAccumulation.w *=  coneParams2.x;
+	surfaceAccumulation.w = 1.0f - surfaceAccumulation.w;
+	
+	//vec4 color = vec4(vec2(gl_GlobalInvocationID.xy % 2), 0.0f, 0.0f);
+	
+	//imageStore(liTex, ivec2(globalId), color);
+	//imageStore(liTex, ivec2(globalId), vec4(diffuseConeDir, 0.0f));
 	// All Done!
-	imageStore(liTex, ivec2(pixelId), result);
-	//imageStore(liTex, ivec2(pixelId), vec4(result.w));
-	//imageStore(liTex, ivec2(pixelId), vec4(worldPos, 0.0f));
-	//imageStore(liTex, ivec2(pixelId), vec4(worldNorm, 0.0f));
+	imageStore(liTex, ivec2(globalId), surfaceAccumulation);
+	//imageStore(liTex, ivec2(globalId), vec4(result.w));
+	//imageStore(liTex, ivec2(globalId), vec4(worldPos, 0.0f));
+	//imageStore(liTex, ivec2(globalId), vec4(worldNorm, 0.0f));
 }

@@ -13,8 +13,8 @@
 #include <numeric>
 #include <cuda_profiler_api.h>
 
-const GLsizei GISparseVoxelOctree::TraceWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1920;*//*2560;*///3840;
-const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*//*360;*//*450;*/720;/*1080;*//*1440;*///2160;
+const GLsizei GISparseVoxelOctree::TraceWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1600;*//*1920;*//*2560;*///3840;
+const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*//*360;*//*450;*/720;/*900;*//*1080;*//*1440;*///2160;
 
 GISparseVoxelOctree::GISparseVoxelOctree()
 	: svoNodeBuffer(512)
@@ -107,7 +107,7 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	glSamplerParameteri(materialSampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 	// Bilinear Sample for Gauss Fetch (Out of bounds are zero)
-	GLfloat col[] = {1.0f, 1.0f, 1.0f, 0.0f};
+	GLfloat col[] = {0.0f, 0.0f, 0.0f, 0.0f};
 	glGenSamplers(1, &gaussSampler);
 	glSamplerParameteri(gaussSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glSamplerParameteri(gaussSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -735,6 +735,18 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	};
 	svoTraceData.SendData();
 
+    //TEST
+    //// Convert Diameter to interpolation weight and levels
+    //float diameter = std::tan(coneAngle) * maxDistance;
+    //float diameterRatio = diameter / allocatorGrids.back()->span;
+    //diameterRatio = std::max(diameterRatio, 1.0f);
+    //unsigned int closestPow = static_cast<unsigned int>(std::floor(std::log2(diameterRatio)));
+    //float interp = (diameterRatio - float(0x1 << closestPow)) / float(0x1 << closestPow);
+    //unsigned int nodeLevel = depth - closestPow;
+    ////nodeDepth = 8;
+
+    //GI_LOG("(D%f, C%d)(%f, %d, %d)", diameterRatio, closestPow, interp, nodeLevel, nodeLevel - 1);
+
 	// Set Cone Trace Data
 	svoConeParams.CPUData()[0] =
 	{
@@ -777,36 +789,35 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 
 	// Dispatch
 	uint2 gridSize;
-	gridSize.x = (TraceWidth * 4 + 32 - 1) / 32;
-	gridSize.y = (TraceHeight + 8 - 1) / 8;
+    gridSize.x = (TraceWidth + 16 - 1) / 16;
+    gridSize.y = (TraceHeight + 16 - 1) / 16;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	// Detect Edge
 	computeEdge.Bind();
-	glUniform2f(U_TRESHOLD, 0.007f, IEMath::CosF(IEMath::ToRadians(20.0f)));
+	glUniform2f(U_TRESHOLD, 0.007f, IEMath::CosF(IEMath::ToRadians(10.0f)));
 	glUniform2f(U_NEAR_FAR, camera.near, camera.far);
 	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
 	glBindImageTexture(I_OUT, edgeTex, 0, false, 0, GL_WRITE_ONLY, GL_RG8);
+    //glBindImageTexture(I_OUT, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 	
 	gridSize.x = (TraceWidth + 16 - 1) / 16;
 	gridSize.y = (TraceHeight + 16 - 1) / 16;
 	glDispatchCompute(gridSize.x, gridSize.y, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	dRenderer.ShowTexture(camera, edgeTex);
-
 	// Edge Aware Gauss
 	computeGauss32.Bind();
 	glActiveTexture(GL_TEXTURE0 + T_EDGE);
-	glBindTexture(GL_TEXTURE_2D, svoDenseMat);
+	glBindTexture(GL_TEXTURE_2D, edgeTex);
 	glBindSampler(T_EDGE, gaussSampler);
 
 	// Call #1 (Vertical)
 	GLuint inTex = traceTexture;
 	GLuint outTex = gaussTex;
-	for(unsigned int i = 0; i < 1; i++)
+	for(unsigned int i = 0; i < 3; i++)
 	{
 		glActiveTexture(GL_TEXTURE0 + T_IN);
 		glBindTexture(GL_TEXTURE_2D, inTex);
@@ -824,9 +835,6 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 		glUniform1ui(U_DIRECTION, 1);
 		glDispatchCompute(gridSize.x, gridSize.y, 1);
 
-		//GLuint temp = inTex;
-		//inTex = outTex;
-		//outTex = temp;
 	}
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -841,7 +849,7 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	glBindImageTexture(I_LIGHT_INENSITY, gBufferLITex, 0, false, 0, GL_READ_WRITE, GL_RGBA16F);
 	glActiveTexture(GL_TEXTURE0 + T_COLOR);
 	glBindTexture(GL_TEXTURE_2D, traceTexture);
-	glBindSampler(T_DENSE_NODE, gaussSampler);
+	glBindSampler(T_COLOR, nodeSampler);
 
 	gridSize.x = (DeferredRenderer::gBuffWidth + 16 - 1) / 16;
 	gridSize.y = (DeferredRenderer::gBuffHeight + 16 - 1) / 16;

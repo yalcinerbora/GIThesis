@@ -30,11 +30,11 @@ const TwEnumVal ThesisSolution::renderSchemeVals[] =
 
 AOBar::AOBar()
  : angleDegree(30.0f)
- , sampleFactor(1.19f)
- , maxDistance(100.0f)
- , falloffFactor(0.05f)
+ , sampleFactor(1.00f)
+ , maxDistance(300.0f)
+ , falloffFactor(0.25f)
  , intensityAO(1.40f)
- , intensityGI(4.60f)
+ , intensityGI(3.60f)
  , bar(nullptr)
  , hidden(true)
  , specular(true)
@@ -51,8 +51,8 @@ AOBar::AOBar()
 			   " label='Falloff Factor' help='Falloff Factor or the cone sample' "
 			   " min=0.01 max=10.0 step=0.01 ");
 	TwAddVarRW(bar, "maxDist", TW_TYPE_FLOAT, &maxDistance,
-			   " label='Max Distance' help='Maximum Cone Trace Distance' "
-			   " min=10.0 max=300.0 step=0.1 ");
+			   std::string(" label='Max Distance' help='Maximum Cone Trace Distance' "
+			   " min=" + std::to_string(ThesisSolution::CascadeSpan) + " max=500.0 step=0.1 ").c_str());
 	TwAddVarRW(bar, "intensityAO", TW_TYPE_FLOAT, &intensityAO,
 			   " label='AO Intensity' help='Occlusion Intensity' "
 			   " min=0.5 max=5.0 step=0.01 ");

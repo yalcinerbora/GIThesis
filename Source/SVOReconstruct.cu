@@ -31,21 +31,23 @@ inline __device__ CSVOMaterial Average(const CSVOMaterial& material,
     float4 avgNormal = UnpackNormCount(avgNormalPacked);
 
     // Averaging (color.w is number of nodes)
-    assert(avgNormal.w < 255.0f);
-    float ratio = avgNormal.w / (avgNormal.w + 1.0f);
+    //assert(avgNormal.w <= 255.0f);
+    if(avgNormal.w <= 255.0f);
+    {
+        float ratio = avgNormal.w / (avgNormal.w + 1.0f);
 
-    // New Color Average
-    avgColor.x = (ratio * avgColor.x) + (colorUnpack.x / (avgNormal.w + 1.0f));
-    avgColor.y = (ratio * avgColor.y) + (colorUnpack.y / (avgNormal.w + 1.0f));
-    avgColor.z = (ratio * avgColor.z) + (colorUnpack.z / (avgNormal.w + 1.0f));
-    avgColor.w = (ratio * avgColor.w) + (colorUnpack.w / (avgNormal.w + 1.0f));
+        // New Color Average
+        avgColor.x = (ratio * avgColor.x) + (colorUnpack.x / (avgNormal.w + 1.0f));
+        avgColor.y = (ratio * avgColor.y) + (colorUnpack.y / (avgNormal.w + 1.0f));
+        avgColor.z = (ratio * avgColor.z) + (colorUnpack.z / (avgNormal.w + 1.0f));
+        avgColor.w = (ratio * avgColor.w) + (colorUnpack.w / (avgNormal.w + 1.0f));
 
-    // New Normal Average
-    avgNormal.x = (ratio * avgNormal.x) + (normalUnpack.x / (avgNormal.w + 1.0f));
-    avgNormal.y = (ratio * avgNormal.y) + (normalUnpack.y / (avgNormal.w + 1.0f));
-    avgNormal.z = (ratio * avgNormal.z) + (normalUnpack.z / (avgNormal.w + 1.0f));
-    avgNormal.w += 1.0f;
-
+        // New Normal Average
+        avgNormal.x = (ratio * avgNormal.x) + (normalUnpack.x / (avgNormal.w + 1.0f));
+        avgNormal.y = (ratio * avgNormal.y) + (normalUnpack.y / (avgNormal.w + 1.0f));
+        avgNormal.z = (ratio * avgNormal.z) + (normalUnpack.z / (avgNormal.w + 1.0f));
+        avgNormal.w += 1.0f;
+    }
     avgColorPacked = PackSVOColor(avgColor);
     avgNormalPacked = PackNormCount(avgNormal);
     return PackSVOMaterial(avgColorPacked, avgNormalPacked);

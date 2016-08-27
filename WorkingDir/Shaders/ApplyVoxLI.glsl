@@ -32,7 +32,7 @@ void main(void)
 {
 	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	vec2 uv = vec2(globalId) / vec2(imageSize(liTex));
+	vec2 uv = (vec2(globalId) + 0.5f) / vec2(imageSize(liTex));
 
 	if(any(greaterThan(ivec2(globalId), imageSize(liTex)))) return;
 

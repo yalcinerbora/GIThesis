@@ -180,11 +180,11 @@ int main()
 	//MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
 	//							  ThesisSolution::CascadeSpan);
 	
-	// Nyra Inception Scene
-	IERandom rng;
-	const int nyraCount = 9 - 9;
-	const float nyraRange = 200;
-	std::vector<MeshBatchI*> nyraVector;
+	//// Nyra Inception Scene
+	//IERandom rng;
+ //   const int nyraCount = 9 - 9;
+	//const float nyraRange = 200;
+	//std::vector<MeshBatchI*> nyraVector;
 	//for(int i = 0; i < nyraCount; i++)
 	//{
 	//	int nyraPos = i - nyraCount / 2;
@@ -199,10 +199,10 @@ int main()
 	//											  MeshBatchNyra::initalPosBase + initalOffsetZ));
 	//	static_cast<MeshBatchNyra*>(nyraVector.back())->AnimationParams(0.0f, static_cast<float>(animSpeed), AnimationType::REPEAT);
 	//}
-	// Floor
-	nyraVector.emplace_back(new MeshBatch(MeshBatch::nyraStaticFileName,
-										  ThesisSolution::CascadeSpan,
-										  false));
+	//// Floor
+	//nyraVector.emplace_back(new MeshBatch(MeshBatch::nyraStaticFileName,
+	//									  ThesisSolution::CascadeSpan,
+	//									  false));
 
 	// Scene Interfaces
 	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
@@ -229,16 +229,18 @@ int main()
 	MeshBatchI* sponzaDynoBatches[] = {&crySponzaDyno, &crySponzaDynamic, &nyraBatch};
 	Scene dynoSponza(Array32<MeshBatchI*>{sponzaDynoBatches, 3},
 					 Array32<Light>{sponzaLights, 1},
-					 Scene::bigTotalSize,
-					 Scene::bigSizes);
+                     Scene::sponzaSceneTotalSize,
+                     Scene::sponzaSceneLevelSizes);
+                     //Scene::bigTotalSize,
+                     //Scene::bigSizes);
 
-	Scene nyraSecption(Array32<MeshBatchI*>{nyraVector.data(), nyraCount + 1},
-			   Array32<Light>{sponzaLights, 1},
-			   Scene::bigTotalSize,
-			   Scene::bigSizes);
+	//Scene nyraSecption(Array32<MeshBatchI*>{nyraVector.data(), nyraCount + 1},
+	//		   Array32<Light>{sponzaLights, 1},
+	//		   Scene::bigTotalSize,
+	//		   Scene::bigSizes);
 	
 
-	//// Debug Scenes
+	// Debug Scenes
 	//MeshBatchI* nyraBatches[] = {&nyraBatch};
 	//Scene nyra(Array32<MeshBatchI*>{nyraBatches, 1},
 	//		   Array32<Light>{sponzaLights, 1},
@@ -256,7 +258,7 @@ int main()
 	scenes.push_back(&dynoSponza);
 	scenes.push_back(&cornellBox);
 	scenes.push_back(&sibernik);
-	scenes.push_back(&nyraSecption);
+	//scenes.push_back(&nyraSecption);
 	// Test Scenes
 	//scenes.push_back(&cubeRotate);
 	//scenes.push_back(&nyra);
@@ -322,9 +324,14 @@ int main()
 			solution->Init(*scenes[currentScene % scenes.size()]);
 		}
 
-  /*      scenes[currentScene % scenes.size()]->getSceneLights().ChangeLightDir(0, IEQuaternion(IEMath::ToRadians(t.ElapsedS() * 5.0f), 
-                -IEVector3::Xaxis).ApplyRotation(scenes[currentScene % scenes.size()]->getSceneLights().GetLightDir(0)));
-*/
+        // Direct Hook
+       // crySponzaDyno.ToggleOscillate(inputSchemes[currentInputScheme % inputSchemes.size()]->Movement());
+
+        // Toggle Dir Movement
+        if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())
+            scenes[currentScene % scenes.size()]->getSceneLights().ChangeLightDir(0, IEQuaternion(IEMath::ToRadians(t.ElapsedS() * 5.0f), 
+                    -IEVector3::Xaxis).ApplyRotation(scenes[currentScene % scenes.size()]->getSceneLights().GetLightDir(0)));
+
 		// Render frame
 		scenes[currentScene % scenes.size()]->Update(t.ElapsedS());
 		solution->Frame(mainRenderCamera);

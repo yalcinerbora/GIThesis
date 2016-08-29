@@ -21,6 +21,8 @@ class MeshBatchOscillate : public MeshBatch
 		static const float			oscillationAmpVariance;
 		static const float			oscillationSpeedVariance;
 
+        bool                        oscillationOn;
+
 	protected:
 
 	public:
@@ -32,5 +34,7 @@ class MeshBatchOscillate : public MeshBatch
 		// Interface
 		void					Update(double elapsedS) override;
 		VoxelObjectType			MeshType() const override;
+
+        void                    ToggleOscillate(bool oscillate);
 };
 #endif //__MESHBATCHOSCILLATE_H__

@@ -39,13 +39,14 @@ void main(void)
 	vec4 liValue = imageLoad(liTex, ivec2(globalId));
 	vec4 giValue = texture(giLightIntensity, uv);
 
-	if(onOff.x == 1) // AO on
-	{
-		liValue.xyz *= giValue.w;
-	}
 	if(onOff.y == 1) // GI on
 	{
 		liValue.xyz += giValue.xyz;
 	}
+	if(onOff.x == 1) // AO on
+	{
+		liValue.xyz *= giValue.w;
+	}
+	
 	imageStore(liTex, ivec2(globalId), liValue);
 }

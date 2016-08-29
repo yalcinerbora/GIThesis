@@ -50,6 +50,8 @@ WindowInput::WindowInput(Camera& cam,
 	, currentSolution(currentSolution)
 	, currentScene(currentScene)
 	, currentInput(currentInput)
+    , moveLight(false)
+    , movement(false)
 {}
 
 void WindowInput::WindowPosChangedFunc(int x, int y)
@@ -89,6 +91,16 @@ void WindowInput::AddKeyCallback(int key, int action, void(*func)(void*), void* 
 	callbacks.emplace(std::make_pair(key, action), std::make_pair(func, ptr));
 }
 
+bool WindowInput::MoveLight() const
+{
+    return moveLight;
+}
+
+bool WindowInput::Movement() const
+{
+    return movement;
+}
+
 void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 {	
 	if(action == GLFW_RELEASE)
@@ -103,6 +115,11 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 			GI_LOG("Changing Solution");
 			currentSolution++;
 			break;
+        case GLFW_KEY_KP_8:
+            movement = !movement;
+            if(movement) GI_LOG("Movement On");
+            else GI_LOG("Movement Off");
+            break;
 
 		// Scene Change
 		case GLFW_KEY_KP_4:
@@ -113,6 +130,11 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 			GI_LOG("Changing Scene");
 			currentScene++;
 			break;
+        case GLFW_KEY_KP_5:
+            moveLight = !moveLight;
+            if(moveLight) GI_LOG("Move Light On");
+            else GI_LOG("Move Light Off");
+            break;
 
 		// Input Schemes
 		case GLFW_KEY_KP_1:

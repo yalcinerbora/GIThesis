@@ -61,7 +61,7 @@ AOBar::AOBar()
 			   " min=0.5 max=10.0 step=0.1 ");
 	TwAddVarRW(bar, "specular", TW_TYPE_BOOLCPP, &specular,
 			   " label='Specular' help='Launch Specular Cone' ");
-	TwDefine(" ConeBar size='220 135' ");
+	TwDefine(" ConeBar size='220 155' ");
 	TwDefine(" ConeBar position='227 25' ");
 	TwDefine(" ConeBar valueswidth=fit ");
 	
@@ -101,6 +101,7 @@ ThesisSolution::ThesisSolution(DeferredRenderer& dRenderer, const IEVector3& int
 	, traceType(0)
 	, aoOn(true)
 	, giOn(true)
+    , injectOn(true)
 	, EmptyGISolution(dRenderer)
 {
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, GI_END);
@@ -196,6 +197,9 @@ void ThesisSolution::Init(SceneI& s)
 	TwAddVarRW(bar, "aoOn", TW_TYPE_BOOLCPP,
 			   &aoOn,
 			   " label='AO On' help='Ambient Occlusion On off' ");
+    TwAddVarRW(bar, "inject", TW_TYPE_BOOLCPP, 
+               &injectOn,
+               " label='Inject' help='Light Inject On Off' ");
 	TwAddSeparator(bar, NULL, NULL);
 	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
 	{
@@ -619,7 +623,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	p.lightCount = currentScene->getSceneLights().Count();
 	p.outerCascadePos = {outerCascadePos.getX(), outerCascadePos.getY(), outerCascadePos.getZ()};
 	p.span = CascadeSpan;
-	p.inject = true;
+	p.inject = injectOn;
 	
 	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
 

@@ -14,6 +14,7 @@ MeshBatchOscillate::MeshBatchOscillate(const char* sceneFileName,
 	: MeshBatch(sceneFileName, minVoxSpan, false)
 	, oscillateAxis(axis)
 	, totalTimeS(0.0f)
+    , oscillationOn(false)
 {
 	assert(batchDrawParams.getModelTransformBuffer().CPUData().size() == (batchParams.objectCount + 1));
 	oscillateParams.resize(batchParams.objectCount);
@@ -29,6 +30,8 @@ MeshBatchOscillate::MeshBatchOscillate(const char* sceneFileName,
 
 void MeshBatchOscillate::Update(double elapsedS)
 {
+    if(!oscillationOn) return;
+
 	totalTimeS += static_cast<float>(elapsedS);
 	std::vector<ModelTransform>& mtBuff = batchDrawParams.getModelTransformBuffer().CPUData();
 
@@ -46,14 +49,19 @@ void MeshBatchOscillate::Update(double elapsedS)
 		model.model = trans * baseModel.model;
 	};
 
-	for(unsigned int i = 0; i < mtBuff.size(); i++)
-	{
-		Oscillate(mtBuff[i],
-				  oscillateParams[i].getX(), oscillateParams[i].getY(),
-				  totalTimeS,
-				  baseModel[i], oscillateAxis);
-	}
-	batchDrawParams.getModelTransformBuffer().SendData();
+    for(unsigned int i = 0; i < mtBuff.size(); i++)
+    {
+        Oscillate(mtBuff[i],
+                    oscillateParams[i].getX(), oscillateParams[i].getY(),
+                    totalTimeS,
+                    baseModel[i], oscillateAxis);
+    }
+    batchDrawParams.getModelTransformBuffer().SendData();
+}
+
+void MeshBatchOscillate::ToggleOscillate(bool oscillate)
+{
+    oscillationOn = oscillate;
 }
 
 VoxelObjectType MeshBatchOscillate::MeshType() const

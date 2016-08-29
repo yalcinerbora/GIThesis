@@ -809,7 +809,7 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	// Edge Aware Gauss
-	computeGauss32.Bind();
+    computeGauss32.Bind();
 	glActiveTexture(GL_TEXTURE0 + T_EDGE);
 	glBindTexture(GL_TEXTURE_2D, edgeTex);
 	glBindSampler(T_EDGE, gaussSampler);
@@ -817,7 +817,7 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	// Call #1 (Vertical)
 	GLuint inTex = traceTexture;
 	GLuint outTex = gaussTex;
-	for(unsigned int i = 0; i < 3; i++)
+	for(unsigned int i = 0; i < 4; i++)
 	{
 		glActiveTexture(GL_TEXTURE0 + T_IN);
 		glBindTexture(GL_TEXTURE_2D, inTex);

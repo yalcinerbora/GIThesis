@@ -34,6 +34,8 @@ class WindowInput : public InputManI
 		uint32_t&				currentInput;
 		
 		CallbackArray			callbacks;
+        bool                    moveLight;
+        bool                    movement;
 
 	protected:
 		Camera&					camera;
@@ -53,6 +55,8 @@ class WindowInput : public InputManI
 		void				WindowFocusedFunc(bool) override;
 		void				WindowMinimizedFunc(bool) override;
 		void				AddKeyCallback(int, int, void(*)(void*), void*) override;
+        bool                MoveLight() const override;
+        bool                Movement() const override;
 
 		virtual void		KeyboardUsedFunc(int key, int osKey, int action, int modifier);
 		virtual void		MouseMovedFunc(double x, double y);

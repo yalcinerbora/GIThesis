@@ -85,6 +85,7 @@ class ThesisSolution : public EmptyGISolution
 		TwBar*								bar;
 		bool								giOn;
 		bool								aoOn;
+        bool                                injectOn;
 
 		// Times
 		double								ioTime;

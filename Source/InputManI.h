@@ -39,6 +39,8 @@ class InputManI
 		virtual void	WindowRefreshedFunc() = 0;
 		virtual void	WindowFocusedFunc(bool) = 0;
 		virtual void	WindowMinimizedFunc(bool) = 0;
+        virtual bool    MoveLight() const = 0;
+        virtual bool    Movement() const = 0;
 
 		virtual void	KeyboardUsedFunc(int, int, int, int) = 0;
 		virtual void	MouseMovedFunc(double, double) = 0;

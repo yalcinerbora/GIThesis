@@ -78,7 +78,7 @@ class IEQuaternion
 		IEQuaternion				Conjugate() const;
 		IEQuaternion&				ConjugateSelf();
 		float						DotProduct(const IEQuaternion&) const;
-		IEVector3					ApplyRotation(const IEVector3&);
+		IEVector3					ApplyRotation(const IEVector3&) const;
 
 		// Static Utility
 		static IEQuaternion			NLerp(const IEQuaternion& start, const IEQuaternion& end, float percent);

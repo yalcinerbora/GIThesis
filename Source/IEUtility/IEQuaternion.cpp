@@ -204,7 +204,7 @@ float IEQuaternion::DotProduct(const IEQuaternion& quat) const
 	return w * quat.w + x * quat.x + y * quat.y + z * quat.z;
 }
 
-IEVector3 IEQuaternion::ApplyRotation(const IEVector3& vector)
+IEVector3 IEQuaternion::ApplyRotation(const IEVector3& vector) const
 {
 	// q * v * qInv
 	IEQuaternion qInv = this->Normalize().ConjugateSelf();

@@ -3,6 +3,9 @@
 #include "Macros.h"
 #include <GLFW/glfw3.h>
 
+#include "IEUtility\IEMath.h"
+#include "IEUtility\IEQuaternion.h"
+
 //// Sponza
 //const Camera WindowInput::savedCamera = 
 //{
@@ -16,10 +19,13 @@
 //	IEVector3::Yaxis
 //};
 
+//static const IEQuaternion mentalRotationX = IEQuaternion(IEMath::ToRadians(-18.0f), IEVector3::Xaxis);
+//static const IEQuaternion mentalRotationY = IEQuaternion(IEMath::ToRadians(92.4f), IEVector3::Yaxis);
+
 // Cornell
 const Camera WindowInput::savedCamera =
 {
-	90.0f,
+	75.0f,
 	0.15f,
 	600.0f,
 	1280,
@@ -37,8 +43,11 @@ const Camera WindowInput::savedCamera =
 	//IEVector3(-112.188194f, 29.4227695f, -1.11264169f),
 	//IEVector3(82.5518875f, 13.7036791f, 122.393143f),
 	// Sibernik
-	IEVector3(-190.550354f, 119.162132f, 44.7449226f),
-	IEVector3(23.1233673f, 46.8825302f, -5.65195084f),
+	//IEVector3(-190.550354f, 119.162132f, 44.7449226f),
+	//IEVector3(23.1233673f, 46.8825302f, -5.65195084f),
+    // Mental Ray
+    IEVector3(171.137924, 120.530289, -23.6208248),
+    IEVector3(-20.9670410, 16.1353531, -16.5416222),
 	IEVector3::Yaxis
 };
 

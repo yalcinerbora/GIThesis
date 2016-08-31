@@ -77,6 +77,7 @@ int main()
 	DeferredRenderer deferredRenderer;
 
 	// Scenes
+    IEVector3 lightDir = IEQuaternion(IEMath::ToRadians(-84.266f), IEVector3::Xaxis).ApplyRotation(-IEVector3::Zaxis);
 	Light sponzaLights[] = 
 	{
 		// Directional Light
@@ -84,7 +85,8 @@ int main()
 		// 1-2 PM Sunlight direction (if you consider lionhead(window) is at north)
 		{
 			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL) },
-			{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), std::numeric_limits<float>::infinity()},
+            {lightDir.getX(), lightDir.getY(), lightDir.getZ(), std::numeric_limits<float>::infinity()},
+			//{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), std::numeric_limits<float>::infinity()},
 			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
 		},
 		//Point Lights
@@ -206,7 +208,7 @@ int main()
 
 	// Scene Interfaces
 	MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
-	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
+	Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 1},
 					Array32<Light>{sponzaLights, 1},
 					Scene::sponzaSceneTotalSize,
 					Scene::sponzaSceneLevelSizes);

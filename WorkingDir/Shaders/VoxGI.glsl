@@ -644,7 +644,7 @@ vec3 IllumFactor(in vec3 coneDir,
 	//lightIntensity *= max(dot(voxNormal.xyz, coneDir), 0.0f);
 
 	// Sampled Lobe Factor
-	//lightIntensity *= normalSVO.w;
+	lightIntensity *= (1.0f - normalSVO.w);
 	//lightIntensity *= ((1.0f - lobeFactor) / lobeFactor);
 
 	return lightIntensity * colorSVO.xyz;// * GI_ONE_OVER_PI;

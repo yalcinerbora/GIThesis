@@ -59,12 +59,12 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	// Light Intensity Tex
 	glGenTextures(1, &traceTexture);
 	glBindTexture(GL_TEXTURE_2D, traceTexture);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TraceWidth, TraceHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8/*GL_RGBA16*/, TraceWidth, TraceHeight);
 
 	// Gauss Intermediary Tex
 	glGenTextures(1, &gaussTex);
 	glBindTexture(GL_TEXTURE_2D, gaussTex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TraceWidth, TraceHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8/*GL_RGBA16*/, TraceWidth, TraceHeight);
 
 	// Edge Map Tex
 	glGenTextures(1, &edgeTex);
@@ -779,7 +779,7 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	dRenderer.GetGBuffer().BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
 	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
-	glBindImageTexture(I_LIGHT_INENSITY, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glBindImageTexture(I_LIGHT_INENSITY, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8/*GL_RGBA16*/);
 	glActiveTexture(GL_TEXTURE0 + T_DENSE_NODE);
 	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
 	glBindSampler(T_DENSE_NODE, nodeSampler);
@@ -801,7 +801,7 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
 	glBindImageTexture(I_OUT, edgeTex, 0, false, 0, GL_WRITE_ONLY, GL_RG8);
-    //glBindImageTexture(I_OUT, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+    //glBindImageTexture(I_OUT, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA16F);
 	
 	gridSize.x = (TraceWidth + 16 - 1) / 16;
 	gridSize.y = (TraceHeight + 16 - 1) / 16;
@@ -812,7 +812,7 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
     computeGauss32.Bind();
 	glActiveTexture(GL_TEXTURE0 + T_EDGE);
 	glBindTexture(GL_TEXTURE_2D, edgeTex);
-	glBindSampler(T_EDGE, gaussSampler);
+	glBindSampler(T_EDGE, nodeSampler);
 
 	// Call #1 (Vertical)
 	GLuint inTex = traceTexture;
@@ -821,8 +821,8 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 	{
 		glActiveTexture(GL_TEXTURE0 + T_IN);
 		glBindTexture(GL_TEXTURE_2D, inTex);
-		glBindSampler(T_EDGE, gaussSampler);
-		glBindImageTexture(I_OUT, outTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+		glBindSampler(T_IN, gaussSampler);
+		glBindImageTexture(I_OUT, outTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8/*GL_RGBA16*/);
 		glUniform1ui(U_DIRECTION, 0);
 		glDispatchCompute(gridSize.x, gridSize.y, 1);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -830,8 +830,8 @@ double GISparseVoxelOctree::GlobalIllumination(DeferredRenderer& dRenderer,
 		// Call #2 (Horizontal)
 		glActiveTexture(GL_TEXTURE0 + T_IN);
 		glBindTexture(GL_TEXTURE_2D, outTex);
-		glBindSampler(T_EDGE, gaussSampler);
-		glBindImageTexture(I_OUT, inTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+		glBindSampler(T_IN, gaussSampler);
+		glBindImageTexture(I_OUT, inTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8/*GL_RGBA16*/);
 		glUniform1ui(U_DIRECTION, 1);
 		glDispatchCompute(gridSize.x, gridSize.y, 1);
 

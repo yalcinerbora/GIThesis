@@ -67,3 +67,4 @@ ThesisMsc/**/*.gz
 *.tdo
 /ThesisMsc/giThesis-blx.bib
 /ThesisMsc/giThesis.run.xml
+/Build/Windows/*.db

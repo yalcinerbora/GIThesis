@@ -582,7 +582,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	miscTime = 0.0;
 
 	// VoxelSceneUpdate
-	double ioTimeSegment, transformTimeSegment;
+	double ioTimeSegment = 0.0, transformTimeSegment = 0.0;
 	ioTime = 0.0;
 	transformTime = 0.0;
 	svoReconTime = 0.0;
@@ -591,10 +591,11 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 	giTime = 0.0;
 
 	IEVector3 outerCascadePos;
-	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
+    for(unsigned int i = 0; i <  GI_CASCADE_COUNT; i++)
 	{
 		voxelScenes[i].MapGLPointers();
 
+        //IEVector3 pos = IEVector3::ZeroVector;
 		// Cascade Update
 		IEVector3 pos = voxelScenes[i].VoxelUpdate(ioTimeSegment,
 												   transformTimeSegment,
@@ -717,6 +718,7 @@ void ThesisSolution::Frame(const Camera& mainRenderCamera)
 
 			// Start Render
 			glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
 			miscTime = DebugRenderSVO(mainRenderCamera);
 			break;
 		}

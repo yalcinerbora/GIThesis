@@ -130,14 +130,15 @@ void main(void)
 						  0.0f,			span,		0.0f,		0.0f,
 						  0.0f,			0.0f,		span,		0.0f,
 						  deltaPos.x,	deltaPos.y,	deltaPos.z, 1.0f);
-	mat4 transform = modelTransforms[transformId].model * voxModel;
 
 	// Animations
 	vec4 pos = vec4(0.0f);
-	pos += jointTransforms[vWIndex[0]].final * transform * vec4(vPos, 1.0f) * vWeight[0];
-	pos += jointTransforms[vWIndex[1]].final * transform * vec4(vPos, 1.0f) * vWeight[1];
-	pos += jointTransforms[vWIndex[2]].final * transform * vec4(vPos, 1.0f) * vWeight[2];
-	pos += jointTransforms[vWIndex[3]].final * transform * vec4(vPos, 1.0f) * vWeight[3];
+	pos += jointTransforms[vWIndex[0]].final * voxModel * vec4(vPos, 1.0f) * vWeight[0];
+	pos += jointTransforms[vWIndex[1]].final * voxModel * vec4(vPos, 1.0f) * vWeight[1];
+	pos += jointTransforms[vWIndex[2]].final * voxModel * vec4(vPos, 1.0f) * vWeight[2];
+	pos += jointTransforms[vWIndex[3]].final * voxModel * vec4(vPos, 1.0f) * vWeight[3];
+
+	pos = modelTransforms[transformId].model * pos;
 
 	gl_Position = projection * view * pos;
 
@@ -147,10 +148,12 @@ void main(void)
 	{
 		vec3 normalModel = UnpackNormal(voxNormPos.y);
 		vec3 norm = vec3(0.0f);	
-		norm += (mat3(jointTransforms[vWIndex[0]].finalRot) * mat3(modelTransforms[transformId].modelRotation) * normalModel) * vWeight[0];
-		norm += (mat3(jointTransforms[vWIndex[1]].finalRot) * mat3(modelTransforms[transformId].modelRotation) * normalModel) * vWeight[1];
-		norm += (mat3(jointTransforms[vWIndex[2]].finalRot) * mat3(modelTransforms[transformId].modelRotation) * normalModel) * vWeight[2];
-		norm += (mat3(jointTransforms[vWIndex[3]].finalRot) * mat3(modelTransforms[transformId].modelRotation) * normalModel) * vWeight[3];
+		norm += (mat3(jointTransforms[vWIndex[0]].finalRot) * normalModel) * vWeight[0];
+		norm += (mat3(jointTransforms[vWIndex[1]].finalRot) * normalModel) * vWeight[1];
+		norm += (mat3(jointTransforms[vWIndex[2]].finalRot) * normalModel) * vWeight[2];
+		norm += (mat3(jointTransforms[vWIndex[3]].finalRot) * normalModel) * vWeight[3];
+
+		norm = mat3(modelTransforms[transformId].modelRotation) * norm;
 
 		fColor = norm;
 	}

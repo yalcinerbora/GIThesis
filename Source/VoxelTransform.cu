@@ -82,33 +82,37 @@ inline __device__ void LoadTransformData(// Shared Mem
 		// Theorethical 63 Matrices will be loaded
 		//	Each thread will load 1 float we need 1024 threads
 		unsigned int iterationCount = (GI_MAX_JOINT_COUNT * 16) / blockDim.x;
-		unsigned int matricesPerIteration = blockDim.x / 16;
 		for(unsigned int i = 0; i < iterationCount; i++)
 		{
-			if(blockLocalId + (matricesPerIteration * i) < (GI_MAX_JOINT_COUNT * 16))
+            // Transformation
+            unsigned int floatCount = GI_MAX_JOINT_COUNT * 16;
+            unsigned int floatId = blockLocalId + (blockDim.x * i);
+			if(floatId < floatCount)
 			{
-				unsigned int sharedLoc = (blockLocalId / 16) + matricesPerIteration * i + 1;
-				if(sMatrixLookup[sharedLoc - 1] == 1)
+                unsigned int matrixId = (floatId / 16);
+                unsigned int matrixLocalFloatId = floatId % 16;
+				if(sMatrixLookup[matrixId] == 1)
 				{
-					unsigned int column = (blockLocalId / 4) % 4;
-					unsigned int row = blockLocalId % 4;
+					unsigned int column = (matrixLocalFloatId / 4) % 4;
+					unsigned int row = matrixLocalFloatId % 4;
 
-					// Transform
-					reinterpret_cast<float*>(&sTransformMatrices[sharedLoc].column[column])[row] =
-						reinterpret_cast<float*>(&gJointTransforms[batchId][sharedLoc - 1].transform.column[column])[row];
+                    reinterpret_cast<float*>(&sTransformMatrices[matrixId + 1].column[column])[row] =
+                        reinterpret_cast<float*>(&gJointTransforms[batchId][matrixId].transform.column[column])[row];
 				}
 			}
 			// Rotation
-			if(blockLocalId + (matricesPerIteration * i) < (GI_MAX_JOINT_COUNT * 9))
+            floatCount = GI_MAX_JOINT_COUNT * 9;          
+			if(floatId < floatCount)
 			{
-				unsigned int sharedLoc = (blockLocalId / 9) + matricesPerIteration * i + 1;
-				if(sMatrixLookup[sharedLoc - 1] == 1)
+                unsigned int matrixId = (floatId / 9);
+                unsigned int matrixLocalFloatId = floatId % 9;
+				if(sMatrixLookup[matrixId] == 1)
 				{
-					unsigned int column = (blockLocalId / 3) % 3;
-					unsigned int row = blockLocalId % 3;
-
-					reinterpret_cast<float*>(&sRotationMatrices[sharedLoc].column[column])[row] =
-						reinterpret_cast<float*>(&gJointTransforms[batchId][sharedLoc - 1].rotation.column[column])[row];
+					unsigned int column = (matrixLocalFloatId / 3) % 3;
+					unsigned int row = matrixLocalFloatId % 3;
+        
+                    reinterpret_cast<float*>(&sRotationMatrices[matrixId + 1].column[column])[row] =
+						reinterpret_cast<float*>(&gJointTransforms[batchId][matrixId].rotation.column[column])[row];
 				}
 			}
 		}
@@ -229,29 +233,35 @@ __global__ void VoxelTransform(// Voxel Pages
 		assert(weights.weightIndex.z <= 24);
 		assert(weights.weightIndex.w <= 24);
 
+       
+
 		float3 pos = {0.0f, 0.0f, 0.0f};
 		float3 p = MultMatrix(worldPos, sTransformMatrices[weights.weightIndex.x + 1]);
+        //float3 p = MultMatrix(worldPos, gJointTransforms[segObj.batchId][weights.weightIndex.x].transform);
+        
 		pos.x += weightUnorm.x * p.x;
 		pos.y += weightUnorm.x * p.y;
 		pos.z += weightUnorm.x * p.z;
 
 		p = MultMatrix(worldPos, sTransformMatrices[weights.weightIndex.y + 1]);
+        //p = MultMatrix(worldPos, gJointTransforms[segObj.batchId][weights.weightIndex.y].transform);
 		pos.x += weightUnorm.y * p.x;
 		pos.y += weightUnorm.y * p.y;
 		pos.z += weightUnorm.y * p.z;
 
 		p = MultMatrix(worldPos, sTransformMatrices[weights.weightIndex.z + 1]);
+        //p = MultMatrix(worldPos, gJointTransforms[segObj.batchId][weights.weightIndex.z].transform);
 		pos.x += weightUnorm.z * p.x;
 		pos.y += weightUnorm.z * p.y;
 		pos.z += weightUnorm.z * p.z;
 
 		p = MultMatrix(worldPos, sTransformMatrices[weights.weightIndex.w + 1]);
+        //p = MultMatrix(worldPos, gJointTransforms[segObj.batchId][weights.weightIndex.w].transform);
 		pos.x += weightUnorm.w * p.x;
 		pos.y += weightUnorm.w * p.y;
 		pos.z += weightUnorm.w * p.z;
 
 		worldPos = pos;
-
 
 		float3 norm = {0.0f, 0.0f, 0.0f};
 		float3 n = MultMatrix(normal, sRotationMatrices[weights.weightIndex.x + 1]);

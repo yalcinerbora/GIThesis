@@ -35,13 +35,20 @@
 *.sdf
 *.opensdf
 *.suo
+*.db
+*.opendb
 
 # Binaries
 Bin/
 
 # Working Dir Except Shaders
-WorkingDir/
-!WorkingDir/Shaders/*.*
+WorkingDir/*
+!WorkingDir/**/*.frag
+!WorkingDir/**/*.vert
+!WorkingDir/**/*.geom
+!WorkingDir/**/*.glsl
+!WorkingDir/**/*.tessc
+!WorkingDir/**/*.tessd
 
 # Keep Provided Libraries
 !Lib/**/*.lai
@@ -53,19 +60,3 @@ WorkingDir/
 !Lib/**/*.dvlib
 !Lib/**/*.dll
 !Lib/**/*.pch
-
-# Latex Thesis Output Files
-ThesisMsc/**/*.pdf
-ThesisMsc/**/*.log
-ThesisMsc/**/*.aux
-ThesisMsc/**/*.lof
-ThesisMsc/**/*.lot
-ThesisMsc/**/*.toc
-ThesisMsc/**/*.gz
-*.bbl
-*.blg
-*.tdo
-/ThesisMsc/giThesis-blx.bib
-/ThesisMsc/giThesis.run.xml
-/Build/Windows/*.db
-*.opendb

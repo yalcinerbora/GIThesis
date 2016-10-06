@@ -54,7 +54,7 @@
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(SolutionDir)..\..\Source;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
-      <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;GI_DEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=0;GLFW_DLL;GLEW_DYNAMIC;GI_DEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <DisableIntelLangExtensions>true</DisableIntelLangExtensions>
       <Cpp0xSupport>true</Cpp0xSupport>
@@ -77,6 +77,9 @@
       <GenerateLineInfo>true</GenerateLineInfo>
       <MaxRegCount>32</MaxRegCount>
       <AdditionalOptions>-Xptxas="-dlcm=ca" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalCompilerOptions>
+      </AdditionalCompilerOptions>
+      <Defines>_ITERATOR_DEBUG_LEVEL=0;</Defines>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -88,7 +91,7 @@
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)..\..\Lib\Include;$(SolutionDir)..\..\Source;$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
-      <PreprocessorDefinitions>_HAS_ITERATOR_DEBUGGING=0;GLFW_DLL;GLEW_DYNAMIC;NDEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=0;GLFW_DLL;GLEW_DYNAMIC;NDEBUG;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <DisableIntelLangExtensions>true</DisableIntelLangExtensions>
       <Cpp0xSupport>true</Cpp0xSupport>
@@ -115,6 +118,7 @@
       <GenerateLineInfo>true</GenerateLineInfo>
       <MaxRegCount>32</MaxRegCount>
       <AdditionalOptions>-Xptxas="-dlcm=ca" %(AdditionalOptions)</AdditionalOptions>
+      <Defines>_ITERATOR_DEBUG_LEVEL=0;</Defines>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -152,6 +156,7 @@
     <ClCompile Include="..\..\..\Source\MayaInput.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchCornell.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchCube.cpp" />
+    <ClCompile Include="..\..\..\Source\MeshBatchDyno.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchNyra.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchOscillate.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp" />
@@ -174,6 +179,7 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchCornell.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchCube.h" />
+    <ClInclude Include="..\..\..\Source\MeshBatchDyno.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchNyra.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchSponza.h" />

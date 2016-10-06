@@ -631,19 +631,26 @@ bool SampleSVO(out vec4 color,
 
 vec3 IllumFactor(in vec3 coneDir,
 			     in vec4 colorSVO,
-    			 in vec4 normalSVO)
+    			 in vec4 normalSVO,
+				 in float coneStd2)
 {
 	float lightIntensity = 1.0f;
 
 	// Light Intensity Relevant to the cone light angle (Lambert Factor)
+	// Toksvig 2005
 	vec3 voxNormal = normalize(normalSVO.xyz);
-	float lobeFactor = length(normalSVO.xyz);
-	
-	// TODO
+	float normalAccuracy = length(normalSVO.xyz);
+	float NDFstd2 = (1.0f - normalAccuracy) / normalAccuracy;
+	float std2 = NDFstd2 * NDFstd2 + coneStd2 * coneStd2;
+	float toksvigFactor = 1.0f / (1.0f + std2 * colorSVO.w);
+	//float toksvigFactor = 1.0f;
+
 	// Lambert Diffuse
-	//lightIntensity *= max(dot(voxNormal.xyz, coneDir), 0.0f);
+	//lightIntensity *= pow(max(dot(voxNormal.xyz, coneDir), 0.0f), toksvigFactor);
+	//lightIntensity *= (1.0f + toksvigFactor * colorSVO.w) / (1.0f + colorSVO.w);
 
 	// Sampled Lobe Factor
+	//lightIntensity *= normalSVO.w;
 	lightIntensity *= (1.0f - normalSVO.w);
 	//lightIntensity *= ((1.0f - lobeFactor) / lobeFactor);
 
@@ -723,6 +730,7 @@ void main(void)
 	vec3 diffuseConeDir = normalize(worldNorm + tan(atan(coneParams1.z) * 1.5f) * 
 									CalculateConeDir(ortho1, ortho2, 
 													 dirId * (2.0f * PI / NEIGBOURS)));
+	
 
 	//vec3 diffuseConeDir = normalize(worldNorm + 
 	//								ortho1 * diffuseConeAperture * CONE_ORTHO[dirId].x + 
@@ -767,7 +775,8 @@ void main(void)
 
 			// Calculate Illumination & Occlusion
 			float nodeOcclusion = normal.w;
-			vec3 illumination = IllumFactor(coneDir, color, normal);
+			vec3 illumination = IllumFactor(coneDir, color, normal, 
+											pow(cos(atan(coneAperture)), 2));
 		
 			// Correction Term to prevent intersecting samples error
 			nodeOcclusion = 1.0f - pow(1.0f - nodeOcclusion, marchDistance / diameter);

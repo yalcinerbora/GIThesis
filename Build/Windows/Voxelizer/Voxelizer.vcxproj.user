@@ -3,11 +3,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)..\..\WorkingDir\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-f cornell.gfg cornellDynamic.gfg rainbowCube.gfg nyraFloor.gfg sibernik.gfg sponzaDynamic.gfg sponza.gfg -fs nyra.gfg -span 0.6 -splat 1.0 -cas 3</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-f cornell.gfg cornellDynamic.gfg sibernik.gfg sponzaDynamic.gfg sponza.gfg dynamicScene.gfg -fs nyra.gfg -span 0.6 -splat 1.0 -cas 3</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)..\..\WorkingDir\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-f cornell.gfg cornellDynamic.gfg rainbowCube.gfg nyraFloor.gfg sibernik.gfg sponzaDynamic.gfg sponza.gfg -fs nyra.gfg -span 0.6 -splat 1.0 -cas 3</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-f cornell.gfg cornellDynamic.gfg sibernik.gfg sponzaDynamic.gfg sponza.gfg dynamicScene.gfg -fs nyra.gfg -span 0.6 -splat 1.0 -cas 3</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

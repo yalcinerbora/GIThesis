@@ -24,6 +24,7 @@
 #include "MeshBatchSponza.h"
 #include "MeshBatchCube.h"
 #include "MeshBatchOscillate.h"
+#include "MeshBatchDyno.h"
 
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
@@ -182,6 +183,10 @@ int main()
 	//MeshBatchCube cubeRotateBatch(MeshBatchCube::rotatingCubeFileName,
 	//							  ThesisSolution::CascadeSpan);
 	
+    // Dynamic Scene
+    MeshBatchDyno dynamicBatch(MeshBatch::dynamicFileName,
+                               ThesisSolution::CascadeSpan);
+
 	//// Nyra Inception Scene
 	//IERandom rng;
  //   const int nyraCount = 9 - 9;
@@ -228,6 +233,14 @@ int main()
 	//			   Scene::bigSizes);
 
 	//// Scaling Scenes
+    MeshBatchI* dynamicScalingBatches[] = {&dynamicBatch};
+    Scene dynamicScene(Array32<MeshBatchI*>{dynamicScalingBatches, 1},
+                       Array32<Light>{sponzaLights, 1},
+                       Scene::bigTotalSize,
+                       Scene::bigSizes);
+    //Scene::bigTotalSize,
+    //Scene::bigSizes);
+
 	//MeshBatchI* sponzaDynoBatches[] = {&crySponzaDyno, &crySponzaDynamic, &nyraBatch};
 	//Scene dynoSponza(Array32<MeshBatchI*>{sponzaDynoBatches, 3},
 	//				 Array32<Light>{sponzaLights, 1},
@@ -256,6 +269,7 @@ int main()
 	//				 Scene::bigSizes);
 
 	// Scenes
+//    scenes.push_back(&dynamicScene);
 	scenes.push_back(&crySponza);
 //	scenes.push_back(&dynoSponza);
 //	scenes.push_back(&cornellBox);
@@ -325,9 +339,6 @@ int main()
 			solutions[oldSolution % solutions.size()]->Release();
 			solution->Init(*scenes[currentScene % scenes.size()]);
 		}
-
-        // Direct Hook
-       // crySponzaDyno.ToggleOscillate(inputSchemes[currentInputScheme % inputSchemes.size()]->Movement());
 
         // Toggle Dir Movement
         if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())

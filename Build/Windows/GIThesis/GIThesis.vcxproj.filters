@@ -110,6 +110,9 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IERandom.cpp">
       <Filter>IEUtility</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchDyno.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -339,6 +342,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\SVOLightInject.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchDyno.h">
+      <Filter>MeshBatch</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

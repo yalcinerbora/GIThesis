@@ -29,7 +29,6 @@ class SceneI
 
 		virtual void					Update(double elapsedS) = 0;
 
-		virtual uint32_t				SVOTotalSize() const = 0; // SVO Total Size Malloc
 		virtual const uint32_t*			SVOLevelSizes() const = 0;// Level Sizes
 };
 

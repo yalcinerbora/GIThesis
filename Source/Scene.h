@@ -22,7 +22,6 @@ class Scene : public SceneI
 		size_t						drawCallCount;
 		size_t						totalPolygons;
 
-		uint32_t					svoTotalSize;
 		const uint32_t*				svoLevelSizes;
 
 	protected:
@@ -30,23 +29,14 @@ class Scene : public SceneI
 		// Constructors & Destructor
 								Scene(const Array32<MeshBatchI*> batches,
 									  const Array32<Light>& light,
-									  uint32_t totalSVOArraySize,
 									  const uint32_t svoLevelSizes[]);
 								~Scene() = default;
 
 		static const uint32_t	sponzaSceneLevelSizes[];
 		static const uint32_t	cornellSceneLevelSizes[];
-		static const uint32_t	cubeSceneLevelSizes[];
 		static const uint32_t	sibernikSceneLevelSizes[];
-		static const uint32_t	tinmanSceneLevelSizes[];
+		static const uint32_t	dynamicSceneLevelSizes[];
 		static const uint32_t	bigSizes[];
-
-		static const uint32_t	tinmanSceneTotalSize;
-		static const uint32_t	sponzaSceneTotalSize;
-		static const uint32_t	cornellSceneTotalSize;
-		static const uint32_t	cubeSceneTotalSize;
-		static const uint32_t	sibernikSceneTotalSize;
-		static const uint32_t	bigTotalSize;
 		
 		Array32<MeshBatchI*>	getBatches() override;
 		SceneLights&			getSceneLights() override;
@@ -58,7 +48,6 @@ class Scene : public SceneI
 
 		void					Update(double elapsedS) override;
 
-		uint32_t				SVOTotalSize() const override;
 		const uint32_t*			SVOLevelSizes() const override;
 };
 

@@ -16,9 +16,9 @@
 #include "Shader.h"
 #include "SceneI.h"
 
-#define GI_DENSE_TEX_COUNT 6//5
-#define GI_DENSE_LEVEL 7//6
-#define GI_DENSE_SIZE 128//64
+#define GI_DENSE_TEX_COUNT 4//5
+#define GI_DENSE_LEVEL 5//6
+#define GI_DENSE_SIZE 32//64
 #define GI_DENSE_SIZE_CUBE (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)
 
 static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
@@ -207,7 +207,6 @@ class GISparseVoxelOctree
 
 		// Link Allocators and Adjust Size of the System
 		void									LinkAllocators(Array32<GICudaAllocator*> allocators,
-															   uint32_t totalCount,
 															   const uint32_t levelCounts[]);
 
 		// Link

@@ -40,8 +40,8 @@ class GICudaAllocator
 {
 	
 	private:
-		static const unsigned int					SVOTextureSize;
-		static const unsigned int					SVOTextureDepth;
+		static const unsigned int				SVOTextureSize;
+		static const unsigned int				SVOTextureDepth;
 
 		// Grid Data
 		std::vector<CVoxelPage>					hVoxelPages;
@@ -167,7 +167,7 @@ class GICudaAllocator
 		CObjectTransform**		GetJointTransformDevice();
 
 		CVoxelNormPos**			GetObjCacheNormPosDevice();
-		CVoxelIds**				GetObjCacheIdsDevice();
+		//CVoxelIds**				GetObjCacheIdsDevice();
 		CVoxelColor**			GetObjRenderCacheDevice();
 		CVoxelWeight**			GetObjWeightDevice();
 
@@ -177,7 +177,7 @@ class GICudaAllocator
 		CObjectVoxelInfo*		GetObjectInfoDevice(uint32_t index);
 
 		CVoxelNormPos*			GetObjCacheNormPosDevice(uint32_t index);
-		CVoxelIds*				GetObjCacheIdsDevice(uint32_t index);
+		//CVoxelIds*				GetObjCacheIdsDevice(uint32_t index);
 		CVoxelColor*			GetObjRenderCacheDevice(uint32_t index);
 
 		// Pages

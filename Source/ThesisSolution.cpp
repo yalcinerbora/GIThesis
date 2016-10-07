@@ -169,7 +169,6 @@ void ThesisSolution::Init(SceneI& s)
 		allocators.push_back(voxelScenes[GI_CASCADE_COUNT - i - 1].Allocator());
 
 	voxelOctree.LinkAllocators(Array32<GICudaAllocator*>{allocators.data(), GI_CASCADE_COUNT},
-							   currentScene->SVOTotalSize(),
 							   currentScene->SVOLevelSizes());
 	voxelOctree.LinkSceneShadowMaps(currentScene);
 	svoRenderLevel = voxelOctree.SVOConsts().totalDepth;

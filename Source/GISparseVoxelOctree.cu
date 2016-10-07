@@ -88,8 +88,6 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 										   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
 										   //cudaGraphicsRegisterFlagsWriteDiscard));
 	
-	
-
 	// Flat Sampler for Node Index Fetch
 	glGenSamplers(1, &nodeSampler);
 	glSamplerParameteri(nodeSampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -142,7 +140,6 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 }
 
 void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators,
-										 uint32_t totalCount,
 										 const uint32_t levelCounts[])
 {
 	allocatorGrids.clear();
@@ -158,7 +155,12 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 
 	size_t sparseNodeCount = allocatorGrids[0]->depth + newAllocators.length - GI_DENSE_LEVEL;
 	uint32_t totalLevel = allocatorGrids[0]->depth + newAllocators.length - 1;
-	size_t totalAlloc = totalCount;
+
+    size_t totalAlloc = 0;
+    for(unsigned int i = GI_DENSE_LEVEL + 1; i <= totalLevel; i++)
+    {
+        totalAlloc += levelCounts[i];
+    }
 
 	// TODO: More Dynamic Allocation Scheme
 	hSVOLevelTotalSizes.resize(sparseNodeCount);
@@ -218,7 +220,7 @@ void GISparseVoxelOctree::LinkAllocators(Array32<GICudaAllocator*> newAllocators
 		levelOffset += (i != GI_DENSE_LEVEL) ? levelCounts[i] : 0;
 	}
 	svoLevelOffsets.SendData();
-	assert(levelOffset <= totalCount);
+	assert(levelOffset <= totalAlloc);
 
 	// Copy to device
 	CUDA_CHECK(cudaMemcpy(dSVOConstants.Data(), 

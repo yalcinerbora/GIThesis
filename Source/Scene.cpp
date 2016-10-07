@@ -5,19 +5,19 @@
 
 const uint32_t Scene::bigSizes[] =
 {
-	1,
-	8,
-	64,
-	512,
-	1024,
-	8192,
-	5320 * 1024,
-	1560 * 1024,
-	12000 * 1024,
-	12000 * 1024,
-	12000 * 1024,
-	15000 * 1024,
-	12000 * 1024,
+    11,              //            11,                  // Root
+    18,              //            18,                  // 1
+    164,             //            164,                 // 2
+    1512,            //            1512,                // 3
+    11024,           //            11024,               // 4
+    18192,           //            18192,               // 5
+    15320 * 1024,    //            15320 * 1024,        // 6
+    15560 * 1024,    //            15560 * 1024,        // 7
+    16000 * 1024,    //            16000 * 1024,       // 8
+    16000 * 1024,    //            16000 * 1024,       // 9
+    16000 * 1024,    //            16000 * 1024,       // 10
+    16000 * 1024,    //            16000 * 1024,       // 11
+    14000 * 1024,    //            14000 * 1024,       // 12
 };
 
 const uint32_t Scene::sponzaSceneLevelSizes[] =
@@ -39,22 +39,39 @@ const uint32_t Scene::sponzaSceneLevelSizes[] =
 
 const uint32_t Scene::cornellSceneLevelSizes[] =
 {
-	1,
-	8,
-	64,
-	512,
-    1024,
-	1024,
-	1024,
-	4096,
-	20 * 1024,
-	50 * 1024,
-	300 * 1024,
-	1000 * 1024,
-	4500 * 1024
+    1,                  // Root
+    8,                  // 1
+    64,                 // 2
+    512,                // 3
+    1024,               // 4
+    8192,               // 5
+    5 * 1024,           // 6
+    25 * 1024,          // 7
+    100 * 1024,         // 8
+    300 * 1024,         // 9
+    1000 * 1024,        // 10
+    3500 * 1024,        // 11
+    14000 * 1024        // 12
 };
 
-const uint32_t Scene::cubeSceneLevelSizes[] =
+const uint32_t Scene::sibernikSceneLevelSizes[] =
+{
+    1,                  // Root
+    8,                  // 1
+    64,                 // 2
+    512,                // 3
+    1024,               // 4
+    8192,               // 5
+    3 * 1024,           // 6
+    10 * 1024,          // 7
+    100 * 1024,         // 8
+    300 * 1024,         // 9
+    1000 * 1024,        // 10
+    3100 * 1024,        // 11
+    0 * 1024            // 12
+};
+
+const uint32_t Scene::dynamicSceneLevelSizes[] =
 {
 	1,
 	8,
@@ -71,57 +88,16 @@ const uint32_t Scene::cubeSceneLevelSizes[] =
 	800 * 1024,
 };
 
-const uint32_t Scene::sibernikSceneLevelSizes[] =
-{
-	1,
-	8,
-	64,
-	512,
-	1024,
-    1024,
-	8192,
-	45 * 1024,
-	120 * 1024,
-	400 * 1024,
-	2000 * 1024,
-	3800 * 1024,
-	4000 * 1024
-};
-
-const uint32_t Scene::tinmanSceneLevelSizes[]
-{
-	1,
-	8,
-	64,
-	512,
-	1024,
-	1024,
-	1024,
-	1024,
-	1024,
-	5 * 1024,
-	10 * 1024,
-	50 * 1024
-};
-
-const uint32_t Scene::bigTotalSize = 68 * 1024 * 1024;
-const uint32_t Scene::sponzaSceneTotalSize = 25948 * 1024;
-const uint32_t Scene::cornellSceneTotalSize = 5877 * 1024;
-const uint32_t Scene::cubeSceneTotalSize = 1064 * 1024;
-const uint32_t Scene::sibernikSceneTotalSize = 10400 * 1024;
-const uint32_t Scene::tinmanSceneTotalSize = 71 * 1024;
-
 static_assert(sizeof(Scene::sponzaSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
 static_assert(sizeof(Scene::cornellSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
-static_assert(sizeof(Scene::cubeSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::sibernikSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
+static_assert(sizeof(Scene::dynamicSceneLevelSizes) / sizeof(uint32_t) == 13, "Scene Size Ratio Mismatch");
 
 Scene::Scene(const Array32<MeshBatchI*> batches,
 			 const Array32<Light>& lights,
-			 uint32_t totalSVOArraySize,
 			 const uint32_t svoLevelSizes[])
 	: sceneLights(lights)
 	, svoLevelSizes(svoLevelSizes)
-	, svoTotalSize(totalSVOArraySize)
 	, meshBatch(batches.arr, batches.arr + batches.length)
 	, materialCount(0)
 	, objectCount(0)
@@ -145,11 +121,6 @@ SceneLights& Scene::getSceneLights()
 Array32<MeshBatchI*> Scene::getBatches()
 {
 	return Array32<MeshBatchI*>{meshBatch.data(), static_cast<uint32_t>(meshBatch.size())};
-}
-
-uint32_t Scene::SVOTotalSize() const
-{
-	return svoTotalSize;
 }
 
 const uint32_t* Scene::SVOLevelSizes() const

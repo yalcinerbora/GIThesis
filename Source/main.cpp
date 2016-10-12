@@ -200,11 +200,11 @@ int main()
                                ThesisSolution::CascadeSpan,
                                 -150.0f, -150.0f, 30.0f, 300.0f,
                                 128);
-    nyraJump.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
+    nyraJump.AnimationParams(0.0f, 0.3f, AnimationType::REPEAT);
     MeshBatchI* dynamicScalingBatches[] = {&dynamicBatch, &nyraJump};
     Scene dynamicScene(Array32<MeshBatchI*>{dynamicScalingBatches, 2},
                        Array32<Light>{sponzaLights, 1},
-                       Scene::bigSizes);
+                       Scene::dynamicSceneLevelSizes);
     scenes.push_back(&dynamicScene);
 	
 	// Solutions

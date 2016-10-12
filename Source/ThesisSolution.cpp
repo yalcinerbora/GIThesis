@@ -15,8 +15,8 @@
 #include <sstream>
 
 const size_t ThesisSolution::InitialObjectGridSize = 512;
-const float ThesisSolution::CascadeSpan = 0.6f;
-const uint32_t ThesisSolution::CascadeDim = 512;
+const float ThesisSolution::CascadeSpan = 0.3f;
+const uint32_t ThesisSolution::CascadeDim = 1024;
 
 const TwEnumVal ThesisSolution::renderSchemeVals[] = 
 { 

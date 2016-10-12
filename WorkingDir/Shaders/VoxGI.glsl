@@ -193,6 +193,7 @@ vec3 DepthToWorld(vec2 gBuffUV)
 	// Converts Depthbuffer Value to World Coords
 	// First Depthbuffer to Screen Space
 	vec3 ndc = vec3(gBuffUV, texture(gBuffDepth, gBuffUV).x);
+
 	ndc.xy = 2.0f * ndc.xy - 1.0f;
 	ndc.z = ((2.0f * (ndc.z - depthNearFar.x) / (depthNearFar.y - depthNearFar.x)) - 1.0f);
 
@@ -740,8 +741,6 @@ void main(void)
 	// TEST
 	//diffuseConeDir = worldNorm;
 	
-
-
 	vec4 surfaceAccumulation = vec4(0.0f);
 	uint coneCount = (specular == 0) ? CONE_COUNT : CONE_COUNT + 1;
 	for(unsigned int i = 0; i < coneCount; i++)

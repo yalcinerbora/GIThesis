@@ -38,7 +38,8 @@ namespace GFGLoader
 							GPUBuffer& buffer,
 							DrawBuffer& drawBuffer,
 							const char* gfgFilename,
-							bool isSkeletal);
+							bool isSkeletal,
+                            uint32_t repeatCount = 1);
 	GFGLoadError	LoadAnim(GFGAnimationHeader& header,
 							 std::vector<IEVector3>& hipTranslations,
 							 std::vector<float>& keyTimes,

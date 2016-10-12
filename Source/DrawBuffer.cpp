@@ -3,7 +3,7 @@
 #include "IEUtility/IEMatrix4x4.h"
 #include "Globals.h"
 
-uint32_t DrawBuffer::initialCapacity = 1024;
+uint32_t DrawBuffer::initialCapacity = 8192;
 
 DrawBuffer::DrawBuffer()
 	: drawPoints(initialCapacity)

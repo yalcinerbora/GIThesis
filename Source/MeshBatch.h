@@ -35,7 +35,8 @@ class MeshBatch : public MeshBatchI
 		// Constructors & Destructor
 								MeshBatch(const char* sceneFileName,
 										  float minVoxSpan,
-										  bool isSkeletal);
+										  bool isSkeletal,
+                                          int repeatCount = 1);
 			
 		// Static Files
 		static const char*		sponzaFileName;
@@ -58,6 +59,7 @@ class MeshBatch : public MeshBatchI
 		const std::string&		BatchName() const override;
 
 		VoxelObjectType			MeshType() const override;
+        int                     RepeatCount() const override;
 
 		size_t					ObjectCount() const override;
 		size_t					DrawCount() const override;

@@ -267,7 +267,8 @@ double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 	// Load GFG
 	std::string batchVoxFile = voxPrefix.str() + batch->BatchName() + ".gfg";
 	LoadVoxel(voxelCaches, batchVoxFile.c_str(), GI_CASCADE_COUNT,
-			  batch->MeshType() == VoxelObjectType::SKEL_DYNAMIC);
+			  batch->MeshType() == VoxelObjectType::SKEL_DYNAMIC,
+              batch->RepeatCount());
 
 	t.Stop();
 	// Voxel Load Complete
@@ -279,7 +280,8 @@ double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 
 bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 							   const char* gfgFileName, uint32_t cascadeCount,
-							   bool isSkeletal)
+							   bool isSkeletal,
+                               int repeatCount)
 {
 	std::ifstream stream(gfgFileName, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
@@ -307,7 +309,7 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 
 		// Special case aabbmin show span count
 		assert(scenes[i].span == mesh.headerCore.aabb.min[0]);
-		scenes[i].cache.emplace_back(mesh.headerCore.vertexCount, objCount, isSkeletal);
+		scenes[i].cache.emplace_back(mesh.headerCore.vertexCount * repeatCount, objCount * repeatCount, isSkeletal);
 
 		// Load to Mem
 		std::vector<uint8_t> meshData(gfgFile.MeshVertexDataSize(i));
@@ -323,10 +325,13 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 		assert(component.logic == GFGVertexComponentLogic::POSITION);
 		assert(component.stride == sizeof(ObjGridInfo));
 
-		currentCache.objInfo.CPUData().resize(objCount);
-		std::memcpy(currentCache.objInfo.CPUData().data(),
-					objectInfoData.data() + component.startOffset,
-					objCount * component.stride);
+		currentCache.objInfo.CPUData().resize(objCount * repeatCount);
+        for(int j = 0; j < repeatCount; j++)
+        {
+            std::memcpy(currentCache.objInfo.CPUData().data() + objCount * j,
+                        objectInfoData.data() + component.startOffset,
+                        objCount * component.stride);
+        }
 
 		// Voxel Data
 		for(const auto& component : mesh.components)
@@ -337,10 +342,13 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 				assert(component.dataType == GFGDataType::UINT32_2);
 				auto& normPosVector = currentCache.voxelNormPos.CPUData();
 
-				normPosVector.resize(mesh.headerCore.vertexCount);
-				std::memcpy(normPosVector.data(), meshData.data() +
-							component.startOffset,
-							mesh.headerCore.vertexCount * component.stride);
+				normPosVector.resize(mesh.headerCore.vertexCount * repeatCount);
+                for(int j = 0; j < repeatCount; j++)
+                {
+                    std::memcpy(normPosVector.data() + mesh.headerCore.vertexCount * j,
+                                meshData.data() + component.startOffset,
+                                mesh.headerCore.vertexCount * component.stride);
+                }
 			}
 			else if(component.logic == GFGVertexComponentLogic::NORMAL)
 			{
@@ -348,10 +356,13 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 				assert(component.dataType == GFGDataType::UINT32_2);
 				auto& voxIdsVector = currentCache.voxelIds.CPUData();
 
-				voxIdsVector.resize(mesh.headerCore.vertexCount);
-				std::memcpy(voxIdsVector.data(), meshData.data() +
-							component.startOffset,
-							mesh.headerCore.vertexCount * component.stride);
+				voxIdsVector.resize(mesh.headerCore.vertexCount * repeatCount);
+                for(int j = 0; j < repeatCount; j++)
+                {
+                    std::memcpy(voxIdsVector.data() + mesh.headerCore.vertexCount * j,
+                                meshData.data() + component.startOffset,
+                                mesh.headerCore.vertexCount * component.stride);
+                }
 			}
 			else if(component.logic == GFGVertexComponentLogic::COLOR)
 			{
@@ -359,10 +370,13 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 				assert(component.dataType == GFGDataType::UNORM8_4);
 				auto& voxColorVector = currentCache.voxelRenderData.CPUData();
 
-				voxColorVector.resize(mesh.headerCore.vertexCount);
-				std::memcpy(voxColorVector.data(), meshData.data() +
-							component.startOffset,
-							mesh.headerCore.vertexCount * component.stride);
+				voxColorVector.resize(mesh.headerCore.vertexCount * repeatCount);
+                for(int j = 0; j < repeatCount; j++)
+                {
+                    std::memcpy(voxColorVector.data() + mesh.headerCore.vertexCount * j,
+                                meshData.data() + component.startOffset,
+                                mesh.headerCore.vertexCount * component.stride);
+                }
 			}
 			else if(component.logic == GFGVertexComponentLogic::WEIGHT)
 			{
@@ -370,10 +384,13 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 				assert(component.dataType == GFGDataType::UINT32_2);
 				auto& voxWeightVector = currentCache.voxelWeightData.CPUData();
 
-				voxWeightVector.resize(mesh.headerCore.vertexCount);
-				std::memcpy(voxWeightVector.data(), meshData.data() +
-							component.startOffset,
-							mesh.headerCore.vertexCount * component.stride);
+				voxWeightVector.resize(mesh.headerCore.vertexCount * repeatCount);
+                for(int j = 0; j < repeatCount; j++)
+                {
+                    std::memcpy(voxWeightVector.data() + mesh.headerCore.vertexCount * j,
+                                meshData.data() + component.startOffset,
+                                mesh.headerCore.vertexCount * component.stride);
+                }
 			}
 			else
 			{

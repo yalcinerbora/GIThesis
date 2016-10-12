@@ -76,7 +76,7 @@ void StructuredBuffer<T>::SendData()
 {
 	if(dataGPUImage.size() > bufferCapacity)
 	{
-		bufferCapacity = bufferCapacity * resizeFactor;
+		bufferCapacity = std::max(dataGPUImage.size(), bufferCapacity * resizeFactor);
 		if(bufferCapacity == 0) bufferCapacity = dataGPUImage.size();
 
 		GLuint newBuffer;

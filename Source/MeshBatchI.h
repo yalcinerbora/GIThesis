@@ -37,6 +37,7 @@ class MeshBatchI
 	virtual size_t				PolyCount() const = 0;
 
 	virtual VoxelObjectType		MeshType() const = 0;
+    virtual int                 RepeatCount() const = 0;
 
 	virtual float				MinSpan() const = 0; // Minimum voxel span used in vox generation
 	

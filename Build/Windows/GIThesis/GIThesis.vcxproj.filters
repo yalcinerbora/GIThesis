@@ -113,6 +113,9 @@
     <ClCompile Include="..\..\..\Source\MeshBatchDyno.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\MeshBatchMulti.cpp">
+      <Filter>MeshBatch</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -344,6 +347,9 @@
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatchDyno.h">
+      <Filter>MeshBatch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MeshBatchMulti.h">
       <Filter>MeshBatch</Filter>
     </ClInclude>
   </ItemGroup>

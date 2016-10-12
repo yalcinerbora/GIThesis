@@ -12,8 +12,10 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 								GPUBuffer& buffer,
 								DrawBuffer& drawBuffer,
 								const char* gfgFileName,
-								bool isSkeletal)
+								bool isSkeletal,
+                                uint32_t repeatCount)
 {
+    assert(repeatCount > 0);
 	std::ifstream stream(gfgFileName, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
 	GFGFileLoader gfgFile(&stlFileReader);
@@ -34,15 +36,17 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 		vertexCount += mesh.headerCore.vertexCount;
 		indexCount += mesh.headerCore.indexCount;
 	}
-	if(!buffer.HasEnoughSpaceFor(vertexCount, indexCount))
+
+	if(!buffer.HasEnoughSpaceFor(vertexCount * repeatCount, indexCount * repeatCount))
 		return GFGLoadError::NOT_ENOUGH_SIZE;
 	params.totalPolygons = indexCount / 3;
 	
 	// Get All Mesh Vertex Data
 	std::vector<uint8_t> vertexData;
 	std::vector<uint8_t> indexData;
-	vertexData.resize(gfgFile.AllMeshVertexDataSize());
-	indexData.resize(gfgFile.AllMeshIndexDataSize());
+    vertexData.resize(gfgFile.AllMeshVertexDataSize());
+    indexData.resize(gfgFile.AllMeshIndexDataSize());
+
 	if(gfgFile.AllMeshVertexData(vertexData.data()) != GFGFileError::OK)
 	{
 		GI_ERROR_LOG("Failed to Load mesh vertex data on file %s", gfgFileName);
@@ -56,22 +60,23 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 	}
 
 	params.objectCount = 0;
-	for(const GFGMeshHeader mesh : gfgFile.Header().meshes)
-	{
-		assert(mesh.headerCore.indexSize == sizeof(uint32_t));
-		drawCalls.emplace_back();
-		if(!buffer.AddMesh(drawCalls.back(),
-							vertexData.data() + (mesh.headerCore.vertexStart - gfgFile.Header().meshes[0].headerCore.vertexStart),
-							indexData.data() + (mesh.headerCore.indexStart - gfgFile.Header().meshes[0].headerCore.indexStart),
-							isSkeletal ? sizeof(VAOSkel) : sizeof(VAO),
-							mesh.headerCore.vertexCount,
-							mesh.headerCore.indexCount))
-		{ 
-			GI_ERROR_LOG("Failed to Load Mesh to GPU Buffer %s", gfgFileName);
-			return GFGLoadError::FATAL_ERROR;
-		}
-		params.objectCount++;
-	}
+  
+    for(const GFGMeshHeader mesh : gfgFile.Header().meshes)
+    {
+        assert(mesh.headerCore.indexSize == sizeof(uint32_t));
+        drawCalls.emplace_back();
+        if(!buffer.AddMesh(drawCalls.back(),
+                            vertexData.data() + (mesh.headerCore.vertexStart - gfgFile.Header().meshes[0].headerCore.vertexStart),
+                            indexData.data() + (mesh.headerCore.indexStart - gfgFile.Header().meshes[0].headerCore.indexStart),
+                            isSkeletal ? sizeof(VAOSkel) : sizeof(VAO),
+                            mesh.headerCore.vertexCount,
+                            mesh.headerCore.indexCount))
+        {
+            GI_ERROR_LOG("Failed to Load Mesh to GPU Buffer %s", gfgFileName);
+            return GFGLoadError::FATAL_ERROR;
+        }
+        params.objectCount++;
+    }
 	
 	int matIndex = -1;
 	for(const GFGMaterialHeader& mat : gfgFile.Header().materials)
@@ -105,58 +110,63 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 	}
 
 	// Write Total Transform
-	uint32_t transformIndex = 0;
-	for(const GFGTransform& transform : gfgFile.Header().transformData.transforms)
-	{
-		auto HasThisTransform = [&transformIndex](const GFGNode& node) { return node.transformIndex == transformIndex; };
-		const GFGNode* parent = &(*std::find_if(gfgFile.Header().sceneHierarchy.nodes.begin(),
-												gfgFile.Header().sceneHierarchy.nodes.end(),
-												HasThisTransform));
-		IEMatrix4x4 transform = IEMatrix4x4::IdentityMatrix;
-		IEMatrix3x3 transformRotation = IEMatrix3x3::IdentityMatrix;
-		while(parent->parentIndex != -1)
-		{
-			const GFGTransform& t = gfgFile.Header().transformData.transforms[parent->transformIndex];
+    uint32_t relativeTransform = 0;    
+    params.drawCallCount = 0;
+    for(unsigned int i = 0; i < repeatCount; i++)
+    {
+        uint32_t transformIndex = 0;
+        for(const GFGTransform& transform : gfgFile.Header().transformData.transforms)
+        {
+            auto HasThisTransform = [&transformIndex](const GFGNode& node) { return node.transformIndex == transformIndex; };
+            const GFGNode* parent = &(*std::find_if(gfgFile.Header().sceneHierarchy.nodes.begin(),
+                                                    gfgFile.Header().sceneHierarchy.nodes.end(),
+                                                    HasThisTransform));
+            IEMatrix4x4 transform = IEMatrix4x4::IdentityMatrix;
+            IEMatrix3x3 transformRotation = IEMatrix3x3::IdentityMatrix;
+            while(parent->parentIndex != -1)
+            {
+                const GFGTransform& t = gfgFile.Header().transformData.transforms[parent->transformIndex];
 
-			IEMatrix4x4 trans, rot;
-			MeshBatch::GenTransformMatrix(trans, rot, t);
+                IEMatrix4x4 trans, rot;
+                MeshBatch::GenTransformMatrix(trans, rot, t);
 
-			transform = transform * trans;
-			transformRotation = transformRotation * rot;
+                transform = transform * trans;
+                transformRotation = transformRotation * rot;
 
-			parent = &gfgFile.Header().sceneHierarchy.nodes[parent->parentIndex];
-		}
+                parent = &gfgFile.Header().sceneHierarchy.nodes[parent->parentIndex];
+            }
 
-		drawBuffer.AddTransform(ModelTransform{transform, transformRotation});
-		transformIndex++;
-	}
+            drawBuffer.AddTransform(ModelTransform{transform, transformRotation});
+            transformIndex++;
+        }
+           
+        for(const GFGMeshMatPair& pair : gfgFile.Header().meshMaterialConnections.pairs)
+        {
+            DrawPointIndexed dpi = drawCalls[pair.meshIndex];
+            dpi.firstIndex += static_cast<uint32_t>(pair.indexOffset);
+            dpi.count = static_cast<uint32_t>(pair.indexCount);
+            dpi.baseInstance = static_cast<uint32_t>(params.drawCallCount);
 
-	params.drawCallCount = 0;
-	for(const GFGMeshMatPair& pair : gfgFile.Header().meshMaterialConnections.pairs)
-	{
-		DrawPointIndexed dpi = drawCalls[pair.meshIndex];
-		dpi.firstIndex += static_cast<uint32_t>(pair.indexOffset);
-		dpi.count = static_cast<uint32_t>(pair.indexCount);
-		dpi.baseInstance = static_cast<uint32_t>(params.drawCallCount);
-
-		uint32_t meshIndex = pair.meshIndex;
-		auto FindMeshTransform = [&meshIndex](const GFGNode& node) { return node.meshReference == meshIndex; };
-		uint32_t transformIndex = std::find_if(gfgFile.Header().sceneHierarchy.nodes.begin(),
-											   gfgFile.Header().sceneHierarchy.nodes.end(),
-											   FindMeshTransform)->transformIndex;
-		drawBuffer.AddDrawCall
-		(
-			dpi,
-			pair.materialIndex,
-			transformIndex,
-			{ 
-				IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.min)),
-				IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.max)),
-			}
-		);
-		params.drawCallCount++;
-	}
-	buffer.AttachMTransformIndexBuffer(drawBuffer.getModelTransformIndexBuffer().getGLBuffer());
+            uint32_t meshIndex = pair.meshIndex;
+            auto FindMeshTransform = [&meshIndex](const GFGNode& node) { return node.meshReference == meshIndex; };
+            uint32_t transformIndex = std::find_if(gfgFile.Header().sceneHierarchy.nodes.begin(),
+                                                   gfgFile.Header().sceneHierarchy.nodes.end(),
+                                                   FindMeshTransform)->transformIndex;
+            drawBuffer.AddDrawCall
+            (
+                dpi,
+                pair.materialIndex,
+                relativeTransform + transformIndex,
+                {
+                    IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.min)),
+                    IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.max)),
+                }
+            );
+            params.drawCallCount++;
+        }
+        relativeTransform += transformIndex;
+    }
+    buffer.AttachMTransformIndexBuffer(drawBuffer.getModelTransformIndexBuffer().getGLBuffer());
 	return GFGLoadError::OK;
 }
 

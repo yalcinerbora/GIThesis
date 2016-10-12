@@ -115,7 +115,8 @@ class ThesisSolution : public EmptyGISolution
 		double								LoadBatchVoxels(MeshBatchI* batch);
 		bool								LoadVoxel(std::vector<SceneVoxCache>& scenes,
 													  const char* gfgFileName, uint32_t cascadeCount,
-													  bool isSkeletal);
+													  bool isSkeletal,
+                                                      int repeatCount = 1);
 		void								LinkCacheWithVoxScene(GICudaVoxelScene&, 
 																  SceneVoxCache&,
 																  float coverageRatio);

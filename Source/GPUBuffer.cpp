@@ -4,8 +4,8 @@
 #include "GFG/GFGMeshHeader.h"
 
 // 2 Megs of Buffer
-uint32_t GPUBuffer::totalVertexCount = 2 * 1024 * 1024;
-uint32_t GPUBuffer::totalIndexCount = 4 * 1024 * 1024;
+uint32_t GPUBuffer::totalVertexCount = 8 * 1024 * 1024;
+uint32_t GPUBuffer::totalIndexCount = 16 * 1024 * 1024;
 
 GPUBuffer::GPUBuffer(const Array32<const VertexElement> elements)
 	: usedVertexAmount(0)

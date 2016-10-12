@@ -62,7 +62,8 @@ class MeshBatchSkeletal : public MeshBatch
 	public:
 		// Constructors & Destructor
 								MeshBatchSkeletal(const char* sceneFileName,
-												  float minVoxSpan);
+												  float minVoxSpan,
+                                                  int repeatCount = 1);
 	  
 		// Static Files
 		static const char*		tinmanFileName;

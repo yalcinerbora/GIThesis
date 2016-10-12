@@ -25,6 +25,7 @@
 #include "MeshBatchCube.h"
 #include "MeshBatchOscillate.h"
 #include "MeshBatchDyno.h"
+#include "MeshBatchMulti.h"
 
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
@@ -154,20 +155,20 @@ int main()
 		}
 	};
 
-	// Sponza Scene
-	MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
-							  ThesisSolution::CascadeSpan,
-							  false);
-	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
-									  ThesisSolution::CascadeSpan);
-	MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
-							ThesisSolution::CascadeSpan);
-	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
-    MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
-    Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
-                    Array32<Light>{sponzaLights, 1},
-                    Scene::sponzaSceneLevelSizes);
-    scenes.push_back(&crySponza);
+	//// Sponza Scene
+	//MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
+	//						  ThesisSolution::CascadeSpan,
+	//						  false);
+	//MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
+	//								  ThesisSolution::CascadeSpan);
+	//MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
+	//						ThesisSolution::CascadeSpan);
+	//nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
+ //   MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
+ //   Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
+ //                   Array32<Light>{sponzaLights, 1},
+ //                   Scene::sponzaSceneLevelSizes);
+ //   scenes.push_back(&crySponza);
 
 
 	//// Cornell Box Scene
@@ -192,14 +193,19 @@ int main()
  //                  Scene::sibernikSceneLevelSizes);
  //   scenes.push_back(&sibernik);
 	
-    //// Dynamic Scene
-    //MeshBatchDyno dynamicBatch(MeshBatch::dynamicFileName,
-    //                           ThesisSolution::CascadeSpan);
-    //MeshBatchI* dynamicScalingBatches[] = {&dynamicBatch};
-    //Scene dynamicScene(Array32<MeshBatchI*>{dynamicScalingBatches, 1},
-    //                   Array32<Light>{sponzaLights, 1},
-    //                   Scene::bigSizes);
-    //scenes.push_back(&dynamicScene);
+    // Dynamic Scene
+    MeshBatchDyno dynamicBatch(MeshBatch::dynamicFileName,
+                               ThesisSolution::CascadeSpan);
+    MeshBatchMultiSkel nyraJump(MeshBatchMultiSkel::nyraName,
+                               ThesisSolution::CascadeSpan,
+                                -150.0f, -150.0f, 30.0f, 300.0f,
+                                128);
+    nyraJump.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
+    MeshBatchI* dynamicScalingBatches[] = {&dynamicBatch, &nyraJump};
+    Scene dynamicScene(Array32<MeshBatchI*>{dynamicScalingBatches, 2},
+                       Array32<Light>{sponzaLights, 1},
+                       Scene::bigSizes);
+    scenes.push_back(&dynamicScene);
 	
 	// Solutions
 	EmptyGISolution emptySolution(deferredRenderer);
@@ -240,6 +246,8 @@ int main()
 	// Render Loop
 	while(!mainWindow.WindowClosed())
 	{
+        double elapsedTime = t.ElapsedS();
+
 		// Constantly Check Input Scheme Change
 		mainWindow.ChangeInputScheme(*inputSchemes[currentInputScheme % inputSchemes.size()]);
 
@@ -262,13 +270,17 @@ int main()
 			solution->Init(*scenes[currentScene % scenes.size()]);
 		}
 
+        // Toggle Time
+        if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())
+            elapsedTime = 0.0;
+
         // Toggle Dir Movement
         if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())
-            scenes[currentScene % scenes.size()]->getSceneLights().ChangeLightDir(0, IEQuaternion(IEMath::ToRadians(t.ElapsedS() * 5.0f), 
+            scenes[currentScene % scenes.size()]->getSceneLights().ChangeLightDir(0, IEQuaternion(IEMath::ToRadians(elapsedTime * 5.0f),
                     -IEVector3::Xaxis).ApplyRotation(scenes[currentScene % scenes.size()]->getSceneLights().GetLightDir(0)));
 
 		// Render frame
-		scenes[currentScene % scenes.size()]->Update(t.ElapsedS());
+		scenes[currentScene % scenes.size()]->Update(elapsedTime);
 		solution->Frame(mainRenderCamera);
 		
 		// End of the Loop

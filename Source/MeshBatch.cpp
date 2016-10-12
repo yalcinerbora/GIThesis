@@ -7,7 +7,8 @@
 // Constructors & Destructor
 MeshBatch::MeshBatch(const char* sceneFileName,
 					 float minVoxSpan,
-					 bool isSkeletal)
+					 bool isSkeletal,
+                     int repeatCount)
 	: batchVertex((isSkeletal ? Array32<const VertexElement>{elementSkeletal, 5} : 
 								Array32<const VertexElement>{elementStatic, 3}))
 	, batchDrawParams()
@@ -20,7 +21,7 @@ MeshBatch::MeshBatch(const char* sceneFileName,
 	std::string fileName = sceneFileName;
 	batchName = fileName.substr(0, fileName.find_last_of('.'));
 
-	GFGLoadError e = GFGLoader::LoadGFG(batchParams, batchVertex, batchDrawParams, sceneFileName, isSkeletal);
+	GFGLoadError e = GFGLoader::LoadGFG(batchParams, batchVertex, batchDrawParams, sceneFileName, isSkeletal, repeatCount);
 	assert(e == GFGLoadError::OK);
 	batchDrawParams.SendToGPU();
 	timer.Stop();
@@ -63,6 +64,11 @@ const std::string& MeshBatch::BatchName() const
 VoxelObjectType MeshBatch::MeshType() const
 {
 	return VoxelObjectType::STATIC;
+}
+
+int MeshBatch::RepeatCount() const
+{
+    return 1;
 }
 
 size_t MeshBatch::ObjectCount() const

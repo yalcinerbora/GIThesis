@@ -403,7 +403,7 @@ bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
 			if(isSkeletal) currentCache.voxelWeightData.SendData();
 		}
 
-		GI_LOG("\tCascade#%d Voxels : %zd", i, mesh.headerCore.vertexCount);
+		GI_LOG("\tCascade#%d Voxels : %zd", i, mesh.headerCore.vertexCount  * repeatCount);
 	}
 	return true;
 }

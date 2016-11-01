@@ -155,20 +155,20 @@ int main()
 		}
 	};
 
-	//// Sponza Scene
-	//MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
-	//						  ThesisSolution::CascadeSpan,
-	//						  false);
-	//MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
-	//								  ThesisSolution::CascadeSpan);
-	//MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
-	//						ThesisSolution::CascadeSpan);
-	//nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
- //   MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
- //   Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
- //                   Array32<Light>{sponzaLights, 1},
- //                   Scene::sponzaSceneLevelSizes);
- //   scenes.push_back(&crySponza);
+	// Sponza Scene
+	MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
+							  ThesisSolution::CascadeSpan,
+							  false);
+	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
+									  ThesisSolution::CascadeSpan);
+	MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
+							ThesisSolution::CascadeSpan);
+	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
+    MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
+    Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
+                    Array32<Light>{sponzaLights, 1},
+                    Scene::sponzaSceneLevelSizes);
+    scenes.push_back(&crySponza);
 
 
 	//// Cornell Box Scene
@@ -193,19 +193,19 @@ int main()
  //                  Scene::sibernikSceneLevelSizes);
  //   scenes.push_back(&sibernik);
 	
-    // Dynamic Scene
-    MeshBatchDyno dynamicBatch(MeshBatch::dynamicFileName,
-                               ThesisSolution::CascadeSpan);
-    MeshBatchMultiSkel nyraJump(MeshBatchMultiSkel::nyraName,
-                               ThesisSolution::CascadeSpan,
-                                -150.0f, -150.0f, 30.0f, 300.0f,
-                                128);
-    nyraJump.AnimationParams(0.0f, 0.3f, AnimationType::REPEAT);
-    MeshBatchI* dynamicScalingBatches[] = {&dynamicBatch, &nyraJump};
-    Scene dynamicScene(Array32<MeshBatchI*>{dynamicScalingBatches, 2},
-                       Array32<Light>{sponzaLights, 1},
-                       Scene::dynamicSceneLevelSizes);
-    scenes.push_back(&dynamicScene);
+    //// Dynamic Scene
+    //MeshBatchDyno dynamicBatch(MeshBatch::dynamicFileName,
+    //                           ThesisSolution::CascadeSpan);
+    //MeshBatchMultiSkel nyraJump(MeshBatchMultiSkel::nyraName,
+    //                           ThesisSolution::CascadeSpan,
+    //                            -150.0f, -150.0f, 30.0f, 300.0f,
+    //                            128);
+    //nyraJump.AnimationParams(0.0f, 0.3f, AnimationType::REPEAT);
+    //MeshBatchI* dynamicScalingBatches[] = {&dynamicBatch, &nyraJump};
+    //Scene dynamicScene(Array32<MeshBatchI*>{dynamicScalingBatches, 2},
+    //                   Array32<Light>{sponzaLights, 1},
+    //                   Scene::dynamicSceneLevelSizes);
+    //scenes.push_back(&dynamicScene);
 	
 	// Solutions
 	EmptyGISolution emptySolution(deferredRenderer);

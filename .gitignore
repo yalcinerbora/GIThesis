@@ -4,9 +4,6 @@
 *.o
 *.obj
 
-# DebugDatabase (Windows)
-*.pdb
-
 # Precompiled Headers
 *.gch
 *.pch
@@ -18,6 +15,7 @@
 
 # Fortran module files
 *.mod
+*.smod
 
 # Compiled Static libraries
 *.lai
@@ -35,20 +33,27 @@
 *.sdf
 *.opensdf
 *.suo
-*.db
 *.opendb
+*.ipch
+*.tlog
+*.lastbuildstate
+*.pdb
+*.log
+*.db
+
+# CUDA Dependency
+*.deps
 
 # Binaries
 Bin/
 
 # Working Dir Except Shaders
 WorkingDir/*
-!WorkingDir/**/*.frag
-!WorkingDir/**/*.vert
-!WorkingDir/**/*.geom
-!WorkingDir/**/*.glsl
-!WorkingDir/**/*.tessc
-!WorkingDir/**/*.tessd
+!WorkingDir/**/*.qrc
+!WorkingDir/Shaders/
+!WorkingDir/Shaders/*.frag
+!WorkingDir/Shaders/*.geom
+!WorkingDir/Shaders/*.vert
 
 # Keep Provided Libraries
 !Lib/**/*.lai
@@ -60,3 +65,7 @@ WorkingDir/*
 !Lib/**/*.dvlib
 !Lib/**/*.dll
 !Lib/**/*.pch
+/Build/Windows/NamiSimulatorCPU/x64/Debug/*.cache
+/Source/NamiDance/*.aps
+*.autosave
+/Source/NamiDance/*.bak

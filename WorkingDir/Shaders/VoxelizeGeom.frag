@@ -1,4 +1,7 @@
 #version 430
+#extension GL_NV_gpu_shader5 : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_NV_shader_atomic_int64 : require
 #extension GL_NV_shader_atomic_float : require
 /*	
 	**Voxelize Geom Shader**
@@ -18,6 +21,7 @@
 #define LU_AABB layout(std430, binding = 3) readonly
 #define LU_NORMAL_SPARSE layout(std430, binding = 6) coherent volatile
 #define LU_COLOR_SPARSE layout(std430, binding = 7) coherent volatile
+#define LU_VOXEL_DATA layout(std430, binding = 8) coherent volatile
 
 #define I_LOCK layout(r32ui, binding = 0) coherent volatile
 
@@ -67,6 +71,11 @@ LU_NORMAL_SPARSE buffer NormalBuffer
 	vec4 normalSparse[];
 };
 
+LU_VOXEL_DATA buffer VoxelData
+{
+	uint64_t voxelData[];
+};
+
 void Average(in vec3 normal, in vec3 color, 
 			 in float specular, in ivec3 iCoord)
 {
@@ -99,6 +108,29 @@ void Average(in vec3 normal, in vec3 color,
 				iCoord.y * texSize3D +
 				iCoord.x] = avgColor;
 }
+
+uint64_t Average(in uint64_t current, in vec3 normal, in vec3 color, in float specular)
+{
+	uvec2 splitCurrent = unpackUint2x32(current);
+	vec4 colorCur = unpackUnorm4x8(splitCurrent.x);
+	vec4 normalCur = unpackUnorm4x8(splitCurrent.y);
+	return 0;
+}
+
+//void AtomicAverage(in vec3 normal, in vec3 color, 
+//				   in float specular, in ivec3 iCoord)
+//{
+//	uint coord = iCoord.z * texSize3D * texSize3D +
+//				 iCoord.y * texSize3D +
+//			 	 iCoord.x;
+//	uint64_t current;
+//	uint64_t previous = 0;
+//	while((curent = atomicCompSwap(voxelData[coord], previous, new)) != previous)
+//	{
+//		previous = current;
+
+//	}
+//}
 
 void AtomicAverage(in vec3 normal, in vec3 color, 
 				   in float specular, in ivec3 iCoord)

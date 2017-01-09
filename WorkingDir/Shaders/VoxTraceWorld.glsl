@@ -34,6 +34,7 @@
 #define RENDER_TYPE_COLOR 0
 #define RENDER_TYPE_OCCLUSION 1
 #define RENDER_TYPE_NORMAL 2
+#define RENDER_TYPE_SPECULAR 3
 
 // Uniforms
 U_RENDER_TYPE uniform uint renderType;
@@ -133,28 +134,28 @@ uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
 	return bitSet;
 }
 
-vec3 UnpackColor(in uint colorPacked)
+vec4 UnpackColor(in uint colorPacked)
 {
-	//vec3 color;
-	return unpackUnorm4x8(colorPacked).xyz;
-	//return unpackUnorm4x8(colorPacked).www;
+	return unpackUnorm4x8(colorPacked);
 }
 
-vec3 UnpackNormal(in uint voxNormPosY)
+vec4 UnpackNormal(in uint voxNormPosY)
 {
-	return unpackSnorm4x8(voxNormPosY).xyz;
+	return vec4(unpackSnorm4x8(voxNormPosY).xyz,
+				unpackUnorm4x8(voxNormPosY).w);
 }
 
-float UnpackOcclusion(in uint normPacked)
+float IntersectDistance(in vec3 marchPos, 
+						in vec3 dir,
+						in uint traverseLevel)
 {
-	return unpackUnorm4x8(normPacked).w;
-	//return float((normPacked & 0xFF000000) >> 24) / 255.0f;
-}
-
-float IntersectDistance(in vec3 relativePos, 
-						in vec3 dir, 
-						in float gridDim)
-{
+	// Voxel Corners are now (0,0,0) and (span, span, span)
+	// span is current level grid span (leaf span * (2^ totalLevel - currentLevel)		
+	float gridDim = worldPosSpan.w * float(0x1 << (dimDepth.y - traverseLevel));
+		
+	// Convert march position to voxel space
+	vec3 voxWorld = worldPosSpan.xyz + (vec3(LevelVoxId(marchPos, traverseLevel)) * gridDim);
+	vec3 relativePos = marchPos - voxWorld;
 	// 6 Plane intersection on cube normalized coordinates
 	// Since planes axis aligned writing code is optimized 
 	// (instead of dot products)
@@ -199,7 +200,7 @@ float IntersectDistance(in vec3 relativePos,
 	return min(minClose, minFar) + 0.01f;
 }
 
-float FindMarchLength(out vec3 outData,
+float FindMarchLength(inout vec4 outData,						
 					  in vec3 marchPos,
 					  in vec3 dir)
 {
@@ -212,11 +213,12 @@ float FindMarchLength(out vec3 outData,
 		// Since cam is centered towards grid
 		// Out of bounds means its cannot come towards the grid
 		// directly cull
+		outData = vec4(1.0f) * (1.0f - outData.w);
 		return FLT_MAX;
 	}
 
 	//	 Check Dense
-	if(fetchLevel <= dimDepth.w &&
+	if(fetchLevel <= dimDepth.w && 
 	   fetchLevel >= offsetCascade.w)
 	{
 		// Dense Fetch
@@ -224,104 +226,61 @@ float FindMarchLength(out vec3 outData,
 		uint levelDim = dimDepth.z >> mipId;
 		vec3 levelUV = LevelVoxIdF(marchPos, fetchLevel) / float(levelDim);
 				
-		if(renderType == RENDER_TYPE_COLOR)
-			outData = UnpackColor(textureLod(tSVOMat, levelUV, float(mipId)).x);
-		else if(renderType == RENDER_TYPE_OCCLUSION)
-			outData = vec3(UnpackOcclusion(textureLod(tSVOMat, levelUV, float(mipId)).y));
-
-		else if(renderType == RENDER_TYPE_NORMAL)
-			outData = UnpackNormal(textureLod(tSVOMat, levelUV, float(mipId)).y);
-		if(any(notEqual(outData, vec3(0.0f)))) return 0.0f;
+		uvec2 data = textureLod(tSVOMat, levelUV, float(mipId)).xy;
+		vec4 normal = UnpackNormal(data.y);
+		vec4 inData = vec4(0.0f, 0.0f, 0.0f, normal.w);
+		if(renderType == RENDER_TYPE_COLOR) inData.xyz = UnpackColor(data.x).xyz;
+		else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = normal.www;
+		else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = normal.xyz;
+		else if(renderType == RENDER_TYPE_SPECULAR) inData.xyz = UnpackColor(data.x).www;
+		inData.xyz *= inData.w;
+		outData += inData * (1.0f - outData.w);
+		if((1.0f - outData.w) <= 0.0f) return 0.0f;
+		else return IntersectDistance(marchPos, dir, fetchLevel);
 	}
-
-	// Start tracing (stateless start from root (dense))
-	unsigned int nodeIndex = 0;
-	for(unsigned int i = dimDepth.w; i <= dimDepth.y; i++)
+	else
 	{
-		uint currentNode;
-		if(i == dimDepth.w)
-		{
-			ivec3 denseVox = LevelVoxId(marchPos, dimDepth.w);
-			vec3 texCoord = vec3(denseVox) / dimDepth.z;
-			currentNode = texture(tSVODense, texCoord).x;
-		}
-		else
-		{
-			currentNode = svoNode[offsetCascade.y + 
-								  svoLevelOffset[i - dimDepth.w] + 
-								  nodeIndex];
-		}
+		// Start tracing (stateless start from root (dense))
+		// Initialize Traverse
+		unsigned int nodeIndex = 0;
+		ivec3 denseVox = LevelVoxId(marchPos, dimDepth.w);
+	
+		// Dense Node Index Fetch	
+		vec3 texCoord = vec3(denseVox) / dimDepth.z;
+		nodeIndex = texture(tSVODense, texCoord).x;
+		if(nodeIndex == 0xFFFFFFFF) return IntersectDistance(marchPos, dir, dimDepth.w);
+		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
 
-
-		// Color Check
-		if((i < fetchLevel &&
-		   i > (dimDepth.y - offsetCascade.x) &&
-		   currentNode == 0xFFFFFFFF) ||
-		   i == fetchLevel)
+		uint traversedLevel;
+		for(traversedLevel = dimDepth.w + 1; 
+			traversedLevel < fetchLevel;
+			traversedLevel++)
 		{
-			// Mid Leaf Level
-			uvec2 mat;
-			if(i > dimDepth.w)
-			{
-				// Sparse Fetch
-				uint loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
-				mat = svoMaterial[loc];
-
-				if(renderType == RENDER_TYPE_COLOR)
-					outData = UnpackColor(mat.x);		
-				else if(renderType == RENDER_TYPE_OCCLUSION)
-				{
-					outData = vec3(UnpackOcclusion(mat.y));
-					//if(i == dimDepth.y) outData = ceil(outData);
-				}
-				else if(renderType == RENDER_TYPE_NORMAL)
-					outData = UnpackNormal(mat.y);
-			}
-			else
-			{
-				// Dense Fetch
-				uint mipId = dimDepth.w - i;
-				uint levelDim = dimDepth.z >> mipId;
-				vec3 levelUV = LevelVoxIdF(marchPos, i) / float(levelDim);
-				
-				mat = textureLod(tSVOMat, levelUV, float(mipId)).xy;
-				if(renderType == RENDER_TYPE_COLOR)
-					outData = UnpackColor(mat.x);
-				else if(renderType == RENDER_TYPE_OCCLUSION)
-				{
-					outData = vec3(UnpackOcclusion(mat.y));
-					if(i == dimDepth.y) outData = ceil(outData);
-				}
-				else if(renderType == RENDER_TYPE_NORMAL)
-					outData = UnpackNormal(mat.y);
-			}
-			if(mat.y != uvec2(0x00000000)) return 0.0f;
+			uint currentNode = svoNode[offsetCascade.y + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex];
+			if(currentNode == 0xFFFFFFFF && traversedLevel > (dimDepth.y - offsetCascade.x)) break;
+			else if(currentNode == 0xFFFFFFFF) return IntersectDistance(marchPos, dir, traversedLevel);
+			nodeIndex = currentNode + CalculateLevelChildId(voxPos, traversedLevel + 1);
 		}
+		if(traversedLevel > (dimDepth.y - offsetCascade.x) || 
+		   traversedLevel == fetchLevel)
+		{
+			uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
+			uvec2 mat = svoMaterial[loc].xy;
 
-		// Node check
-		if(currentNode == 0xFFFFFFFF)
-		{
-			// Node empty 						
-			// Voxel Corners are now (0,0,0) and (span, span, span)
-			// span is current level grid span (leaf span * (2^ totalLevel - currentLevel)
-			float levelSpan = worldPosSpan.w * float(0x1 << (dimDepth.y - i));
-		
-			// Convert march position to voxel space
-			vec3 voxWorld = worldPosSpan.xyz + (vec3(LevelVoxId(marchPos, i)) * levelSpan);
-			vec3 relativeMarchPos = marchPos - voxWorld;
-		
-			// Intersection check between borders of the voxel and
-			// return minimum positive distance
-			return IntersectDistance(relativeMarchPos, dir, levelSpan);
+			vec4 normal = UnpackNormal(mat.y);
+			if(traversedLevel == dimDepth.y) normal.w = ceil(normal.w);
+			//if(normal.w == 1.0f) normal.w = 0.55f;
+			vec4 inData = vec4(0.0f, 0.0f, 0.0f, normal.w);
+			if(renderType == RENDER_TYPE_COLOR) inData.xyz = UnpackColor(mat.x).xyz;
+			else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = normal.www;
+			else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = normal.xyz;
+			else if(renderType == RENDER_TYPE_SPECULAR) inData.xyz = UnpackColor(mat.x).www;
+			inData.xyz *= inData.w;
+			outData += inData * (1.0f - outData.w);
+			if((1.0f - outData.w) <= 0.0f) return 0.0f;
+			else return IntersectDistance(marchPos, dir, traversedLevel);
 		}
-		else
-		{
-			// Node has value
-			// Go deeper
-			nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
-		}	
 	}
-	// Code Shouldnt return from here
 	return -1.0f;
 }
 
@@ -341,28 +300,22 @@ void main(void)
 
 	// Trace until ray is out of cascade
 	// Worst case march is edge of the voxel cascade
-	float maxMarch = worldPosSpan.w * float(0x1 << (dimDepth.y)) * SQRT_3;
+	vec4 colorOut = vec4(0.0f);
+	float maxMarch = worldPosSpan.w * float(0x1 << (dimDepth.y)) * SQRT_3 * 1.05f;
 	float marchLength = 0;
 	for(float totalMarch = 0.0f;
 		totalMarch < maxMarch;
 		totalMarch += marchLength)
 	{
-		vec3 colorOut;
 		marchLength = FindMarchLength(colorOut, marchPos, rayDir);
-
 		// March Length zero, we hit a point
-		if(marchLength == 0.0f)
-		{
-			if(renderType == RENDER_TYPE_OCCLUSION) colorOut = 1.0f - colorOut;
-			imageStore(fbo, ivec2(globalId), vec4(colorOut, 0.0f)); 
-			return;
-		}
-		else
-		{
-			// March Ray and Continue
-			totalMarch += marchLength;
-			marchPos += marchLength * rayDir;
-		}
+		if(marchLength == 0.0f) break;
+		// March Ray and Continue
+		totalMarch += marchLength;
+		marchPos += marchLength * rayDir;
 	}
-	imageStore(fbo, ivec2(globalId), vec4(0.0f, 0.0f, 0.0f, 0.0f)); 
+	if(renderType == RENDER_TYPE_OCCLUSION) colorOut = 1.0f - colorOut;
+	if(renderType == RENDER_TYPE_NORMAL) colorOut = (1.0f + colorOut) * 0.5f;
+	colorOut.w = 1.0f;
+	imageStore(fbo, ivec2(globalId), colorOut); 
 }

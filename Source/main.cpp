@@ -259,8 +259,6 @@ int main()
 			solutions[oldSolution % solutions.size()]->Release();
 			oldSolution = currentSolution;
 		}
-
-
 			
 		SolutionI* solution = solutions[currentSolution % solutions.size()];
 		if(!solution->IsCurrentScene(*scenes[currentScene % scenes.size()]) ||

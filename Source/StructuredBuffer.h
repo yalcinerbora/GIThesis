@@ -40,6 +40,7 @@ class StructuredBuffer
 		size_t					Capacity() const;
 
 		void					Memset(uint8_t);
+		void					Memset(uint32_t);
 		void					BindAsUniformBuffer(GLuint location, 
 													GLuint countOffset,
 													GLuint countSize);

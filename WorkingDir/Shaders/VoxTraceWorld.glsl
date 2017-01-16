@@ -47,7 +47,7 @@ LU_SVO_NODE buffer SVONode
 
 LU_SVO_MATERIAL buffer SVOMaterial
 { 
-	uvec2 svoMaterial[];
+	uvec4 svoMaterial[];
 };
 
 LU_SVO_LEVEL_OFFSET buffer SVOLevelOffsets
@@ -139,10 +139,9 @@ vec4 UnpackColor(in uint colorPacked)
 	return unpackUnorm4x8(colorPacked);
 }
 
-vec4 UnpackNormal(in uint voxNormPosY)
+vec3 UnpackNormal(in uint voxNormPosY)
 {
-	return vec4(unpackSnorm4x8(voxNormPosY).xyz,
-				unpackUnorm4x8(voxNormPosY).w);
+	return unpackSnorm4x8(voxNormPosY).xyz;
 }
 
 float IntersectDistance(in vec3 marchPos, 
@@ -200,6 +199,18 @@ float IntersectDistance(in vec3 marchPos,
 	return min(minClose, minFar) + 0.01f;
 }
 
+float AnisoOccupancy(in uvec2 anisoLoc, in vec3 dir)
+{
+	vec4 anisoXY = unpackUnorm4x8(anisoLoc.x);
+	vec2 anisoZ = unpackUnorm4x8(anisoLoc.y).xy;
+	vec3 absDir = abs(dir);
+	float result = ((dir.x >= 0.0f) ? anisoXY.y : anisoXY.x) * absDir.x +
+				   ((dir.y >= 0.0f) ? anisoXY.w : anisoXY.z) * absDir.y +
+				   ((dir.z >= 0.0f) ? anisoZ.y : anisoZ.x) * absDir.z;
+	return result /= (absDir.x + absDir.y + absDir.z);
+	//return anisoXY.x;
+}
+
 float FindMarchLength(inout vec4 outData,						
 					  in vec3 marchPos,
 					  in vec3 dir)
@@ -213,7 +224,7 @@ float FindMarchLength(inout vec4 outData,
 		// Since cam is centered towards grid
 		// Out of bounds means its cannot come towards the grid
 		// directly cull
-		outData = vec4(1.0f) * (1.0f - outData.w);
+		outData += vec4(1.0f) * (1.0f - outData.w);
 		return FLT_MAX;
 	}
 
@@ -226,13 +237,13 @@ float FindMarchLength(inout vec4 outData,
 		uint levelDim = dimDepth.z >> mipId;
 		vec3 levelUV = LevelVoxIdF(marchPos, fetchLevel) / float(levelDim);
 				
-		uvec2 data = textureLod(tSVOMat, levelUV, float(mipId)).xy;
-		vec4 normal = UnpackNormal(data.y);
-		vec4 inData = vec4(0.0f, 0.0f, 0.0f, normal.w);
-		if(renderType == RENDER_TYPE_COLOR) inData.xyz = UnpackColor(data.x).xyz;
-		else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = normal.www;
-		else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = normal.xyz;
-		else if(renderType == RENDER_TYPE_SPECULAR) inData.xyz = UnpackColor(data.x).www;
+		uvec4 mat = textureLod(tSVOMat, levelUV, float(mipId));
+		float occupancy = AnisoOccupancy(mat.zw, dir);
+		vec4 inData = vec4(0.0f, 0.0f, 0.0f, occupancy);
+		if(renderType == RENDER_TYPE_COLOR) inData.xyz = UnpackColor(mat.x).xyz;
+		else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = vec3(1.0f - occupancy);
+		else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = UnpackNormal(mat.y).xyz;
+		else if(renderType == RENDER_TYPE_SPECULAR) inData.xyz = UnpackColor(mat.x).www;
 		inData.xyz *= inData.w;
 		outData += inData * (1.0f - outData.w);
 		if((1.0f - outData.w) <= 0.0f) return 0.0f;
@@ -265,15 +276,12 @@ float FindMarchLength(inout vec4 outData,
 		   traversedLevel == fetchLevel)
 		{
 			uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
-			uvec2 mat = svoMaterial[loc].xy;
-
-			vec4 normal = UnpackNormal(mat.y);
-			if(traversedLevel == dimDepth.y) normal.w = ceil(normal.w);
-			//if(normal.w == 1.0f) normal.w = 0.55f;
-			vec4 inData = vec4(0.0f, 0.0f, 0.0f, normal.w);
+			uvec4 mat = svoMaterial[loc];			
+			float occupancy = AnisoOccupancy(mat.zw, dir);			
+			vec4 inData = vec4(0.0f, 0.0f, 0.0f, occupancy);
 			if(renderType == RENDER_TYPE_COLOR) inData.xyz = UnpackColor(mat.x).xyz;
-			else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = normal.www;
-			else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = normal.xyz;
+			else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = vec3(1.0f - occupancy);
+			else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = UnpackNormal(mat.y).xyz;
 			else if(renderType == RENDER_TYPE_SPECULAR) inData.xyz = UnpackColor(mat.x).www;
 			inData.xyz *= inData.w;
 			outData += inData * (1.0f - outData.w);
@@ -314,7 +322,7 @@ void main(void)
 		totalMarch += marchLength;
 		marchPos += marchLength * rayDir;
 	}
-	if(renderType == RENDER_TYPE_OCCLUSION) colorOut = 1.0f - colorOut;
+	//if(renderType == RENDER_TYPE_OCCLUSION) colorOut = 1.0f - colorOut;
 	if(renderType == RENDER_TYPE_NORMAL) colorOut = (1.0f + colorOut) * 0.5f;
 	colorOut.w = 1.0f;
 	imageStore(fbo, ivec2(globalId), colorOut); 

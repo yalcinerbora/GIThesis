@@ -124,6 +124,7 @@ __global__ void VoxelClearMarked(CVoxelPage* gVoxelData)
 		// Segment is marked for clear, clear it
 		gVoxelData[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
 		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
+		gVoxelData[pageId].dGridVoxOccupancy[pageLocalId] = 0xFFFFFFFF;
 	}
 }
 

@@ -41,7 +41,22 @@ inline __device__ float4 UnpackSVOColor(const CSVOColor& node)
 	return color;
 }
 
-inline __device__ float4 UnpackNormCount(const CVoxelNorm& normal)
+inline __device__ float4 UnpackSVOAnisoXY(const CSVOAnisoXY& aniso)
+{
+	return UnpackSVOColor(aniso);
+}
+
+inline __device__ float4 UnpackSVOAnisoZ(const CSVOAnisoZ& aniso)
+{
+	float4 anisoZ;
+	anisoZ.x = static_cast<float>((aniso & 0x000000FF) >> 0) / 255.0f;
+	anisoZ.y = static_cast<float>((aniso & 0x0000FF00) >> 8) / 255.0f;
+	//anisoZ.z = static_cast<float>((node & 0x00FF0000) >> 16) / 255.0f;
+	anisoZ.w = static_cast<float>((aniso >> 24) & 0xFF);
+	return anisoZ;
+}
+
+inline __device__ float4 UnpackSVONormal(const CVoxelNorm& normal)
 {
 	float4 result;
 	result.x = static_cast<float>(static_cast<char>((normal >> 0) & 0xFF)) / 0x7F;
@@ -61,9 +76,13 @@ inline __device__ CSVOColor PackSVOColor(const float4& color)
 	return colorPacked;
 }
 
-inline __device__ CVoxelNorm PackNormCount(const float4 normal)
+inline __device__ CSVOAnisoXY PackAnisoXY(const float4& anisoXY)
 {
-	// (x,y components packed NORM int with 16/15 bit repectively, MSB is sign of z
+	return PackSVOColor(anisoXY);
+}
+
+inline __device__ CVoxelNorm PackSVONormal(const float4& normal)
+{
 	unsigned int value = 0;
 	value |= static_cast<unsigned int>(normal.w) << 24;
 	value |= (static_cast<int>(normal.z * 0x7F) & 0xFF) << 16;
@@ -72,26 +91,48 @@ inline __device__ CVoxelNorm PackNormCount(const float4 normal)
 	return value;
 }
 
-inline __device__ CSVOMaterial PackSVOMaterial(const CSVOColor& color,
-											   const CVoxelNorm& normal)
+inline __device__ CSVOAnisoZ PackAnisoZ(const float4& anisoZ)
 {
-	CSVOMaterial mat = 0;
-	mat |= static_cast<CSVOMaterial>(normal) << 32;
+	unsigned int value = 0;
+	value |= static_cast<unsigned int>(anisoZ.w) << 24;
+	value |= static_cast<unsigned int>(anisoZ.z * 255.0f) << 16;
+	value |= static_cast<unsigned int>(anisoZ.y * 255.0f) << 8;
+	value |= static_cast<unsigned int>(anisoZ.x * 255.0f) << 0;
+	return value;
+}
+
+inline __device__ uint64_t PackSVOMaterialColorNormal(const CSVOColor& color,
+													  const CVoxelNorm& normal)
+{
+	uint64_t mat = 0;
+	mat |= static_cast<uint64_t>(normal) << 32;
 	mat |= color;
 	return mat;
 }
 
-inline __device__ void UnpackSVOMaterial(CSVOColor& color,
-										 CVoxelNorm& normal,
-										 const CSVOMaterial& mat)
+inline __device__ uint64_t PackSVOAnisoOccupancy(const CSVOAnisoXY& anisoXY, const CSVOAnisoZ& anisoZ)
 {
-	color = static_cast<CVoxelNorm>(mat & 0xFFFFFFFF);
+	return PackSVOMaterialColorNormal(anisoXY, anisoZ);
+}
+
+inline __device__ void UnpackSVOMaterialColorNormal(CSVOColor& color,
+													CVoxelNorm& normal,
+													const uint64_t& mat)
+{
+	color = static_cast<CSVOColor>(mat & 0xFFFFFFFF);
 	normal = static_cast<CVoxelNorm>(mat >> 32);
 }
 
+inline __device__ void UnpackSVOAnisoOccupancy(CSVOAnisoXY& anisoXY, CSVOAnisoZ& anisoZ,
+											   const uint64_t& mat)
+{
+	anisoXY = static_cast<CSVOAnisoXY>(mat & 0xFFFFFFFF);
+	anisoZ = static_cast<CSVOAnisoZ>(mat >> 32);
+}
+
 inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
-													   const unsigned int levelDepth,
-													   const unsigned int totalDepth)
+													 const unsigned int levelDepth,
+													 const unsigned int totalDepth)
 {
 	unsigned int bitSet = 0;
 	bitSet |= ((voxelPos.z >> (totalDepth - levelDepth)) & 0x000000001) << 2;

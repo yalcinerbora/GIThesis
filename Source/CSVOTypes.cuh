@@ -8,6 +8,7 @@ Sparse voxel octree types that used in cuda funcs
 #define __CSVOTYPES_H__
 
 #define GI_DENSE_WORKER_PER_PARENT 8
+#define GI_SVO_WORKER_PER_NODE 8
 
 #include <cstdint>
 
@@ -16,8 +17,16 @@ Sparse voxel octree types that used in cuda funcs
 typedef unsigned int CSVONode;
 typedef unsigned int CSVOColor;
 typedef unsigned int CSVOLight;
+typedef unsigned int CSVOAnisoZ;
+typedef unsigned int CSVOAnisoXY;
 
-typedef uint64_t CSVOMaterial;
+#pragma pack(push, 1)
+struct CSVOMaterial
+{
+	uint64_t normalColor;
+	uint64_t anisoOccupancy;
+};
+#pragma pack(pop)
 
 //struct CSVOMaterial
 //{

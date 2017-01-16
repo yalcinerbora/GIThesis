@@ -126,9 +126,19 @@ size_t StructuredBuffer<T>::Capacity() const
 template <class T>
 void StructuredBuffer<T>::Memset(uint8_t byte)
 {
+	glInvalidateBufferData(bufferId);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
 	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R8UI, GL_RED,
 					  GL_UNSIGNED_BYTE, &byte);
+}
+
+template <class T>
+void StructuredBuffer<T>::Memset(uint32_t word)
+{
+	glInvalidateBufferData(bufferId);
+	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);	
+	glClearBufferData(GL_COPY_WRITE_BUFFER, GL_R32UI, GL_RED,
+					  GL_UNSIGNED_INT, &word);
 }
 
 template <class T>

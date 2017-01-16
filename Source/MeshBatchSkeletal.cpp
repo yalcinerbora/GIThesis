@@ -98,7 +98,13 @@ void  MeshBatchSkeletal::FindKeys(uint32_t& keyFrom,
 	// Test version clamp to next animation
 	// skip interpolation
 	timeS += elapsedS;
-	if(type == AnimationType::ONCE && timeS > keyTimes.back()) return;
+	if(type == AnimationType::ONCE && timeS > keyTimes.back())
+	{
+		keyFrom = 0;
+		keyTo = 0;
+		weight = 0.0f;
+		return;
+	}
 
 	if(timeS > keyTimes.back()) animState = !animState;
 	timeS = std::fmod(timeS, keyTimes.back());

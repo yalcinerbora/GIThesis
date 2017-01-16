@@ -226,7 +226,6 @@ uint32_t GICudaVoxelScene::VoxelCountInPage()
 	return static_cast<uint32_t>(h_VoxCount);
 }
 
-
 double GICudaVoxelScene::VoxDataToGL(CVoxelNormPos* dVAONormPosData,
 									 uchar4* dVAOColorData,
 

@@ -83,7 +83,7 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	// Mipped 3D tex
 	glGenTextures(1, &svoDenseMat);	
 	glBindTexture(GL_TEXTURE_3D, svoDenseMat);
-	glTexStorage3D(GL_TEXTURE_3D, GI_DENSE_TEX_COUNT, GL_RG32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
+	glTexStorage3D(GL_TEXTURE_3D, GI_DENSE_TEX_COUNT, GL_RGBA32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
 	CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseTexResource, svoDenseMat, GL_TEXTURE_3D,
 										   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
 										   //cudaGraphicsRegisterFlagsWriteDiscard));
@@ -402,7 +402,8 @@ double GISparseVoxelOctree::ConstructFullAtomic(const IEVector3& ambientColor, c
 	// Fully Atomic Version
 	for(unsigned int i = 0; i < allocators.size(); i++)
 	{
-		uint32_t gridSize = (allocators[i]->NumPages() * GI_PAGE_SIZE + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+		uint32_t nodeCount = allocators[i]->NumPages() * GI_PAGE_SIZE;
+		uint32_t gridSize = (nodeCount + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 		SVOReconstruct<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(
 			dSVOMaterial,
@@ -551,11 +552,11 @@ double GISparseVoxelOctree::AverageNodes()
 	{
 		unsigned int arrayIndex = i - GI_DENSE_LEVEL;
 		unsigned int levelDim = GI_DENSE_SIZE >> (GI_DENSE_LEVEL - i);
-		unsigned int levelSize = (i > GI_DENSE_LEVEL) ? hSVOLevelSizes[arrayIndex] : 
+		unsigned int levelSize = (i > GI_DENSE_LEVEL) ? hSVOLevelSizes[arrayIndex]: 
 														levelDim * levelDim * levelDim;
 		if(levelSize == 0) continue;
 
-		uint32_t gridSize = (levelSize + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
+		uint32_t gridSize = (levelSize * 2 + GI_THREAD_PER_BLOCK - 1) / GI_THREAD_PER_BLOCK;
 		// Average Level
 		SVOReconstructAverageNode<<<gridSize, GI_THREAD_PER_BLOCK>>>
 		(
@@ -608,9 +609,9 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 									const std::vector<IEMatrix4x4>& invViewProj)
 {
 	// Clear Mat Texture
-	GLuint ff[2] = {0x00000000, 0x00000000};
+	GLuint ff[4] = {0x0, 0x0, 0x0, 0x0};
 	for(unsigned int i = 0; i < GI_DENSE_TEX_COUNT; i++)
-		glClearTexImage(svoDenseMat, i, GL_RG_INTEGER, GL_UNSIGNED_INT, &ff);
+		glClearTexImage(svoDenseMat, i, GL_RGBA_INTEGER, GL_UNSIGNED_INT, &ff);
 
 	// Shadow Maps
 	CUDA_CHECK(cudaGraphicsMapResources(1, &sceneLightParamResource));
@@ -659,7 +660,7 @@ void GISparseVoxelOctree::UpdateSVO(double& reconstTime,
 
 	// Maxwell is faster with fully atomic code (CAS Locks etc.)
 	// However kepler sucks(660ti) (100ms compared to 5ms) 
-    IEVector3 aColor = (true) ? IEVector3::ZeroVector : ambientColor;
+    IEVector3 aColor = (false) ? IEVector3::ZeroVector : ambientColor;
 	if(CudaInit::CapabilityMajor() >= 5)
 		reconstTime = ConstructFullAtomic(aColor, p);
 	else

@@ -95,7 +95,7 @@ LU_SVO_NODE buffer SVONode
 
 LU_SVO_MATERIAL buffer SVOMaterial
 { 
-	uvec2 svoMaterial[];
+	uvec4 svoMaterial[];
 };
 
 LU_SVO_LEVEL_OFFSET buffer SVOLevelOffsets
@@ -253,8 +253,24 @@ vec3 UnpackNormalGBuff(in uvec2 norm)
 
 vec4 UnpackNormalSVO(in uint voxNormPosY)
 {
-	return vec4(unpackSnorm4x8(voxNormPosY).xyz,
-		        unpackUnorm4x8(voxNormPosY).w);
+	return unpackSnorm4x8(voxNormPosY);
+}
+
+uint AddOccupancy(in uint normPacked, in float occup)
+{
+	return (normPacked & 0x00FFFFFF) | (uint(occup * 255.0f) << 24);
+}
+
+float AnisoOccupancy(in uvec2 anisoLoc, in vec3 dir)
+{
+	vec4 anisoXY = unpackUnorm4x8(anisoLoc.x);
+	vec2 anisoZ = unpackUnorm4x8(anisoLoc.y).xy;
+	vec3 absDir = abs(dir);
+	float result = ((dir.x >= 0.0f) ? anisoXY.y : anisoXY.x) * absDir.x +
+				   ((dir.y >= 0.0f) ? anisoXY.w : anisoXY.z) * absDir.y +
+				   ((dir.z >= 0.0f) ? anisoZ.y : anisoZ.x) * absDir.z;
+	return result /= (absDir.x + absDir.y + absDir.z);
+	return anisoXY.x;
 }
 
 bool InterpolateSparse(out vec4 color,
@@ -335,23 +351,41 @@ bool InterpolateSparse(out vec4 color,
 }
 
 void InterpolateDense(out vec4 color,
-					   out vec4 normal,
+					  out vec4 normal,
 					
-					   in vec3 levelUV, 
-					   in int level)
+					  in vec3 levelUV, 
+					  in int level,
+					  in vec3 dir)
 {
 	vec3 interpolId = levelUV - floor(levelUV);
 	ivec3 uvInt = ivec3(floor(levelUV));
 
 	uvec2 materialA = texelFetch(tSVOMat, uvInt + NEIG_MASK[0], level).xy;
+	uvec2 materialAAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[0], level).zw;
 	uvec2 materialB = texelFetch(tSVOMat, uvInt + NEIG_MASK[1], level).xy;
+	uvec2 materialBAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[1], level).zw;
 	uvec2 materialC = texelFetch(tSVOMat, uvInt + NEIG_MASK[2], level).xy;
+	uvec2 materialCAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[2], level).zw;
 	uvec2 materialD = texelFetch(tSVOMat, uvInt + NEIG_MASK[3], level).xy;
+	uvec2 materialDAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[3], level).zw;
 	uvec2 materialE = texelFetch(tSVOMat, uvInt + NEIG_MASK[4], level).xy;
+	uvec2 materialEAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[4], level).zw;
 	uvec2 materialF = texelFetch(tSVOMat, uvInt + NEIG_MASK[5], level).xy;
+	uvec2 materialFAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[5], level).zw;
 	uvec2 materialG = texelFetch(tSVOMat, uvInt + NEIG_MASK[6], level).xy;
+	uvec2 materialGAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[6], level).zw;
 	uvec2 materialH = texelFetch(tSVOMat, uvInt + NEIG_MASK[7], level).xy;
+	uvec2 materialHAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[7], level).zw;
 
+	materialA.y = AddOccupancy(materialA.y, AnisoOccupancy(materialAAniso, dir));
+	materialB.y = AddOccupancy(materialB.y, AnisoOccupancy(materialBAniso, dir));
+	materialC.y = AddOccupancy(materialC.y, AnisoOccupancy(materialCAniso, dir));
+	materialD.y = AddOccupancy(materialD.y, AnisoOccupancy(materialDAniso, dir));
+	materialE.y = AddOccupancy(materialE.y, AnisoOccupancy(materialEAniso, dir));
+	materialF.y = AddOccupancy(materialF.y, AnisoOccupancy(materialFAniso, dir));
+	materialG.y = AddOccupancy(materialG.y, AnisoOccupancy(materialGAniso, dir));
+	materialH.y = AddOccupancy(materialH.y, AnisoOccupancy(materialHAniso, dir));
+	
 	vec4 colorA = UnpackColorSVO(materialA.x);
 	vec4 colorB = UnpackColorSVO(materialB.x);
 	vec4 colorC = UnpackColorSVO(materialC.x);
@@ -426,120 +460,11 @@ void MatWrite(inout uvec4 matAB,
 bool SampleSVO(out vec4 color,
 			   out vec4 normal,
 			   in vec3 worldPos,
+			   in vec3 dir,
 			   in uint depth,
 			   in bool interpolate)
 {
 	uint fetchLevel = depth;
-
-	//	// Dense Fetch
-	//if(fetchLevel <= dimDepth.w &&
-	//   fetchLevel >= offsetCascade.w)
-	//{
-	//	uint mipId = dimDepth.w - fetchLevel;
-	//	vec3 levelUV = LevelVoxIdF(worldPos, fetchLevel);			
-	//	InterpolateDense(color, normal, levelUV, int(mipId));
-	//	return true;
-	//}
-
-	//// For each Corner Value // Offsets
-	//ivec3 voxPosLevel = LevelVoxId(worldPos, fetchLevel);
-	//vec3 interp = LevelVoxIdF(worldPos, fetchLevel);
-	//interp -= (vec3(voxPosLevel));
-	//vec3 offsets = sign(interp);
-
-	//// Materials that will be interpolated
-	//uvec4 matAB = uvec4(0);
-	//uvec4 matCD = uvec4(0);
-	//uvec4 matEF = uvec4(0);
-	//uvec4 matGH = uvec4(0);
-
-	//for(uint i = 0; i < 8; i++)
-	//{
-	//	vec3 currentWorld = VoxPosToWorld(voxPosLevel + NEIG_MASK[i], fetchLevel);
-	//	ivec3 voxPos = LevelVoxId(currentWorld, dimDepth.y);
-	
-	//	// Cull if out of bounds
-	//	// Since cam is centered towards grid
-	//	// Out of bounds means its cannot come towards the grid
-	//	// directly cull
-	//	if(any(lessThan(voxPos, ivec3(0))) ||
-	//	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
-	//		continue;
-
-	//	// Initialize Traverse
-	//	ivec3 denseVox = LevelVoxId(currentWorld, dimDepth.w);
-	//	vec3 texCoord = vec3(denseVox) / dimDepth.z;
-	//	unsigned int nodeIndex = texture(tSVODense, texCoord).x;
-	//	unsigned int lastValid = nodeIndex;
-	//	if(nodeIndex == 0xFFFFFFFF)
-	//	{
-	//		// Fall back to dense
-	//		for(unsigned int j = 1; j < (dimDepth.w - offsetCascade.w); j++)
-	//		{
-	//			vec3 levelUV = LevelVoxIdF(worldPos, dimDepth.w - j);
-	//			uvec2 mat = texelFetch(tSVOMat, ivec3(floor(levelUV)), int(j)).xy;
-
-	//			if(mat.x != 0 || mat.y != 0)
-	//			{
-	//				MatWrite(matAB, matCD, matEF, matGH, mat, i);
-	//				break;
-	//			}
-	//		}
-	//		continue;
-	//	}
-	//	nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
-		
-	//	// Tree Traverse
-	//	uint traversedLevel;
-	//	for(traversedLevel = dimDepth.w + 1; 
-	//		traversedLevel < fetchLevel;
-	//		traversedLevel++)
-	//	{
-	//		uint currentNode = svoNode[offsetCascade.y + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex];
-	//		if(currentNode == 0xFFFFFFFF) break;
-	//		lastValid = nodeIndex;
-	//		nodeIndex = currentNode + CalculateLevelChildId(voxPos, traversedLevel + 1);
-	//	}
-
-	//	// Up until fetch
-	//	uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
-	//	uvec2 mat = svoMaterial[loc].xy;
-
-	//	// mat shouldnt be zero ever if it is allocated
-	//	if((mat.x == 0x0 && mat.y == 0x0)) 
-	//	{
-	//		if(traversedLevel == (dimDepth.w + 1))
-	//		{
-	//			vec3 levelUV = LevelVoxIdF(worldPos, dimDepth.w);
-	//			uvec2 mat = texelFetch(tSVOMat, ivec3(floor(levelUV)), 0).xy;
-	//			MatWrite(matAB, matCD, matEF, matGH, mat, i);
-	//			continue;
-	//		}
-	//		else
-	//		{
-	//			loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w - 1] + lastValid;
-	//			mat = svoMaterial[loc].xy;
-	//		}
-	//	}
-		
-	//	if(traversedLevel == dimDepth.y) mat.y |= 0xFF000000;
-	//	MatWrite(matAB, matCD, matEF, matGH, mat, i);
-	//}
-	
-	//// Out
-	//InterpolateSparse(color, 
-	//				  normal, 
-
-	//				  matAB,
-	//				  matCD,
-	//				  matEF,
-	//				  matGH,
-							 
-	//				  interp,
-	//				  specular);
-
-	//if(normal.w == 0.0f) return false;
-	//return true;
 
 	// Dense Fetch
 	if(fetchLevel <= dimDepth.w &&
@@ -549,7 +474,7 @@ bool SampleSVO(out vec4 color,
 		uint levelDim = dimDepth.z >> mipId;
 		vec3 levelUV = LevelVoxIdF(worldPos, fetchLevel);
 			
-		InterpolateDense(color, normal, levelUV, int(mipId));
+		InterpolateDense(color, normal, levelUV, int(mipId), dir);
 		return true;
 	}
 
@@ -565,7 +490,6 @@ bool SampleSVO(out vec4 color,
 	uvec4 matEF = uvec4(0);
 	uvec4 matGH = uvec4(0);
 
-	
 	for(uint i = 0; i < ((interpolate) ? TRACE_NEIGBOUR : 1); i++)
 	{
 		vec3 currentWorld = VoxPosToWorld(voxPosLevel + NEIG_MASK[i], fetchLevel);
@@ -609,8 +533,9 @@ bool SampleSVO(out vec4 color,
 		{
 			// Mid or Leaf Level
 			uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
-			uvec2 mat = svoMaterial[loc].xy;
-			MatWrite(matAB, matCD, matEF, matGH, mat, i);			
+			uvec4 mat = svoMaterial[loc];
+			mat.y = AddOccupancy(mat.y, AnisoOccupancy(mat.zw, dir));
+			MatWrite(matAB, matCD, matEF, matGH, mat.xy, i);			
 		}
 	}
 	
@@ -643,16 +568,16 @@ vec3 IllumFactor(in vec3 coneDir,
 	float normalAccuracy = length(normalSVO.xyz);
 	float NDFstd2 = (1.0f - normalAccuracy) / normalAccuracy;
 	float std2 = NDFstd2 * NDFstd2 + coneStd2 * coneStd2;
-	float toksvigFactor = 1.0f / (1.0f + std2 * colorSVO.w);
-	//float toksvigFactor = 1.0f;
+	//float toksvigFactor = 1.0f / (1.0f + std2 * colorSVO.w);
+	float toksvigFactor = 1.0f;
 
 	// Lambert Diffuse
 	//lightIntensity *= pow(max(dot(voxNormal.xyz, coneDir), 0.0f), toksvigFactor);
 	//lightIntensity *= (1.0f + toksvigFactor * colorSVO.w) / (1.0f + colorSVO.w);
 
 	// Sampled Lobe Factor
-	//lightIntensity *= normalSVO.w;
-	lightIntensity *= (1.0f - normalSVO.w);
+	lightIntensity *= normalSVO.w;
+	//lightIntensity *= (1.0f - normalSVO.w);
 	//lightIntensity *= ((1.0f - lobeFactor) / lobeFactor);
 
 	return lightIntensity * colorSVO.xyz;// * GI_ONE_OVER_PI;
@@ -664,9 +589,9 @@ vec3 CalculateConeDir(in vec3 ortho1, in vec3 ortho2, float angleRadian)
 	return normalize(ortho1 * cos(angleRadian) + ortho2 * sin(angleRadian));
 }
 
-
 void SampleCone(out vec4 color, out vec4 normal, 
-				in vec3 worldPos, in float coneDiameter,
+				in vec3 worldPos, in vec3 coneDir,
+				in float coneDiameter,
 				in bool interpolate)
 {
 	// Convert Diameter to interpolation weight and levels	
@@ -679,9 +604,9 @@ void SampleCone(out vec4 color, out vec4 normal,
 
 	vec4 colorA = vec4(0.0f), normalA = vec4(0.0f);
 	vec4 colorB = vec4(0.0f), normalB = vec4(0.0f);
-	SampleSVO(colorA, normalA, worldPos, nodeLevel, interpolate);
+	SampleSVO(colorA, normalA, worldPos, coneDir, nodeLevel, interpolate);
 
-	if(interpolate) SampleSVO(colorB, normalB, worldPos, nodeLevel - 1, interpolate);
+	if(interpolate) SampleSVO(colorB, normalB, worldPos, coneDir, nodeLevel - 1, interpolate);
 	else interp = 0.0f;
 
 	color = mix(colorA, colorB,  interp);
@@ -769,8 +694,9 @@ void main(void)
 			
 			// start sampling from that surface (interpolate)
 			vec4 color = vec4(0.0f), normal = vec4(0.0f);
-			//SampleCone(color, normal, currentPos, diameter, i != CONE_COUNT);
-			SampleCone(color, normal, currentPos, diameter, false);
+			//SampleCone(color, normal, currentPos, diffuseConeDir, diameter, i != CONE_COUNT);
+			//SampleCone(color, normal, currentPos, diffuseConeDir, diameter, false);
+			SampleCone(color, normal, currentPos, diffuseConeDir, diameter, true);
 
 			// Calculate Illumination & Occlusion
 			float nodeOcclusion = normal.w;
@@ -786,7 +712,7 @@ void main(void)
 			//nodeOcclusion *= (1.0f / (1.0f + coneParams2.w * traversedDistance));
 			//nodeOcclusion *= (1.0f / (1.0f + pow(traversedDistance, 2.0f)));
 			
-			illumination *= (1.0f / (1.0f + coneParams2.w * diameter));
+			//illumination *= (1.0f / (1.0f + coneParams2.w * diameter));
 			//illumination *= (1.0f / (1.0f + coneParams2.w * traversedDistance));
 			//illumination *= (1.0f / (1.0f + pow(traversedDistance, 2.0f)));
 
@@ -795,11 +721,11 @@ void main(void)
 			illumination *= dot(worldNorm, coneDir) * factor;
 			nodeOcclusion *= dot(worldNorm, coneDir);
 
+			// Front to back blend
+			totalAccumulation += vec4(illumination, nodeOcclusion) * (1.0f - totalAccumulation.w);				
 			//totalAccumulation.xyz += illumination;
-			totalAccumulation.xyz += (vec3(1.0f) - totalAccumulation.xyz) * illumination;
+			//totalAccumulation.xyz += (vec3(1.0f) - totalAccumulation.xyz) * illumination;
 			//totalAccumulation.xyz += (1.0f - totalAccumulation.w) * illumination;
-
-			if(i != CONE_COUNT) totalAccumulation.w += (1.0f - totalAccumulation.w) * nodeOcclusion;
 
 			// Advance sample point (from sampling diameter)
 			marchDistance = diameter * coneParams1.w;
@@ -811,8 +737,8 @@ void main(void)
 			else if(lastFetch) break;
 
 		}
-		// Cos tetha multiplication
-		surfaceAccumulation += totalAccumulation;
+		if(i != CONE_COUNT) surfaceAccumulation += totalAccumulation;
+		else surfaceAccumulation.xyz += totalAccumulation.xyz;
 	}
 	surfaceAccumulation.xyz *=  coneParams2.y;
 	surfaceAccumulation.w *=  coneParams2.x;

@@ -24,6 +24,7 @@ struct CVoxelPageData
 {
 	CudaVector<CVoxelPos>			dVoxelPagePos;
 	CudaVector<CVoxelNorm>			dVoxelPageNorm;
+	CudaVector<CVoxelOccupancy>		dVoxelOccupancy;
 	CudaVector<unsigned char>		dEmptySegmentList;
 	CudaVector<SegmentObjData>		dIsSegmentOccupied;
 
@@ -31,6 +32,7 @@ struct CVoxelPageData
 	CVoxelPageData(size_t sizeOfPage, size_t sizeOfHelper)
 		: dVoxelPagePos(sizeOfPage)
 		, dVoxelPageNorm(sizeOfPage)
+		, dVoxelOccupancy(sizeOfPage)
 		, dEmptySegmentList(sizeOfHelper)
 		, dIsSegmentOccupied(sizeOfHelper)
 	{}

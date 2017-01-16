@@ -195,10 +195,8 @@ __global__ void VoxelTransform(// Voxel Pages
 	// Fetch NormalPos from cache
 	uint3 voxPos;
 	float3 normal;
-	float4 normalWithOcc;
 	bool isMip;
-	ExpandNormalPos(voxPos, normalWithOcc, isMip, gVoxNormPosCacheData[segObj.batchId][cacheVoxelId]);
-	normal = {normalWithOcc.x, normalWithOcc.y, normalWithOcc.z};
+	ExpandNormalPos(voxPos, normal, isMip, gVoxNormPosCacheData[segObj.batchId][cacheVoxelId]);
 
 	// Fetch AABB min, transform and span
 	float4 objAABBMin = gObjectAABB[segObj.batchId][segObj.objId].min;
@@ -228,12 +226,11 @@ __global__ void VoxelTransform(// Voxel Pages
 		//	weights.weightIndex.z,
 		//	weights.weightIndex.w);
 
+		// Nyra Char Related Assert
 		assert(weights.weightIndex.x <= 24);
 		assert(weights.weightIndex.y <= 24);
 		assert(weights.weightIndex.z <= 24);
 		assert(weights.weightIndex.w <= 24);
-
-       
 
 		float3 pos = {0.0f, 0.0f, 0.0f};
 		float3 p = MultMatrix(worldPos, sTransformMatrices[weights.weightIndex.x + 1]);
@@ -321,10 +318,30 @@ __global__ void VoxelTransform(// Voxel Pages
 
 	// Voxel Space
 	float invSpan = 1.0f / gGridInfo.span;
-	voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan + 0.5f);
-	voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan + 0.5f);
-	voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan + 0.5f);
+	voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan);
+	voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan);
+	voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan);	
+
+	// Calculate VoxelWeights
+	float3 volumeWeight;
+	volumeWeight.x = worldPos.x * invSpan;
+	volumeWeight.y = worldPos.y * invSpan;
+	volumeWeight.z = worldPos.z * invSpan;
 	
+	volumeWeight.x = volumeWeight.x - static_cast<float>(voxPos.x);
+	volumeWeight.y = volumeWeight.y - static_cast<float>(voxPos.y);
+	volumeWeight.z = volumeWeight.z - static_cast<float>(voxPos.z);
+
+	//volumeWeight.x = 1.0f;
+	//volumeWeight.y = 1.0f;
+	//volumeWeight.z = 1.0f;
+
+	uint3 neigbourBits;
+	neigbourBits.x = (volumeWeight.x > 0) ? 1 : 0;
+	neigbourBits.y = (volumeWeight.y > 0) ? 1 : 0;
+	neigbourBits.z = (volumeWeight.z > 0) ? 1 : 0;
+		
+	// Outer Bound Check
 	outOfBounds |= (voxPos.x >= gGridInfo.dimension.x);
 	outOfBounds |= (voxPos.y >= gGridInfo.dimension.y);
 	outOfBounds |= (voxPos.z >= gGridInfo.dimension.z);
@@ -336,10 +353,12 @@ __global__ void VoxelTransform(// Voxel Pages
 	{
 		// Write to page
 		uint2 packedVoxNormPos;
-		normalWithOcc = {normal.x, normal.y, normal.z, 0.0f};
-		PackVoxelNormPos(packedVoxNormPos, voxPos, normalWithOcc, isMip);
+
+		PackVoxelNormPos(packedVoxNormPos, voxPos, normal, isMip);
 		gVoxelData[pageId].dGridVoxPos[pageLocalId] = packedVoxNormPos.x;
 		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = packedVoxNormPos.y;
+				
+		gVoxelData[pageId].dGridVoxOccupancy[pageLocalId] = PackOccupancy(neigbourBits, volumeWeight);
 	}
 	else
 	{

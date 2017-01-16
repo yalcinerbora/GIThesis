@@ -9,6 +9,7 @@
 #include "MayaInput.h"
 
 #include "DeferredRenderer.h"
+#include "BatchFunctors.h"
 
 #include "EmptyGISolution.h"
 #include "ThesisSolution.h"
@@ -79,15 +80,15 @@ int main()
 	DeferredRenderer deferredRenderer;
 
 	// Scenes
-    IEVector3 lightDir = IEQuaternion(IEMath::ToRadians(-84.266f), IEVector3::Xaxis).ApplyRotation(-IEVector3::Zaxis);
-	Light sponzaLights[] = 
+	IEVector3 lightDir = IEQuaternion(IEMath::ToRadians(-84.266f), IEVector3::Xaxis).ApplyRotation(-IEVector3::Zaxis);
+	Light sponzaLights[] =
 	{
 		// Directional Light
 		// White Color
 		// 1-2 PM Sunlight direction (if you consider lionhead(window) is at north)
 		{
 			{ 0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL) },
-            {lightDir.getX(), lightDir.getY(), lightDir.getZ(), std::numeric_limits<float>::infinity()},
+			{lightDir.getX(), lightDir.getY(), lightDir.getZ(), std::numeric_limits<float>::infinity()},
 			//{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), std::numeric_limits<float>::infinity()},
 			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
 		},
@@ -155,21 +156,59 @@ int main()
 		}
 	};
 
-	// Sponza Scene
-	MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
-							  ThesisSolution::CascadeSpan,
-							  false);
-	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
-									  ThesisSolution::CascadeSpan);
-	MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
-							ThesisSolution::CascadeSpan);
-	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
-    MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
-    Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
-                    Array32<Light>{sponzaLights, 1},
-                    Scene::sponzaSceneLevelSizes);
-    scenes.push_back(&crySponza);
+	//// Sponza Scene
+	//MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
+	//						  ThesisSolution::CascadeSpan,
+	//						  false);
+	//MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
+	//								  ThesisSolution::CascadeSpan);
+	//MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
+	//						ThesisSolution::CascadeSpan);
+	//nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
+ //   MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
+ //   Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
+ //                   Array32<Light>{sponzaLights, 1},
+ //                   Scene::bigSizes);
+ //   scenes.push_back(&crySponza);
 
+	//// Floor Scene
+	//class MeshBatchFloor : public MeshBatch
+	//{
+	//	private:
+	//	protected:
+	//	public:
+	//	// Constructors & Destructor
+	//	MeshBatchFloor(const char* sceneFileName, float minVoxSpan)
+	//		:MeshBatch(sceneFileName, minVoxSpan, false)
+	//	{}
+
+	//	// Interface
+	//	void Update(double elapsedS) override
+	//	{
+	//		static const float translateSpeed = 0.3f;
+	//		std::vector<ModelTransform>& mtBuff = batchDrawParams.getModelTransformBuffer().CPUData();
+	//		BatchFunctors::ApplyTranslation translator(mtBuff);
+	//		translator(1, elapsedS, IEVector3::Zaxis * translateSpeed);
+	//		batchDrawParams.getModelTransformBuffer().SendData();
+	//	}
+	//	VoxelObjectType MeshType() const override { return VoxelObjectType::DYNAMIC; }
+	//} floorBatch("testFloor.gfg", ThesisSolution::CascadeSpan);
+	////} floorBatch("testBox.gfg", ThesisSolution::CascadeSpan);
+	//MeshBatchI* floorBatches[] = {&floorBatch};
+	//Scene floorScene(Array32<MeshBatchI*>{floorBatches, 1},
+	//				Array32<Light>{sponzaLights, 1},
+	//				Scene::sponzaSceneLevelSizes);
+	//scenes.push_back(&floorScene);
+
+	// Nyra Comparison Scene
+	MeshBatchSkeletal nyraBatch(MeshBatchSkeletal::nyraFileName,
+								ThesisSolution::CascadeSpan);
+	MeshBatchI* nyraBatches[] = {&nyraBatch};
+	Scene nyraCompare(Array32<MeshBatchI*>{nyraBatches, 1},
+					  Array32<Light>{sponzaLights, 1},
+					  Scene::bigSizes);
+	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
+	scenes.push_back(&nyraCompare);
 
 	//// Cornell Box Scene
 	//MeshBatch cornellStatic(MeshBatch::cornellboxFileName,

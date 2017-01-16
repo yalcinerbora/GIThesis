@@ -71,10 +71,45 @@ LU_NORMAL_SPARSE buffer NormalBuffer
 	vec4 normalSparse[];
 };
 
-LU_VOXEL_DATA buffer VoxelData
-{
-	uint64_t voxelData[];
-};
+//LU_VOXEL_DATA buffer VoxelData
+//{
+//	uint64_t voxelData[];
+//};
+
+//uint64_t Average(in uint64_t current, in vec3 normal, in vec3 color, in float specular)
+//{
+//	uvec2 splitCurrent = unpackUint2x32(current);
+//	vec4 colorCur = unpackUnorm4x8(splitCurrent.x);
+//	vec4 normalCur = unpackUnorm4x8(splitCurrent.y);
+
+//	colorCur *= normalCur.w;
+//	normalCur.xyz *= normalCur.w;
+//	normalCur.xyz += normal;
+//	colorCur.xyz += color;
+//	colorCur.w += specular;
+//	normalCur.w += 1.0f;
+
+//	colorCur /= normalCur.w;
+//	normalCur.xyz /= normalCur.w;
+//	return packUint2x32(packUnorm4x8(colorCur), packUnorm4x8(normalCur));
+//}
+
+//void AtomicAverage(in vec3 normal, in vec3 color, 
+//				   in float specular, in ivec3 iCoord)
+//{
+//	uint coord = iCoord.z * texSize3D * texSize3D +
+//				 iCoord.y * texSize3D +
+//			 	 iCoord.x;
+//	uint64_t current;
+//	uint64_t previous = 0;
+//	uint64_t new = packUint2x32(packUnorm4x8(vec4(normal, 1.0f)), packUnorm4x8(vec4(color, specular)));
+//	while((curent = atomicCompSwap(voxelData[coord], previous, new)) != previous)
+//	{
+//		previous = current;
+//		new = Average(current, normal, color, specular);
+//	}
+//}
+
 
 void Average(in vec3 normal, in vec3 color, 
 			 in float specular, in ivec3 iCoord)
@@ -108,29 +143,6 @@ void Average(in vec3 normal, in vec3 color,
 				iCoord.y * texSize3D +
 				iCoord.x] = avgColor;
 }
-
-uint64_t Average(in uint64_t current, in vec3 normal, in vec3 color, in float specular)
-{
-	uvec2 splitCurrent = unpackUint2x32(current);
-	vec4 colorCur = unpackUnorm4x8(splitCurrent.x);
-	vec4 normalCur = unpackUnorm4x8(splitCurrent.y);
-	return 0;
-}
-
-//void AtomicAverage(in vec3 normal, in vec3 color, 
-//				   in float specular, in ivec3 iCoord)
-//{
-//	uint coord = iCoord.z * texSize3D * texSize3D +
-//				 iCoord.y * texSize3D +
-//			 	 iCoord.x;
-//	uint64_t current;
-//	uint64_t previous = 0;
-//	while((curent = atomicCompSwap(voxelData[coord], previous, new)) != previous)
-//	{
-//		previous = current;
-
-//	}
-//}
 
 void AtomicAverage(in vec3 normal, in vec3 color, 
 				   in float specular, in ivec3 iCoord)

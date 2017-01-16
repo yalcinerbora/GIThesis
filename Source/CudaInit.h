@@ -23,8 +23,9 @@ Determines shared memory modes etc.
 				} \
 			}
 #define CUDA_KERNEL_CHECK() \
-			CUDA_CHECK(cudaPeekAtLastError()); \
-			CUDA_CHECK(cudaDeviceSynchronize());
+			CUDA_CHECK(cudaDeviceSynchronize()); \
+			CUDA_CHECK(cudaPeekAtLastError());
+			
 #else
 	#define CUDA_CHECK(func) func;
 	#define CUDA_KERNEL_CHECK()

@@ -60,7 +60,7 @@ LU_SVO_NODE buffer SVONode
 
 LU_SVO_MATERIAL buffer SVOMaterial
 { 
-	uvec2 svoMaterial[];
+	uvec4 svoMaterial[];
 };
 
 LU_SVO_LEVEL_OFFSET buffer SVOLevelOffsets
@@ -159,8 +159,24 @@ vec4 UnpackColorSVO(in uint colorPacked)
 
 vec4 UnpackNormalSVO(in uint voxNormPosY)
 {
-	return vec4(unpackSnorm4x8(voxNormPosY).xyz,
-		        unpackUnorm4x8(voxNormPosY).w);
+	return unpackSnorm4x8(voxNormPosY);
+}
+
+float AnisoOccupancy(in uvec2 anisoLoc, in vec3 dir)
+{
+	vec4 anisoXY = unpackUnorm4x8(anisoLoc.x);
+	vec2 anisoZ = unpackUnorm4x8(anisoLoc.y).xy;
+	vec3 absDir = abs(dir);
+	float result = ((dir.x >= 0.0f) ? anisoXY.y : anisoXY.x) * absDir.x +
+				   ((dir.y >= 0.0f) ? anisoXY.w : anisoXY.z) * absDir.y +
+				   ((dir.z >= 0.0f) ? anisoZ.y : anisoZ.x) * absDir.z;
+	return result /= (absDir.x + absDir.y + absDir.z);
+	return anisoXY.x;
+}
+
+uint AddOccupancy(in uint normPacked, in float occup)
+{
+	return (normPacked & 0x00FFFFFF) | (uint(occup * 255.0f) << 24);
 }
 
 bool InterpolateSparse(out vec4 color,
@@ -230,20 +246,38 @@ void InterpolateDense(out vec4 color,
 					  out vec4 normal,
 					
 					  in vec3 levelUV, 
-					  in int level)
+					  in int level,
+					  in vec3 dir)
 {
 	vec3 interpolId = levelUV - floor(levelUV);
 	ivec3 uvInt = ivec3(floor(levelUV));
 
 	uvec2 materialA = texelFetch(tSVOMat, uvInt + NEIG_MASK[0], level).xy;
+	uvec2 materialAAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[0], level).zw;
 	uvec2 materialB = texelFetch(tSVOMat, uvInt + NEIG_MASK[1], level).xy;
+	uvec2 materialBAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[1], level).zw;
 	uvec2 materialC = texelFetch(tSVOMat, uvInt + NEIG_MASK[2], level).xy;
+	uvec2 materialCAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[2], level).zw;
 	uvec2 materialD = texelFetch(tSVOMat, uvInt + NEIG_MASK[3], level).xy;
+	uvec2 materialDAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[3], level).zw;
 	uvec2 materialE = texelFetch(tSVOMat, uvInt + NEIG_MASK[4], level).xy;
+	uvec2 materialEAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[4], level).zw;
 	uvec2 materialF = texelFetch(tSVOMat, uvInt + NEIG_MASK[5], level).xy;
+	uvec2 materialFAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[5], level).zw;
 	uvec2 materialG = texelFetch(tSVOMat, uvInt + NEIG_MASK[6], level).xy;
+	uvec2 materialGAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[6], level).zw;
 	uvec2 materialH = texelFetch(tSVOMat, uvInt + NEIG_MASK[7], level).xy;
+	uvec2 materialHAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[7], level).zw;
 
+	materialA.y = AddOccupancy(materialA.y, AnisoOccupancy(materialAAniso, dir));
+	materialB.y = AddOccupancy(materialB.y, AnisoOccupancy(materialBAniso, dir));
+	materialC.y = AddOccupancy(materialC.y, AnisoOccupancy(materialCAniso, dir));
+	materialD.y = AddOccupancy(materialD.y, AnisoOccupancy(materialDAniso, dir));
+	materialE.y = AddOccupancy(materialE.y, AnisoOccupancy(materialEAniso, dir));
+	materialF.y = AddOccupancy(materialF.y, AnisoOccupancy(materialFAniso, dir));
+	materialG.y = AddOccupancy(materialG.y, AnisoOccupancy(materialGAniso, dir));
+	materialH.y = AddOccupancy(materialH.y, AnisoOccupancy(materialHAniso, dir));
+	
 	vec4 colorA = UnpackColorSVO(materialA.x);
 	vec4 colorB = UnpackColorSVO(materialB.x);
 	vec4 colorC = UnpackColorSVO(materialC.x);
@@ -316,7 +350,8 @@ void MatWrite(inout uvec4 matAB,
 
 bool SampleSVO(out vec4 color,
 			   out vec4 normal,
-			   in vec3 worldPos)
+			   in vec3 worldPos,
+			   in vec3 dir)
 {
 	// Dense Fetch
 	if(fetchLevel <= dimDepth.w &&
@@ -324,7 +359,7 @@ bool SampleSVO(out vec4 color,
 	{
 		uint mipId = dimDepth.w - fetchLevel;
 		vec3 levelUV = LevelVoxIdF(worldPos, fetchLevel);			
-		InterpolateDense(color, normal, levelUV, int(mipId));
+		InterpolateDense(color, normal, levelUV, int(mipId), dir);
 		return true;
 	}
 
@@ -364,11 +399,13 @@ bool SampleSVO(out vec4 color,
 			for(unsigned int j = 1; j < (dimDepth.w - offsetCascade.w); j++)
 			{
 				vec3 levelUV = LevelVoxIdF(worldPos, dimDepth.w - j);
-				uvec2 mat = texelFetch(tSVOMat, ivec3(floor(levelUV)), int(j)).xy;
+				uvec4 mat = texelFetch(tSVOMat, ivec3(floor(levelUV)), int(j));
+				mat.y = AddOccupancy(mat.y, AnisoOccupancy(mat.zw, dir));
 
 				if(mat.x != 0 || mat.y != 0)
 				{
-					MatWrite(matAB, matCD, matEF, matGH, mat, i);
+					
+					MatWrite(matAB, matCD, matEF, matGH, mat.xy, i);
 					break;
 				}
 			}
@@ -436,9 +473,10 @@ void main(void)
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
 	vec2 gBuffUV = vec2(globalId + vec2(0.5f) - viewport.xy) / viewport.zw;
 	vec3 worldPos = DepthToWorld(gBuffUV);
+	vec3 dir = normalize(worldPos - camPos.xyz);
 
 	vec4 color, normal;
-	bool found = SampleSVO(color, normal, worldPos);
+	bool found = SampleSVO(color, normal, worldPos, dir);
 
 	vec3 outData = vec3(0.5f);
 	if(found)

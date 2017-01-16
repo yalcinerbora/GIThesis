@@ -47,25 +47,35 @@ inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 	return result;
 }
 
-inline __device__ float4 ExpandOnlyNormal(const unsigned int packedVoxY)
+inline __device__ float3 ExpandOnlyVoxNormal(const unsigned int packedVoxY)
 {
-	float4 result;
+	float3 result;
 	result.x = static_cast<float>(static_cast<char>((packedVoxY >>  0) & 0xFF)) / 0x7F;
 	result.y = static_cast<float>(static_cast<char>((packedVoxY >>  8) & 0xFF)) / 0x7F;
 	result.z = static_cast<float>(static_cast<char>((packedVoxY >> 16) & 0xFF)) / 0x7F;
-	result.w = static_cast<float>((packedVoxY & 0xFF000000) >> 24) / 255.0f;
 	return result;
 }
 
+inline __device__ void ExpandOccupancy(uint3& neigbourBits, float3& weights,
+									   const CVoxelOccupancy packedOccup)
+{
+	weights.x = static_cast<float>((packedOccup & 0x000000FF) >> 0) / 255.0f;
+	weights.y = static_cast<float>((packedOccup & 0x0000FF00) >> 8) / 255.0f;
+	weights.z = static_cast<float>((packedOccup & 0x00FF0000) >> 16) / 255.0f;
+	neigbourBits.x = (packedOccup & 0x01000000) >> 24;
+	neigbourBits.y = (packedOccup & 0x02000000) >> 25;
+	neigbourBits.z = (packedOccup & 0x04000000) >> 26;
+}
+
 inline __device__ void ExpandNormalPos(uint3& voxPos,
-									   float4& normal,
+									   float3& normal,
 									   bool& isMip,
 									   const CVoxelNormPos& packedVoxNormalPos)
 {
 	unsigned int voxPosX = packedVoxNormalPos.x;
 	voxPos = ExpandOnlyVoxPos(voxPosX);
 	isMip = ((voxPosX & 0xC0000000) >> 30) != 0;
-	normal = ExpandOnlyNormal(packedVoxNormalPos.y);
+	normal = ExpandOnlyVoxNormal(packedVoxNormalPos.y);
 }
 
 inline __device__ ushort2 ExpandOnlyObjId(const unsigned int packVoxIdX)
@@ -116,19 +126,30 @@ inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
 	return packed;
 }
 
-inline __device__ unsigned int PackOnlyVoxNorm(const float4& normal)
+inline __device__ unsigned int PackOnlyVoxNorm(const float3& normal)
 {
 	unsigned int value = 0;
-	value |= static_cast<unsigned int>(normal.w * 255.0f) << 24;
 	value |= (static_cast<int>(normal.z * 0x7F) & 0xFF) << 16;
 	value |= (static_cast<int>(normal.y * 0x7F) & 0xFF) << 8;
 	value |= (static_cast<int>(normal.x * 0x7F) & 0xFF) << 0;
 	return value;
 }
 
+inline __device__ unsigned int PackOccupancy(const uint3& neigbourBits, const float3 weights)
+{
+	unsigned int result;
+	result = neigbourBits.z << 26;
+	result |= neigbourBits.y << 25;
+	result |= neigbourBits.x << 24;
+	result |= static_cast<unsigned int>(weights.z * 255.0f) << 16;
+	result |= static_cast<unsigned int>(weights.y * 255.0f) << 8;
+	result |= static_cast<unsigned int>(weights.x * 255.0f) << 0;
+	return result;
+}
+
 inline __device__ void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
 										const uint3& voxPos,
-										const float4& normal,
+										const float3& normal,
 										const bool isMip)
 {
 	// First word holds span ratio and voxel position (relative to AABB or Grid)

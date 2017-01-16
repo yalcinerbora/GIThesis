@@ -415,18 +415,19 @@ void GICudaAllocator::AddVoxelPages(size_t count)
 		CUDA_KERNEL_CHECK();
 		hPageData.back().dIsSegmentOccupied.Memset(0, 0, hPageData.back().dIsSegmentOccupied.Size());
 		hPageData.back().dVoxelPageNorm.Memset(0xFF, 0, hPageData.back().dVoxelPageNorm.Size());
+		hPageData.back().dVoxelOccupancy.Memset(0xFF, 0, hPageData.back().dVoxelOccupancy.Size());
 		hPageData.back().dVoxelPagePos.Memset(0xFF, 0, hPageData.back().dVoxelPagePos.Size());
 		
 		CVoxelPage voxData =
 		{
 			hPageData.back().dVoxelPagePos.Data(),
 			hPageData.back().dVoxelPageNorm.Data(),
+			hPageData.back().dVoxelOccupancy.Data(),
 			hPageData.back().dEmptySegmentList.Data(),
 			hPageData.back().dIsSegmentOccupied.Data(),
 			GI_SEGMENT_PER_PAGE
 		};
 		hVoxelPages.push_back(voxData);
-
 	}
 	dVoxelPages = hVoxelPages;
 
@@ -530,7 +531,7 @@ uint64_t GICudaAllocator::SystemTotalMemoryUsage() const
 	memory += dVoxelPages.Size() * GI_SEGMENT_PER_PAGE * (sizeof(SegmentObjData) +
 														  sizeof(unsigned char));
 
-	memory += dVoxelPages.Size() * GI_PAGE_SIZE * (sizeof(CVoxelNormPos));
+	memory += dVoxelPages.Size() * GI_PAGE_SIZE * (sizeof(CVoxelNormPos) + sizeof(CVoxelOccupancy));
 
 	// Object Batch Helpers
 	for(unsigned int i = 0; i < dSegmentObjecId.size(); i++)

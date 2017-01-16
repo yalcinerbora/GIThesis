@@ -3,12 +3,14 @@
 #ifndef __CVOXELPAGE_H__
 #define __CVOXELPAGE_H__
 
+#include "CVoxelTypes.h"
 #include <vector_types.h>
 #include <cstdint>
 
 // Used in kernel calls that may not saturate enough cores
 #define GI_THREAD_PER_BLOCK_SMALL 128
 
+#define GI_VOXEL_NEIGBOURS 8
 #define GI_PAGE_SIZE 65536
 #define GI_THREAD_PER_BLOCK 512
 #define GI_THREAD_PER_BLOCK_XY 16
@@ -20,8 +22,6 @@
 static_assert(GI_PAGE_SIZE % GI_THREAD_PER_BLOCK == 0, "Page size must be divisible by thread per block");
 static_assert(GI_BLOCK_PER_SEGMENT != 0, "Segment should be bigger(or equal) than block");
 
-typedef unsigned int CVoxelPos;
-typedef unsigned int CVoxelNorm;
 typedef uint2 CVoxelIds;
 
 enum class SegmentOccupation : unsigned char
@@ -44,8 +44,9 @@ struct CVoxelPage
 {
 	CVoxelPos*			dGridVoxPos;
 	CVoxelNorm*			dGridVoxNorm;
+	CVoxelOccupancy*	dGridVoxOccupancy;
 	unsigned char*		dEmptySegmentPos;
-	SegmentObjData*		dSegmentObjData;
+	SegmentObjData*		dSegmentObjData;	
 	unsigned int		dEmptySegmentStackSize;
 };
 

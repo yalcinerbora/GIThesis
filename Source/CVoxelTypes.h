@@ -33,6 +33,7 @@ typedef uint2 CVoxelIds;
 // Further Seperated Voxel Data
 typedef unsigned int CVoxelPos;
 typedef unsigned int CVoxelNorm;
+typedef unsigned int CVoxelOccupancy;
 
 // Voxel Rendering Data
 #pragma pack(push, 1)

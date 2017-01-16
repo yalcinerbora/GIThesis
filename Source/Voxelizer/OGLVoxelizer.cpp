@@ -305,7 +305,7 @@ double OGLVoxelizer::AllocateVoxelCaches(float currentSpan, uint32_t currentCasc
 	totalVoxCount.BindAsShaderStorageBuffer(LU_TOTAL_VOX_COUNT);
 	objectInfos.BindAsShaderStorageBuffer(LU_OBJECT_VOXEL_INFO);
 	
-	totalVoxCount.Memset(0x00);
+	totalVoxCount.Memset(static_cast<uint32_t>(0));
 
 	// Images
 	lockTex.BindAsImage(I_LOCK, GL_READ_WRITE);
@@ -416,7 +416,7 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 	normalArray.BindAsShaderStorageBuffer(LU_NORMAL_SPARSE);
 	if(isSkeletal) weightArray.BindAsShaderStorageBuffer(LU_WEIGHT_SPARSE);
 
-	index.Memset(0x00);
+	index.Memset(static_cast<uint32_t>(0));
 
 	// Images
 	lockTex.BindAsImage(I_LOCK, GL_READ_WRITE);
@@ -450,13 +450,13 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 		for(GLuint b = 0; b < voxSplit[1]; b++)
 		for(GLuint c = 0; c < voxSplit[2]; c++)
 		{
-			timer.Start();
+			//timer.Start();
 			lockTex.Clear();
-			normalArray.Memset(0x00);
-			colorArray.Memset(0x00);
-			timer.Stop();
-			clearTime = timer.ElapsedMS();
-			timer.Start();
+			normalArray.Memset(static_cast<uint32_t>(0));
+			colorArray.Memset(static_cast<uint32_t>(0));
+			//timer.Stop();
+			//clearTime = timer.ElapsedMS();
+			//timer.Start();
 
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		
@@ -487,35 +487,35 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 			GLuint isMip = (mipInfo[objIndex] == MipInfo::MIP) ? 1 : 0;
 			VoxelizeObject(objIndex, segmentSize, a, b, c, currentSpan);
 
-			timer.Stop();
-			voxelizeTime = timer.ElapsedMS();
-			timer.Start();
+			//timer.Stop();
+			//voxelizeTime = timer.ElapsedMS();
+			//timer.Start();
 
 			PackObjectVoxels(objIndex, isMip, voxDimX, voxDimY, voxDimZ,
 							 a, b, c);
 
-			timer.Stop();
-			packTime = timer.ElapsedMS();
+			//timer.Stop();
+			//packTime = timer.ElapsedMS();
 
-			GI_LOG("Object %d", objIndex);
-			GI_LOG("Texture Clear %f", clearTime);
-			GI_LOG("Voxelize %f", voxelizeTime);
-			GI_LOG("Pack %f", packTime);
-			GI_LOG("------------");
-			totalClearTime += clearTime;
-			totalVoxelizeTime += voxelizeTime;
-			totalPackTime += packTime;
+			//GI_LOG("Object %d", objIndex);
+			//GI_LOG("Texture Clear %f", clearTime);
+			//GI_LOG("Voxelize %f", voxelizeTime);
+			//GI_LOG("Pack %f", packTime);
+			//GI_LOG("------------");
+			//totalClearTime += clearTime;
+			//totalVoxelizeTime += voxelizeTime;
+			//totalPackTime += packTime;
 		}
 	}
 	timer.Stop();
 	GI_LOG("Voxelization %fms", timer.ElapsedMS());
 
-	GI_LOG("Voxelization",);
-	GI_LOG("Total Texture Clear %f", totalClearTime);
-	GI_LOG("Total Voxelize %f", totalVoxelizeTime);
-	GI_LOG("Total Pack %f", totalPackTime);
-	GI_LOG("Grand Total %f", totalPackTime + totalClearTime + totalVoxelizeTime);
-	GI_LOG("------------");
+	//GI_LOG("Voxelization",);
+	//GI_LOG("Total Texture Clear %f", totalClearTime);
+	//GI_LOG("Total Voxelize %f", totalVoxelizeTime);
+	//GI_LOG("Total Pack %f", totalPackTime);
+	//GI_LOG("Grand Total %f", totalPackTime + totalClearTime + totalVoxelizeTime);
+	//GI_LOG("------------");
 
 	// Assertion of the Voxel Generation is same as count calculation
 	index.RecieveData(1);

@@ -146,7 +146,7 @@ __device__ inline float4 CalculateShadowUV(const CMatrix4x4* lightVP,
 	return float4{lightVec.x, lightVec.y, lightVec.z, depth};
 }
 
-__device__ inline float3 PhongBRDF(const float3& worldPos,
+inline __device__ float3 PhongBRDF(const float3& worldPos,
 								   const float4& camPos,
 								   const float3& camDir,
 

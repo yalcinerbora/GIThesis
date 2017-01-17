@@ -425,6 +425,7 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glEnable(GL_MULTISAMPLE);
+	//glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
 
 	glDepthMask(false);
 	glStencilMask(0x0000);

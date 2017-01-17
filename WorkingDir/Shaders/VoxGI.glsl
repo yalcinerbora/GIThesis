@@ -236,11 +236,6 @@ uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
 	return bitSet;
 }
 
-vec4 UnpackColorSVO(in uint colorPacked)
-{
-	return unpackUnorm4x8(colorPacked);
-}
-
 vec3 UnpackNormalGBuff(in uvec2 norm)
 {
 	vec3 result;
@@ -251,26 +246,15 @@ vec3 UnpackNormalGBuff(in uvec2 norm)
 	return result;
 }
 
+vec4 UnpackColorSVO(in uint colorPacked)
+{
+	return unpackUnorm4x8(colorPacked);
+}
+
 vec4 UnpackNormalSVO(in uint voxNormPosY)
 {
-	return unpackSnorm4x8(voxNormPosY);
-}
-
-uint AddOccupancy(in uint normPacked, in float occup)
-{
-	return (normPacked & 0x00FFFFFF) | (uint(occup * 255.0f) << 24);
-}
-
-float AnisoOccupancy(in uvec2 anisoLoc, in vec3 dir)
-{
-	vec4 anisoXY = unpackUnorm4x8(anisoLoc.x);
-	vec2 anisoZ = unpackUnorm4x8(anisoLoc.y).xy;
-	vec3 absDir = abs(dir);
-	float result = ((dir.x >= 0.0f) ? anisoXY.y : anisoXY.x) * absDir.x +
-				   ((dir.y >= 0.0f) ? anisoXY.w : anisoXY.z) * absDir.y +
-				   ((dir.z >= 0.0f) ? anisoZ.y : anisoZ.x) * absDir.z;
-	return result /= (absDir.x + absDir.y + absDir.z);
-	return anisoXY.x;
+	return vec4(unpackSnorm4x8(voxNormPosY).xyz,
+				unpackUnorm4x8(voxNormPosY).w);
 }
 
 bool InterpolateSparse(out vec4 color,
@@ -360,32 +344,15 @@ void InterpolateDense(out vec4 color,
 	vec3 interpolId = levelUV - floor(levelUV);
 	ivec3 uvInt = ivec3(floor(levelUV));
 
-	uvec2 materialA = texelFetch(tSVOMat, uvInt + NEIG_MASK[0], level).xy;
-	uvec2 materialAAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[0], level).zw;
-	uvec2 materialB = texelFetch(tSVOMat, uvInt + NEIG_MASK[1], level).xy;
-	uvec2 materialBAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[1], level).zw;
-	uvec2 materialC = texelFetch(tSVOMat, uvInt + NEIG_MASK[2], level).xy;
-	uvec2 materialCAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[2], level).zw;
-	uvec2 materialD = texelFetch(tSVOMat, uvInt + NEIG_MASK[3], level).xy;
-	uvec2 materialDAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[3], level).zw;
-	uvec2 materialE = texelFetch(tSVOMat, uvInt + NEIG_MASK[4], level).xy;
-	uvec2 materialEAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[4], level).zw;
-	uvec2 materialF = texelFetch(tSVOMat, uvInt + NEIG_MASK[5], level).xy;
-	uvec2 materialFAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[5], level).zw;
-	uvec2 materialG = texelFetch(tSVOMat, uvInt + NEIG_MASK[6], level).xy;
-	uvec2 materialGAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[6], level).zw;
-	uvec2 materialH = texelFetch(tSVOMat, uvInt + NEIG_MASK[7], level).xy;
-	uvec2 materialHAniso = texelFetch(tSVOMat, uvInt + NEIG_MASK[7], level).zw;
+	uvec2 materialA = texelFetch(tSVOMat, uvInt + NEIG_MASK[0], level).xz;
+	uvec2 materialB = texelFetch(tSVOMat, uvInt + NEIG_MASK[1], level).xz;
+	uvec2 materialC = texelFetch(tSVOMat, uvInt + NEIG_MASK[2], level).xz;
+	uvec2 materialD = texelFetch(tSVOMat, uvInt + NEIG_MASK[3], level).xz;
+	uvec2 materialE = texelFetch(tSVOMat, uvInt + NEIG_MASK[4], level).xz;
+	uvec2 materialF = texelFetch(tSVOMat, uvInt + NEIG_MASK[5], level).xz;
+	uvec2 materialG = texelFetch(tSVOMat, uvInt + NEIG_MASK[6], level).xz;
+	uvec2 materialH = texelFetch(tSVOMat, uvInt + NEIG_MASK[7], level).xz;
 
-	materialA.y = AddOccupancy(materialA.y, AnisoOccupancy(materialAAniso, dir));
-	materialB.y = AddOccupancy(materialB.y, AnisoOccupancy(materialBAniso, dir));
-	materialC.y = AddOccupancy(materialC.y, AnisoOccupancy(materialCAniso, dir));
-	materialD.y = AddOccupancy(materialD.y, AnisoOccupancy(materialDAniso, dir));
-	materialE.y = AddOccupancy(materialE.y, AnisoOccupancy(materialEAniso, dir));
-	materialF.y = AddOccupancy(materialF.y, AnisoOccupancy(materialFAniso, dir));
-	materialG.y = AddOccupancy(materialG.y, AnisoOccupancy(materialGAniso, dir));
-	materialH.y = AddOccupancy(materialH.y, AnisoOccupancy(materialHAniso, dir));
-	
 	vec4 colorA = UnpackColorSVO(materialA.x);
 	vec4 colorB = UnpackColorSVO(materialB.x);
 	vec4 colorC = UnpackColorSVO(materialC.x);
@@ -534,8 +501,7 @@ bool SampleSVO(out vec4 color,
 			// Mid or Leaf Level
 			uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
 			uvec4 mat = svoMaterial[loc];
-			mat.y = AddOccupancy(mat.y, AnisoOccupancy(mat.zw, dir));
-			MatWrite(matAB, matCD, matEF, matGH, mat.xy, i);			
+			MatWrite(matAB, matCD, matEF, matGH, mat.xz, i);			
 		}
 	}
 	
@@ -572,7 +538,7 @@ vec3 IllumFactor(in vec3 coneDir,
 	float toksvigFactor = 1.0f;
 
 	// Lambert Diffuse
-	//lightIntensity *= pow(max(dot(voxNormal.xyz, coneDir), 0.0f), toksvigFactor);
+	lightIntensity *= pow(max(dot(voxNormal.xyz, -coneDir), 0.0f), toksvigFactor);
 	//lightIntensity *= (1.0f + toksvigFactor * colorSVO.w) / (1.0f + colorSVO.w);
 
 	// Sampled Lobe Factor

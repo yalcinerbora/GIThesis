@@ -243,7 +243,7 @@ int main()
     //MeshBatchI* dynamicScalingBatches[] = {&dynamicBatch, &nyraJump};
     //Scene dynamicScene(Array32<MeshBatchI*>{dynamicScalingBatches, 2},
     //                   Array32<Light>{sponzaLights, 1},
-    //                   Scene::dynamicSceneLevelSizes);
+    //                   Scene::bigSizes);
     //scenes.push_back(&dynamicScene);
 	
 	// Solutions
@@ -307,9 +307,9 @@ int main()
 			solution->Init(*scenes[currentScene % scenes.size()]);
 		}
 
-        // Toggle Time
-        if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())
-            elapsedTime = 0.0;
+        //// Toggle Time
+        //if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())
+        //    elapsedTime = 0.0;
 
         // Toggle Dir Movement
         if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())

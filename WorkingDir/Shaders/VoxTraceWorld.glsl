@@ -139,9 +139,10 @@ vec4 UnpackColor(in uint colorPacked)
 	return unpackUnorm4x8(colorPacked);
 }
 
-vec3 UnpackNormal(in uint voxNormPosY)
+vec4 UnpackNormal(in uint voxNormPosY)
 {
-	return unpackSnorm4x8(voxNormPosY).xyz;
+	return vec4(unpackSnorm4x8(voxNormPosY).xyz,
+				unpackUnorm4x8(voxNormPosY).w);
 }
 
 float IntersectDistance(in vec3 marchPos, 
@@ -199,18 +200,6 @@ float IntersectDistance(in vec3 marchPos,
 	return min(minClose, minFar) + 0.01f;
 }
 
-float AnisoOccupancy(in uvec2 anisoLoc, in vec3 dir)
-{
-	vec4 anisoXY = unpackUnorm4x8(anisoLoc.x);
-	vec2 anisoZ = unpackUnorm4x8(anisoLoc.y).xy;
-	vec3 absDir = abs(dir);
-	float result = ((dir.x >= 0.0f) ? anisoXY.y : anisoXY.x) * absDir.x +
-				   ((dir.y >= 0.0f) ? anisoXY.w : anisoXY.z) * absDir.y +
-				   ((dir.z >= 0.0f) ? anisoZ.y : anisoZ.x) * absDir.z;
-	return result /= (absDir.x + absDir.y + absDir.z);
-	//return anisoXY.x;
-}
-
 float FindMarchLength(inout vec4 outData,						
 					  in vec3 marchPos,
 					  in vec3 dir)
@@ -238,11 +227,11 @@ float FindMarchLength(inout vec4 outData,
 		vec3 levelUV = LevelVoxIdF(marchPos, fetchLevel) / float(levelDim);
 				
 		uvec4 mat = textureLod(tSVOMat, levelUV, float(mipId));
-		float occupancy = AnisoOccupancy(mat.zw, dir);
-		vec4 inData = vec4(0.0f, 0.0f, 0.0f, occupancy);
+		vec4 normal = UnpackNormal(mat.z);
+		vec4 inData = vec4(0.0f, 0.0f, 0.0f, normal.w);
 		if(renderType == RENDER_TYPE_COLOR) inData.xyz = UnpackColor(mat.x).xyz;
-		else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = vec3(1.0f - occupancy);
-		else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = UnpackNormal(mat.y).xyz;
+		else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = vec3(1.0f - normal.w);
+		else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = normal.xyz;
 		else if(renderType == RENDER_TYPE_SPECULAR) inData.xyz = UnpackColor(mat.x).www;
 		inData.xyz *= inData.w;
 		outData += inData * (1.0f - outData.w);
@@ -277,11 +266,11 @@ float FindMarchLength(inout vec4 outData,
 		{
 			uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
 			uvec4 mat = svoMaterial[loc];			
-			float occupancy = AnisoOccupancy(mat.zw, dir);			
-			vec4 inData = vec4(0.0f, 0.0f, 0.0f, occupancy);
+			vec4 normal = UnpackNormal(mat.z);
+			vec4 inData = vec4(0.0f, 0.0f, 0.0f, normal.w);	
 			if(renderType == RENDER_TYPE_COLOR) inData.xyz = UnpackColor(mat.x).xyz;
-			else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = vec3(1.0f - occupancy);
-			else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = UnpackNormal(mat.y).xyz;
+			else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = vec3(1.0f - normal.w);
+			else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = normal.xyz;
 			else if(renderType == RENDER_TYPE_SPECULAR) inData.xyz = UnpackColor(mat.x).www;
 			inData.xyz *= inData.w;
 			outData += inData * (1.0f - outData.w);

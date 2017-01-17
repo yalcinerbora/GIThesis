@@ -17,14 +17,13 @@ Sparse voxel octree types that used in cuda funcs
 typedef unsigned int CSVONode;
 typedef unsigned int CSVOColor;
 typedef unsigned int CSVOLight;
-typedef unsigned int CSVOAnisoZ;
-typedef unsigned int CSVOAnisoXY;
+typedef unsigned int CSVOWeight;
 
 #pragma pack(push, 1)
 struct CSVOMaterial
 {
-	uint64_t normalColor;
-	uint64_t anisoOccupancy;
+	uint64_t colorPortion;
+	uint64_t normalPortion;
 };
 #pragma pack(pop)
 

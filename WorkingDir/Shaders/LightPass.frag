@@ -130,7 +130,7 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 	float viewIndex = 0.0f;
 	vec3 lightVec;
 	if(lightParams[fIndex].position.w == GI_LIGHT_POINT ||
-		lightParams[fIndex].position.w == GI_LIGHT_AREA)
+	   lightParams[fIndex].position.w == GI_LIGHT_AREA)
 	{
 		// Determine which side of the light is the point
 		// minimum absolute value

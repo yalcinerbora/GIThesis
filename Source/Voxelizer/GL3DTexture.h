@@ -18,6 +18,7 @@ enum class TextureDataType
 };
 
 #define VOX_3D_TEX_SIZE 256
+//#define VOX_3D_TEX_SIZE 512
 
 class GL3DTexture
 {

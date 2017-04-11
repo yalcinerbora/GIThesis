@@ -205,4 +205,39 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
                                       cudaTextureObject_t shadowMaps,
                                       const unsigned int lightCount);
+
+// Dynamic SVO
+extern __global__ void SVOUpdate(CSVOMaterial* gSVOMat,
+								 CSVONode* gSVOSparse,
+								 CSVONode* gSVODense,
+								 unsigned int* gLevelAllocators,
+
+								 const unsigned int* gLevelOffsets,
+								 const unsigned int* gLevelTotalSizes,
+
+								 // For Color Lookup
+								 const CVoxelPage* gVoxelData,
+								 CVoxelColor** gVoxelRenderData,
+
+								 const unsigned int matSparseOffset,
+								 const unsigned int cascadeNo,
+								 const CSVOConstants& svoConstants,
+
+								 // Light Inject Related
+								 bool inject,
+								 float span,
+								 const float3 outerCascadePos,
+								 const float3 ambientColor,
+
+								 const float4 camPos,
+								 const float3 camDir,
+
+								 const CMatrix4x4* lightVP,
+								 const CLight* lightStruct,
+
+								 const float depthNear,
+								 const float depthFar,
+
+								 cudaTextureObject_t shadowMaps,
+								 const unsigned int lightCount);
 #endif //__GIKERNELS_H__

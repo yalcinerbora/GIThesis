@@ -661,8 +661,8 @@ void main(void)
 			// start sampling from that surface (interpolate)
 			vec4 color = vec4(0.0f), normal = vec4(0.0f);
 			//SampleCone(color, normal, currentPos, diffuseConeDir, diameter, i != CONE_COUNT);
-			//SampleCone(color, normal, currentPos, diffuseConeDir, diameter, false);
-			SampleCone(color, normal, currentPos, diffuseConeDir, diameter, true);
+			SampleCone(color, normal, currentPos, diffuseConeDir, diameter, false);
+			//SampleCone(color, normal, currentPos, diffuseConeDir, diameter, true);
 
 			// Calculate Illumination & Occlusion
 			float nodeOcclusion = normal.w;

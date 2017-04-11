@@ -893,3 +893,194 @@ __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
 	//printf("total occupancy %f\n", totalOccupancy);
 }
+
+__global__ void SVOUpdate(CSVOMaterial* gSVOMat,
+						  CSVONode* gSVOSparse,
+						  CSVONode* gSVODense,
+						  CSVONode* gSVONeigbourX,
+						  CSVONode* gSVONeigbourY,
+						  CSVONode* gSVONeigbourZ,
+						  unsigned int* gLevelAllocators,
+
+						  const unsigned int* gLevelOffsets,
+						  const unsigned int* gLevelTotalSizes,
+
+						  // For Color Lookup
+						  const CVoxelPage* gVoxelData,
+						  CVoxelColor** gVoxelRenderData,
+
+						  const unsigned int matSparseOffset,
+						  const unsigned int cascadeNo,
+						  const CSVOConstants& svoConstants,
+
+						  // Light Inject Related
+						  bool inject,
+						  float span,
+						  const float3 outerCascadePos,
+						  const float3 ambientColor,
+
+						  const float4 camPos,
+						  const float3 camDir,
+
+						  const CMatrix4x4* lightVP,
+						  const CLight* lightStruct,
+
+						  const float depthNear,
+						  const float depthFar,
+
+						  cudaTextureObject_t shadowMaps,
+						  const unsigned int lightCount)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = globalId / GI_PAGE_SIZE;
+	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
+	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
+	unsigned int segmentLocalVoxId = pageLocalId % GI_SEGMENT_SIZE;
+
+	// Skip Whole segment if necessary
+	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::EMPTY) return;
+	assert(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) != SegmentOccupation::MARKED_FOR_CLEAR);
+
+	// Fetch voxel
+	CVoxelPos voxelPosPacked = gVoxelData[pageId].dGridVoxPos[pageLocalId];
+	if(voxelPosPacked == 0xFFFFFFFF) return;
+
+	// Local Voxel pos and expand it if its one of the inner cascades
+	uint3 voxelUnpacked = ExpandOnlyVoxPos(voxelPosPacked);
+	uint3 voxelPos = ExpandToSVODepth(voxelUnpacked, cascadeNo,
+									  svoConstants.numCascades,
+									  svoConstants.totalDepth);
+
+	// ObjId Fetch
+	ushort2 objectId;
+	SegmentObjData objData = gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId];
+	objectId.x = objData.objId;
+	objectId.y = objData.batchId;
+	unsigned int cacheVoxelId = objData.voxStride + segmentLocalVoxId;
+
+	CVoxelNorm voxelNormPacked = gVoxelData[pageId].dGridVoxNorm[pageLocalId];
+	CSVOColor voxelColorPacked = *reinterpret_cast<unsigned int*>(&gVoxelRenderData[objectId.y][cacheVoxelId].color);
+	CVoxelOccupancy voxOccupPacked = gVoxelData[pageId].dGridVoxOccupancy[pageLocalId];
+
+	// Unpack Occupancy
+	uint3 neigbourBits;
+	float3 weights;
+	ExpandOccupancy(neigbourBits, weights, voxOccupPacked);
+	int3 voxOffset =
+	{
+		static_cast<int>(neigbourBits.x),
+		static_cast<int>(neigbourBits.y),
+		static_cast<int>(neigbourBits.z)
+	};
+	voxOffset.x = 2 * voxOffset.x - 1;
+	voxOffset.y = 2 * voxOffset.y - 1;
+	voxOffset.z = 2 * voxOffset.z - 1;
+
+	// Light Injection
+	if(inject)
+	{
+		float4 colorSVO = UnpackSVOColor(voxelColorPacked);
+		float4 normalSVO = UnpackSVONormal(voxelNormPacked);
+
+		float3 worldPos =
+		{
+			outerCascadePos.x + voxelPos.x * span,
+			outerCascadePos.y + voxelPos.y * span,
+			outerCascadePos.z + voxelPos.z * span
+		};
+
+		// First Averager find and inject light
+		float3 illum = LightInject(worldPos,
+
+								   colorSVO,
+								   normalSVO,
+
+								   camPos,
+								   camDir,
+
+								   lightVP,
+								   lightStruct,
+
+								   depthNear,
+								   depthFar,
+
+								   shadowMaps,
+								   lightCount,
+								   ambientColor);
+
+		colorSVO.x = illum.x;
+		colorSVO.y = illum.y;
+		colorSVO.z = illum.z;
+		voxelColorPacked = PackSVOColor(colorSVO);
+	}
+
+	//printf("cascadeNo %d weights %f, %f, %f\n", cascadeNo, weights.x, weights.y, weights.z);
+
+	float totalOccupancy = 0.0f;
+	for(unsigned int i = 0; i < GI_SVO_WORKER_PER_NODE; i++)
+	{
+		// Create NeigNode
+		uint3 currentVoxPos = voxelPos;
+		unsigned int cascadeOffset = svoConstants.numCascades - cascadeNo - 1;
+		currentVoxPos.x += voxLookup[i].x * (voxOffset.x << cascadeOffset);
+		currentVoxPos.y += voxLookup[i].y * (voxOffset.y << cascadeOffset);
+		currentVoxPos.z += voxLookup[i].z * (voxOffset.z << cascadeOffset);
+
+		// Calculte this nodes occupancy
+		float occupancy = 1.0f;
+		float3 volume;
+		volume.x = (voxLookup[i].x == 1) ? weights.x : (1.0f - weights.x);
+		volume.y = (voxLookup[i].y == 1) ? weights.y : (1.0f - weights.y);
+		volume.z = (voxLookup[i].z == 1) ? weights.z : (1.0f - weights.z);
+		occupancy = volume.x * volume.y * volume.z;
+		totalOccupancy += occupancy;
+
+		//printf("(%d, %d, %d) occupancy %f\n",
+		//	   voxLookup[i].z, voxLookup[i].y, voxLookup[i].x,
+		//	   occupancy);
+
+		unsigned int location;
+		unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
+		for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
+		{
+			unsigned int levelIndex = i - svoConstants.denseDepth;
+			CSVONode* node = nullptr;
+			if(i == svoConstants.denseDepth)
+			{
+				uint3 levelVoxId = CalculateLevelVoxId(currentVoxPos, i, svoConstants.totalDepth);
+				node = gSVODense +
+					svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+					svoConstants.denseDim * levelVoxId.y +
+					levelVoxId.x;
+			}
+			else
+			{
+				node = gSVOSparse + gLevelOffsets[levelIndex] + location;
+			}
+
+			// Allocate (or acquire) next location
+			location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
+			assert(location < gLevelTotalSizes[levelIndex + 1]);
+
+			// Offset child
+			unsigned int childId = CalculateLevelChildId(currentVoxPos, i + 1, svoConstants.totalDepth);
+			location += childId;
+		}
+
+		AtomicAvg(gSVOMat + matSparseOffset +
+				  gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location,
+				  voxelColorPacked,
+				  voxelNormPacked,
+				  {0.0f, 0.0f, 0.0f, 0.0f},
+				  occupancy);
+
+		//// Non atmoic overwrite
+		//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
+		//		svoConstants.denseDepth] + location].colorPortion = PackSVOMaterialPortion(voxelColorPacked, 0x0);
+		//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
+		//		svoConstants.denseDepth] + location].normalPortion = PackSVOMaterialPortion(voxelNormPacked, 0x0);
+
+	}
+
+	//printf("total occupancy %f\n", totalOccupancy);
+}

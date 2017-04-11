@@ -156,20 +156,20 @@ int main()
 		}
 	};
 
-	//// Sponza Scene
-	//MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
-	//						  ThesisSolution::CascadeSpan,
-	//						  false);
-	//MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
-	//								  ThesisSolution::CascadeSpan);
-	//MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
-	//						ThesisSolution::CascadeSpan);
-	//nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
- //   MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
- //   Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
- //                   Array32<Light>{sponzaLights, 1},
- //                   Scene::bigSizes);
- //   scenes.push_back(&crySponza);
+	// Sponza Scene
+	MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
+							  ThesisSolution::CascadeSpan,
+							  false);
+	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
+									  ThesisSolution::CascadeSpan);
+	MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
+							ThesisSolution::CascadeSpan);
+	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
+    MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
+    Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
+                    Array32<Light>{sponzaLights, 1},
+                    Scene::bigSizes);
+    scenes.push_back(&crySponza);
 
 	//// Floor Scene
 	//class MeshBatchFloor : public MeshBatch
@@ -200,15 +200,15 @@ int main()
 	//				Scene::sponzaSceneLevelSizes);
 	//scenes.push_back(&floorScene);
 
-	// Nyra Comparison Scene
-	MeshBatchSkeletal nyraBatch(MeshBatchSkeletal::nyraFileName,
-								ThesisSolution::CascadeSpan);
-	MeshBatchI* nyraBatches[] = {&nyraBatch};
-	Scene nyraCompare(Array32<MeshBatchI*>{nyraBatches, 1},
-					  Array32<Light>{sponzaLights, 1},
-					  Scene::bigSizes);
-	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
-	scenes.push_back(&nyraCompare);
+	//// Nyra Comparison Scene
+	//MeshBatchSkeletal nyraBatch(MeshBatchSkeletal::nyraFileName,
+	//							ThesisSolution::CascadeSpan);
+	//MeshBatchI* nyraBatches[] = {&nyraBatch};
+	//Scene nyraCompare(Array32<MeshBatchI*>{nyraBatches, 1},
+	//				  Array32<Light>{sponzaLights, 1},
+	//				  Scene::bigSizes);
+	//nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
+	//scenes.push_back(&nyraCompare);
 
 	//// Cornell Box Scene
 	//MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
@@ -307,9 +307,9 @@ int main()
 			solution->Init(*scenes[currentScene % scenes.size()]);
 		}
 
-        //// Toggle Time
-        //if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())
-        //    elapsedTime = 0.0;
+        // Toggle Time
+        if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())
+            elapsedTime = 0.0;
 
         // Toggle Dir Movement
         if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())

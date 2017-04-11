@@ -451,13 +451,13 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 		for(GLuint b = 0; b < voxSplit[1]; b++)
 		for(GLuint c = 0; c < voxSplit[2]; c++)
 		{
-			//timer.Start();
+			timer.Start();
 			lockTex.Clear();
 			normalArray.Memset(static_cast<uint32_t>(0));
 			colorArray.Memset(static_cast<uint32_t>(0));
-			//timer.Stop();
-			//clearTime = timer.ElapsedMS();
-			//timer.Start();
+			timer.Stop();
+			clearTime = timer.ElapsedMS();
+			timer.Start();
 
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		
@@ -488,35 +488,35 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 			GLuint isMip = (mipInfo[objIndex] == MipInfo::MIP) ? 1 : 0;
 			VoxelizeObject(objIndex, segmentSize, a, b, c, currentSpan);
 
-			//timer.Stop();
-			//voxelizeTime = timer.ElapsedMS();
-			//timer.Start();
+			timer.Stop();
+			voxelizeTime = timer.ElapsedMS();
+			timer.Start();
 
 			PackObjectVoxels(objIndex, isMip, voxDimX, voxDimY, voxDimZ,
 							 a, b, c);
 
-			//timer.Stop();
-			//packTime = timer.ElapsedMS();
+			timer.Stop();
+			packTime = timer.ElapsedMS();
 
 			//GI_LOG("Object %d", objIndex);
 			//GI_LOG("Texture Clear %f", clearTime);
 			//GI_LOG("Voxelize %f", voxelizeTime);
 			//GI_LOG("Pack %f", packTime);
 			//GI_LOG("------------");
-			//totalClearTime += clearTime;
-			//totalVoxelizeTime += voxelizeTime;
-			//totalPackTime += packTime;
+			totalClearTime += clearTime;
+			totalVoxelizeTime += voxelizeTime;
+			totalPackTime += packTime;
 		}
 	}
 	timer.Stop();
 	GI_LOG("Voxelization %fms", timer.ElapsedMS());
 
-	//GI_LOG("Voxelization",);
-	//GI_LOG("Total Texture Clear %f", totalClearTime);
-	//GI_LOG("Total Voxelize %f", totalVoxelizeTime);
-	//GI_LOG("Total Pack %f", totalPackTime);
-	//GI_LOG("Grand Total %f", totalPackTime + totalClearTime + totalVoxelizeTime);
-	//GI_LOG("------------");
+	GI_LOG("Voxelization",);
+	GI_LOG("Total Texture Clear %f", totalClearTime);
+	GI_LOG("Total Voxelize %f", totalVoxelizeTime);
+	GI_LOG("Total Pack %f", totalPackTime);
+	GI_LOG("Grand Total %f", totalPackTime + totalClearTime + totalVoxelizeTime);
+	GI_LOG("------------");
 
 	// Assertion of the Voxel Generation is same as count calculation
 	index.RecieveData(1);

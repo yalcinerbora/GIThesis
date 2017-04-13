@@ -143,7 +143,7 @@
     <CudaCompile Include="..\..\..\Source\CDebug.cu" />
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
-    <ClCompile Include="..\..\..\Source\GPUBuffer.cpp" />
+    <ClCompile Include="..\..\..\Source\VertexBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEQuaternion.cpp" />
@@ -206,7 +206,6 @@
     <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\Source\ArrayStruct.h" />
     <ClInclude Include="..\..\..\Source\Camera.h" />
     <ClInclude Include="..\..\..\Source\CAxisAlignedBB.cuh" />
     <ClInclude Include="..\..\..\Source\CMatrix.cuh" />
@@ -222,7 +221,7 @@
     <ClInclude Include="..\..\..\Source\GLHeader.h" />
     <ClInclude Include="..\..\..\Source\GLHeaderLite.h" />
     <ClInclude Include="..\..\..\Source\Globals.h" />
-    <ClInclude Include="..\..\..\Source\GPUBuffer.h" />
+    <ClInclude Include="..\..\..\Source\VertexBuffer.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEFunctions.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEMath.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEMatrix3x3.h" />

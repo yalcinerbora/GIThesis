@@ -32,7 +32,7 @@ struct Camera
 	IEVector3					centerOfInterest;
 	IEVector3					up;
 
-	FrameTransformBufferData	generateTransform() const
+	FrameTransformBufferData	GenerateTransform() const
 	{
 		return
 		{

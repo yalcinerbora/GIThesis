@@ -8,10 +8,20 @@ Globals For Rendering
 #ifndef __GLOBALS_H__
 #define __GLOBALS_H__
 
-#include "GPUBuffer.h"
+#include "VertexBuffer.h"
 #include <AntTweakBar.h>
 
-#define GI_CASCADE_COUNT 3
+#define GI_CASCADE_COUNT 1
+
+namespace DeviceOGLParameters
+{
+	const GLuint uboAlignment;
+	const GLuint ssboAlignment;
+
+	// Helper Functions
+	size_t SSBOAlignOffset(size_t offset);
+	size_t UBOAlignOffset(size_t offset);
+}
 
 // Vertex Element
 #pragma pack(push, 1)
@@ -40,75 +50,75 @@ struct VAOSkel
 #define IN_WEIGHT_INDEX 5
 #define IN_LIGHT_INDEX 1
 
-static const VertexElement elementStatic[] =
+static const std::vector<const VertexElement> rigidMeshVertexDefinition =
 {
 	{
+		VertexLogic::POSITION,
+		GPUDataType::FLOAT,		
+		3,
 		IN_POS,
-		GPUDataType::FLOAT,
-		false,
-		3,
 		offsetof(struct VAO, vPos),
-		sizeof(VAO)
+		false
 	},
 	{
-		IN_NORMAL,
-		GPUDataType::FLOAT,
-		false,
+		VertexLogic::NORMAL,
+		GPUDataType::FLOAT,		
 		3,
+		IN_NORMAL,
 		offsetof(struct VAO, vNormal),
-		sizeof(VAO)
+		false
 	},
 	{
-		IN_UV,
-		GPUDataType::FLOAT,
-		false,
+		VertexLogic::UV,
+		GPUDataType::FLOAT,		
 		2,
+		IN_UV,
 		offsetof(struct VAO, vUV),
-		sizeof(VAO)
+		false
 	}
 };
 
-static const VertexElement elementSkeletal[] =
+static const std::vector<const VertexElement> skeletalMeshVertexDefinition =
 {
 	{
+		VertexLogic::POSITION,
+		GPUDataType::FLOAT,
+		3,
 		IN_POS,
-		GPUDataType::FLOAT,
-		false,
-		3,
 		offsetof(struct VAOSkel, vPos),
-		sizeof(VAOSkel)
+		false
 	},
 	{
-		IN_NORMAL,
-		GPUDataType::FLOAT,
-		false,
+		VertexLogic::NORMAL,
+		GPUDataType::FLOAT,		
 		3,
+		IN_NORMAL,
 		offsetof(struct VAOSkel, vNormal),
-		sizeof(VAOSkel)
+		false
 	},
 	{
-		IN_UV,
-		GPUDataType::FLOAT,
-		false,
+		VertexLogic::UV,
+		GPUDataType::FLOAT,		
 		2,
+		IN_UV,
 		offsetof(struct VAOSkel, vUV),
-		sizeof(VAOSkel)
+		false
 	},
 	{
+		VertexLogic::WEIGHT,
+		GPUDataType::UINT8,
+		4,
 		IN_WEIGHT,
-		GPUDataType::UINT8,
-		true,
-		4,
 		offsetof(struct VAOSkel, vWeight),
-		sizeof(VAOSkel)
+		true
 	},
 	{
-		IN_WEIGHT_INDEX,
+		VertexLogic::WEIGHT_INDEX,
 		GPUDataType::UINT8,
-		false,
 		4,
+		IN_WEIGHT_INDEX,
 		offsetof(struct VAOSkel, vWIndex),
-		sizeof(VAOSkel)
+		false
 	}
 };
 
@@ -121,7 +131,6 @@ static const TwStructMember lightMembers[] =
 };
 
 // Generic Binding Points
-
 // Textures (Bind Uniforms)
 #define T_IN 0
 #define T_COLOR 0

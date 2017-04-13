@@ -100,6 +100,16 @@ void StructuredBuffer<T>::SendData()
 }
 
 template <class T>
+void StructuredBuffer<T>::SendSubData(uint32_t offset, uint32_t size)
+{
+	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
+	glBufferSubData(GL_COPY_WRITE_BUFFER,
+					offset * sizeof(T),
+					size * sizeof(T),
+					dataGPUImage.data());
+}
+
+template <class T>
 void StructuredBuffer<T>::AddData(const T& t)
 {
 	dataGPUImage.push_back(t);

@@ -61,26 +61,26 @@ class MeshBatchSkeletal : public MeshBatch
 
 	public:
 		// Constructors & Destructor
-								MeshBatchSkeletal(const char* sceneFileName,
-												  float minVoxSpan,
-                                                  int repeatCount = 1);
+								MeshBatchSkeletal(const std::vector<const VertexElement>& vertexDefintion,
+												  uint32_t byteStride,
+												  const std::vector<std::string>& sceneFiles);
 	  
 		// Static Files
-		static const char*		tinmanFileName;
-		static const char*		nyraFileName;
-		static const char*		snakeFileName;
+		static const char*					tinmanFileName;
+		static const char*					nyraFileName;
+		static const char*					snakeFileName;
 
-		static size_t			tinmanVoxelSizes[];
+		static size_t						tinmanVoxelSizes[];
   
 		// Interface
-		void					Update(double elapsedS) override;
+		void								Update(double elapsedS) override;
 
-		VoxelObjectType			MeshType() const override;
-		void					AnimationParams(float delay,
-												float speedMod,
-												AnimationType type);
+		VoxelObjectType						MeshType() const override;
+		void								AnimationParams(float delay,
+															float speedMod,
+															AnimationType type);
 
-		StructuredBuffer<ModelTransform>& getJointTransforms();
+		StructuredBuffer<ModelTransform>&	getJointTransforms();
 };
 
 #endif //__MESHBATCHSTATIC_H__

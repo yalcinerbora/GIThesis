@@ -21,6 +21,7 @@ struct ColorMaterial
 class Material
 {
 	private:
+		uint32_t						materialIndex;
 		GLuint							texture;
 		GLuint							sampler;
 

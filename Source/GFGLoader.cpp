@@ -9,13 +9,10 @@
 #include "Globals.h"
 
 GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
-								GPUBuffer& buffer,
+								VertexBuffer& buffer,
 								DrawBuffer& drawBuffer,
-								const char* gfgFileName,
-								bool isSkeletal,
-                                uint32_t repeatCount)
+								const std::string& gfgFileName)
 {
-    assert(repeatCount > 0);
 	std::ifstream stream(gfgFileName, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
 	GFGFileLoader gfgFile(&stlFileReader);
@@ -28,17 +25,13 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 	uint64_t indexCount = 0;
 	for(const GFGMeshHeader mesh : gfgFile.Header().meshes)
 	{
-		if(isSkeletal && !buffer.IsSuitedGFGMeshSkeletal(mesh))
-			return GFGLoadError::VAO_MISMATCH;
-		else if(!isSkeletal && !buffer.IsSuitedGFGMesh(mesh))
-			return GFGLoadError::VAO_MISMATCH;
+		if(!buffer.IsSuitedGFGMesh(mesh)) return GFGLoadError::VAO_MISMATCH;
 
 		vertexCount += mesh.headerCore.vertexCount;
 		indexCount += mesh.headerCore.indexCount;
 	}
 
-	if(!buffer.HasEnoughSpaceFor(vertexCount * repeatCount, indexCount * repeatCount))
-		return GFGLoadError::NOT_ENOUGH_SIZE;
+	// Total Poly Size
 	params.totalPolygons = indexCount / 3;
 	
 	// Get All Mesh Vertex Data
@@ -47,6 +40,7 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
     vertexData.resize(gfgFile.AllMeshVertexDataSize());
     indexData.resize(gfgFile.AllMeshIndexDataSize());
 
+	// All GFG Data Load
 	if(gfgFile.AllMeshVertexData(vertexData.data()) != GFGFileError::OK)
 	{
 		GI_ERROR_LOG("Failed to Load mesh vertex data on file %s", gfgFileName);
@@ -59,30 +53,25 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 		return GFGLoadError::FATAL_ERROR;
 	}
 
+	// Mesh Load one by one
 	params.objectCount = 0;
-  
     for(const GFGMeshHeader mesh : gfgFile.Header().meshes)
     {
         assert(mesh.headerCore.indexSize == sizeof(uint32_t));
         drawCalls.emplace_back();
-        if(!buffer.AddMesh(drawCalls.back(),
-                            vertexData.data() + (mesh.headerCore.vertexStart - gfgFile.Header().meshes[0].headerCore.vertexStart),
-                            indexData.data() + (mesh.headerCore.indexStart - gfgFile.Header().meshes[0].headerCore.indexStart),
-                            isSkeletal ? sizeof(VAOSkel) : sizeof(VAO),
-                            mesh.headerCore.vertexCount,
-                            mesh.headerCore.indexCount))
-        {
-            GI_ERROR_LOG("Failed to Load Mesh to GPU Buffer %s", gfgFileName);
-            return GFGLoadError::FATAL_ERROR;
-        }
+		buffer.AddMesh(drawCalls.back(),
+					   vertexData.data() + (mesh.headerCore.vertexStart - gfgFile.Header().meshes[0].headerCore.vertexStart),
+					   indexData.data() + (mesh.headerCore.indexStart - gfgFile.Header().meshes[0].headerCore.indexStart),
+					   mesh.headerCore.vertexCount,
+					   mesh.headerCore.indexCount);
         params.objectCount++;
     }
 	
+	// Material Load
 	int matIndex = -1;
 	for(const GFGMaterialHeader& mat : gfgFile.Header().materials)
 	{
 		matIndex++;
-
 		assert(mat.headerCore.logic == GFGMaterialLogic::MAYA_PHONG);
 		assert(gfgFile.MaterialTextureDataSize(matIndex) > 0);
 
@@ -166,7 +155,6 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
         }
         relativeTransform += transformIndex;
     }
-    buffer.AttachMTransformIndexBuffer(drawBuffer.getModelTransformIndexBuffer().getGLBuffer());
 	return GFGLoadError::OK;
 }
 

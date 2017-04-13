@@ -1,67 +1,140 @@
 #include "DrawBuffer.h"
-#include "GPUBuffer.h"
+#include "VertexBuffer.h"
 #include "IEUtility/IEMatrix4x4.h"
 #include "Globals.h"
 
-uint32_t DrawBuffer::initialCapacity = 8192;
-
 DrawBuffer::DrawBuffer()
-	: drawPoints(initialCapacity)
-	, drawTransforms(initialCapacity)
-	, drawAABBs(initialCapacity)
-	, modelTransformIndices(initialCapacity)
+	: drawPointOffset(0)
+	, modelTransformOffset(0)
+	, aabbOffset(0)
+	, modelTransformIndexOffset(0)
+	, locked(false)
 {}
 
-void DrawBuffer::AddMaterial(const ColorMaterial& c)
+uint32_t DrawBuffer::AddMaterial(const ColorMaterial& c)
 {
 	materials.emplace_back(c);
+	return static_cast<uint32_t>(materials.size() - 1);
 }
 
-void DrawBuffer::AddTransform(const ModelTransform& mt)
+uint32_t DrawBuffer::AddTransform(const ModelTransform& mt)
 {
-	drawTransforms.AddData(mt);
+	cpuModelTransforms.push_back(mt);
+	return static_cast<uint32_t>(cpuModelTransforms.size() - 1);
 }
 
-void DrawBuffer::AddDrawCall(const DrawPointIndexed& dp,
-							 uint32_t mIndex,
-							 uint32_t transIndex,
-							 const AABBData& aabb)
+uint32_t DrawBuffer::AddDrawCall(const DrawPointIndexed& dp,
+								 uint32_t mIndex,
+								 uint32_t transIndex,
+								 const AABBData& aabb)
 {
-	drawPoints.AddData(dp);
-	drawAABBs.AddData(aabb);
-	modelTransformIndices.AddData(transIndex);
-	materialIndex.push_back(mIndex);
+	cpuDrawPoints.push_back(dp);
+	cpuAABBs.push_back(aabb);
+	cpuModelTransformIndices.push_back(transIndex);
+	drawMaterialIndex.push_back(mIndex);
 }
 
-void DrawBuffer::SendToGPU()
+void DrawBuffer::LockAndLoad()
 {
-	drawTransforms.SendData();
-	drawAABBs.SendData();
-	drawPoints.SendData();
-	modelTransformIndices.SendData();
+	locked = true;
+	size_t totalSize = 0;
+
+	// DP
+	drawPointOffset = totalSize;
+	totalSize += cpuDrawPoints.size() * sizeof(DrawPointIndexed);
+	// Model Trans
+	totalSize = DeviceOGLParameters::SSBOAlignOffset(totalSize);
+	modelTransformOffset = totalSize;
+	totalSize += cpuModelTransforms.size() * sizeof(DrawPointIndexed);
+	// AABB
+	totalSize = DeviceOGLParameters::SSBOAlignOffset(totalSize);
+	aabbOffset = totalSize;
+	totalSize += cpuAABBs.size() * sizeof(AABBData);
+	// Transform Indices
+	totalSize = DeviceOGLParameters::SSBOAlignOffset(totalSize);
+	modelTransformIndexOffset = totalSize;
+	totalSize += cpuModelTransformIndices.size() * sizeof(uint32_t);
+
+	auto& cpuImage = gpuData.CPUData();
+	cpuImage.resize(totalSize);
+
+	// Copy Data
+	std::copy(cpuDrawPoints.begin(), cpuDrawPoints.end(),
+			  cpuImage.begin() + drawPointOffset);
+	std::copy(cpuModelTransforms.begin(), cpuModelTransforms.end(),
+			  cpuImage.begin() + modelTransformOffset);
+	std::copy(cpuAABBs.begin(), cpuAABBs.end(),
+			  cpuImage.begin() + aabbOffset);
+	std::copy(cpuModelTransformIndices.begin(), cpuModelTransformIndices.end(),
+			  cpuImage.begin() + modelTransformIndexOffset);
+
+	// Finalize and Send
+	gpuData.SendData();
 }
 
-StructuredBuffer<ModelTransform>& DrawBuffer::getModelTransformBuffer()
+void DrawBuffer::SendModelTransformToGPU(uint32_t offset = 0, uint32_t size = std::numeric_limits<uint32_t>::max())
 {
-	return drawTransforms;
+	assert(offset + size <= cpuModelTransforms.size * sizeof(ModelTransform));
+	if(locked)
+	{
+		uint32_t subSize = (size == std::numeric_limits<uint32_t>::max()) ?
+						   cpuModelTransforms.size() : size;
+		gpuData.SendSubData(modelTransformOffset +
+							offset * sizeof(ModelTransform),
+							subSize * sizeof(ModelTransform));
+	}
 }
 
-StructuredBuffer<AABBData>& DrawBuffer::getAABBBuffer()
+ModelTransform& DrawBuffer::ModelTransformBuffer(uint32_t transformId)
 {
-	return drawAABBs;
+	return cpuModelTransforms[transformId];
 }
 
-StructuredBuffer<DrawPointIndexed>& DrawBuffer::getDrawParamBuffer()
+void DrawBuffer::BindAsDrawIndirectBuffer()
 {
-	return drawPoints;
+	gpuData.BindAsDrawIndirectBuffer();
 }
 
-StructuredBuffer<uint32_t>& DrawBuffer::getModelTransformIndexBuffer()
+void DrawBuffer::BindAABB(GLuint bindPoint)
 {
-	return modelTransformIndices;
+	gpuData.BindAsShaderStorageBuffer(bindPoint, aabbOffset,
+									  cpuAABBs.size() * sizeof(AABBData));
+}
+
+void DrawBuffer::BindModelTransform(GLuint bindPoint)
+{
+	gpuData.BindAsShaderStorageBuffer(bindPoint,
+									  modelTransformOffset,
+									  cpuModelTransforms.size() * sizeof(ModelTransform));
 }
 
 void DrawBuffer::BindMaterialForDraw(uint32_t meshIndex)
 {
-	materials[materialIndex[meshIndex]].BindMaterial();
+	materials[drawMaterialIndex[meshIndex]].BindMaterial();
+}
+
+void DrawBuffer::DrawCallSingle(GLuint drawId)
+{
+	glDrawElementsIndirect(GL_TRIANGLES,
+						   GL_UNSIGNED_INT,
+						   (void *)(drawId * sizeof(DrawPointIndexed)));
+}
+
+void DrawBuffer::DrawCallMulti()
+{
+	glMultiDrawElementsIndirect(GL_TRIANGLES,
+								GL_UNSIGNED_INT,
+								nullptr,
+								cpuDrawPoints.size(),
+								sizeof(DrawPointIndexed));
+}
+
+void DrawBuffer::DrawCallMultiState()
+{
+	for(int i = 0; i < cpuDrawPoints.size(); i++)
+	{
+		glDrawElementsIndirect(GL_TRIANGLES,
+							   GL_UNSIGNED_INT,
+							   (void *) (i * sizeof(DrawPointIndexed)));
+	}
 }

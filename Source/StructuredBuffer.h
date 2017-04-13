@@ -31,7 +31,8 @@ class StructuredBuffer
 								StructuredBuffer(size_t initialCapacity = 0);
 								StructuredBuffer(StructuredBuffer&&);
 								StructuredBuffer(const StructuredBuffer&) = delete;
-		const StructuredBuffer&	operator= (const StructuredBuffer&) = delete;
+		StructuredBuffer&		operator=(StructuredBuffer&&) = delete;
+		StructuredBuffer&		operator=(const StructuredBuffer&) = delete;
 								~StructuredBuffer();
 
 		void					AddData(const T&);
@@ -56,6 +57,7 @@ class StructuredBuffer
 		T						GetData(uint32_t index);
 		void					ChangeData(uint32_t index, const T& newData);
 		void					SendData();
+		void					SendSubData(uint32_t offset, uint32_t size);
 
 		std::vector<T>&			CPUData();
 		const std::vector<T>&	CPUData() const;

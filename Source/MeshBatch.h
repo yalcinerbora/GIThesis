@@ -6,7 +6,7 @@
 #define __MESHBATCH_H__
 
 #include "MeshBatchI.h"
-#include "GPUBuffer.h"
+#include "VertexBuffer.h"
 #include "DrawBuffer.h"
 
 struct GFGTransform;
@@ -24,41 +24,33 @@ class MeshBatch : public MeshBatchI
 	private:
 		
 	protected:
-		GPUBuffer				batchVertex;
+		VertexBuffer			batchVertex;
 		DrawBuffer				batchDrawParams;
 		BatchParams				batchParams;
 
-		std::string				batchName;
-		float					minSpan;
+//		std::string				batchName;
 
 	public:
 		// Constructors & Destructor
-								MeshBatch(const char* sceneFileName,
-										  float minVoxSpan,
-										  bool isSkeletal,
-                                          int repeatCount = 1);
+								MeshBatch();
+								MeshBatch(const std::vector<const VertexElement>& vertexDefintion, uint32_t byteStride,
+										  const std::vector<std::string>& sceneFiles);
+								MeshBatch(MeshBatch&&);
+		MeshBatch&				operator=(MeshBatch&&);
+		MeshBatch&				operator=(const MeshBatch&) = delete;
+								MeshBatch(const MeshBatch&) = delete;
+
+								MeshBatch() = default;
 			
-		// Static Files
-		static const char*		sponzaFileName;
-		static const char*		cornellboxFileName;
-		static const char*		sibernikFileName;
-		static const char*		nyraStaticFileName;
-        static const char*		dynamicFileName;
-
-
-		static size_t			sponzaVoxelSizes[];
-		static size_t			cornellVoxelSizes[];
-		static size_t			sibernikVoxelSizes[];
-
 		// Interface
 		void					Update(double elapsedS) override;
 
 		DrawBuffer&				getDrawBuffer() override;
-		GPUBuffer&				getGPUBuffer() override;
+		VertexBuffer&			getVertexBuffer() override;
 
 		const std::string&		BatchName() const override;
 
-		VoxelObjectType			MeshType() const override;
+		MeshBatchType			MeshType() const override;
         int                     RepeatCount() const override;
 
 		size_t					ObjectCount() const override;

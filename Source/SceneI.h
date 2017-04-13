@@ -8,28 +8,28 @@
 class MeshBatchI;
 class SceneLights;
 
+#include <vector>
 #include <cstdint>
-#include "ArrayStruct.h"
 
 class SceneI 
 {
 	private:
 	protected:
 	public:
-		virtual							~SceneI() = default;
+		virtual									~SceneI() = default;
 
 		// Interface
-		virtual Array32<MeshBatchI*>	getBatches() = 0;
-		virtual SceneLights&			getSceneLights() = 0;
-		
-		virtual size_t					ObjectCount() const = 0;
-		virtual size_t					DrawCount() const = 0;
-		virtual size_t					MaterialCount() const = 0;
-		virtual size_t					PolyCount() const = 0;
+		virtual const std::vector<MeshBatchI*>&	getBatches() = 0;
+		virtual SceneLights&					getSceneLights() = 0;
+	
+		virtual size_t							ObjectCount() const = 0;
+		virtual size_t							DrawCount() const = 0;
+		virtual size_t							MaterialCount() const = 0;
+		virtual size_t							PolyCount() const = 0;
 
-		virtual void					Update(double elapsedS) = 0;
-
-		virtual const uint32_t*			SVOLevelSizes() const = 0;// Level Sizes
+		virtual void							Update(double elapsedS) = 0;
+		virtual void							Load() = 0;
+		virtual void							Release() = 0;
 };
 
 #endif //__SCENEI_H__

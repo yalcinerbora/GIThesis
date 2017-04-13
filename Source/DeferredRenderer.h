@@ -14,6 +14,7 @@ Just Renders the scene
 #include "DrawPoint.h"
 #include "StructuredBuffer.h"
 #include "IEUtility/IEVector3.h"
+#include <array>
 
 struct Camera;
 class SceneI;
@@ -28,69 +29,139 @@ struct BoundingSphere
 struct InvFrameTransform
 {
 	IEMatrix4x4 invViewProjection;
-	IEVector4 camPos;		// Used to generate eye vector
-	IEVector4 camDir;		// Used to calculate cascades
-	uint32_t viewport[4];	// Used to generate uv coords from gl_fragCoord
+	IEVector4 camPos;				// Used to generate eye vector
+	IEVector4 camDir;				// Used to calculate cascades
+	uint32_t viewport[4];			// Used to generate uv coords from gl_fragCoord
 	IEVector4 depthHalfNear;
 };
 
 using InvFrameTransformBuffer = StructuredBuffer<InvFrameTransform>;
+using LightDrawArray = std::array<DrawPointIndexed, LightTypeCount>;
+
+// Deferred Renderer Light Shape
+class LightDrawBuffer
+{	
+	private:
+		// Statics
+		static constexpr uint32_t	DirectionalCascadesCount	= 4;
+		static constexpr uint32_t	ShadowMapMipCount			= 8;
+		static constexpr uint32_t	ShadowMipSampleCount		= 3;
+		static constexpr char*		lightAOIFileName			= "lightAOI.gfg";
+
+		// Buffer Data
+		LightDrawArray				lightDrawParams;
+		std::vector<uint32_t>		lightIndexBuffer;
+
+		// Buffer Storage order
+		// 1- Draw Param (Static Depends on #LightTypes)
+		// 2- AOI Vertex (Static Depends on #LightTypes)
+		// 3- AOI Vertex Index (Static Depends on #LightTypes)
+		// 4- Light index buffer(Dynamic Depends on #Lights)
+		StructuredBuffer<uint8_t>	gpuBuffer;
+
+		// Light AOI VAO
+		GLuint						lightVAO;
+
+	public:
+		// Constructors & Destructor
+									LightDrawBuffer();
+									LightDrawBuffer(const LightDrawBuffer&) = delete;
+		LightDrawBuffer&			operator=(const LightDrawBuffer&) = delete;
+									~LightDrawBuffer();
+
+		void						ChangeLightCounts();
+
+		void						BindVAO();
+		void						BindDrawIndirectBuffer();		
+		void						DrawCall();
+
+};
 
 class DeferredRenderer
 {
+	public:
+		// Geometry Buffer Dimensions
+		static constexpr GLsizei	gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1600;*///*1920;*//*2560;*///3840;
+		static constexpr GLsizei	gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*900;*///*1080;*//*1440;*///2160;;
+	
+		// ShadowMap Dimensions
+		static constexpr GLsizei	shadowMapWH = /*512;*/1024;//*2048;*///4096;
+
 	private:
-		static const float		postProcessTriData[6];
+		static constexpr float		postProcessTriData[6] =
+		{
+			3.0f, -1.0f,
+			-1.0f, 3.0f,
+			-1.0f, -1.0f
+		};
 
-		Shader					vertGBufferSkeletal;
-		Shader					vertGBufferWrite;
-		Shader					fragGBufferWrite;
-		Shader					vertDPass;
-		Shader					vertDPassSkeletal;
+		// Geom Buffer Write Shaders
+		Shader						vertGBufferSkeletal;
+		Shader						vertGBufferWrite;
+		Shader						fragGBufferWrite;
 
-		Shader					vertLightPass;
-		Shader					fragLightPass;
+		// Depth Prepass Shaders
+		Shader						vertDPass;
+		Shader						vertDPassSkeletal;
 
-		Shader					vertPPGeneric;
-		Shader					fragLightApply;
-		Shader					fragPPGeneric;
-		Shader					fragPPNormal;
-		Shader					fragPPDepth;
+		// Light Pass Shaders
+		Shader						vertLightPass;
+		Shader						fragLightPass;
 
-		
+		// Post Process Shaders
+		Shader						vertPPGeneric;
+		Shader						fragLightApply;
+		Shader						fragPPGeneric;
+		Shader						fragPPNormal;
+		Shader						fragPPDepth;
 
 		// Shader for shadowmap
-		Shader					fragShadowMap;
-		Shader					vertShadowMap;
-		Shader					vertShadowMapSkeletal;
+		Shader						vertShadowMap;
+		Shader						vertShadowMapSkeletal;
+		Shader						geomAreaShadowMap;
+		Shader						geomPointShadowMap;
+		Shader						geomDirShadowMap;
+		Shader						fragShadowMap;
+		Shader						computeHierZ;
 
-		Shader					geomAreaShadowMap;
-		Shader					geomPointShadowMap;
-		Shader					geomDirShadowMap;
+		// Geometry Buffer
+		GBuffer						gBuffer;
 
-		Shader					computeHierZ;
+		// Light AOI Buffer			
+		LightDrawBuffer				lightAOI;
 
-		GBuffer					gBuffer;
-		FrameTransformBuffer	cameraTransform;
-		InvFrameTransformBuffer invFrameTransform;
+		// Frame Transform
+		FrameTransformBufferData	fTransform;
+		InvFrameTransform			ifTransform;
+		StructuredBuffer<uint8_t>	transformBuffer;
 
-		// Light Object Meshes (vertex & index buffers)
-		// Light Object VAO's
-		GLuint					lightIntensityTex;
-		GLuint					lightIntensityFBO;
-		GLuint					sRGBEndTex;
-		GLuint					sRGBEndFBO;
+		// Light Intensity Texture and sRGB output texture
+		GLuint						lightIntensityTex;
+		GLuint						lightIntensityFBO;
+		GLuint						sRGBEndTex;
+		GLuint						sRGBEndFBO;
 
-		GLuint					postProcessTriVao;
-		GLuint					postProcessTriBuffer;
+		// Post Process Triangle 
+		GLuint						postProcessTriVao;
+		GLuint						postProcessTriBuffer;
 
-		GLuint					flatSampler;
-		GLuint					linearSampler;
-		GLuint					shadowMapSampler;
+		// Samplers
+		GLuint						flatSampler;
+		GLuint						linearSampler;
+		GLuint						shadowMapSampler;
 
-		static BoundingSphere	CalculateShadowCascasde(float cascadeNear,
-														float cascadeFar,
-														const Camera& camera,
-														const IEVector3& lightDir);
+		static BoundingSphere		CalculateShadowCascasde(float cascadeNear,
+															float cascadeFar,
+															const Camera& camera,
+															const IEVector3& lightDir);
+		void						BindShadowMapGeometryShader(LightType t);
+		void						BindShadowMapVertexShader(MeshBatchType t);
+		
+		void						BindInvFrameTransform(GLuint bindingPoint);
+		void						BindFrameTransform(GLuint bindingPoint);
+		void						UpdateFTransformBuffer();
+		void						UpdateInvFTransformBuffer();
+
 	protected:
 
 	public:
@@ -100,13 +171,10 @@ class DeferredRenderer
 		DeferredRenderer&			operator=(const DeferredRenderer&) = delete;
 									~DeferredRenderer();
 
-		static const GLsizei		gBuffWidth;
-		static const GLsizei		gBuffHeight;
-
 		GBuffer&					GetGBuffer();
 		GLuint						GetLightIntensityBufferGL();
-		InvFrameTransformBuffer&	GetInvFTransfrom();
-		FrameTransformBuffer&		GetFTransform();
+//		InvFrameTransformBuffer&	GetInvFTransfrom();
+//		FrameTransformBuffer&		GetFTransform();
 
 		static float				CalculateCascadeLength(float frustumFar,
 														   unsigned int cascadeNo);

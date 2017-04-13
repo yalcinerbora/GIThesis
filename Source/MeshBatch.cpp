@@ -5,28 +5,42 @@
 #include "IEUtility/IETimer.h"
 
 // Constructors & Destructor
-MeshBatch::MeshBatch(const char* sceneFileName,
-					 float minVoxSpan,
-					 bool isSkeletal,
-                     int repeatCount)
-	: batchVertex((isSkeletal ? Array32<const VertexElement>{elementSkeletal, 5} : 
-								Array32<const VertexElement>{elementStatic, 3}))
+MeshBatch::MeshBatch(const std::vector<const VertexElement>& vertexDefintion,
+					 uint32_t byteStride,
+					 const std::vector<std::string>& sceneFiles)
+
+	: batchVertex(vertexDefintion, byteStride)
 	, batchDrawParams()
 	, batchParams(BatchParams{})
-	, minSpan(minVoxSpan)
 {
 	IETimer timer;
 	timer.Start();
 
-	std::string fileName = sceneFileName;
-	batchName = fileName.substr(0, fileName.find_last_of('.'));
+	for(const std::string& file : sceneFiles)
+	{
+		BatchParams fileBatchParams;
+		auto err = GFGLoader::LoadGFG(fileBatchParams,
+									  batchVertex,
+									  batchDrawParams,
+									  file);
 
-	GFGLoadError e = GFGLoader::LoadGFG(batchParams, batchVertex, batchDrawParams, sceneFileName, isSkeletal, repeatCount);
-	assert(e == GFGLoadError::OK);
+		batchParams.drawCallCount += fileBatchParams.drawCallCount;
+		batchParams.materialCount += fileBatchParams.materialCount;
+		batchParams.objectCount += fileBatchParams.objectCount;
+		batchParams.totalPolygons += fileBatchParams.totalPolygons;
+
+		assert(e == GFGLoadError::OK);
+		if(err != GFGLoadError::OK) return;
+		GI_LOG("Loading \"%s\" complete", file);
+	}
+
+	// All Loaded
+	// Send Data then Attach Transform Index Buffer
 	batchDrawParams.SendToGPU();
+	batchVertex.AttachMTransformIndexBuffer(batchDrawParams.getModelTransformIndexBuffer().getGLBuffer());	
 	timer.Stop();
 
-	GI_LOG("Loading \"%s\" complete", sceneFileName);
+	GI_LOG("");
 	GI_LOG("\tDuration : %f ms", timer.ElapsedMilliS());
 	GI_LOG("\tMaterials : %zd", batchParams.materialCount);
 	GI_LOG("\tMeshes : %zd", batchParams.objectCount);
@@ -34,13 +48,6 @@ MeshBatch::MeshBatch(const char* sceneFileName,
 	GI_LOG("\tPolyCount : %zd", batchParams.totalPolygons);
 	GI_LOG("----------");
 }
-
-// Static Files
-const char* MeshBatch::sponzaFileName = "sponza.gfg";
-const char*	MeshBatch::cornellboxFileName = "cornell.gfg";
-const char* MeshBatch::sibernikFileName = "sibernik.gfg";
-const char* MeshBatch::nyraStaticFileName = "nyraFloor.gfg";
-const char* MeshBatch::dynamicFileName = "dynamicScene.gfg";
 
 // Interface
 void MeshBatch::Update(double elapsedS)

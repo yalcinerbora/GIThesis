@@ -13,7 +13,7 @@ Helper Class that loads GFG directly to the buffer
 #include "IEUtility/IEQuaternion.h"
 #include "IEUtility/IEMatrix4x4.h"
 
-class GPUBuffer;
+class VertexBuffer;
 class DrawBuffer;
 class Material;
 struct BatchParams;
@@ -24,7 +24,6 @@ enum class GFGLoadError
 
 	// Buffer Related
 	VAO_MISMATCH,
-	NOT_ENOUGH_SIZE,
 
 	// Material Related
 	TEXTURE_NOT_FOUND,
@@ -35,11 +34,9 @@ namespace GFGLoader
 {
 	// Mesh Related
 	GFGLoadError	LoadGFG(BatchParams& params,
-							GPUBuffer& buffer,
+							VertexBuffer& buffer,
 							DrawBuffer& drawBuffer,
-							const char* gfgFilename,
-							bool isSkeletal,
-                            uint32_t repeatCount = 1);
+							const std::string& gfgFilename);
 	GFGLoadError	LoadAnim(GFGAnimationHeader& header,
 							 std::vector<IEVector3>& hipTranslations,
 							 std::vector<float>& keyTimes,

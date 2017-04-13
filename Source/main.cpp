@@ -139,10 +139,9 @@ int main()
 	};
 	Light cornellLights[] =
 	{
-		// Area Light
+		// Point Light
 		// White Color
 		// Top of the room (center of white rectangle)
-		// Square light
 		// Covers Entire Room
 		//{
 		//	{ 0.0f, 160.0f, 0.0f, static_cast<float>(LightType::POINT)},
@@ -156,17 +155,40 @@ int main()
 		}
 	};
 
-	// Sponza Scene
-	MeshBatch crySponzaStatic(MeshBatch::sponzaFileName,
-							  ThesisSolution::CascadeSpan,
-							  false);
+	// GFG File Names
+	const std::string SponzaFileName = "sponza.gfg";
+	const std::string SponzaDynamicFileName = "sponzaDynamic.gfg";
+
+	const std::string NyraFileName = "byra.gfg";
+	const std::string CornellboxFileName = "cornell.gfg";
+	const std::string SibernikFileName = "sibernik.gfg";
+	const std::string DynamicFileName = "dynamicScene.gfg";
+
+	struct SceneLoadElement
+	{
+		const std::vector<std::string> rigidMeshFileNames;
+		const std::vector<std::string> skeletonMeshFileNames;
+		const std::vector<Light> lights;
+	};
+	std::vector<SceneLoadElement> sceneLoadData;
+
+
+	// Scene Files
+
+
+
+
+
+
+
+
 	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
 									  ThesisSolution::CascadeSpan);
 	MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
 							ThesisSolution::CascadeSpan);
 	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
     MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
-    Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 3},
+    Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 1},
                     Array32<Light>{sponzaLights, 1},
                     Scene::bigSizes);
     scenes.push_back(&crySponza);

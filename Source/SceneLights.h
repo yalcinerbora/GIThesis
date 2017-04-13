@@ -27,8 +27,12 @@ enum class LightType
 {
 	POINT = 0,
 	DIRECTIONAL = 1,
-	AREA = 2
+	SPOT = 2,
+	SPHERICAL = 3,
+	RECTANGULAR = 4,
+	END
 };
+static constexpr uint32_t LightTypeCount = static_cast<uint32_t>(LightType::END);
 
 struct LightStatus
 {
@@ -43,11 +47,12 @@ class SceneLights
 	private:
 		friend class DeferredRenderer;
 
+		// Point Light Shadow Cubemap Related Stuff
 		static const IEVector3	pLightDir[6];
 		static const IEVector3	pLightUp[6];
 
 		static const IEVector3	aLightDir[6];
-		static const IEVector3	aLightUp[6];	
+		static const IEVector3	aLightUp[6];
 
 		// Sparse texture cubemap array
 		// One Shadowmap for each light
@@ -65,21 +70,16 @@ class SceneLights
 		std::vector<IEMatrix4x4>			lightProjMatrices;
 		std::vector<IEMatrix4x4>			lightInvViewProjMatrices;
 
-		// Light Shape Related
-		static const char*					lightAOIFileName;
-		static GLuint						lightShapeBuffer;
-		static GLuint						lightShapeIndexBuffer;
-		static DrawPointIndexed				drawParamsGeneric[3];	// Only Instance Count is not used
 
-		StructuredBuffer<DrawPointIndexed>	lightDrawParams;
-		GLuint								lightVAO;
-		StructuredBuffer<uint32_t>			lightIndexBuffer;
 
 	protected:
 	public:
 		// Constructors & Destructor
-										SceneLights(const Array32<Light>& lights);
+										SceneLights();
+										SceneLights(const std::vector<Light>& lights);
 										SceneLights(const SceneLights&) = delete;
+										SceneLights(SceneLights&&);
+		SceneLights&					operator=(SceneLights&&);
 		SceneLights&					operator=(const SceneLights&) = delete;
 										~SceneLights();
 

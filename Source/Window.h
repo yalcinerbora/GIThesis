@@ -32,6 +32,8 @@ struct WindowProperties
 
 class Window
 {
+	public:
+
 	private:
 		// Static Properties
 		static std::map<GLFWwindow*, Window*> windowMappings;

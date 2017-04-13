@@ -1,54 +1,54 @@
+#pragma once
 /**
 
 */
 
-#ifndef __SCENE_H__
-#define __SCENE_H__
-
 #include "SceneI.h"
-#include "MeshBatchI.h"
+#include "MeshBatch.h"
+#include "MeshBatchSkeletal.h"
 #include "SceneLights.h"
 
-class Scene : public SceneI
+// Constant Scene means that new objects cannot be added
+// after initialization time (can be updated freely)
+class ConstantScene : public SceneI
 {
+	// Consta Scene means that objects cannot be
 	private:
-		// Props
-		SceneLights					sceneLights;
-		std::vector<MeshBatchI*>	meshBatch;
+		const std::vector<std::string>		rigidFileNames;
+		const std::vector<std::string>		skeletalFileNames;
+		const std::vector<Light>			lights;
+
+		// GPU
+		SceneLights							sceneLights;
+		MeshBatch							rigidBatch;
+		MeshBatchSkeletal					skeletalBatch;
+
+		// Batch References
+		std::vector<MeshBatchI*>			meshBatch;
 
 		// Some Data Related to the scene
-		size_t						materialCount;
-		size_t						objectCount;
-		size_t						drawCallCount;
-		size_t						totalPolygons;
-
-		const uint32_t*				svoLevelSizes;
+		size_t								materialCount;
+		size_t								objectCount;
+		size_t								drawCallCount;
+		size_t								totalPolygons;
 
 	protected:
 	public:
 		// Constructors & Destructor
-								Scene(const Array32<MeshBatchI*> batches,
-									  const Array32<Light>& light,
-									  const uint32_t svoLevelSizes[]);
-								~Scene() = default;
-
-		static const uint32_t	sponzaSceneLevelSizes[];
-		static const uint32_t	cornellSceneLevelSizes[];
-		static const uint32_t	sibernikSceneLevelSizes[];
-		static const uint32_t	dynamicSceneLevelSizes[];
-		static const uint32_t	bigSizes[];
+											ConstantScene(const std::vector<std::string>& rigidFileNames,
+														  const std::vector<std::string>& skeletalFileNames,
+														  const std::vector<Light>& lights);
+											~ConstantScene() = default;
 		
-		Array32<MeshBatchI*>	getBatches() override;
-		SceneLights&			getSceneLights() override;
+		const std::vector<MeshBatchI*>&		getBatches() override;
+		SceneLights&						getSceneLights() override;
 
-		size_t					ObjectCount() const override;
-		size_t					PolyCount() const override;
-		size_t					MaterialCount() const override;
-		size_t					DrawCount() const override;
+		size_t								ObjectCount() const override;
+		size_t								PolyCount() const override;
+		size_t								MaterialCount() const override;
+		size_t								DrawCount() const override;
 
-		void					Update(double elapsedS) override;
-
-		const uint32_t*			SVOLevelSizes() const override;
+		void								Update(double elapsedS) override;
+		void								Load() override;
+		void								Release() override;
 };
-
-#endif //__SCENE_H__

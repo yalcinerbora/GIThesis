@@ -10,7 +10,7 @@ Holds draw point buffer
 #ifndef __DRAWBUFFER_H__
 #define __DRAWBUFFER_H__
 
-#include <vector>
+#include <map>
 #include "GLHeader.h"
 #include "Material.h"
 #include "IEUtility/IEMatrix4x4.h"
@@ -36,40 +36,60 @@ struct AABBData
 class DrawBuffer
 {
 	private:
-		static uint32_t						initialCapacity;
-		
-		StructuredBuffer<DrawPointIndexed>	drawPoints;
-		StructuredBuffer<ModelTransform>	drawTransforms;
-		StructuredBuffer<AABBData>			drawAABBs;
-		StructuredBuffer<uint32_t>			modelTransformIndices;
+		size_t							drawPointOffset;
+		size_t							modelTransformOffset;
+		size_t							aabbOffset;
+		size_t							modelTransformIndexOffset;
 
-		std::vector<uint32_t>				materialIndex;
-		std::vector<Material>				materials;
+		bool							locked;
+
+		// CPU Image of GPU Data
+		std::vector<DrawPointIndexed>	cpuDrawPoints;
+		std::vector<ModelTransform>		cpuModelTransforms;		
+		std::vector<AABBData>			cpuAABBs;
+		std::vector<uint32_t>			cpuModelTransformIndices;
+
+		// GPU Data (packed)
+		StructuredBuffer<uint8_t>		gpuData;
+
+		// Material Related
+		std::vector<uint32_t>			drawMaterialIndex;
+		std::vector<Material>			materials;
 
 	protected:
 	public:
 		// Constructors & Destructor
 											DrawBuffer();
 											DrawBuffer(const DrawBuffer&) = delete;
-		const DrawBuffer&					operator=(const DrawBuffer&) = delete;
+		DrawBuffer&							operator=(const DrawBuffer&) = delete;
 											~DrawBuffer() = default;
 
 		// 
-		void								AddMaterial(const ColorMaterial&);
-		void								AddTransform(const ModelTransform&);
-		void								AddDrawCall(const DrawPointIndexed&,
+		uint32_t							AddMaterial(const ColorMaterial&);
+		uint32_t							AddTransform(const ModelTransform&);
+		uint32_t							AddDrawCall(const DrawPointIndexed&,
 														uint32_t materialIndex,
 														uint32_t transformIndex,
 														const AABBData& aabb);
 
-		void								SendToGPU();
+		// Locks Draw Call Addition and Loads data to GPU
+		void								LockAndLoad();
+		void								SendModelTransformToGPU(uint32_t offset = 0, uint32_t size = std::numeric_limits<uint32_t>::max());
+		ModelTransform&						ModelTransformBuffer(uint32_t transformId);
 
-		StructuredBuffer<ModelTransform>&	getModelTransformBuffer();
-		StructuredBuffer<AABBData>&			getAABBBuffer();
-		StructuredBuffer<DrawPointIndexed>&	getDrawParamBuffer();
-		StructuredBuffer<uint32_t>&			getModelTransformIndexBuffer();
+		//size_t							getModelTransformOffset() const;
+		//size_t							getAABBOffset() const;
+		//size_t							getDrawParamOffset() const;
+		//size_t							getModelTransformIndexOffset() const;
 
-		void								BindMaterialForDraw(uint32_t meshIndex);
+		void								BindAsDrawIndirectBuffer();
+		void								BindAABB(GLuint bindPoint);
+		void								BindModelTransform(GLuint bindPoint);
 		
+		void								DrawCallSingle(GLuint drawId);
+		void								DrawCallMulti();
+		void								DrawCallMultiState();
+
+		void								BindMaterialForDraw(uint32_t drawId);		
 };
 #endif //__DRAWBUFFER_H__

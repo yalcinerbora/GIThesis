@@ -7,46 +7,141 @@
 #include "DrawBuffer.h"
 #include "MeshBatchSkeletal.h"
 
-const GLsizei DeferredRenderer::gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1600;*///*1920;*//*2560;*///3840;
-const GLsizei DeferredRenderer::gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*900;*///*1080;*//*1440;*///2160;
 
-const float DeferredRenderer::postProcessTriData[6] =
+LightDrawBuffer::LightDrawBuffer()
 {
-	3.0f, -1.0f,
-	-1.0f, 3.0f,
-	-1.0f, -1.0f
-};
+	std::ifstream stream(lightAOIFileName, std::ios_base::in | std::ios_base::binary);
+	GFGFileReaderSTL stlFileReader(stream);
+	GFGFileLoader gfgFile(&stlFileReader);
+	std::vector<DrawPointIndexed> drawCalls;
+	gfgFile.ValidateAndOpen();
+
+	assert(gfgFile.Header().meshes.size() == 3);
+	std::vector<uint8_t> vData(gfgFile.AllMeshVertexDataSize());
+	std::vector<uint8_t> viData(gfgFile.AllMeshIndexDataSize());
+	gfgFile.AllMeshVertexData(vData.data());
+	gfgFile.AllMeshIndexData(viData.data());
+
+	glGenBuffers(1, &lightShapeBuffer);
+	glBindBuffer(GL_COPY_WRITE_BUFFER, lightShapeBuffer);
+	glBufferData(GL_COPY_WRITE_BUFFER, vData.size(), vData.data(), GL_STATIC_DRAW);
+
+	glGenBuffers(1, &lightShapeIndexBuffer);
+	glBindBuffer(GL_COPY_WRITE_BUFFER, lightShapeIndexBuffer);
+	glBufferData(GL_COPY_WRITE_BUFFER, viData.size(), viData.data(), GL_STATIC_DRAW);
+
+	uint32_t vOffset = 0, viOffset = 0;
+	uint32_t i = 0;
+	for(const GFGMeshHeader& mesh : gfgFile.Header().meshes)
+	{
+		assert(mesh.headerCore.indexSize == sizeof(uint32_t));
+
+		drawParamsGeneric[i].baseInstance = 0;
+		drawParamsGeneric[i].baseVertex = vOffset;
+		drawParamsGeneric[i].firstIndex = viOffset;
+		drawParamsGeneric[i].count = static_cast<uint32_t>(mesh.headerCore.indexCount);
+		drawParamsGeneric[i].instanceCount = 0;
+
+		vOffset += static_cast<uint32_t>(mesh.headerCore.vertexCount);
+		viOffset += static_cast<uint32_t>(mesh.headerCore.indexCount);
+		i++;
+	}
+
+	// Draw Buffers
+	lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::POINT)]);
+	lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::DIRECTIONAL)]);
+	lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::AREA)]);
+
+	lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].instanceCount = pCount;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].instanceCount = dCount;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::AREA)].instanceCount = aCount;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].baseInstance = 0;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].baseInstance = pCount;
+	lightDrawParams.CPUData()[static_cast<int>(LightType::AREA)].baseInstance = pCount + dCount;
+	lightDrawParams.SendData();
+
+	// Create VAO
+	// PostProcess VAO
+	glGenVertexArrays(1, &lightVAO);
+	glBindVertexArray(lightVAO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightShapeIndexBuffer);
+
+	// Pos
+	glBindVertexBuffer(0, lightShapeBuffer, 0, sizeof(float) * 3);
+	glEnableVertexAttribArray(IN_POS);
+	glVertexAttribFormat(IN_POS, 3, GL_FLOAT, false, 0);
+	glVertexAttribBinding(IN_POS, 0);
+
+	// Index
+	glBindVertexBuffer(1, lightIndexBuffer.getGLBuffer(), 0, sizeof(uint32_t));
+	glVertexBindingDivisor(1, 1);
+	glEnableVertexAttribArray(IN_LIGHT_INDEX);
+	glVertexAttribIFormat(IN_LIGHT_INDEX, 1, GL_UNSIGNED_INT, 0);
+	glVertexAttribBinding(IN_LIGHT_INDEX, 1);
+
+	assert(lightsGPU.CPUData().size() == lightShadowCast.size());
+
+}
+
+void LightDrawBuffer::ChangeLightCounts()
+{
+
+}
+
+void LightDrawBuffer::BindVAO()
+{
+	glBindVertexArray(lightVAO);
+}
+
+void LightDrawBuffer::BindDrawIndirectBuffer()
+{
+	gpuBuffer.BindAsDrawIndirectBuffer();
+}
+
+void LightDrawBuffer::DrawCall()
+{
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 
+								nullptr, LightTypeCount, sizeof(DrawPointIndexed));
+}
 
 DeferredRenderer::DeferredRenderer()
-	: gBuffer(gBuffWidth, gBuffHeight)
-	, vertGBufferSkeletal(ShaderType::VERTEX, "Shaders/GWriteSkeletal.vert")
+	// Geom Write
+	: vertGBufferSkeletal(ShaderType::VERTEX, "Shaders/GWriteSkeletal.vert")
 	, vertGBufferWrite(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert")
 	, fragGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag")
+	// Depth Prepass
 	, vertDPass(ShaderType::VERTEX, "Shaders/DPass.vert")
 	, vertDPassSkeletal(ShaderType::VERTEX, "Shaders/DPassSkeletal.vert")
+	// Light Pass
 	, vertLightPass(ShaderType::VERTEX, "Shaders/LightPass.vert")
 	, fragLightPass(ShaderType::FRAGMENT, "Shaders/LightPass.frag")
+	// Post process
 	, vertPPGeneric(ShaderType::VERTEX, "Shaders/PProcessGeneric.vert")
 	, fragLightApply(ShaderType::FRAGMENT, "Shaders/PPLightPresent.frag")
 	, fragPPGeneric(ShaderType::FRAGMENT, "Shaders/PProcessGeneric.frag")
 	, fragPPNormal(ShaderType::FRAGMENT, "Shaders/PProcessNormal.frag")
 	, fragPPDepth(ShaderType::FRAGMENT, "Shaders/PProcessDepth.frag")
-	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
+	// Shadow Maps
 	, vertShadowMap(ShaderType::VERTEX, "Shaders/ShadowMap.vert")
 	, vertShadowMapSkeletal(ShaderType::VERTEX, "Shaders/ShadowMapSkeletal.vert")
 	, geomAreaShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapA.geom")
 	, geomDirShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapD.geom")
 	, geomPointShadowMap(ShaderType::GEOMETRY, "Shaders/ShadowMapP.geom")
+	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
 	, computeHierZ(ShaderType::COMPUTE, "Shaders/HierZ.glsl")
+	// GBuffer
+	, gBuffer(gBuffWidth, gBuffHeight)
+	, fTransform{IEMatrix4x4::IdentityMatrix, IEMatrix4x4::IdentityMatrix}
+	, ifTransform{IEMatrix4x4::IdentityMatrix,
+				  IEVector4::ZeroVector,
+				  IEVector4::ZeroVector,
+				  {0, 0, 0, 0},
+				  IEVector4::ZeroVector}
 	, lightIntensityTex(0)
 	, lightIntensityFBO(0)
-	, invFrameTransform(1)
+	, sRGBEndTex(0)
+	, sRGBEndFBO(0)
 {
-	invFrameTransform.AddData({IEMatrix4x4::IdentityMatrix,
-							   IEVector4::ZeroVector,
-							   IEVector4::ZeroVector,
-							   {0, 0, 0, 0},
-							   IEVector4::ZeroVector});
 	// Light Intensity Tex
 	glGenTextures(1, &lightIntensityTex);
 	glGenFramebuffers(1, &lightIntensityFBO);
@@ -68,6 +163,8 @@ DeferredRenderer::DeferredRenderer()
 	glBindFramebuffer(GL_FRAMEBUFFER, sRGBEndFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, sRGBEndTex, 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+	// Validate sRGB Encoding
 	GLint encoding;
 	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, 
 										  GL_COLOR_ATTACHMENT0,
@@ -88,6 +185,7 @@ DeferredRenderer::DeferredRenderer()
 	glVertexAttribFormat(IN_POS, 2, GL_FLOAT, false, 0);
 	glVertexAttribBinding(IN_POS, 0);
 
+	// Samplers
 	glGenSamplers(1, &flatSampler);
 	glGenSamplers(1, &linearSampler);
 	glGenSamplers(1, &shadowMapSampler);
@@ -113,11 +211,14 @@ DeferredRenderer::DeferredRenderer()
 DeferredRenderer::~DeferredRenderer()
 {
 	glDeleteTextures(1, &lightIntensityTex);
+	glDeleteTextures(1, &sRGBEndTex);
 	glDeleteFramebuffers(1, &lightIntensityFBO);
+	glDeleteFramebuffers(1, &sRGBEndFBO);
 	glDeleteBuffers(1, &postProcessTriBuffer);
 	glDeleteVertexArrays(1, &postProcessTriVao);
 	glDeleteSamplers(1, &flatSampler);
 	glDeleteSamplers(1, &linearSampler);
+	glDeleteSamplers(1, &shadowMapSampler);
 }
 
 GBuffer& DeferredRenderer::GetGBuffer()
@@ -129,16 +230,16 @@ GLuint DeferredRenderer::GetLightIntensityBufferGL()
 {
 	return lightIntensityTex;
 }
-
-InvFrameTransformBuffer& DeferredRenderer::GetInvFTransfrom()
-{
-	return invFrameTransform;
-}
-
-FrameTransformBuffer& DeferredRenderer::GetFTransform()
-{
-	return cameraTransform;
-}
+//
+//InvFrameTransformBuffer& DeferredRenderer::GetInvFTransfrom()
+//{
+//	return invFrameTransform;
+//}
+//
+//FrameTransformBuffer& DeferredRenderer::GetFTransform()
+//{
+//	return cameraTransform;
+//}
 
 float DeferredRenderer::CalculateCascadeLength(float frustumFar,
 											   unsigned int cascadeNo)
@@ -189,8 +290,7 @@ BoundingSphere DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
 	return BoundingSphere{centerPoint, radius};
 }
 
-void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
-										  const Camera& camera)
+void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 {
 	fragShadowMap.Bind();
 	unsigned int lightCount = static_cast<unsigned int>(scene.getSceneLights().lightsGPU.CPUData().size());
@@ -274,7 +374,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 				}
 				break;
 			}
-			case LightType::AREA:
+			case LightType::RECTANGULAR:
 			{
 				IEMatrix4x4 projections[2] = { IEMatrix4x4::Perspective(45.0f, 1.0f,
 																		0.1f, currentLight.color.getW()),
@@ -300,7 +400,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 	scene.getSceneLights().lightViewProjMatrices.SendData();
 
 	// Binding
-	cameraTransform.Bind();
+	//cameraTransform.Bind();
 	scene.getSceneLights().lightViewProjMatrices.BindAsShaderStorageBuffer(LU_LIGHT_MATRIX);
 
 	// Render Loop
@@ -314,13 +414,13 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 			continue;
 
 		// Draw Batches
-		Array32<MeshBatchI*> batches = scene.getBatches();
-		for(unsigned int j = 0; j < batches.length; j++)
+		const std::vector<MeshBatchI*>& batches = scene.getBatches();
+		for(size_t j = 0; j < batches.size(); j++)
 		{
-			if(batches.arr[j]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+			if(batches[j]->MeshType() == MeshBatchType::SKELETAL)
 			{
 				vertShadowMapSkeletal.Bind();
-				auto batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[j]);
+				auto batchPtr = static_cast<MeshBatchSkeletal*>(batches[j]);
 				batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
 			}
 			else
@@ -328,11 +428,11 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 				vertShadowMap.Bind();
 			}
 
-			GPUBuffer& currentGPUBuffer = batches.arr[j]->getGPUBuffer();
-			DrawBuffer& currentDrawBuffer = batches.arr[j]->getDrawBuffer();
+			VertexBuffer& currentVertexBuffer = batches[j]->getVertexBuffer();
+			DrawBuffer& currentDrawBuffer = batches[j]->getDrawBuffer();
 
-			currentGPUBuffer.Bind();
-			currentDrawBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
+			currentVertexBuffer.Bind();
+			currentDrawBuffer.BindAsDrawIndirectBuffer();
 
 			// Base poly offset gives ok results on point-area lights
 			glPolygonOffset(2.64f, 512.0f);
@@ -345,25 +445,16 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene,
 				case LightType::DIRECTIONAL: geomDirShadowMap.Bind();
 					glPolygonOffset(6.12f, 1024.0f); // Higher offset req since camera span is large
 					break;
-				case LightType::AREA: geomAreaShadowMap.Bind(); break;
+				case LightType::RECTANGULAR: geomAreaShadowMap.Bind(); break;
 			}
 			glUniform1ui(U_LIGHT_ID, static_cast<GLuint>(i));
 
-			currentDrawBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
-
-			glMultiDrawElementsIndirect(GL_TRIANGLES,
-										GL_UNSIGNED_INT,
-										nullptr,
-										static_cast<GLsizei>(batches.arr[j]->DrawCount()),
-										sizeof(DrawPointIndexed));
-
+			currentDrawBuffer.BindModelTransform(LU_MTRANSFORM);
+			
+			// Draw Call
+			currentDrawBuffer.DrawCallMulti();
 			// Stays Here for Debugging purposes (nsight states)
-			//for(unsigned int k = 0; k < batches.arr[j]->DrawCount(); k++)
-			//{
-			//	glDrawElementsIndirect(GL_TRIANGLES,
-			//						   GL_UNSIGNED_INT,
-			//						   (void *) (k * sizeof(DrawPointIndexed)));
-			//}
+			// currentDrawBuffer.DrawCallMultiState();
 		}
 	}
 
@@ -418,8 +509,9 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 	glDepthFunc(GL_LEQUAL);
 	
 	// Camera Transform
-	cameraTransform.Update(camera.generateTransform());
-	cameraTransform.Bind();
+	fTransform = camera.GenerateTransform();
+	UpdateFTransformBuffer();
+	BindFrameTransform(U_FTRANSFORM);
 
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);
@@ -427,13 +519,13 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 
 	// DrawCall
 	// Draw Batches
-	Array32<MeshBatchI*> batches = scene.getBatches();
-	for(unsigned int i = 0; i < batches.length; i++)
+	const std::vector<MeshBatchI*>& batches = scene.getBatches();
+	for(unsigned int i = 0; i < batches.size(); i++)
 	{
-		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+		if(batches[i]->MeshType() == MeshBatchType::SKELETAL)
 		{
 			vertGBufferSkeletal.Bind();
-			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[i]);
+			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches[i]);
 			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
 		}
 		else
@@ -441,19 +533,17 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 			vertGBufferWrite.Bind();
 		}
 
-		GPUBuffer& currentGPUBuffer = batches.arr[i]->getGPUBuffer();
-		DrawBuffer& currentDrawBuffer = batches.arr[i]->getDrawBuffer();
+		VertexBuffer& currentVertexBuffer = batches[i]->getVertexBuffer();
+		DrawBuffer& currentDrawBuffer = batches[i]->getDrawBuffer();
 
-		currentGPUBuffer.Bind();
-		currentDrawBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
-		currentDrawBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+		currentVertexBuffer.Bind();
+		currentDrawBuffer.BindAsDrawIndirectBuffer();
+		currentDrawBuffer.BindModelTransform(LU_MTRANSFORM);
 
-		for(unsigned int j = 0; j < batches.arr[i]->DrawCount(); j++)
+		for(unsigned int j = 0; j < batches[i]->DrawCount(); j++)
 		{
 			currentDrawBuffer.BindMaterialForDraw(j);
-			glDrawElementsIndirect(GL_TRIANGLES,
-								   GL_UNSIGNED_INT,
-								   (void *)(j * sizeof(DrawPointIndexed)));
+			currentDrawBuffer.DrawCallSingle(j);
 		}
 	}
 }
@@ -481,20 +571,17 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	BindShadowMaps(scene);
 	BindLightBuffers(scene);
 
-	// Buffer Binds
-	FrameTransformBufferData ft = camera.generateTransform();
-	cameraTransform.Update(ft);
-	cameraTransform.Bind();
-
-	// Inverse Frame Transforms
-	invFrameTransform.BindAsUniformBuffer(U_INVFTRANSFORM);
+	// Frame Transforms
 	RefreshInvFTransform(camera, gBuffWidth, gBuffHeight);
+	BindInvFrameTransform(U_INVFTRANSFORM);
+	BindFrameTransform(U_FTRANSFORM);
+	
 
 	// Bind LightIntensity Buffer as framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glViewport(0, 0, gBuffWidth, gBuffHeight);
 
-	// Get VAO from Scene Lights
+	// Shader and Shader Uniform Binds
 	Shader::Unbind(ShaderType::GEOMETRY);
 	vertLightPass.Bind();
 	fragLightPass.Bind();
@@ -514,10 +601,12 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	glDepthFunc(GL_GREATER);
 	glDepthMask(false);
 
-	scene.getSceneLights().lightDrawParams.BindAsDrawIndirectBuffer();
-	glBindVertexArray(scene.getSceneLights().lightVAO);
-	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 3, sizeof(DrawPointIndexed));
+	// Bind And Draw
+	lightAOI.BindDrawIndirectBuffer();
+	lightAOI.BindVAO();
+	lightAOI.DrawCall();
 
+	// Restore States
 	glFrontFace(GL_CCW);
 	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
@@ -544,18 +633,17 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 	fragShadowMap.Bind();
 	Shader::Unbind(ShaderType::GEOMETRY);
 
-	// Camera Transform
-	cameraTransform.Update(camera.generateTransform());
-	cameraTransform.Bind();
-
+	// Uniform Buffers
+	BindFrameTransform(U_FTRANSFORM);
+	
 	// Draw Batches
-	Array32<MeshBatchI*> batches = scene.getBatches();
-	for(unsigned int i = 0; i < batches.length; i++)
+	const std::vector<MeshBatchI*>& batches = scene.getBatches();
+	for(unsigned int i = 0; i < batches.size(); i++)
 	{
-		if(batches.arr[i]->MeshType() == VoxelObjectType::SKEL_DYNAMIC)
+		if(batches[i]->MeshType() == MeshBatchType::SKELETAL)
 		{
 			vertDPassSkeletal.Bind();
-			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches.arr[i]);
+			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches[i]);
 			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
 		}
 		else
@@ -563,26 +651,16 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 			vertDPass.Bind();
 		}
 
-		GPUBuffer& currentGPUBuffer = batches.arr[i]->getGPUBuffer();
-		DrawBuffer& currentDrawBuffer = batches.arr[i]->getDrawBuffer();
+		VertexBuffer& currentVertexBuffer = batches[i]->getVertexBuffer();
+		DrawBuffer& currentDrawBuffer = batches[i]->getDrawBuffer();
 
-		currentGPUBuffer.Bind();
-		currentDrawBuffer.getDrawParamBuffer().BindAsDrawIndirectBuffer();
-		currentDrawBuffer.getModelTransformBuffer().BindAsShaderStorageBuffer(LU_MTRANSFORM);
+		currentVertexBuffer.Bind();
+		currentDrawBuffer.BindAsDrawIndirectBuffer();
+		currentDrawBuffer.BindModelTransform(LU_MTRANSFORM);
 
-		glMultiDrawElementsIndirect(GL_TRIANGLES,
-									GL_UNSIGNED_INT,
-									nullptr,
-									static_cast<GLsizei>(batches.arr[i]->DrawCount()),
-									sizeof(DrawPointIndexed));
-
+		currentDrawBuffer.DrawCallMulti();
 		// Stays Here for Debugging purposes (nsight states)
-		//for(unsigned int j = 0; j < batches.arr[i]->DrawCount(); j++)
-		//{
-		//	glDrawElementsIndirect(GL_TRIANGLES,
-		//						   GL_UNSIGNED_INT,
-		//						   (void *) (j * sizeof(DrawPointIndexed)));
-		//}
+		//currentDrawBuffer.DrawCallMultiState();
 	}
 }
 
@@ -656,19 +734,19 @@ void DeferredRenderer::RefreshInvFTransform(const Camera& camera,
 											GLsizei width,
 											GLsizei height)
 {
-	FrameTransformBufferData ft = camera.generateTransform();
+	FrameTransformBufferData ft = camera.GenerateTransform();
 
 	float depthRange[2];
 	glGetFloatv(GL_DEPTH_RANGE, depthRange);
-	invFrameTransform.CPUData()[0] = InvFrameTransform
+	ifTransform = InvFrameTransform
 	{
 		ft.view.Inverse() * ft.projection.Inverse(),
-		IEVector4(camera.pos.getX(), camera.pos.getY(), camera.pos.getZ(), CalculateCascadeLength(camera.far, 0)),
+		IEVector4(camera.pos, CalculateCascadeLength(camera.far, 0.0f)),
 		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
 		{0, 0, static_cast<unsigned int>(width), static_cast<unsigned int>(height)},
-		{ depthRange[0], depthRange[1], 0.0f, 0.0f }
+		{depthRange[0], depthRange[1], 0.0f, 0.0f}
 	};
-	invFrameTransform.SendData();
+	UpdateInvFTransformBuffer();
 }
 
 void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
@@ -684,6 +762,10 @@ void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
 void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLight,
 							  const IEVector3& ambientColor)
 {
+	// Camera Transform Update
+	fTransform = camera.GenerateTransform();
+	UpdateFTransformBuffer();
+
 	// Shadow Map Generation
 	GenerateShadowMaps(scene, camera);
 

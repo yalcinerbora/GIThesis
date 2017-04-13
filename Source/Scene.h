@@ -38,6 +38,8 @@ class ConstantScene : public SceneI
 											ConstantScene(const std::vector<std::string>& rigidFileNames,
 														  const std::vector<std::string>& skeletalFileNames,
 														  const std::vector<Light>& lights);
+											ConstantScene(const ConstantScene&) = delete;
+		ConstantScene&						operator=(const ConstantScene&) = delete;
 											~ConstantScene() = default;
 		
 		const std::vector<MeshBatchI*>&		getBatches() override;

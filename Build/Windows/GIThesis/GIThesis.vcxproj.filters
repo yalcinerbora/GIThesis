@@ -41,9 +41,6 @@
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp">
       <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\GPUBuffer.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp">
       <Filter>Render</Filter>
     </ClCompile>
@@ -116,6 +113,8 @@
     <ClCompile Include="..\..\..\Source\MeshBatchMulti.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\VertexBuffer.cpp" />
+    <ClCompile Include="..\..\..\Source\Animation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -132,12 +131,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\FPSInput.h">
       <Filter>WindowInput</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\GPUBuffer.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\ArrayStruct.h">
-      <Filter>Utility</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\DrawBuffer.h">
       <Filter>Render</Filter>
@@ -352,6 +345,8 @@
     <ClInclude Include="..\..\..\Source\MeshBatchMulti.h">
       <Filter>MeshBatch</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\VertexBuffer.h" />
+    <ClInclude Include="..\..\..\Source\Animation.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

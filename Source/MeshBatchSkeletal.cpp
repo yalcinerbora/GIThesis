@@ -57,11 +57,7 @@ MeshBatchSkeletal::MeshBatchSkeletal(const char* sceneFileName,
 
 void MeshBatchSkeletal::Update(double elapsedS)
 {
-	uint32_t keyFrom, keyTo;
-	float weight;
-	FindKeys(keyFrom, keyTo, weight, static_cast<float>(elapsedS));
-	UpdateAnimMatrices(keyFrom, keyTo, weight);
-	finalTransforms.SendData();
+
 }
 
 VoxelObjectType MeshBatchSkeletal::MeshType() const

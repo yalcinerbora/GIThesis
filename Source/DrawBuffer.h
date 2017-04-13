@@ -19,19 +19,7 @@ Holds draw point buffer
 #include "StructuredBuffer.h"
 #include "DrawPoint.h"
 
-#pragma pack(push, 1)
-struct ModelTransform
-{
-	IEMatrix4x4 model;
-	IEMatrix4x4 modelRotation;
-};
 
-struct AABBData
-{
-	IEVector4 min;
-	IEVector4 max;
-};
-#pragma pack(pop)
 
 class DrawBuffer
 {

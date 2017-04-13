@@ -23,8 +23,19 @@ namespace DeviceOGLParameters
 	size_t UBOAlignOffset(size_t offset);
 }
 
-// Vertex Element
 #pragma pack(push, 1)
+struct ModelTransform
+{
+	IEMatrix4x4 model;
+	IEMatrix4x4 modelRotation;
+};
+
+struct AABBData
+{
+	IEVector4 min;
+	IEVector4 max;
+};
+// Vertex Element
 struct VAO
 {
 	float vPos[3];

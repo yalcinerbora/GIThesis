@@ -4,6 +4,7 @@
 Column Major Vector (4x1 Matrix) (NOT 1x4)
 
 */
+#include <cassert>
 #include <algorithm>
 #include <immintrin.h>
 

@@ -620,8 +620,8 @@ IEVector3 GICudaAllocator::GetNewVoxelPos(const IEVector3& playerPos, float casc
 	// Translate it to cascade corner
 	if(cascadeMultiplier != 0)
 	{
-		float cascadeNo = IEMath::Log2F(cascadeMultiplier);
-		float factor = IEMath::SumLinear(cascadeNo);
+		float cascadeNo = std::log2(cascadeMultiplier);
+		float factor = IEMathFunctions::SumLinear(cascadeNo);
 		voxelCornerPos.x += (factor * hVoxelGridInfo.span * hVoxelGridInfo.dimension.x) / 2.0f;
 		voxelCornerPos.y += (factor * hVoxelGridInfo.span * hVoxelGridInfo.dimension.y) / 2.0f;
 		voxelCornerPos.z += (factor * hVoxelGridInfo.span * hVoxelGridInfo.dimension.z) / 2.0f;

@@ -57,9 +57,15 @@ class LightDrawBuffer
 		// 3- AOI Vertex Index (Static Depends on #LightTypes)
 		// 4- Light index buffer(Dynamic Depends on #Lights)
 		StructuredBuffer<uint8_t>	gpuBuffer;
+		size_t						drawOffset;
+		size_t						vertexOffset;
+		size_t						indexOffset;
+		size_t						lightIndexOffset;
 
 		// Light AOI VAO
 		GLuint						lightVAO;
+
+		static LightType			ParseLightType(float);
 
 	public:
 		// Constructors & Destructor
@@ -68,7 +74,7 @@ class LightDrawBuffer
 		LightDrawBuffer&			operator=(const LightDrawBuffer&) = delete;
 									~LightDrawBuffer();
 
-		void						ChangeLightCounts();
+		void						ChangeLightCounts(const std::vector<Light>& lights);
 
 		void						BindVAO();
 		void						BindDrawIndirectBuffer();		

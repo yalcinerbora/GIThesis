@@ -72,8 +72,7 @@ class SceneLights
 		GLuint								shadowMapCubeDepth;
 		std::vector<GLuint>					shadowMapViews;
 		std::vector<GLuint>					shadowMapFBOs;
-		
-	
+
 		// CPU Part
 		std::vector<Light>					lights;
 		std::vector<IEMatrix4x4>			lightViewProjMatrices;
@@ -88,6 +87,7 @@ class SceneLights
 																	const Camera& camera,
 																	const IEVector3& lightDir);
 		void								GenerateMatrices(const Camera& camera);
+		
 
 	protected:
 	public:
@@ -100,7 +100,10 @@ class SceneLights
 		SceneLights&						operator=(const SceneLights&) = delete;
 											~SceneLights();
 
-		uint32_t							Count() const;
+		uint32_t							TotalCount() const;
+		uint32_t							AreaLightCount() const;
+		uint32_t							DirectionalLightCount() const;
+		uint32_t							PointLightCount() const;
 
 		void								ChangeLightPos(uint32_t index, IEVector3 position);
 		void								ChangeLightDir(uint32_t index, IEVector3 direction);
@@ -124,12 +127,13 @@ class SceneLights
 		GLuint								BindViewProjectionMatrices(GLuint bindPoint);
 		GLuint								BindLightParameters(GLuint bindPoint);
 
-//		GLuint								GetShadowArrayGL();
+		GLuint								getShadowArrayGL();
+		GLuint								getGLBuffer();
+		size_t								getLightOffset();
+		size_t								getMatrixOffset();
 		
 		void								SendVPMatricesToGPU();
 		void								SendLightDataToGPU();
-
-		//void								Bind
 };
 
 #endif //__SCENE_H__

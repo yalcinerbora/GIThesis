@@ -165,9 +165,10 @@ void DrawBuffer::BindMaterialForDraw(uint32_t meshIndex)
 
 void DrawBuffer::DrawCallSingle(GLuint drawId)
 {
+	GLsizei offset = static_cast<GLsizei>(drawId * sizeof(DrawPointIndexed));
 	glDrawElementsIndirect(GL_TRIANGLES,
 						   GL_UNSIGNED_INT,
-						   (void *)(drawId * sizeof(DrawPointIndexed)));
+						   (void *)(offset));
 }
 
 void DrawBuffer::DrawCallMulti()
@@ -183,8 +184,9 @@ void DrawBuffer::DrawCallMultiState()
 {
 	for(int i = 0; i < cpuDrawPoints.size(); i++)
 	{
+		GLsizei offset = static_cast<GLsizei>(i * sizeof(DrawPointIndexed));
 		glDrawElementsIndirect(GL_TRIANGLES,
 							   GL_UNSIGNED_INT,
-							   (void *) (i * sizeof(DrawPointIndexed)));
+							   (void *) (offset));
 	}
 }

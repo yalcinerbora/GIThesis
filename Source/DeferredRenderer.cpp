@@ -16,10 +16,9 @@ LightDrawBuffer::LightDrawBuffer()
 	std::ifstream stream(LightAOIFileName, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
 	GFGFileLoader gfgFile(&stlFileReader);
-	std::vector<DrawPointIndexed> drawCalls;
 	gfgFile.ValidateAndOpen();
 
-	assert(gfgFile.Header().meshes.size() == 3);
+	assert(gfgFile.Header().meshes.size() == LightTypeCount);
 	std::vector<uint8_t> vData(gfgFile.AllMeshVertexDataSize());
 	std::vector<uint8_t> viData(gfgFile.AllMeshIndexDataSize());
 	gfgFile.AllMeshVertexData(vData.data());
@@ -33,35 +32,22 @@ LightDrawBuffer::LightDrawBuffer()
 	glBindBuffer(GL_COPY_WRITE_BUFFER, lightShapeIndexBuffer);
 	glBufferData(GL_COPY_WRITE_BUFFER, viData.size(), viData.data(), GL_STATIC_DRAW);
 
+	// Generate DrawPoint Indexed
 	uint32_t vOffset = 0, viOffset = 0;
-	uint32_t i = 0;
-	for(const GFGMeshHeader& mesh : gfgFile.Header().meshes)
+	for(int i = 0; i < LightTypeCount; i++)
 	{
+		const GFGMeshHeader& mesh = gfgFile.Header().meshes[i];
 		assert(mesh.headerCore.indexSize == sizeof(uint32_t));
 
-		drawParamsGeneric[i].baseInstance = 0;
-		drawParamsGeneric[i].baseVertex = vOffset;
-		drawParamsGeneric[i].firstIndex = viOffset;
-		drawParamsGeneric[i].count = static_cast<uint32_t>(mesh.headerCore.indexCount);
-		drawParamsGeneric[i].instanceCount = 0;
+		lightDrawParams[i].baseInstance = 0;
+		lightDrawParams[i].baseVertex = vOffset;
+		lightDrawParams[i].firstIndex = viOffset;
+		lightDrawParams[i].count = static_cast<uint32_t>(mesh.headerCore.indexCount);
+		lightDrawParams[i].instanceCount = 0;
 
 		vOffset += static_cast<uint32_t>(mesh.headerCore.vertexCount);
 		viOffset += static_cast<uint32_t>(mesh.headerCore.indexCount);
-		i++;
 	}
-
-	//// Draw Buffers
-	//lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::POINT)]);
-	//lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::DIRECTIONAL)]);
-	//lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::RECTANGULAR)]);
-
-	//lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].instanceCount = pCount;
-	//lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].instanceCount = dCount;
-	//lightDrawParams.CPUData()[static_cast<int>(LightType::RECTANGULAR)].instanceCount = aCount;
-	//lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].baseInstance = 0;
-	//lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].baseInstance = pCount;
-	//lightDrawParams.CPUData()[static_cast<int>(LightType::RECTANGULAR)].baseInstance = pCount + dCount;
-	//lightDrawParams.SendData();
 
 	// Create VAO
 	// PostProcess VAO
@@ -86,8 +72,57 @@ LightDrawBuffer::LightDrawBuffer()
 
 }
 
-void LightDrawBuffer::ChangeLightCounts()
+void LightDrawBuffer::ChangeLightCounts(const std::vector<Light>& lights)
 {
+
+	//// Draw Buffers
+	//lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::POINT)]);
+	//lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::DIRECTIONAL)]);
+	//lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::RECTANGULAR)]);
+
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].instanceCount = pCount;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].instanceCount = dCount;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::RECTANGULAR)].instanceCount = aCount;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].baseInstance = 0;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].baseInstance = pCount;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::RECTANGULAR)].baseInstance = pCount + dCount;
+	//lightDrawParams.SendData();
+
+
+	// Light Draw Param Generation
+	uint32_t dCount = 0, aCount = 0, pCount = 0, i = 0;
+	uint32_t dIndex = 0, aIndex = 0, pIndex = 0;
+	std::vector<uint32_t>& lIndexBuff = lightIndexBuffer.CPUData();
+	lIndexBuff.resize(3);
+	for(const Light& l : lights)
+	{
+		if(ParseLightType(l.position.getW()) == LightType::RECTANGULAR)
+			aCount++;
+		else if(ParseLightType(l.position.getW()) == LightType::DIRECTIONAL)
+			dCount++;
+		else if(ParseLightType(l.position.getW()) == LightType::POINT)
+			pCount++;
+	}
+	for(const Light& l : lightsGPU.CPUData())
+	{
+		if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::AREA)))
+		{
+			lIndexBuff[pCount + dCount + aIndex] = i;
+			aIndex++;
+		}
+		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::DIRECTIONAL)))
+		{
+			lIndexBuff[pCount + dIndex] = i;
+			dIndex++;
+		}
+		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::POINT)))
+		{
+			lIndexBuff[0 + pIndex] = i;
+			pIndex++;
+		}
+		i++;
+	}
+	lightIndexBuffer.SendData();
 
 }
 
@@ -103,8 +138,9 @@ void LightDrawBuffer::BindDrawIndirectBuffer()
 
 void LightDrawBuffer::DrawCall()
 {
+	GLsizei offset = static_cast<GLsizei>(indexOffset);
 	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 
-								nullptr, LightTypeCount, sizeof(DrawPointIndexed));
+								(void*)(offset), LightTypeCount, sizeof(DrawPointIndexed));
 }
 
 DeferredRenderer::DeferredRenderer()
@@ -133,7 +169,7 @@ DeferredRenderer::DeferredRenderer()
 	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
 	, computeHierZ(ShaderType::COMPUTE, "Shaders/HierZ.glsl")
 	// GBuffer
-	, gBuffer(gBuffWidth, gBuffHeight)
+	, gBuffer(GBuffWidth, GBuffHeight)
 	, fTransform{IEMatrix4x4::IdentityMatrix, IEMatrix4x4::IdentityMatrix}
 	, ifTransform{IEMatrix4x4::IdentityMatrix,
 				  IEVector4::ZeroVector,
@@ -150,7 +186,7 @@ DeferredRenderer::DeferredRenderer()
 	glGenFramebuffers(1, &lightIntensityFBO);
 
 	glBindTexture(GL_TEXTURE_2D, lightIntensityTex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, gBuffWidth, gBuffHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, GBuffWidth, GBuffHeight);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
@@ -259,7 +295,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_MULTISAMPLE);
 	glEnable(GL_POLYGON_OFFSET_FILL);
-	glViewport(0, 0, SceneLights::shadowMapWH, SceneLights::shadowMapWH);
+	glViewport(0, 0, LightDrawBuffer::ShadowMapWH, LightDrawBuffer::ShadowMapWH);
 
 	// Binding
 	//cameraTransform.Bind();

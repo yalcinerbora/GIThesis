@@ -148,7 +148,8 @@ void SceneLights::GenerateMatrices(const Camera& camera)
 														   camera.up);
 
 					// To eliminate shadow shimmering only change pixel sized frusutm changes
-					IEVector3 unitPerTexel = (2.0f * IEVector3(radius, radius, radius)) / IEVector3(static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH));
+					IEVector3 unitPerTexel = (2.0f * IEVector3(radius)) / 
+											 IEVector3(static_cast<float>(LightDrawBuffer::ShadowMapWH));
 					unitPerTexel *= static_cast<float>(1 << (LightDrawBuffer::ShadowMipSampleCount));
 					IEVector3 translatedOrigin = view * IEVector3::ZeroVector;
 					IEVector3 texelTranslate;
@@ -249,45 +250,11 @@ SceneLights::SceneLights(const std::vector<Light>& lights)
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMapCubeDepth, 0);
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 	}		
-	lightsGPU.SendData();
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	// Light Draw Param Generation
-	uint32_t dCount = 0, aCount = 0, pCount = 0, i = 0;
-	uint32_t dIndex = 0, aIndex = 0, pIndex = 0;
-	std::vector<uint32_t>& lIndexBuff = lightIndexBuffer.CPUData();
-	lIndexBuff.resize(lights.length);
-	for(const Light& l : lightsGPU.CPUData())
-	{
-		if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::AREA)))
-			aCount++;
-		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::DIRECTIONAL)))
-			dCount++;
-		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::POINT)))
-			pCount++;
-	}
-	for(const Light& l : lightsGPU.CPUData())
-	{
-		if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::AREA)))
-		{
-			lIndexBuff[pCount + dCount + aIndex] = i;
-			aIndex++;
-		}
-		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::DIRECTIONAL)))
-		{
-			lIndexBuff[pCount + dIndex] = i;
-			dIndex++;
-		}
-		else if(l.position.getW() == static_cast<float>(static_cast<int>(LightType::POINT)))
-		{
-			lIndexBuff[0 + pIndex] = i;
-			pIndex++;
-		}
-		i++;
-	}
-	lightIndexBuffer.SendData();
-
 }
+
+SceneLights(SceneLights&&);
+SceneLights&						operator=(SceneLights&&);
 
 SceneLights::~SceneLights()
 {
@@ -296,27 +263,23 @@ SceneLights::~SceneLights()
 	glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()), shadowMapFBOs.data());
 	glDeleteTextures(static_cast<GLsizei>(shadowMapViews.size()), shadowMapViews.data());
 	glDeleteVertexArrays(1, &lightVAO);
-	glDeleteTextures(1, &shadowMapArrayView);
+	glDeleteTextures(1, &shadowMapArrayView);asdasdasdas
+
+	So many missing deletes here
 }
 
-uint32_t SceneLights::Count() const
+uint32_t SceneLights::TotalCount() const
 {
 	return static_cast<uint32_t>(lightShadowCast.size());
 }
 
-GLuint SceneLights::GetLightBufferGL()
-{
-	return lightsGPU.getGLBuffer();
-}
+uint32_t SceneLights::AreaLightCount() const;
+uint32_t SceneLights::DirectionalLightCount() const;
+uint32_t SceneLights::PointLightCount() const;
 
-GLuint SceneLights::GetShadowArrayGL()
+GLuint SceneLights::getShadowArrayGL()
 {
 	return shadowMapArrayView;
-}
-
-GLuint SceneLights::GetVPMatrixGL()
-{
-	return lightViewProjMatrices.getGLBuffer();
 }
 
 const std::vector<IEMatrix4x4>&	SceneLights::getLightProjMatrices()
@@ -399,3 +362,11 @@ bool SceneLights::getLightCastShadow(uint32_t index) const
 {
 	return lightShadowCast[index];
 }
+
+GLuint SceneLights::getShadowArrayGL();
+GLuint SceneLights::getGLBuffer();
+size_t SceneLights::getLightOffset();
+size_t SceneLights::getMatrixOffset();
+
+void SceneLights::SendVPMatricesToGPU();
+void SceneLights::SendLightDataToGPU();

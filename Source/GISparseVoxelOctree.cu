@@ -231,9 +231,9 @@ void GISparseVoxelOctree::LinkAllocators(std::vector<GICudaAllocator*> newAlloca
 
 void GISparseVoxelOctree::LinkSceneShadowMaps(SceneI* scene)
 {
-	GLuint lightParamBuffer = scene->getSceneLights().GetLightBufferGL();
-	GLuint shadowMapTexture = scene->getSceneLights().GetShadowArrayGL();
-	GLuint lightVPBuffer = scene->getSceneLights().GetVPMatrixGL();
+	GLuint lightParamBuffer = scene->getSceneLights().getGLBuffer();
+	GLuint shadowMapTexture = scene->getSceneLights().getShadowArrayGL();
+
 
 	if(sceneShadowMapResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneShadowMapResource));
 	if(sceneLightParamResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneLightParamResource));

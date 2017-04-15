@@ -59,12 +59,12 @@ class ThesisSolution : public EmptyGISolution
 {
 	private:
 		// Voxel Render Shaders
-		Shader					vertexDebugVoxel;
-		Shader					vertexDebugVoxelSkeletal;
-		Shader					vertexDebugWorldVoxel;
-		Shader					fragmentDebugVoxel;
+		Shader								vertexDebugVoxel;
+		Shader								vertexDebugVoxelSkeletal;
+		Shader								vertexDebugWorldVoxel;
+		Shader								fragmentDebugVoxel;
 
-		FrameTransformBuffer	cameraTransform;
+		FrameTransformBuffer				cameraTransform;
 
 		// Voxel Cache for each cascade
 		std::vector<SceneVoxCache>			voxelCaches;
@@ -125,17 +125,14 @@ class ThesisSolution : public EmptyGISolution
 		static const size_t		InitialObjectGridSize;
 
 		AOBar					aoBar;
-		void					LevelIncrement();
-		void					LevelDecrement();
-		void					TraceTypeInc();
-		void					TraceTypeDec();
 		unsigned int			svoRenderLevel;
 		unsigned int			traceType;
 
 	protected:
 		
 	public:
-								ThesisSolution(DeferredRenderer&, const IEVector3& intialCamPos);
+								ThesisSolution(const std::string& name,
+											   DeferredRenderer&, const IEVector3& intialCamPos);
 								ThesisSolution(const ThesisSolution&) = delete;
 		const ThesisSolution&	operator=(const ThesisSolution&) = delete;
 								~ThesisSolution();
@@ -146,15 +143,14 @@ class ThesisSolution : public EmptyGISolution
 
 		// Interface
 		bool					IsCurrentScene(SceneI&) override;
-		void					Init(SceneI&) override;
+		void					Load(SceneI&) override;
 		void					Release() override;
 		void					Frame(const Camera&) override;
-		
 
-		static void				LevelIncrement(void*);
-		static void				LevelDecrement(void*);
-
-		static void				TraceIncrement(void*);
-		static void				TraceDecrement(void*);
+		// Input Calling Functions
+		void					SVOLevelIncrement();
+		void					SVOLevelDecrement();
+		void					TraceTypeIncrement();
+		void					TraceTypeDecrement();
 };
 #endif //__THESISSOLUTION_H__

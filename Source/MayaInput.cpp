@@ -4,48 +4,41 @@
 #include "GLFW/glfw3.h"
 #include "Macros.h"
 
-double MayaInput::Sensitivity = 0.005;
-double MayaInput::ZoomPrecentage = 0.1;	// reduce by this amount
-double MayaInput::TranslateModifier = 0.2;
+const std::string MayaInput::MayaInputName = "MayaInput";
 
-MayaInput::MayaInput(Camera& cam,
-					uint32_t& currentSolution,
-					uint32_t& currentScene,
-					uint32_t& currentInput)
-	: WindowInput(cam, 
-				  currentSolution, 
-				  currentScene, 
-				  currentInput)
+MayaInput::MayaInput(double sensitivity,
+					 double zoomPercentage,
+					 double translateModifier)
+	: sensitivity(sensitivity)
+	, zoomPercentage(zoomPercentage)
+	, translateModifier(translateModifier)
 	, moveMode(false)
 	, translateMode(false)
 	, mouseX(0.0)
 	, mouseY(0.0)
 {}
 
-void MayaInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
-{
-	WindowInput::KeyboardUsedFunc(key, osKey, action, modifier);
-}
+void MayaInput::KeyboardUsedFunc(Camera& camera, int key, int osKey, int action, int modifier)
+{}
 
-void MayaInput::MouseMovedFunc(double x, double y)
+void MayaInput::MouseMovedFunc(Camera& camera, double x, double y)
 {
 	// Check with latest recorded input
 	double diffX = x - mouseX;
 	double diffY = y - mouseY;
 
-	WindowInput::MouseMovedFunc(x, y);
 	if(moveMode)
 	{
 		// X Rotation
 		IEVector3 lookDir = camera.centerOfInterest - camera.pos;
-		IEQuaternion rotateX(static_cast<float>(-diffX * Sensitivity), IEVector3::Yaxis);
+		IEQuaternion rotateX(static_cast<float>(-diffX * sensitivity), IEVector3::Yaxis);
 		IEVector3 rotated = rotateX.ApplyRotation(lookDir);
 		camera.pos = camera.centerOfInterest - rotated;
 
 		// Y Rotation
 		lookDir = camera.centerOfInterest - camera.pos;
 		IEVector3 left = camera.up.CrossProduct(lookDir).NormalizeSelf();
-		IEQuaternion rotateY(static_cast<float>(diffY * Sensitivity), left);
+		IEQuaternion rotateY(static_cast<float>(diffY * sensitivity), left);
 		rotated = rotateY.ApplyRotation((lookDir));
 		camera.pos = camera.centerOfInterest - rotated;
 
@@ -60,21 +53,19 @@ void MayaInput::MouseMovedFunc(double x, double y)
 	{
 		IEVector3 lookDir = camera.centerOfInterest - camera.pos;
 		IEVector3 side = camera.up.CrossProduct(lookDir).NormalizeSelf();
-		camera.pos += static_cast<float>(diffX * TranslateModifier) * side;
-		camera.centerOfInterest += static_cast<float>(diffX * TranslateModifier) * side;
+		camera.pos += static_cast<float>(diffX * translateModifier) * side;
+		camera.centerOfInterest += static_cast<float>(diffX * translateModifier) * side;
 
-		camera.pos += static_cast<float>(diffY * TranslateModifier) * camera.up;
-		camera.centerOfInterest += static_cast<float>(diffY * TranslateModifier) * camera.up;
+		camera.pos += static_cast<float>(diffY * translateModifier) * camera.up;
+		camera.centerOfInterest += static_cast<float>(diffY * translateModifier) * camera.up;
 	}
 
 	mouseX = x;
 	mouseY = y;
 }
 
-void MayaInput::MousePressedFunc(int button, int action, int modifier)
+void MayaInput::MousePressedFunc(Camera& camera, int button, int action, int modifier)
 {
-	WindowInput::MousePressedFunc(button, action, modifier);
-
 	switch(button)
 	{
 		case GLFW_MOUSE_BUTTON_LEFT:
@@ -86,13 +77,16 @@ void MayaInput::MousePressedFunc(int button, int action, int modifier)
 	}
 }
 
-void MayaInput::MouseScrolledFunc(double xOffset, double yOffset)
+void MayaInput::MouseScrolledFunc(Camera& camera, double xOffset, double yOffset)
 {
-	WindowInput::MouseScrolledFunc(xOffset, yOffset);
-
 	// Zoom to the focus until some threshold
 	IEVector3 lookDir = camera.pos - camera.centerOfInterest;
-	lookDir *= static_cast<float>(1.0 - yOffset * ZoomPrecentage);
+	lookDir *= static_cast<float>(1.0 - yOffset * zoomPercentage);
 	if(lookDir.Length() > 0.1f)
 		camera.pos = lookDir + camera.centerOfInterest;
+}
+
+const std::string& MayaInput::Name() const
+{
+	return MayaInputName;
 }

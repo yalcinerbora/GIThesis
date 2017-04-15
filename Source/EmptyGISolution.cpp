@@ -104,8 +104,9 @@ void TW_CALL EmptyGISolution::SetLightRadius(const void *value, void *clientData
 																	(*static_cast<const float*>(value)));
 }
 
-EmptyGISolution::EmptyGISolution(DeferredRenderer& defferedRenderer)
-	: currentScene(nullptr)
+EmptyGISolution::EmptyGISolution(const std::string& name, DeferredRenderer& defferedRenderer)
+	: name(name)
+	, currentScene(nullptr)
 	, dRenderer(defferedRenderer)
 	, bar(nullptr)
 	, directLighting(true)
@@ -117,7 +118,7 @@ bool EmptyGISolution::IsCurrentScene(SceneI& scene)
 {
 	return &scene == currentScene;
 }
-void EmptyGISolution::Init(SceneI& s)
+void EmptyGISolution::Load(SceneI& s)
 {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	currentScene = &s;
@@ -195,7 +196,7 @@ void EmptyGISolution::Init(SceneI& s)
 				   params.c_str());
 
 		if(lightType == LightType::DIRECTIONAL ||
-		   lightType == LightType::AREA)
+		   lightType == LightType::RECTANGULAR)
 		{
 			name = "lDirection" + std::to_string(i);
 			params = " label='Direction' group='Light#" + std::to_string(i);
@@ -209,7 +210,7 @@ void EmptyGISolution::Init(SceneI& s)
 		}
 
 		if(lightType == LightType::POINT ||
-		   lightType == LightType::AREA)
+		   lightType == LightType::RECTANGULAR)
 		{
 			name = "lPosition" + std::to_string(i);
 			params = " label='Position' group='Light#" + std::to_string(i);

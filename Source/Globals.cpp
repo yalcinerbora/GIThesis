@@ -2,8 +2,8 @@
 
 TwType twIEVector3Type;
 
-const GLuint DeviceOGLParameters::uboAlignment;
-const GLuint DeviceOGLParameters::ssboAlignment;
+const GLuint DeviceOGLParameters::uboAlignment = 4;
+const GLuint DeviceOGLParameters::ssboAlignment = 4;
 
 size_t DeviceOGLParameters::SSBOAlignOffset(size_t offset)
 {

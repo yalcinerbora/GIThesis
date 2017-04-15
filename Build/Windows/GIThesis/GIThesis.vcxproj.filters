@@ -5,14 +5,8 @@
     <ClCompile Include="..\..\..\Source\WindowInput.cpp">
       <Filter>WindowInput</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\MayaInput.cpp">
-      <Filter>WindowInput</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\Window.cpp">
       <Filter>Render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\FPSInput.cpp">
-      <Filter>WindowInput</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp">
       <Filter>GFGLoad</Filter>
@@ -80,56 +74,29 @@
     <ClCompile Include="..\..\..\Source\CudaInit.cpp">
       <Filter>Utility</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\MeshBatchSponza.cpp">
-      <Filter>MeshBatch</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\MeshBatchCornell.cpp">
-      <Filter>MeshBatch</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\MeshBatchCube.cpp">
-      <Filter>MeshBatch</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\SVOTexPool.cpp">
-      <Filter>GI\Thesis\OGL</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\MeshBatchNyra.cpp">
-      <Filter>MeshBatch</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\Source\MeshBatch.cpp">
       <Filter>MeshBatch</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\MeshBatchOscillate.cpp">
-      <Filter>MeshBatch</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\IEUtility\IERandom.cpp">
       <Filter>IEUtility</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\MeshBatchDyno.cpp">
-      <Filter>MeshBatch</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\MeshBatchMulti.cpp">
-      <Filter>MeshBatch</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\VertexBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\Animation.cpp" />
+    <ClCompile Include="..\..\..\Source\FPSInput.cpp">
+      <Filter>WindowInput\CameraInput</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\MayaInput.cpp">
+      <Filter>WindowInput\CameraInput</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
     <ClInclude Include="..\..\..\Source\GLHeader.h" />
     <ClInclude Include="..\..\..\Source\GLHeaderLite.h" />
     <ClInclude Include="..\..\..\Source\WindowInput.h">
-      <Filter>WindowInput</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\InputManI.h">
-      <Filter>WindowInput</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\MayaInput.h">
-      <Filter>WindowInput</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\FPSInput.h">
       <Filter>WindowInput</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\DrawBuffer.h">
@@ -143,9 +110,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\Globals.h">
       <Filter>Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\NoInput.h">
-      <Filter>WindowInput</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\GFGLoader.h">
       <Filter>GFGLoad</Filter>
@@ -288,19 +252,7 @@
     <ClInclude Include="..\..\..\Source\CudaInit.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\Averager.h">
-      <Filter>Utility</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatchI.h">
-      <Filter>MeshBatch</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\MeshBatchSponza.h">
-      <Filter>MeshBatch</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\MeshBatchCornell.h">
-      <Filter>MeshBatch</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\MeshBatchCube.h">
       <Filter>MeshBatch</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\BatchFunctors.h">
@@ -308,12 +260,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CVoxelTypes.h">
       <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\SVOTexPool.h">
-      <Filter>GI\Thesis\OGL</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\MeshBatchNyra.h">
-      <Filter>MeshBatch</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h">
       <Filter>MeshBatch</Filter>
@@ -330,23 +276,29 @@
     <ClInclude Include="..\..\..\Source\VoxelSceneCache.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\MeshBatchOscillate.h">
-      <Filter>MeshBatch</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h">
       <Filter>IEUtility</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\SVOLightInject.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\MeshBatchDyno.h">
-      <Filter>MeshBatch</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\MeshBatchMulti.h">
-      <Filter>MeshBatch</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\VertexBuffer.h" />
     <ClInclude Include="..\..\..\Source\Animation.h" />
+    <ClInclude Include="..\..\..\Source\FPSInput.h">
+      <Filter>WindowInput\CameraInput</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\MayaInput.h">
+      <Filter>WindowInput\CameraInput</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\NoInput.h">
+      <Filter>WindowInput\CameraInput</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CameraInputI.h">
+      <Filter>WindowInput\CameraInput</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\BindPoints.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -384,6 +336,9 @@
     </Filter>
     <Filter Include="MeshBatch">
       <UniqueIdentifier>{2d7cede7-c75c-4f8c-9666-ed084bed1c8d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="WindowInput\CameraInput">
+      <UniqueIdentifier>{b69a8a4a-7771-409d-8d8a-214efaf7d38e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

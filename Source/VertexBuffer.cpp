@@ -4,7 +4,7 @@
 #include "GFG/GFGMeshHeader.h"
 #include <algorithm>
 
-VertexBuffer::VertexBuffer(const std::vector<const VertexElement>& elements,
+VertexBuffer::VertexBuffer(const std::vector<VertexElement>& elements,
 						   uint32_t byteStride)
 	: vao(0)
 	, byteStride(byteStride)
@@ -152,7 +152,8 @@ void VertexBuffer::EditMesh(const uint8_t data[],
 	size_t byteCount = vertexCount * byteStride;
 	
 	std::copy(data, data + byteCount, vertexBuffer.CPUData().begin() + byteOffset);
-	if(addLocked) vertexBuffer.SendSubData(byteOffset, byteCount);
+	if(addLocked) vertexBuffer.SendSubData(static_cast<uint32_t>(byteOffset), 
+										   static_cast<uint32_t>(byteCount));
 }
 
 bool VertexBuffer::IsSuitedGFGMesh(const GFGMeshHeader& meshHeader)

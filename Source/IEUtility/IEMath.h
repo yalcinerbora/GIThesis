@@ -1,89 +1,29 @@
+#pragma once
 /**
 
 */
 
-#ifndef __IE_MATH_H__
-#define __IE_MATH_H__
-
 #include <cmath>
 #include <cassert>
 
-namespace IEMath
+namespace IEMathConstants
 {
-	// PI Stuff
-	const float PI = 3.14159265f;
-	const float PISqr = PI * PI;
-	const float InvPI = 1.0f / PI;
-	const float InvPISqr = 1.0f / (PI * PI);
-	const float Sqrt2 = 1.4142135f;
-	const float Sqrt3 = 1.7320508f;
+	static constexpr double	PI = 3.1415926535897932384626433;
+	static constexpr double PISqr = PI * PI;
+	static constexpr double InvPI = 1.0 / PI;
+	static constexpr double InvPISqr = 1.0 / (PI * PI);
+	static constexpr double Sqrt2 = 1.4142135623730950488016887;
+	static constexpr double Sqrt3 = 1.7320508075688772935274463;
+	static constexpr double E = 2.7182818284590452353602874;
+	static constexpr double InvE = 1.0f / E;
 
-	// E Stuff
-	const float E = 2.7182818f;
-	const float InvE = 1.0f / E;
+	static constexpr double DegToRadCoef = PI / 180.0;
+	static constexpr double RadToDegCoef = 180.0 / PI;
 
-	inline float CosF(float radians)
-	{
-		return cosf(radians);
-	}
+}
 
-	inline float SinF(float radians)
-	{
-		return sinf(radians);
-	}
-
-	inline float TanF(float radians)
-	{
-		return tanf(radians);
-	}
-
-	inline float ACosF(float radians)
-	{
-		return acosf(radians);
-	}
-
-	inline float ASinF(float radians)
-	{
-		return asinf(radians);
-	}
-
-	inline float ATanF(float radians)
-	{
-		return atanf(radians);
-	}
-
-	inline float AbsF(float number)
-	{
-		return fabsf(number);
-	}
-
-	inline float ToRadians(float degree)
-	{
-		static const float DegToRadCoef = PI / 180.0f;
-		return degree * DegToRadCoef;
-	}
-
-	inline float ToDegrees(float radian)
-	{
-		static const float RadToDegCoef = 180.0f / PI ;
-		return radian * RadToDegCoef;
-	}
-
-	inline float LogF(float number)
-	{
-		return logf(number);
-	}
-
-	inline float Log10F(float number)
-	{
-		return log10f(number);
-	}
-
-	inline float Log2F(float number)
-	{
-		return log2f(number);
-	}
-
+namespace IEMathFunctions
+{
 	inline unsigned int UpperPowTwo(unsigned int number)
 	{
 		static_assert(sizeof(unsigned int) == 4, "UpperPowTwo only works on 32 bit integers");
@@ -112,6 +52,4 @@ namespace IEMath
 	{
 		return static_cast<T>(n * (n + 1) / 2.0f);
 	}
-
 }
-#endif //__IE_MATH_H__

@@ -4,35 +4,31 @@
 #include "Camera.h"
 #include "GLFW/glfw3.h"
 
-double FPSInput::Sensitivity = 0.005;
-double FPSInput::MoveRatio = 4.30;
+const std::string FPSInput::FPSInputName = "FPSInput";
 
-FPSInput::FPSInput(Camera& cam,
-					 uint32_t& currentSolution,
-					 uint32_t& currentScene,
-					 uint32_t& currentInput)
-	: WindowInput(cam,
-				  currentSolution,
-				  currentScene,
-				  currentInput)
-	, FPSMode(false)
+FPSInput::FPSInput(double sensitivity,
+				   double moveRatio,
+				   double moveRatioModifier)
+	: sensitivity(sensitivity)
+	, moveRatio(moveRatio)
+	, moveRatioModifier(moveRatioModifier)
+	, fpsMode(false)
 	, mouseX(0.0)
 	, mouseY(0.0)
-	, moveRatioModified(MoveRatio)
+	, moveRatioModified(moveRatio)
 {}
 
-void FPSInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
+void FPSInput::KeyboardUsedFunc(Camera& camera, int key, int osKey, int action, int modifier)
 {
-	WindowInput::KeyboardUsedFunc(key, osKey, action, modifier);
 
 	// Shift modifier
 	if(action == GLFW_PRESS && key == GLFW_KEY_LEFT_SHIFT)
 	{
-		moveRatioModified = MoveRatio * 0.25;
+		moveRatioModified = moveRatio * 0.25;
 	}
 	else if(action == GLFW_RELEASE  && key == GLFW_KEY_LEFT_SHIFT)
 	{
-		moveRatioModified = MoveRatio;
+		moveRatioModified = moveRatio;
 	}
 
 	// Movement
@@ -67,27 +63,24 @@ void FPSInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 	}
 }
 
-void FPSInput::MouseMovedFunc(double x, double y)
+void FPSInput::MouseMovedFunc(Camera& camera, double x, double y)
 {
-	WindowInput::MouseMovedFunc(x, y);
-
 	// Check with latest recorded input
 	double diffX = x - mouseX;
 	double diffY = y - mouseY;
 
-	WindowInput::MouseMovedFunc(x, y);
-	if(FPSMode)
+	if(fpsMode)
 	{
 		// X Rotation
 		IEVector3 lookDir = camera.centerOfInterest - camera.pos;
-		IEQuaternion rotateX(static_cast<float>(-diffX * Sensitivity), IEVector3::Yaxis);
+		IEQuaternion rotateX(static_cast<float>(-diffX * sensitivity), IEVector3::Yaxis);
 		IEVector3 rotated = rotateX.ApplyRotation(lookDir);
 		camera.centerOfInterest = camera.pos + rotated;
 
 		// Y Rotation
 		lookDir = camera.centerOfInterest - camera.pos;
 		IEVector3 side = camera.up.CrossProduct(lookDir).NormalizeSelf();
-		IEQuaternion rotateY(static_cast<float>(diffY * Sensitivity), side);
+		IEQuaternion rotateY(static_cast<float>(diffY * sensitivity), side);
 		rotated = rotateY.ApplyRotation((lookDir));
 		camera.centerOfInterest = camera.pos + rotated;
 
@@ -102,19 +95,20 @@ void FPSInput::MouseMovedFunc(double x, double y)
 	mouseY = y;
 }
 
-void FPSInput::MousePressedFunc(int button, int action, int modifier)
+void FPSInput::MousePressedFunc(Camera& camera, int button, int action, int modifier)
 {
-	WindowInput::MousePressedFunc(button, action, modifier);
-
 	switch(button)
 	{
 		case GLFW_MOUSE_BUTTON_LEFT:
-			FPSMode = (action == GLFW_RELEASE) ? false : true;
+			fpsMode = (action == GLFW_RELEASE) ? false : true;
 			break;
 	}
 }
 
-void FPSInput::MouseScrolledFunc(double xOffset, double yOffset)
+void FPSInput::MouseScrolledFunc(Camera& camera, double xOffset, double yOffset)
+{}
+
+const std::string& FPSInput::Name() const
 {
-	WindowInput::MouseScrolledFunc(xOffset, yOffset);
+	return FPSInputName;
 }

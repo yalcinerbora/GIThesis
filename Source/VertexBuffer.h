@@ -9,7 +9,6 @@ GPU Buffer That Holds Mesh (and Index)
 #include <map>
 #include <cstdint>
 #include "GLHeader.h"
-#include "ArrayStruct.h"
 #include "DrawPoint.h"
 #include "StructuredBuffer.h"
 #include "GFG/GFGEnumerations.h"
@@ -58,7 +57,7 @@ class VertexBuffer
 
 		uint32_t								byteStride;
 		std::vector<size_t>						meshOffsets;
-		const std::vector<const VertexElement>	vElements;
+		const std::vector<VertexElement>		vElements;
 		bool									addLocked;
 
 		static bool								GFGLogicHit(GFGVertexComponentLogic, VertexLogic);
@@ -71,7 +70,7 @@ class VertexBuffer
 	public:
 		// Constructors & Destructor
 									VertexBuffer();
-									VertexBuffer(const std::vector<const VertexElement>&,
+									VertexBuffer(const std::vector<VertexElement>&,
 												 uint32_t byteStride);
 									VertexBuffer(const VertexBuffer&) = delete;
 									VertexBuffer(VertexBuffer&&);

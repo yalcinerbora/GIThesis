@@ -20,14 +20,6 @@
 #include "Macros.h"
 #include "CudaInit.h"
 
-#include "MeshBatchNyra.h"
-#include "MeshBatchCornell.h"
-#include "MeshBatchSponza.h"
-#include "MeshBatchCube.h"
-#include "MeshBatchOscillate.h"
-#include "MeshBatchDyno.h"
-#include "MeshBatchMulti.h"
-
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
 #include "IEUtility/IETimer.h"
@@ -39,7 +31,6 @@ int main()
 	// Cuda Init
 	CudaInit::InitCuda();
 
-	IEVector3 camPos = IEVector3(-180.0f, 145.0f, 0.3f);
 	Camera mainRenderCamera =
 	{
 		90.0f,
@@ -47,41 +38,44 @@ int main()
 		600.0f,
 		1280,
 		720,
-		camPos,
+		IEVector3(-180.0f, 145.0f, 0.3f),
 		IEVector3::ZeroVector,
 		IEVector3::Yaxis
 	};
 
 	uint32_t currentSolution = 0, currentScene = 0, currentInputScheme = 0, oldSolution = currentSolution;
-	std::vector<SolutionI*>	solutions;
-	std::vector<SceneI*>	scenes;
-	std::vector<InputManI*>	inputSchemes;
+	std::vector<SolutionI*> solutions;
+	std::vector<SceneI*> scenes;
+	std::vector<CameraInputI*> cameraInputSchemes;
 
 	// Input Schemes
-	NoInput nullInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
-	MayaInput mayaInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
-	FPSInput fpsInput(mainRenderCamera, currentSolution, currentScene, currentInputScheme);
-	inputSchemes.push_back(&nullInput);
-	inputSchemes.push_back(&mayaInput);
-	inputSchemes.push_back(&fpsInput);
+	NoInput nullInput;
+	MayaInput mayaInput(0.005, 0.1, 0.2);
+	FPSInput fpsInput(0.005, 4.30, 0.25);
+	cameraInputSchemes.push_back(&nullInput);
+	cameraInputSchemes.push_back(&mayaInput);
+	cameraInputSchemes.push_back(&fpsInput);
+
+	// Acutal Input
+	WindowInput inputManager(mainRenderCamera, 
+							 cameraInputSchemes, 
+							 solutions, 
+							 scenes);
 
 	// Window Init
 	WindowProperties winProps
 	{
-		1280,
-		720,
+		1280, 720,
 		WindowScreenType::WINDOWED
-		//WindowScreenType::FULLSCREEN
 	};
-	Window mainWindow(nullInput,
-					  winProps);
+	Window mainWindow(inputManager, winProps);
 
 	// DeferredRenderer
 	DeferredRenderer deferredRenderer;
 
 	// Scenes
 	IEVector3 lightDir = IEQuaternion(IEMath::ToRadians(-84.266f), IEVector3::Xaxis).ApplyRotation(-IEVector3::Zaxis);
-	Light sponzaLights[] =
+	std::vector<Light> sponzaLights =
 	{
 		// Directional Light
 		// White Color
@@ -92,25 +86,25 @@ int main()
 			//{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), std::numeric_limits<float>::infinity()},
 			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
 		},
-		//Point Lights
-		//Various Colors color effecting radius 60 units
-		{
-			{ 212.6f, 50.8f, -85.3f, static_cast<float>(LightType::POINT) },
-			{ 0.0f, 0.0f, 0.0f, 120.0f },
-			IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
-		},
-		{
-			{ -116.8f, 27.5f, 17.0f, static_cast<float>(LightType::POINT) },
-			{ 0.0f, 0.0f, 0.0f, 120.0f },
-			IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
-		},
-		{
-			{ 92.2f, 25.9f, 16.2f, static_cast<float>(LightType::POINT) },
-			{ 0.0f, 0.0f, 0.0f, 120.0f },
-			IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
-		}
+		////Point Lights
+		////Various Colors color effecting radius 60 units
+		//{
+		//	{ 212.6f, 50.8f, -85.3f, static_cast<float>(LightType::POINT) },
+		//	{ 0.0f, 0.0f, 0.0f, 120.0f },
+		//	IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
+		//},
+		//{
+		//	{ -116.8f, 27.5f, 17.0f, static_cast<float>(LightType::POINT) },
+		//	{ 0.0f, 0.0f, 0.0f, 120.0f },
+		//	IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
+		//},
+		//{
+		//	{ 92.2f, 25.9f, 16.2f, static_cast<float>(LightType::POINT) },
+		//	{ 0.0f, 0.0f, 0.0f, 120.0f },
+		//	IEVector4(1.0f, 1.0f, 1.0f, 3000.0f)
+		//}
 	};
-	Light sibernikLights[] =
+	std::vector<Light> sibernikLights =
 	{
 		// Directional Light
 		// White Color
@@ -120,24 +114,24 @@ int main()
 			{IEMath::SinF(IEMath::ToRadians(45.0f)), -IEMath::CosF(IEMath::ToRadians(45.0f)), 0.0f, std::numeric_limits<float>::infinity()},
 			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
 		},
-		//Point Lights
-		{
-			{-80.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
-			{0.0f, 0.0f, 0.0f, 1000.0f},
-			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
-		},
-		{
-			{0.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
-			{0.0f, 0.0f, 0.0f, 1000.0f},
-			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
-		},
-		{
-			{80.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
-			{0.0f, 0.0f, 0.0f, 1000.0f},
-			IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
-		}
+		////Point Lights
+		//{
+		//	{-80.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
+		//	{0.0f, 0.0f, 0.0f, 1000.0f},
+		//	IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
+		//},
+		//{
+		//	{0.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
+		//	{0.0f, 0.0f, 0.0f, 1000.0f},
+		//	IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
+		//},
+		//{
+		//	{80.0f, 100.0f, 0.0f, static_cast<float>(LightType::POINT)},
+		//	{0.0f, 0.0f, 0.0f, 1000.0f},
+		//	IEVector4(1.0f, 1.0f, 1.0f, 11000.0f)
+		//}
 	};
-	Light cornellLights[] =
+	std::vector<Light> cornellLights =
 	{
 		// Point Light
 		// White Color
@@ -159,136 +153,56 @@ int main()
 	const std::string SponzaFileName = "sponza.gfg";
 	const std::string SponzaDynamicFileName = "sponzaDynamic.gfg";
 
-	const std::string NyraFileName = "byra.gfg";
+	const std::string NyraFileName = "nyra.gfg";
 	const std::string CornellboxFileName = "cornell.gfg";
 	const std::string SibernikFileName = "sibernik.gfg";
 	const std::string DynamicFileName = "dynamicScene.gfg";
 
-	struct SceneLoadElement
-	{
-		const std::vector<std::string> rigidMeshFileNames;
-		const std::vector<std::string> skeletonMeshFileNames;
-		const std::vector<Light> lights;
-	};
-	std::vector<SceneLoadElement> sceneLoadData;
-
-
 	// Scene Files
-
-
-
-
-
-
-
-
-	MeshBatchSponza crySponzaDynamic(MeshBatchSponza::sponzaDynamicFileName,
-									  ThesisSolution::CascadeSpan);
-	MeshBatchNyra nyraBatch(MeshBatchSkeletal::nyraFileName,
-							ThesisSolution::CascadeSpan);
-	nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
-    MeshBatchI* sponzaBatches[] = {&crySponzaStatic, &crySponzaDynamic, &nyraBatch};
-    Scene crySponza(Array32<MeshBatchI*>{sponzaBatches, 1},
-                    Array32<Light>{sponzaLights, 1},
-                    Scene::bigSizes);
-    scenes.push_back(&crySponza);
-
-	//// Floor Scene
-	//class MeshBatchFloor : public MeshBatch
-	//{
-	//	private:
-	//	protected:
-	//	public:
-	//	// Constructors & Destructor
-	//	MeshBatchFloor(const char* sceneFileName, float minVoxSpan)
-	//		:MeshBatch(sceneFileName, minVoxSpan, false)
-	//	{}
-
-	//	// Interface
-	//	void Update(double elapsedS) override
-	//	{
-	//		static const float translateSpeed = 0.3f;
-	//		std::vector<ModelTransform>& mtBuff = batchDrawParams.getModelTransformBuffer().CPUData();
-	//		BatchFunctors::ApplyTranslation translator(mtBuff);
-	//		translator(1, elapsedS, IEVector3::Zaxis * translateSpeed);
-	//		batchDrawParams.getModelTransformBuffer().SendData();
-	//	}
-	//	VoxelObjectType MeshType() const override { return VoxelObjectType::DYNAMIC; }
-	//} floorBatch("testFloor.gfg", ThesisSolution::CascadeSpan);
-	////} floorBatch("testBox.gfg", ThesisSolution::CascadeSpan);
-	//MeshBatchI* floorBatches[] = {&floorBatch};
-	//Scene floorScene(Array32<MeshBatchI*>{floorBatches, 1},
-	//				Array32<Light>{sponzaLights, 1},
-	//				Scene::sponzaSceneLevelSizes);
-	//scenes.push_back(&floorScene);
-
-	//// Nyra Comparison Scene
-	//MeshBatchSkeletal nyraBatch(MeshBatchSkeletal::nyraFileName,
-	//							ThesisSolution::CascadeSpan);
-	//MeshBatchI* nyraBatches[] = {&nyraBatch};
-	//Scene nyraCompare(Array32<MeshBatchI*>{nyraBatches, 1},
-	//				  Array32<Light>{sponzaLights, 1},
-	//				  Scene::bigSizes);
+	// Sponza Atrium
+	std::vector<std::string> sponzaRigid = 
+	{
+		"sponza.gfg",
+		"sponzaDynamic.gfg"
+	};
+	std::vector<std::string> sponzaSkeletal =
+	{
+		//"nyra.gfg"
+	};
+	ConstantScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
 	//nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
-	//scenes.push_back(&nyraCompare);
+	scenes.push_back(&sponza);
+	// Cornell
+	//std::vector<std::string> cornellRigid =
+	//{
+	//	"cornell.gfg"
+	//};
+	//std::vector<std::string> sponzaSkeletal = {};
+	//ConstantScene cornell("Cornell Box", cornellRigid, sponzaSkeletal, cornellLights);
+	//scenes.push_back(&cornell);
+	//// Sibernik Cathedral
+	//std::vector<std::string> sibernikRigid =
+	//{
+	//	"sibernik.gfg"
+	//};
+	//std::vector<std::string> sibernikSkeletal = {};
+	//ConstantScene sibernik("Sibernik Cathedral", sibernikRigid, sibernikSkeletal, sibernikLights);
+	//scenes.push_back(&sibernik);
+	//// Dynamic Scene
+	////std::vector<std::string> dynamicScene =
 
-	//// Cornell Box Scene
-	//MeshBatch cornellStatic(MeshBatch::cornellboxFileName,
-	//						ThesisSolution::CascadeSpan,
-	//						false);
-	//MeshBatchCornell cornellDynamic(MeshBatchCornell::cornellDynamicFileName,
-	//								ThesisSolution::CascadeSpan);
- //   MeshBatchI* cornellBatches[] = {&cornellStatic, &cornellDynamic};
- //   Scene cornellBox(Array32<MeshBatchI*>{cornellBatches, 2},
- //                    Array32<Light>{cornellLights, 1},
- //                    Scene::cornellSceneLevelSizes);
- //   scenes.push_back(&cornellBox);
-
-	//// Sibernik Scene
-	//MeshBatch sibernikStatic(MeshBatch::sibernikFileName,
-	//						 ThesisSolution::CascadeSpan,
-	//						 false);
- //   MeshBatchI* sibernikBatches[] = {&sibernikStatic};
- //   Scene sibernik(Array32<MeshBatchI*>{sibernikBatches, 1},
- //                  Array32<Light>{sibernikLights, 1},
- //                  Scene::sibernikSceneLevelSizes);
- //   scenes.push_back(&sibernik);
-	
-    //// Dynamic Scene
-    //MeshBatchDyno dynamicBatch(MeshBatch::dynamicFileName,
-    //                           ThesisSolution::CascadeSpan);
-    //MeshBatchMultiSkel nyraJump(MeshBatchMultiSkel::nyraName,
-    //                           ThesisSolution::CascadeSpan,
-    //                            -150.0f, -150.0f, 30.0f, 300.0f,
-    //                            128);
-    //nyraJump.AnimationParams(0.0f, 0.3f, AnimationType::REPEAT);
-    //MeshBatchI* dynamicScalingBatches[] = {&dynamicBatch, &nyraJump};
-    //Scene dynamicScene(Array32<MeshBatchI*>{dynamicScalingBatches, 2},
-    //                   Array32<Light>{sponzaLights, 1},
-    //                   Scene::bigSizes);
-    //scenes.push_back(&dynamicScene);
-	
 	// Solutions
-	EmptyGISolution emptySolution(deferredRenderer);
-	ThesisSolution thesisSolution(deferredRenderer, mainRenderCamera.pos);
+	EmptyGISolution emptySolution("No GI", deferredRenderer);
+	ThesisSolution thesisSolution("Thesis GI", deferredRenderer, mainRenderCamera.pos);
 	solutions.push_back(&emptySolution);
 	solutions.push_back(&thesisSolution);
 
 	// Window Callbacks (Thesis Solution Stuff)
-	nullInput.AddKeyCallback(GLFW_KEY_KP_ADD, GLFW_RELEASE, &ThesisSolution::LevelIncrement, &thesisSolution);
-	nullInput.AddKeyCallback(GLFW_KEY_KP_SUBTRACT, GLFW_RELEASE, &ThesisSolution::LevelDecrement, &thesisSolution);
-	mayaInput.AddKeyCallback(GLFW_KEY_KP_ADD, GLFW_RELEASE, &ThesisSolution::LevelIncrement, &thesisSolution);
-	mayaInput.AddKeyCallback(GLFW_KEY_KP_SUBTRACT, GLFW_RELEASE, &ThesisSolution::LevelDecrement, &thesisSolution);
-	fpsInput.AddKeyCallback(GLFW_KEY_KP_ADD, GLFW_RELEASE, &ThesisSolution::LevelIncrement, &thesisSolution);
-	fpsInput.AddKeyCallback(GLFW_KEY_KP_SUBTRACT, GLFW_RELEASE, &ThesisSolution::LevelDecrement, &thesisSolution);
-
-	nullInput.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::TraceDecrement, &thesisSolution);
-	nullInput.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::TraceIncrement, &thesisSolution);
-	mayaInput.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::TraceDecrement, &thesisSolution);
-	mayaInput.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::TraceIncrement, &thesisSolution);
-	fpsInput.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::TraceDecrement, &thesisSolution);
-	fpsInput.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::TraceIncrement, &thesisSolution);
-
+	inputManager.AddKeyCallback(GLFW_KEY_KP_ADD, GLFW_RELEASE, &ThesisSolution::SVOLevelIncrement, &thesisSolution);
+	inputManager.AddKeyCallback(GLFW_KEY_KP_SUBTRACT, GLFW_RELEASE, &ThesisSolution::SVOLevelDecrement, &thesisSolution);	
+	inputManager.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::TraceTypeIncrement, &thesisSolution);
+	inputManager.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::TraceTypeDecrement, &thesisSolution);
+	
 	// Main Help
 	TwDefine(" GLOBAL iconpos=tl ");
 	TwDefine(" GLOBAL help='GI Implementation using voxels.\n"
@@ -309,39 +223,14 @@ int main()
 	{
         double elapsedTime = t.ElapsedS();
 
-		// Constantly Check Input Scheme Change
-		mainWindow.ChangeInputScheme(*inputSchemes[currentInputScheme % inputSchemes.size()]);
 
-		// Enforce intialization if solution changed
-		bool forceInit = false;
-		if(oldSolution != currentSolution)
-		{
-			forceInit = true;
-			solutions[oldSolution % solutions.size()]->Release();
-			oldSolution = currentSolution;
-		}
-			
-		SolutionI* solution = solutions[currentSolution % solutions.size()];
-		if(!solution->IsCurrentScene(*scenes[currentScene % scenes.size()]) ||
-		   forceInit)
-		{
-			solutions[oldSolution % solutions.size()]->Release();
-			solution->Init(*scenes[currentScene % scenes.size()]);
-		}
+		auto solution = inputManager.Solution();
+		auto scene = inputManager.Scene();
 
-        // Toggle Time
-        if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())
-            elapsedTime = 0.0;
-
-        // Toggle Dir Movement
-        if(inputSchemes[currentInputScheme % inputSchemes.size()]->MoveLight())
-            scenes[currentScene % scenes.size()]->getSceneLights().ChangeLightDir(0, IEQuaternion(IEMath::ToRadians(elapsedTime * 5.0f),
-                    -IEVector3::Xaxis).ApplyRotation(scenes[currentScene % scenes.size()]->getSceneLights().GetLightDir(0)));
-
-		// Render frame
-		scenes[currentScene % scenes.size()]->Update(elapsedTime);
+		// Update Scene Render Frame
+		scene->Update(elapsedTime);
 		solution->Frame(mainRenderCamera);
-		
+
 		// End of the Loop
 		mainWindow.Present();
 		glfwPollEvents();
@@ -349,11 +238,5 @@ int main()
 		t.Lap();
 		solution->SetFPS(t.ElapsedMilliS());
 	}
-
-	//for(MeshBatchI*& batch : nyraVector)
-	//{
-	//	delete batch;
-	//	batch = nullptr;
-	//}
 	return 0;
 }

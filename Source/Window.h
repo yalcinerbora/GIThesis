@@ -13,7 +13,7 @@ Requires Input Management Interface to get the incoming Data
 #include <map>
 #include "GLHeaderLite.h"
 
-class InputManI;
+class WindowInput;
 struct GLFWwindow;
 
 enum class WindowScreenType
@@ -39,7 +39,7 @@ class Window
 		static std::map<GLFWwindow*, Window*> windowMappings;
 
 		// Class Properties	
-		InputManI*				input;
+		WindowInput&			input;
 		GLFWwindow*				window;
 		int						twWindowId;
 
@@ -70,7 +70,7 @@ class Window
 	protected:
 	public:
 		// Constructors & Destructor
-								Window(InputManI&,
+								Window(WindowInput&,
 									   WindowProperties);
 								Window(const Window&) = delete;
 		const Window&			operator=(const Window&) = delete;
@@ -78,7 +78,6 @@ class Window
 
 		// Utility
 		// Change Input Scheme
-		void					ChangeInputScheme(InputManI&);
 		bool					WindowClosed() const;
 		void					Present();
 

@@ -7,11 +7,12 @@
 
 #include "IEUtility/IEVector4.h"
 #include "IEUtility/IEMatrix4x4.h"
+#include "IEUtility/IEBoundingSphere.h"
 #include "StructuredBuffer.h"
-#include "ArrayStruct.h"
 #include "DrawPoint.h"
 #include <cstdint>
 
+struct Camera;
 class DrawBuffer;
 class GPUBuffer;
 class FrameTransformBuffer;
@@ -44,72 +45,91 @@ struct LightStatus
 
 class SceneLights
 {
+	public:
+		static constexpr int				CubeSide = 6;
+
 	private:
-		friend class DeferredRenderer;
 
-		// Point Light Shadow Cubemap Related Stuff
-		static const IEVector3	pLightDir[6];
-		static const IEVector3	pLightUp[6];
+		// Point Light Shadow Cubemap Related Stuff		
+		static const IEVector3				pLightDir[CubeSide];
+		static const IEVector3				pLightUp[CubeSide];
 
-		static const IEVector3	aLightDir[6];
-		static const IEVector3	aLightUp[6];
+		static const IEVector3				aLightDir[CubeSide];
+		static const IEVector3				aLightUp[CubeSide];
 
 		// Sparse texture cubemap array
 		// One Shadowmap for each light
 		// Directional Lights have one side used (others not allocated)
 		// Area Lights only use 5 sides of the cube map
-		StructuredBuffer<Light>				lightsGPU;
-		StructuredBuffer<IEMatrix4x4>		lightViewProjMatrices;
+		// GPU Buffer
+		StructuredBuffer<uint8_t>			gpuBuffer;
+		size_t								lightOffset;
+		size_t								matrixOffset;
+
+		// Textures and Framebuffers
 		GLuint								lightShadowMaps;
 		GLuint								shadowMapArrayView;
 		GLuint								shadowMapCubeDepth;
 		std::vector<GLuint>					shadowMapViews;
 		std::vector<GLuint>					shadowMapFBOs;
-		std::vector<bool>					lightShadowCast;
-
+		
+	
+		// CPU Part
+		std::vector<Light>					lights;
+		std::vector<IEMatrix4x4>			lightViewProjMatrices;
 		std::vector<IEMatrix4x4>			lightProjMatrices;
 		std::vector<IEMatrix4x4>			lightInvViewProjMatrices;
+		std::vector<bool>					lightShadowCast;
 
-
+		static float						CalculateCascadeLength(float frustumFar,
+																   unsigned int cascadeNo);
+		static IEBoundingSphere				CalculateShadowCascasde(float cascadeNear,
+																	float cascadeFar,
+																	const Camera& camera,
+																	const IEVector3& lightDir);
+		void								GenerateMatrices(const Camera& camera);
 
 	protected:
 	public:
 		// Constructors & Destructor
-										SceneLights();
-										SceneLights(const std::vector<Light>& lights);
-										SceneLights(const SceneLights&) = delete;
-										SceneLights(SceneLights&&);
-		SceneLights&					operator=(SceneLights&&);
-		SceneLights&					operator=(const SceneLights&) = delete;
-										~SceneLights();
+											SceneLights();
+											SceneLights(const std::vector<Light>& lights);
+											SceneLights(const SceneLights&) = delete;
+											SceneLights(SceneLights&&);
+		SceneLights&						operator=(SceneLights&&);
+		SceneLights&						operator=(const SceneLights&) = delete;
+											~SceneLights();
 
-		uint32_t						Count() const;
-		GLuint							GetLightBufferGL();
-		GLuint							GetShadowArrayGL();
-		GLuint							GetVPMatrixGL();
+		uint32_t							Count() const;
+
+		void								ChangeLightPos(uint32_t index, IEVector3 position);
+		void								ChangeLightDir(uint32_t index, IEVector3 direction);
+		void								ChangeLightColor(uint32_t index, IEVector3 color);
+		void								ChangeLightRadius(uint32_t index, float radius);
+		void								ChangeLightIntensity(uint32_t index, float intensity);
+		void								ChangeLightShadow(uint32_t index, bool shadowStatus);
+
+		IEVector3							getLightPos(uint32_t index) const;
+		LightType							getLightType(uint32_t index) const;
+		IEVector3							getLightDir(uint32_t index) const;
+		IEVector3							getLightColor(uint32_t index) const;
+		float								getLightRadius(uint32_t index) const;
+		float								getLightIntensity(uint32_t index) const;
+		bool								getLightCastShadow(uint32_t index) const;
+		const std::vector<IEMatrix4x4>&		getLightProjMatrices();
+		const std::vector<IEMatrix4x4>&		getLightInvViewProjMatrices();
+
+		// GL States
+		void								BindLightFramebuffer(uint32_t light);
+		GLuint								BindViewProjectionMatrices(GLuint bindPoint);
+		GLuint								BindLightParameters(GLuint bindPoint);
+
+//		GLuint								GetShadowArrayGL();
 		
-		const std::vector<IEMatrix4x4>&	GetLightProjMatrices();
-		const std::vector<IEMatrix4x4>& GetLightInvViewProjMatrices();
+		void								SendVPMatricesToGPU();
+		void								SendLightDataToGPU();
 
-		void							ChangeLightPos(uint32_t index, IEVector3 position);
-		void							ChangeLightDir(uint32_t index, IEVector3 direction);
-		void							ChangeLightColor(uint32_t index, IEVector3 color);
-		void							ChangeLightRadius(uint32_t index, float radius);
-		void							ChangeLightIntensity(uint32_t index, float intensity);
-		void							ChangeLightShadow(uint32_t index, bool shadowStatus);
-
-		IEVector3						GetLightPos(uint32_t index) const;
-		LightType						GetLightType(uint32_t index) const;
-		IEVector3						GetLightDir(uint32_t index) const;
-		IEVector3						GetLightColor(uint32_t index) const;
-		float							GetLightRadius(uint32_t index) const;
-		float							GetLightIntensity(uint32_t index) const;
-		bool							GetLightShadow(uint32_t index) const;
-
-		static const GLsizei			shadowMapWH;
-		static const uint32_t			numShadowCascades;
-		static const uint32_t			shadowMipCount;
-		static const uint32_t			mipSampleCount;
+		//void								Bind
 };
 
 #endif //__SCENE_H__

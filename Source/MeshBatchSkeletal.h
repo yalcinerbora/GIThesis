@@ -22,15 +22,19 @@ class MeshBatchSkeletal : public MeshBatch
 
 	public:
 		// Constructors & Destructor
-											MeshBatchSkeletal(const std::vector<const VertexElement>& vertexDefintion, uint32_t byteStride,
-															  const std::vector<std::string>& sceneFiles);
-	  
+											MeshBatchSkeletal();
+											MeshBatchSkeletal(const std::vector<VertexElement>& vertexDefintion, uint32_t byteStride,
+													  const std::vector<std::string>& sceneFiles);
+											MeshBatchSkeletal(const MeshBatchSkeletal&) = delete;
+											MeshBatchSkeletal(MeshBatchSkeletal&&);
+		MeshBatchSkeletal&					operator=(MeshBatchSkeletal&&);
+		MeshBatchSkeletal&					operator=(const MeshBatchSkeletal&) = delete;
+											~MeshBatchSkeletal() = default;
+
 		// Interface
 		void								Update(double elapsedS) override;
-
 		MeshBatchType						MeshType() const override;
 		
-
 		StructuredBuffer<ModelTransform>&	getJointTransforms();
 };
 

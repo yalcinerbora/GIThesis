@@ -1,16 +1,14 @@
+#pragma once
 /**
 
 Column Major Vector Matrix
 
 */
-
-#ifndef __IE_MATRIX3X3_H__
-#define __IE_MATRIX3X3_H__
-
 #include <algorithm>
 #include <cassert>
 
 #include "IEMatrix4x4.h"
+#include "IEVector3.h"
 
 class IEVector3;
 class IEVector4;
@@ -19,16 +17,18 @@ class IEQuaternion;
 class IEMatrix3x3
 {
 	private:
-	union
-	{
-		struct
+		static constexpr int	MatrixWH = 3;
+
+		union
 		{
-			float			m11, m21, m31,
-							m12, m22, m32,
-							m13, m23, m33;
+			struct
+			{
+				float			m11, m21, m31,
+								m12, m22, m32,
+								m13, m23, m33;
+			};
+			float				v[MatrixWH * MatrixWH];
 		};
-		float				v[9];
-	};
 
 	protected:
 
@@ -38,7 +38,11 @@ class IEMatrix3x3
 								IEMatrix3x3(float m11, float m21, float m31,
 											float m12, float m22, float m32,
 											float m13, float m23, float m33);
-								IEMatrix3x3(float v[]);
+								IEMatrix3x3(float v[MatrixWH * MatrixWH]);
+								IEMatrix3x3(const IEVector3& c0,
+											const IEVector3& c1, 
+											const IEVector3& c2);
+								IEMatrix3x3(const IEVector3[MatrixWH]);
 								IEMatrix3x3(const IEMatrix3x3&) = default;
 								IEMatrix3x3(const IEMatrix4x4&);
 								~IEMatrix3x3() = default;
@@ -47,16 +51,26 @@ class IEMatrix3x3
 	static const IEMatrix3x3	IdentityMatrix;
 	static const IEMatrix3x3	ZeroMatrix;
 
-	// Accessors
-	float						operator()(int row, int column) const;
-	const float*				getColumn(int column) const;
-	const float*				getData() const;
+	// Accessor & Mutator Operators
+	float&						operator()(int row, int column);
+	const float&				operator()(int row, int column) const;
+	float&						operator[](int);
+	const float&				operator[](int) const;
 
+	// Accessors
+	const float*				getColumn(int column) const;
+	IEVector3					getRow(int column) const;
+	const float*				getData() const;
+	
 	// Mutators
-	void						setElement(int row, int column, float data);
-	void						setColumn(int, const float[3]);
-	void						setRow(int, const float[3]);
-	void						setData(const float[9]);
+	void						setColumn(int, const float[MatrixWH]);
+	void						setColumn(int, const IEVector3&);
+	void						setRow(int, const float[MatrixWH]);
+	void						setRow(int, const IEVector3&);
+	void						setData(const float[MatrixWH * MatrixWH]);
+	void						setData(const IEVector3[MatrixWH]);
+
+	IEMatrix3x3&				operator=(const IEVector3[MatrixWH]);
 	IEMatrix3x3&				operator=(const IEMatrix4x4&);
 	IEMatrix3x3&				operator=(const IEMatrix3x3&) = default;
 
@@ -67,6 +81,7 @@ class IEMatrix3x3
 	IEMatrix3x3					operator*(float) const;
 	IEMatrix3x3					operator+(const IEMatrix3x3&) const;
 	IEMatrix3x3					operator-(const IEMatrix3x3&) const;
+	IEMatrix3x3					operator-() const;
 	IEMatrix3x3					operator/(float) const;
 
 	void						operator*=(const IEMatrix3x3&);
@@ -85,9 +100,11 @@ class IEMatrix3x3
 	IEMatrix3x3&				InverseSelf();
 	IEMatrix3x3					Transpose() const;
 	IEMatrix3x3&				TransposeSelf();
+	IEMatrix3x3					Clamp(const IEMatrix3x3& min, const IEMatrix3x3& max) const;
+	IEMatrix3x3					Clamp(float min, float max) const;
+	IEMatrix3x3&				ClampSelf(const IEMatrix3x3& min, const IEMatrix3x3& max);
+	IEMatrix3x3&				ClampSelf(float min, float max);
 
-	// Vector Transformation Matrix Creation and Projection Matrix Creation
-	// All of these operations applies on to the current matrix
 	static IEMatrix3x3			Rotate(float angle, const IEVector3&);
 	static IEMatrix3x3			Rotate(const IEQuaternion&);
 };
@@ -101,16 +118,47 @@ static_assert(sizeof(IEMatrix3x3) == sizeof(float) * 9, "IEMatrix3x3 size is not
 IEMatrix3x3 operator*(float, const IEMatrix3x3&);
 
 // Inlines
-inline float IEMatrix3x3::operator()(int row, int column) const
+inline float& IEMatrix3x3::operator()(int row, int column)
 {
-	assert(row >= 1 && row <= 3 && column >= 1 && column <= 3);
-	return v[(column - 1) * 3 + (row - 1)];
+	assert(row >= 0 && row < MatrixWH && 
+		   column >= 0 && column < MatrixWH);
+	return v[column * MatrixWH + row];
+}
+
+inline const float& IEMatrix3x3::operator()(int row, int column) const
+{
+	assert(row >= 0 && row < MatrixWH &&
+		   column >= 0 && column < MatrixWH);
+	return v[column * MatrixWH + row];
+}
+
+inline float& IEMatrix3x3::operator[](int index)
+{
+	assert(index >= 0 && index < MatrixWH * MatrixWH);
+	return v[index];
+}
+
+inline const float& IEMatrix3x3::operator[](int index) const
+{
+	assert(index >= 0 && index < MatrixWH * MatrixWH);
+	return v[index];
 }
 
 inline const float* IEMatrix3x3::getColumn(int column) const
 {
-	assert(column >= 1 && column <= 3);
-	return &v[(column - 1) * 3];
+	assert(column >= 0 && column < MatrixWH);
+	return &v[column * MatrixWH];
+}
+
+inline IEVector3 IEMatrix3x3::getRow(int row) const
+{
+	assert(row >= 0 && row < MatrixWH);
+	return
+	{
+		v[				 row],
+		v[	  MatrixWH + row],
+		v[2 * MatrixWH + row]
+	};
 }
 
 inline const float* IEMatrix3x3::getData() const
@@ -118,46 +166,54 @@ inline const float* IEMatrix3x3::getData() const
 	return v;
 }
 
-inline void IEMatrix3x3::setElement(int row, int column, float data)
-{
-	assert(row >= 1 && row <= 3 && column >= 1 && column <= 3);
-	v[(column - 1) * 3 + (row - 1)] = data;
-}
-
 inline void IEMatrix3x3::setColumn(int column, const float vector[])
 {
-	assert(column >= 1 && column <= 3);
-	v[(column - 1) * 3] = vector[0];
-	v[(column - 1) * 3 + 1] = vector[1];
-	v[(column - 1) * 3 + 2] = vector[2];
-	v[(column - 1) * 3 + 3] = vector[3];
+	assert(column >= 0 && column < MatrixWH);
+	std::copy(vector, vector + MatrixWH, v + column * MatrixWH);
+}
+
+inline void IEMatrix3x3::setColumn(int column, const IEVector3& vector)
+{
+	assert(column >= 0 && column < MatrixWH);
+	std::copy(vector.getData(), vector.getData() + MatrixWH, v + column * MatrixWH);
 }
 
 inline void IEMatrix3x3::setRow(int row, const float vector[])
 {
-	assert(row >= 1 && row <= 3);
-	v[(row - 1)] = vector[0];
-	v[4 + (row - 1)] = vector[1];
-	v[8 + (row - 1)] = vector[2];
-	v[12 + (row - 1)] = vector[3];
+	assert(row >= 0 && row < MatrixWH);
+	v[               row] = vector[0];
+	v[    MatrixWH + row] = vector[1];
+	v[2 * MatrixWH + row] = vector[2];
+}
+
+inline void IEMatrix3x3::setRow(int row, const IEVector3& vector)
+{
+	v[               row] = vector[0];
+	v[    MatrixWH + row] = vector[1];
+	v[2 * MatrixWH + row] = vector[2];
 }
 
 inline void IEMatrix3x3::setData(const float* data)
 {
-	std::copy(data, data + 16, v);
+	std::copy(data, data + MatrixWH * MatrixWH, v);
+}
+
+inline void IEMatrix3x3::setData(const IEVector3 data[])
+{
+	const float* dataPtr = data[0].getData();
+	std::copy(dataPtr, dataPtr + MatrixWH * MatrixWH, v);
+}
+
+inline IEMatrix3x3& IEMatrix3x3::operator=(const IEVector3 data[])
+{
+	setData(data);
+	return *this;
 }
 
 inline IEMatrix3x3& IEMatrix3x3::operator=(const IEMatrix4x4& matrix)
 {
-	std::copy(matrix.getColumn(1), matrix.getColumn(1) + 3, v + 0);
-	std::copy(matrix.getColumn(2), matrix.getColumn(2) + 3, v + 3);
-	std::copy(matrix.getColumn(3), matrix.getColumn(3) + 3, v + 6);
+	std::copy(matrix.getData(), matrix.getData() + MatrixWH, v		         );
+	std::copy(matrix.getData(), matrix.getData() + MatrixWH, v +     MatrixWH);
+	std::copy(matrix.getData(), matrix.getData() + MatrixWH, v + 2 * MatrixWH);
 	return *this;
 }
-
-//inline IEMatrix3x3& IEMatrix3x3::operator=(const IEMatrix3x3& matrix)
-//{
-//	std::copy(matrix.v, matrix.v + 9, v);
-//	return *this;
-//}
-#endif //__IE_MATRIX3X3_H__

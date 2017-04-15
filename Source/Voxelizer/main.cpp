@@ -10,6 +10,7 @@
 #include "Shader.h"
 #include "Macros.h"
 #include "VoxFramebuffer.h"
+#include "Globals.h"
 
 static const VoxelizerOptions defaults =
 {
@@ -194,7 +195,8 @@ int main(int argc, char* argv[])
 		GI_LOG("");
 		GI_LOG("#######################################");
 		GI_LOG("Working on \"%s\"...", fileName.c_str());
-		MeshBatch batch(fileName.c_str(), 0.0f, false);
+		MeshBatch batch(rigidMeshVertexDefinition, sizeof(VAO),
+						{fileName});
 		GI_LOG("");
 
 		OGLVoxelizer voxelizer(options,
@@ -227,7 +229,8 @@ int main(int argc, char* argv[])
 		GI_LOG("");
 		GI_LOG("#######################################");
 		GI_LOG("Working on \"%s\"...", fileName.c_str());		
-		MeshBatchSkeletal batch(fileName.c_str(), 0.0f);
+		MeshBatchSkeletal batch(skeletalMeshVertexDefinition, sizeof(VAOSkel),
+							    {fileName});
 		GI_LOG("");
 
 		OGLVoxelizer voxelizer(options,

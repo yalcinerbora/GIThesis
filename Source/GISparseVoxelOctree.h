@@ -206,7 +206,7 @@ class GISparseVoxelOctree
 												~GISparseVoxelOctree();
 
 		// Link Allocators and Adjust Size of the System
-		void									LinkAllocators(Array32<GICudaAllocator*> allocators,
+		void									LinkAllocators(std::vector<GICudaAllocator*> allocators,
 															   const uint32_t levelCounts[]);
 
 		// Link

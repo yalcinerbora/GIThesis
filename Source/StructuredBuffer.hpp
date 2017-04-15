@@ -45,9 +45,9 @@ StructuredBuffer<T>::StructuredBuffer(size_t initialCapacity)
 	: bufferId(0)
 	, bufferCapacity(initialCapacity)
 {
-	//assert(initialCapacity != 0);
 	if(bufferCapacity != 0)
 	{
+		dataGPUImage.resize(initialCapacity);
 		glGenBuffers(1, &bufferId);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
 		glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),

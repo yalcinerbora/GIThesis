@@ -5,6 +5,14 @@
 #include <cstdint>
 #include "StructuredBuffer.h"
 
+enum class VoxelObjectType
+{
+	STATIC,			// Object does not move
+	DYNAMIC,		// Object does move (with transform matrices)
+	SKEL_DYNAMIC,	// Object moves with weighted transformation matrices
+	MORPH_DYNAMIC,	// Object moves with morph targets (each voxel has their adjacent vertex morphs weighted)
+};
+
 #pragma pack(push, 1)
 struct VoxelNormPos
 {

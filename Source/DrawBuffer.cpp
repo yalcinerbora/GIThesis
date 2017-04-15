@@ -59,27 +59,31 @@ void DrawBuffer::LockAndLoad()
 	cpuImage.resize(totalSize);
 
 	// Copy Data
-	std::copy(cpuDrawPoints.begin(), cpuDrawPoints.end(),
+	std::copy(reinterpret_cast<uint8_t*>(cpuDrawPoints.data()), 
+			  reinterpret_cast<uint8_t*>(cpuDrawPoints.data()) + cpuDrawPoints.size(),
 			  cpuImage.begin() + drawPointOffset);
-	std::copy(cpuModelTransforms.begin(), cpuModelTransforms.end(),
+	std::copy(reinterpret_cast<uint8_t*>(cpuModelTransforms.data()),
+			  reinterpret_cast<uint8_t*>(cpuModelTransforms.data()) + cpuModelTransforms.size(),
 			  cpuImage.begin() + modelTransformOffset);
-	std::copy(cpuAABBs.begin(), cpuAABBs.end(),
+	std::copy(reinterpret_cast<uint8_t*>(cpuAABBs.data()),
+			  reinterpret_cast<uint8_t*>(cpuAABBs.data()) + cpuAABBs.size(),
 			  cpuImage.begin() + aabbOffset);
-	std::copy(cpuModelTransformIndices.begin(), cpuModelTransformIndices.end(),
+	std::copy(reinterpret_cast<uint8_t*>(cpuModelTransformIndices.data()),
+			  reinterpret_cast<uint8_t*>(cpuModelTransformIndices.data()) + cpuAABBs.size(),
 			  cpuImage.begin() + modelTransformIndexOffset);
 
 	// Finalize and Send
 	gpuData.SendData();
 }
 
-void DrawBuffer::SendModelTransformToGPU(uint32_t offset = 0, uint32_t size = std::numeric_limits<uint32_t>::max())
+void DrawBuffer::SendModelTransformToGPU(uint32_t offset, uint32_t size)
 {
-	assert(offset + size <= cpuModelTransforms.size * sizeof(ModelTransform));
+	assert((offset + size) <= (cpuModelTransforms.size() * sizeof(ModelTransform)));
 	if(locked)
 	{
 		uint32_t subSize = (size == std::numeric_limits<uint32_t>::max()) ?
-						   cpuModelTransforms.size() : size;
-		gpuData.SendSubData(modelTransformOffset +
+						   static_cast<uint32_t>(cpuModelTransforms.size()) : size;
+		gpuData.SendSubData(static_cast<uint32_t>(modelTransformOffset) +
 							offset * sizeof(ModelTransform),
 							subSize * sizeof(ModelTransform));
 	}
@@ -90,6 +94,51 @@ ModelTransform& DrawBuffer::ModelTransformBuffer(uint32_t transformId)
 	return cpuModelTransforms[transformId];
 }
 
+GLuint DrawBuffer::getGLBuffer()
+{
+	return gpuData.getGLBuffer();
+}
+
+size_t DrawBuffer::getModelTransformOffset() const
+{
+	return modelTransformOffset;
+}
+
+size_t DrawBuffer::getAABBOffset() const
+{
+	return aabbOffset;
+}
+
+size_t DrawBuffer::getDrawParamOffset() const
+{
+	return drawPointOffset;
+}
+
+size_t DrawBuffer::getModelTransformIndexOffset() const
+{
+	return modelTransformIndexOffset;
+}
+
+const std::vector<DrawPointIndexed>& DrawBuffer::getCPUDrawPoints() const
+{
+	return cpuDrawPoints;
+}
+
+const std::vector<ModelTransform>& DrawBuffer::getCPUModelTransforms() const
+{
+	return cpuModelTransforms;
+}
+
+const std::vector<AABBData>& DrawBuffer::getCPUAABBs() const
+{
+	return cpuAABBs;
+}
+
+const std::vector<uint32_t>& DrawBuffer::getCPUModelTransformIndices() const
+{
+	return cpuModelTransformIndices;
+}
+
 void DrawBuffer::BindAsDrawIndirectBuffer()
 {
 	gpuData.BindAsDrawIndirectBuffer();
@@ -97,15 +146,16 @@ void DrawBuffer::BindAsDrawIndirectBuffer()
 
 void DrawBuffer::BindAABB(GLuint bindPoint)
 {
-	gpuData.BindAsShaderStorageBuffer(bindPoint, aabbOffset,
-									  cpuAABBs.size() * sizeof(AABBData));
+	gpuData.BindAsShaderStorageBuffer(bindPoint, 
+									  static_cast<GLuint>(aabbOffset),
+									  static_cast<GLuint>(cpuAABBs.size() * sizeof(AABBData)));
 }
 
 void DrawBuffer::BindModelTransform(GLuint bindPoint)
 {
 	gpuData.BindAsShaderStorageBuffer(bindPoint,
-									  modelTransformOffset,
-									  cpuModelTransforms.size() * sizeof(ModelTransform));
+									  static_cast<GLuint>(modelTransformOffset),
+									  static_cast<GLuint>(cpuModelTransforms.size() * sizeof(ModelTransform)));
 }
 
 void DrawBuffer::BindMaterialForDraw(uint32_t meshIndex)
@@ -125,7 +175,7 @@ void DrawBuffer::DrawCallMulti()
 	glMultiDrawElementsIndirect(GL_TRIANGLES,
 								GL_UNSIGNED_INT,
 								nullptr,
-								cpuDrawPoints.size(),
+								static_cast<GLsizei>(cpuDrawPoints.size()),
 								sizeof(DrawPointIndexed));
 }
 

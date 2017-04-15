@@ -1,3 +1,4 @@
+#ifndef USE_AVX
 #include "IEMath.h"
 #include "IEFunctions.h"
 #include "IEQuaternion.h"
@@ -29,14 +30,14 @@ IEQuaternion::IEQuaternion(const float* data) : w(data[0]),
 IEQuaternion::IEQuaternion(float angle, const IEVector3& axis)
 {
 	angle *= 0.5f;
-	float sinAngle = IEMath::SinF(angle);
+	float sinAngle = std::sin(angle);
 
 	IEVector3 normAxis = axis.Normalize();
 
 	x = normAxis.getX() * sinAngle;
 	y = normAxis.getY() * sinAngle;
 	z = normAxis.getZ() * sinAngle;
-	w = IEMath::CosF(angle);
+	w = std::cos(angle);
 }
 
 IEQuaternion IEQuaternion::operator*(const IEQuaternion& quat) const
@@ -214,29 +215,14 @@ IEVector3 IEQuaternion::ApplyRotation(const IEVector3& vector) const
 	return IEVector3(result.x, result.y, result.z);
 }
 
-IEQuaternion IEQuaternion::NLerp(const IEQuaternion& start, const IEQuaternion& end, float percent)
-{
-	percent = IEFunctions::Clamp(percent, 0.0f, 1.0f);
-	return (start + percent * (end - start)).Normalize();
-}
-
 IEQuaternion IEQuaternion::SLerp(const IEQuaternion& start, const IEQuaternion& end, float percent)
 {
 	percent = IEFunctions::Clamp(percent, 0.0f, 1.0f);
 	float cosTetha = start.DotProduct(end);
-	if(IEMath::AbsF(cosTetha) < (1.0f - SLERP_TO_LERP_SWITCH_THRESHOLD))
-	{
-		// SLerp
-		float angle = IEMath::ACosF(cosTetha);
-		return (start * IEMath::SinF(angle * (1.0f - percent)) +
-				end * IEMath::SinF(angle * percent)) / IEMath::SinF(angle);
-	}
-	else
-	{
-		// Not Worth
-		// Do NLerp instead
-		return NLerp(start, end, percent);
-	}
+	// SLerp
+	float angle = std::acos(cosTetha);
+	return (start * std::sin(angle * (1.0f - percent)) +
+			end * std::sin(angle * percent)) / std::sin(angle);
 }
 
 // Left Scalar operators
@@ -244,3 +230,11 @@ IEQuaternion operator*(float scalar, const IEQuaternion& quat)
 {
 	return quat * scalar;
 }
+
+template<>
+IEQuaternion IEFunctions::Lerp(const IEQuaternion& start, const IEQuaternion& end, float percent)
+{
+	percent = IEFunctions::Clamp(percent, 0.0f, 1.0f);
+	return (start + percent * (end - start)).Normalize();
+}
+#endif // USE_AVX

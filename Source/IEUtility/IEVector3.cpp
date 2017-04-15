@@ -1,33 +1,16 @@
+#ifndef USE_AVX
 #include <algorithm>
 #include <cassert>
 
-#include "IEMath.h"
 #include "IEVector3.h"
 #include "IEVector4.h"
+#include "IEFunctions.h"
 
 // Constants
-const IEVector3 IEVector3::Xaxis = IEVector3(1.0f, 0.0f, 0.0f);
-const IEVector3 IEVector3::Yaxis = IEVector3(0.0f, 1.0f, 0.0f);
-const IEVector3 IEVector3::Zaxis = IEVector3(0.0f, 0.0f, 1.0f);
+const IEVector3 IEVector3::XAxis = IEVector3(1.0f, 0.0f, 0.0f);
+const IEVector3 IEVector3::YAxis = IEVector3(0.0f, 1.0f, 0.0f);
+const IEVector3 IEVector3::ZAxis = IEVector3(0.0f, 0.0f, 1.0f);
 const IEVector3 IEVector3::ZeroVector = IEVector3(0.0f, 0.0f, 0.0f);
-
-IEVector3::IEVector3() 
-	: x(0.0f)
-	, y(0.0f)
-	, z(0.0f)
-{}
-
-IEVector3::IEVector3(float xx, float yy, float zz) 
-	: x(xx)
-	, y(yy)
-	, z(zz)
-{}
-
-IEVector3::IEVector3(const float v[]) 
-	: x(v[0])
-	, y(v[1])
-	, z(v[2])
-{}
 
 IEVector3::IEVector3(const IEVector4& cp) 
 	: x(cp.getX())
@@ -143,7 +126,7 @@ IEVector3 IEVector3::CrossProduct(const IEVector3& vector) const
 
 float IEVector3::Length() const
 {
-	return sqrtf(x * x + y * y + z * z);
+	return std::sqrt(LengthSqr());
 }
 
 float IEVector3::LengthSqr() const
@@ -174,14 +157,50 @@ IEVector3& IEVector3::NormalizeSelf()
 	return *this;
 }
 
+IEVector3 IEVector3::Clamp(const IEVector3& min, const IEVector3& max) const
+{
+	return
+	{
+		(x < min.x) ? min.x : ((x > max.x) ? max.x : x),
+		(y < min.y) ? min.y : ((y > max.y) ? max.y : y),
+		(z < min.z) ? min.z : ((z > max.z) ? max.z : z)
+	};
+}
+
+IEVector3 IEVector3::Clamp(float min, float max) const
+{
+	return
+	{
+		(x < min) ? min : ((x > max) ? max : x),
+		(y < min) ? min : ((y > max) ? max : y),
+		(z < min) ? min : ((z > max) ? max : z)
+	};
+}
+
+IEVector3& IEVector3::ClampSelf(const IEVector3&  min, const IEVector3& max)
+{
+	x = (x < min.x) ? min.x : ((x > max.x) ? max.x : x);
+	y = (y < min.y) ? min.y : ((y > max.y) ? max.y : y);
+	z = (z < min.z) ? min.z : ((z > max.z) ? max.z : z);
+	return *this;
+}
+
+IEVector3& IEVector3::ClampSelf(float min, float max)
+{
+	x = (x < min) ? min : ((x > max) ? max : x);
+	y = (y < min) ? min : ((y > max) ? max : y);
+	z = (z < min) ? min : ((z > max) ? max : z);
+	return *this;
+}
+
 bool IEVector3::operator==(const IEVector3& vector) const
 {
-	return  std::equal(v, v + 3, vector.v);
+	return  std::equal(v, v + VectorW, vector.v);
 }
 
 bool IEVector3::operator!=(const IEVector3& vector) const
 {
-	return !std::equal(v, v + 3, vector.v);
+	return !std::equal(v, v + VectorW, vector.v);
 }
 
 // Left Scalar Operators
@@ -189,3 +208,17 @@ IEVector3 operator*(float scalar, const IEVector3& vector)
 {
 	return  vector * scalar;
 }
+
+template<>
+IEVector3 IEFunctions::Lerp(const IEVector3& start, const IEVector3& end, float percent)
+{
+	percent = IEFunctions::Clamp(percent, 0.0f, 1.0f);
+	return (start + percent * (end - start));
+}
+
+template<>
+IEVector3 IEFunctions::Clamp(const IEVector3& vec, const IEVector3& min, const IEVector3& max)
+{
+	return vec.Clamp(min, max);
+}
+#endif // USE_AVX

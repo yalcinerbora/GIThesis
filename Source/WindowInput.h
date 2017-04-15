@@ -1,67 +1,73 @@
+#pragma once
 /**
 
 Base Class For Input Management
 
-Handles Close Minimize callbacks
+Handles Close Minimize callbacks, Scene and Solution Changes
 
-Does not interfere with keyboard mouse input
+Does not interfere with camera movement input delegates it to selected Camera Interface
 
 */
 
-
-#ifndef __WINDOWINPUT_H__
-#define __WINDOWINPUT_H__
-
-#include "InputManI.h"
-#include "ArrayStruct.h"
-#include "Camera.h"
+#include <functional>
+#include <vector>
 #include <map>
+
+#include "CameraInputI.h"
+#include "Camera.h"
 
 class SolutionI;
 class SceneI;
 class Window;
 
 using CallbackArray = std::multimap<std::pair<int, int>, 
-									std::pair<void(*)(void*), void*>>;
+									std::function<void()>>;
 
-
-
-class WindowInput : public InputManI
+class WindowInput
 {
 	private:
-		uint32_t&				currentSolution;
-		uint32_t&				currentScene;
-		uint32_t&				currentInput;
-		
-		CallbackArray			callbacks;
-        bool                    moveLight;
-        bool                    movement;
+		Camera&								camera;
+		CallbackArray						callbacks;
+		const std::vector<CameraInputI*>&	cameraInputs;
+		const std::vector<SceneI*>			scenes;
+		const std::vector<SolutionI*>		solutions;
+		uint32_t							currentCameraInput;
+		uint32_t							currentSolution;
+		uint32_t							currentScene;
 
 	protected:
-		Camera&					camera;
-		static const Camera		savedCamera;
-
 	public:
-							WindowInput(Camera& cam,
-										uint32_t& currentSolution,
-										uint32_t& currentScene,
-										uint32_t& currentInput);
+											WindowInput(Camera&,
+														const std::vector<CameraInputI*>& cameraInputs,
+														const std::vector<SolutionI*>& solutions,
+														const std::vector<SceneI*>& scenes);
 
-		void				WindowPosChangedFunc(int posX, int posY) override;
-		void				WindowFBChangedFunc(int fbWidth, int fbHeight) override;
-		void				WindowSizeChangedFunc(int width, int height) override;
-		void				WindowClosedFunc() override;
-		void				WindowRefreshedFunc() override;
-		void				WindowFocusedFunc(bool) override;
-		void				WindowMinimizedFunc(bool) override;
-		void				AddKeyCallback(int, int, void(*)(void*), void*) override;
-        bool                MoveLight() const override;
-        bool                Movement() const override;
+		void								WindowPosChangedFunc(int posX, int posY);
+		void								WindowFBChangedFunc(int fbWidth, int fbHeight);
+		void								WindowSizeChangedFunc(int width, int height);
+		void								WindowClosedFunc();
+		void								WindowRefreshedFunc();
+		void								WindowFocusedFunc(bool);
+		void								WindowMinimizedFunc(bool);
 
-		virtual void		KeyboardUsedFunc(int key, int osKey, int action, int modifier);
-		virtual void		MouseMovedFunc(double x, double y);
-		virtual void		MousePressedFunc(int button, int action, int modifier);
-		virtual void		MouseScrolledFunc(double xOffset, double yOffset);
+		//
+		virtual void						KeyboardUsedFunc(int key, int osKey, int action, int modifier);
+		virtual void						MouseMovedFunc(double x, double y);
+		virtual void						MousePressedFunc(int button, int action, int modifier);
+		virtual void						MouseScrolledFunc(double xOffset, double yOffset);
+		
+		// Fetch
+		SolutionI*							Solution();
+		SceneI*								Scene();
+
+		// Defining Custom Callback
+		template <class Function, class... Args>
+		void								AddKeyCallback(int, int, Function&& f, Args&&... args);
 };
 
-#endif //__WINDOWINPUT_H__
+template <class Function, class... Args>
+void WindowInput::AddKeyCallback(int glfwKey, int glfwAction, Function&& f, Args&&... args)
+{
+	std::function<void()> func = std::bind(f, args...);
+	callbacks.emplace(glfwKey, glfwAction, func);
+}

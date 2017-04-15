@@ -3,6 +3,7 @@
 #include <fstream>
 #include "TGALoad.h"
 #include "Macros.h"
+#include "BindPoints.h"
 
 Material::Material(ColorMaterial c)
 	: texture(0)

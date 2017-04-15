@@ -6,9 +6,6 @@
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp">
       <Filter>FromThesis</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\GPUBuffer.cpp">
-      <Filter>FromThesis</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\MeshBatch.cpp">
       <Filter>FromThesis</Filter>
     </ClCompile>
@@ -44,14 +41,14 @@
       <Filter>FromThesis</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\Source\Voxelizer\VoxFramebuffer.cpp" />
+    <ClCompile Include="..\..\..\Source\VertexBuffer.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Voxelizer\OGLVoxelizer.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\VoxWriter.h" />
     <ClInclude Include="..\..\..\Source\GFGLoader.h">
-      <Filter>FromThesis</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\GPUBuffer.h">
       <Filter>FromThesis</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatch.h">
@@ -103,6 +100,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\Voxelizer\VoxFramebuffer.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\ASCIIProgressBar.h" />
+    <ClInclude Include="..\..\..\Source\VertexBuffer.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Globals.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="FromThesis">

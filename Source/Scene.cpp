@@ -4,10 +4,12 @@
 #include "Macros.h"
 #include "Globals.h"
 
-ConstantScene::ConstantScene(const std::vector<std::string>& rigidFileNames,
+ConstantScene::ConstantScene(const std::string& name,
+							 const std::vector<std::string>& rigidFileNames,
 							 const std::vector<std::string>& skeletalFileNames,
 							 const std::vector<Light>& lights)
-	: rigidFileNames(rigidFileNames)
+	: name(name)
+	, rigidFileNames(rigidFileNames)
 	, skeletalFileNames(skeletalFileNames)
 	, lights(lights)
 	, sceneLights()
@@ -67,13 +69,18 @@ void ConstantScene::Update(double elapsedS)
 void ConstantScene::Load()
 {
 	rigidBatch = MeshBatch(rigidMeshVertexDefinition, sizeof(VAO), rigidFileNames);
-	skeletalBatch = MeshBatch(skeletalMeshVertexDefinition, sizeof(VAOSkel), skeletalFileNames);
+	skeletalBatch = MeshBatchSkeletal(skeletalMeshVertexDefinition, sizeof(VAOSkel), skeletalFileNames);
 	sceneLights = SceneLights(lights);
 }
 
 void ConstantScene::Release()
 {
 	rigidBatch = MeshBatch();
-	skeletalBatch = MeshBatch();
+	skeletalBatch = MeshBatchSkeletal();
 	sceneLights = SceneLights();
+}
+
+const std::string& ConstantScene::Name() const
+{
+	return name;
 }

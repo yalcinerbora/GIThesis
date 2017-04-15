@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "Globals.h"
 #include "GFG/GFGHeader.h"
 #include "IEUtility/IEQuaternion.h"
 
@@ -48,24 +49,14 @@ class AnimationBatch
 	// Generated from GFG
 	std::vector<ModelTransform>				invBindPoses;
 
-	
-
-
-	static void							GenTransformMatrix(IEMatrix4x4& transform,
-														   IEMatrix4x4& rotation,
-														   const IEVector3& translate,
-														   const IEVector3& scale,
-														   const IEQuaternion& rotationQuat);
-
-
 	public:
 		// Construcots
 										AnimationBatch(const std::vector<std::string>& fileNames);
 	void								AnimationParams(float delay,
 														float speedMod,
 														AnimationType type);
-										GenerateFinalTransforms(ModelTransform out[], float time);
-										GenerateFinalTransforms(ModelTransform out[],
+	void								GenerateFinalTransforms(ModelTransform out[], float time);
+	void								GenerateFinalTransforms(ModelTransform out[],
 																float time,
 																size_t animationOffset,
 																size_t animationCount);

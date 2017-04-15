@@ -5,7 +5,7 @@
 #include "IEUtility/IETimer.h"
 
 // Constructors & Destructor
-MeshBatch::MeshBatch(const std::vector<const VertexElement>& vertexDefintion,
+MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
 					 uint32_t byteStride,
 					 const std::vector<std::string>& sceneFiles)
 
@@ -29,15 +29,16 @@ MeshBatch::MeshBatch(const std::vector<const VertexElement>& vertexDefintion,
 		batchParams.objectCount += fileBatchParams.objectCount;
 		batchParams.totalPolygons += fileBatchParams.totalPolygons;
 
-		assert(e == GFGLoadError::OK);
+		assert(err == GFGLoadError::OK);
 		if(err != GFGLoadError::OK) return;
-		GI_LOG("Loading \"%s\" complete", file);
+		GI_LOG("Loading \"%s\" complete", file.c_str());
 	}
 
 	// All Loaded
 	// Send Data then Attach Transform Index Buffer
-	batchDrawParams.SendToGPU();
-	batchVertex.AttachMTransformIndexBuffer(batchDrawParams.getModelTransformIndexBuffer().getGLBuffer());	
+	batchDrawParams.LockAndLoad();
+	batchVertex.AttachMTransformIndexBuffer(batchDrawParams.getGLBuffer(),
+											batchDrawParams.getModelTransformIndexOffset());
 	timer.Stop();
 
 	GI_LOG("");
@@ -58,19 +59,14 @@ DrawBuffer& MeshBatch::getDrawBuffer()
 	return batchDrawParams;
 }
 
-GPUBuffer& MeshBatch::getGPUBuffer()
+VertexBuffer& MeshBatch::getVertexBuffer()
 {
 	return batchVertex;
 }
 
-const std::string& MeshBatch::BatchName() const
+MeshBatchType MeshBatch::MeshType() const
 {
-	return batchName;
-}
-
-VoxelObjectType MeshBatch::MeshType() const
-{
-	return VoxelObjectType::STATIC;
+	return MeshBatchType::RIGID;
 }
 
 int MeshBatch::RepeatCount() const
@@ -96,11 +92,6 @@ size_t MeshBatch::MaterialCount() const
 size_t MeshBatch::DrawCount() const
 {
 	return batchParams.drawCallCount;
-}
-
-float MeshBatch::MinSpan() const
-{
-	return minSpan;
 }
 
 void MeshBatch::GenTransformMatrix(IEMatrix4x4& transform,

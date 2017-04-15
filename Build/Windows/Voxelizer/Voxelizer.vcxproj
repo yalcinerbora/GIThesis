@@ -83,7 +83,6 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
-    <ClCompile Include="..\..\..\Source\GPUBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEQuaternion.cpp" />
@@ -94,6 +93,7 @@
     <ClCompile Include="..\..\..\Source\MeshBatch.cpp" />
     <ClCompile Include="..\..\..\Source\MeshBatchSkeletal.cpp" />
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
+    <ClCompile Include="..\..\..\Source\VertexBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\Voxelizer\GL3DTexture.cpp" />
     <ClCompile Include="..\..\..\Source\Voxelizer\main.cpp" />
     <ClCompile Include="..\..\..\Source\Voxelizer\OGLVoxelizer.cpp" />
@@ -102,7 +102,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\DrawBuffer.h" />
     <ClInclude Include="..\..\..\Source\GFGLoader.h" />
-    <ClInclude Include="..\..\..\Source\GPUBuffer.h" />
+    <ClInclude Include="..\..\..\Source\Globals.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEFunctions.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEMath.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEMatrix3x3.h" />
@@ -117,6 +117,7 @@
     <ClInclude Include="..\..\..\Source\Shader.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
+    <ClInclude Include="..\..\..\Source\VertexBuffer.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\ASCIIProgressBar.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\BindPoints.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\GL3DTexture.h" />

@@ -1,3 +1,6 @@
+#include <fstream>
+#include "GFG/GFGFileLoader.h"
+
 #include "DeferredRenderer.h"
 #include "IEUtility/IEMath.h"
 #include "Scene.h"
@@ -6,11 +9,11 @@
 #include "RectPrism.h"
 #include "DrawBuffer.h"
 #include "MeshBatchSkeletal.h"
-
+#include "BindPoints.h"
 
 LightDrawBuffer::LightDrawBuffer()
 {
-	std::ifstream stream(lightAOIFileName, std::ios_base::in | std::ios_base::binary);
+	std::ifstream stream(LightAOIFileName, std::ios_base::in | std::ios_base::binary);
 	GFGFileReaderSTL stlFileReader(stream);
 	GFGFileLoader gfgFile(&stlFileReader);
 	std::vector<DrawPointIndexed> drawCalls;
@@ -47,18 +50,18 @@ LightDrawBuffer::LightDrawBuffer()
 		i++;
 	}
 
-	// Draw Buffers
-	lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::POINT)]);
-	lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::DIRECTIONAL)]);
-	lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::AREA)]);
+	//// Draw Buffers
+	//lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::POINT)]);
+	//lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::DIRECTIONAL)]);
+	//lightDrawParams.AddData(drawParamsGeneric[static_cast<int>(LightType::RECTANGULAR)]);
 
-	lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].instanceCount = pCount;
-	lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].instanceCount = dCount;
-	lightDrawParams.CPUData()[static_cast<int>(LightType::AREA)].instanceCount = aCount;
-	lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].baseInstance = 0;
-	lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].baseInstance = pCount;
-	lightDrawParams.CPUData()[static_cast<int>(LightType::AREA)].baseInstance = pCount + dCount;
-	lightDrawParams.SendData();
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].instanceCount = pCount;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].instanceCount = dCount;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::RECTANGULAR)].instanceCount = aCount;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::POINT)].baseInstance = 0;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::DIRECTIONAL)].baseInstance = pCount;
+	//lightDrawParams.CPUData()[static_cast<int>(LightType::RECTANGULAR)].baseInstance = pCount + dCount;
+	//lightDrawParams.SendData();
 
 	// Create VAO
 	// PostProcess VAO
@@ -221,12 +224,12 @@ DeferredRenderer::~DeferredRenderer()
 	glDeleteSamplers(1, &shadowMapSampler);
 }
 
-GBuffer& DeferredRenderer::GetGBuffer()
+GBuffer& DeferredRenderer::getGBuffer()
 {
 	return gBuffer;
 }
 
-GLuint DeferredRenderer::GetLightIntensityBufferGL()
+GLuint DeferredRenderer::getLightIntensityBufferGL()
 {
 	return lightIntensityTex;
 }
@@ -241,59 +244,10 @@ GLuint DeferredRenderer::GetLightIntensityBufferGL()
 //	return cameraTransform;
 //}
 
-float DeferredRenderer::CalculateCascadeLength(float frustumFar,
-											   unsigned int cascadeNo)
-{
-	// Geometric sum
-	static const float exponent = 1.2f;
-	float chunkSize = (std::powf(exponent, static_cast<float>(SceneLights::numShadowCascades)) - 1.0f) / (exponent - 1.0f);
-	return std::powf(exponent, static_cast<float>(cascadeNo)) * (frustumFar / chunkSize);
-}
-
-BoundingSphere DeferredRenderer::CalculateShadowCascasde(float cascadeNear,
-														 float cascadeFar,
-														 const Camera& camera,
-														 const IEVector3& lightDir)
-{
-	float cascadeDiff = cascadeFar - cascadeNear;
-
-	// Shadow Map Generation
-	// Calculate Frustum Parameters from Render Camera
-	float tanHalfFovX = IEMath::TanF(IEMath::ToRadians(camera.fovX * 0.5f));
-	float aspectRatio = camera.width / camera.height;
-	IEVector3 camDir = (camera.centerOfInterest - camera.pos).NormalizeSelf();
-	IEVector3 right = camDir.CrossProduct(camera.up).NormalizeSelf();
-	IEVector3 camUp = camDir.CrossProduct(right).NormalizeSelf();
-
-	float farHalfWidth = cascadeFar * tanHalfFovX;
-	float farHalfHeight = farHalfWidth / aspectRatio;
-
-	// Plane Center Points
-	IEVector3 planeCenterFar = camera.pos + camDir * cascadeFar;
-
-	IEVector3 farTopRight = planeCenterFar + (camUp * farHalfHeight) + (right * farHalfWidth);
-	IEVector3 farBottomLeft = planeCenterFar - (camUp * farHalfHeight) - (right * farHalfWidth);
-	IEVector3 farBottomRight = planeCenterFar - (camUp * farHalfHeight) + (right * farHalfWidth);
-
-	// Frustum Span (sized)
-	const IEVector3 span[3] =
-	{
-		farTopRight - farBottomRight,
-		-cascadeDiff * camDir,
-		farBottomLeft - farBottomRight
-	};
-
-	// Converting to bounding sphere
-	float diam = (span[0] + span[1] + span[2]).Length();
-	float radius = diam * 0.5f;
-	IEVector3 centerPoint = farBottomRight + radius * (span[0] + span[1] + span[2]).NormalizeSelf();
-	return BoundingSphere{centerPoint, radius};
-}
-
 void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 {
 	fragShadowMap.Bind();
-	unsigned int lightCount = static_cast<unsigned int>(scene.getSceneLights().lightsGPU.CPUData().size());
+	uint32_t lightCount = static_cast<unsigned int>(scene.getSceneLights().lightsGPU.CPUData().size());
 
 	// State
 	// Rendering with polygon offset to eliminate shadow acne
@@ -306,98 +260,6 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 	glDisable(GL_MULTISAMPLE);
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glViewport(0, 0, SceneLights::shadowMapWH, SceneLights::shadowMapWH);
-
-	// Render From Dir of the light	with proper view params
-	for(unsigned int i = 0; i < lightCount; i++)
-	{
-		const Light& currentLight = scene.getSceneLights().lightsGPU.CPUData()[i];
-		// Determine light type
-		LightType t = static_cast<LightType>(static_cast<uint32_t>(currentLight.position.getW()));
-		switch(t)
-		{
-			case LightType::POINT:
-			{
-				// Each Side will have 90 degree FOV
-				// Geom shader will render for each layer
-				IEMatrix4x4 projection = IEMatrix4x4::Perspective(90.0f, 1.0f,
-																  0.1f, currentLight.color.getW());
-				for(unsigned int j = 0; j < 6; j++)
-				{
-					IEMatrix4x4 view = IEMatrix4x4::LookAt(currentLight.position,
-														   currentLight.position + SceneLights::pLightDir[j],
-														   SceneLights::pLightUp[j]);
-					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * view;
-					scene.getSceneLights().lightProjMatrices[i * 6 + j] = projection;
-					scene.getSceneLights().lightInvViewProjMatrices[i * 6 + j] = (projection * view).Inverse();
-
-				}
-				break;
-			}
-			case LightType::DIRECTIONAL:
-			{
-				for(unsigned int j = 0; j < SceneLights::numShadowCascades; j++)
-				{
-					float cascade = CalculateCascadeLength(camera.far, j);
-					BoundingSphere viewSphere = CalculateShadowCascasde(cascade * j,
-																		cascade * (j + 1),
-																		camera,
-																		currentLight.direction);
-
-					// Squre Orto Projection
-					float radius = viewSphere.radius;
-					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(//360.0f, -360.0f,
-																	//-230.0f, 230.0f,
-																	-radius, radius,
-																	radius, -radius,
-																	-800.0f, 800.0f);
-
-					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f),
-														   viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f) + currentLight.direction,
-														   camera.up);
-
-					// To eliminate shadow shimmering only change pixel sized frusutm changes
-					IEVector3 unitPerTexel = (2.0f * IEVector3(radius, radius, radius)) / IEVector3(static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH), static_cast<float>(SceneLights::shadowMapWH));
-					unitPerTexel *= static_cast<float>(1 << (SceneLights::mipSampleCount));
-					IEVector3 translatedOrigin = view * IEVector3::ZeroVector;
-					IEVector3 texelTranslate;
-					texelTranslate.setX(fmod(translatedOrigin.getX(), unitPerTexel.getX()));
-					texelTranslate.setY(fmod(translatedOrigin.getY(), unitPerTexel.getY()));
-					texelTranslate.setZ(fmod(translatedOrigin.getZ(), unitPerTexel.getZ()));
-					texelTranslate = unitPerTexel - texelTranslate;
-					//texelTranslate.setZ(0.0f);
-
-					IEMatrix4x4 texelTranslateMatrix = IEMatrix4x4::Translate(texelTranslate);
-
-					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projection * texelTranslateMatrix * view;
-					scene.getSceneLights().lightProjMatrices[i * 6 + j] = projection;
-					scene.getSceneLights().lightInvViewProjMatrices[i * 6 + j] = (projection * texelTranslateMatrix * view).Inverse();
-				}
-				break;
-			}
-			case LightType::RECTANGULAR:
-			{
-				IEMatrix4x4 projections[2] = { IEMatrix4x4::Perspective(45.0f, 1.0f,
-																		0.1f, currentLight.color.getW()),
-											   IEMatrix4x4::Perspective(90.0f, 1.0f,
-																		0.1f, currentLight.color.getW())};
-
-				// we'll use 5 sides but each will comply different ares that a point light
-				for(unsigned int j = 0; j < 6; j++)
-				{
-					uint32_t projIndex = (j == 3) ? 1 : 0;
-					IEMatrix4x4 view = IEMatrix4x4::LookAt(currentLight.position,
-														   currentLight.position + SceneLights::aLightDir[j],
-														   SceneLights::aLightUp[j]);
-
-					scene.getSceneLights().lightViewProjMatrices.CPUData()[i * 6 + j] = projections[projIndex] * view;
-					scene.getSceneLights().lightProjMatrices[i * 6 + j] = projections[projIndex];
-					scene.getSceneLights().lightInvViewProjMatrices[i * 6 + j] = (projections[projIndex] * view).Inverse();
-				}	
-				break;
-			}
-		}	
-	}
-	scene.getSceneLights().lightViewProjMatrices.SendData();
 
 	// Binding
 	//cameraTransform.Bind();

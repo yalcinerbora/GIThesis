@@ -19,7 +19,7 @@ Structure matchig between Generic System and Cuda
 static_assert(sizeof(IEMatrix4x4) == sizeof(CMatrix4x4), "Cuda-GL Matrix4x4 Size Mismatch.");
 static_assert(sizeof(CAABB) == sizeof(AABBData), "Cuda-GL AABBData Struct Mismatch.");
 
-static_assert(sizeof(VoxelObjectType) == sizeof(CVoxelObjectType), "Cuda-GL VoxelType Struct Mismatch.");
+static_assert(sizeof(CVoxelObjectType) == sizeof(CVoxelObjectType), "Cuda-GL VoxelType Struct Mismatch.");
 static_assert(sizeof(CVoxelNormPos) == sizeof(VoxelNormPos), "Cuda-GL VoxelNormpos Struct Mismatch.");
 static_assert(sizeof(CVoxelIds) == sizeof(VoxelIds), "Cuda-GL VoxelIds Struct Mismatch.");
 static_assert(sizeof(CVoxelColor) == sizeof(VoxelColorData), "Cuda-GL VoxelRenderdata Struct Mismatch.");

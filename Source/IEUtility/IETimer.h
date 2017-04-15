@@ -1,3 +1,4 @@
+#pragma once
 /**
 
 Timer Class. wrapping std::chrono
@@ -7,9 +8,6 @@ Author(s):
 	Bora Yalciner
 
 */
-
-#ifndef __IE_IETIMER_H__
-#define __IE_IETIMER_H__
 
 #include <chrono>
 
@@ -42,6 +40,5 @@ class IETimer
 		double			ElapsedMicroS();
 		double			ElapsedNanoS();
 };
-#endif //__IE_IETIMER_H__
 
 

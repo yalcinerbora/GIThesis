@@ -18,8 +18,7 @@ Holds draw point buffer
 #include "IEUtility/IEVector4.h"
 #include "StructuredBuffer.h"
 #include "DrawPoint.h"
-
-
+#include "Globals.h"
 
 class DrawBuffer
 {
@@ -61,23 +60,30 @@ class DrawBuffer
 														const AABBData& aabb);
 
 		// Locks Draw Call Addition and Loads data to GPU
-		void								LockAndLoad();
-		void								SendModelTransformToGPU(uint32_t offset = 0, uint32_t size = std::numeric_limits<uint32_t>::max());
-		ModelTransform&						ModelTransformBuffer(uint32_t transformId);
+		void									LockAndLoad();
+		void									SendModelTransformToGPU(uint32_t offset = 0, uint32_t size = std::numeric_limits<uint32_t>::max());
+		ModelTransform&							ModelTransformBuffer(uint32_t transformId);
 
-		//size_t							getModelTransformOffset() const;
-		//size_t							getAABBOffset() const;
-		//size_t							getDrawParamOffset() const;
-		//size_t							getModelTransformIndexOffset() const;
+		GLuint									getGLBuffer();
 
-		void								BindAsDrawIndirectBuffer();
-		void								BindAABB(GLuint bindPoint);
-		void								BindModelTransform(GLuint bindPoint);
+		size_t									getModelTransformOffset() const;
+		size_t									getAABBOffset() const;
+		size_t									getDrawParamOffset() const;		
+		size_t									getModelTransformIndexOffset() const;
+
+		const std::vector<DrawPointIndexed>&	getCPUDrawPoints() const;
+		const std::vector<ModelTransform>&		getCPUModelTransforms() const;
+		const std::vector<AABBData>&			getCPUAABBs() const;
+		const std::vector<uint32_t>&			getCPUModelTransformIndices() const;
+
+		void									BindAsDrawIndirectBuffer();
+		void									BindAABB(GLuint bindPoint);
+		void									BindModelTransform(GLuint bindPoint);
 		
-		void								DrawCallSingle(GLuint drawId);
-		void								DrawCallMulti();
-		void								DrawCallMultiState();
+		void									DrawCallSingle(GLuint drawId);
+		void									DrawCallMulti();
+		void									DrawCallMultiState();
 
-		void								BindMaterialForDraw(uint32_t drawId);		
+		void									BindMaterialForDraw(uint32_t drawId);		
 };
 #endif //__DRAWBUFFER_H__

@@ -30,6 +30,7 @@ class SceneI
 		virtual void							Update(double elapsedS) = 0;
 		virtual void							Load() = 0;
 		virtual void							Release() = 0;
-};
 
+		virtual const std::string&				Name() const = 0;
+};
 #endif //__SCENEI_H__

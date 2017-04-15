@@ -33,14 +33,13 @@ class MeshBatch : public MeshBatchI
 	public:
 		// Constructors & Destructor
 								MeshBatch();
-								MeshBatch(const std::vector<const VertexElement>& vertexDefintion, uint32_t byteStride,
+								MeshBatch(const std::vector<VertexElement>& vertexDefintion, uint32_t byteStride,
 										  const std::vector<std::string>& sceneFiles);
+								MeshBatch(const MeshBatch&) = delete;
 								MeshBatch(MeshBatch&&);
 		MeshBatch&				operator=(MeshBatch&&);
 		MeshBatch&				operator=(const MeshBatch&) = delete;
-								MeshBatch(const MeshBatch&) = delete;
-
-								MeshBatch() = default;
+								~MeshBatch() = default;
 			
 		// Interface
 		void					Update(double elapsedS) override;

@@ -14,6 +14,7 @@ class ConstantScene : public SceneI
 {
 	// Consta Scene means that objects cannot be
 	private:
+		const std::string					name;
 		const std::vector<std::string>		rigidFileNames;
 		const std::vector<std::string>		skeletalFileNames;
 		const std::vector<Light>			lights;
@@ -35,7 +36,8 @@ class ConstantScene : public SceneI
 	protected:
 	public:
 		// Constructors & Destructor
-											ConstantScene(const std::vector<std::string>& rigidFileNames,
+											ConstantScene(const std::string& name,
+														  const std::vector<std::string>& rigidFileNames,
 														  const std::vector<std::string>& skeletalFileNames,
 														  const std::vector<Light>& lights);
 											ConstantScene(const ConstantScene&) = delete;
@@ -53,4 +55,6 @@ class ConstantScene : public SceneI
 		void								Update(double elapsedS) override;
 		void								Load() override;
 		void								Release() override;
+
+		const std::string&					Name() const override;
 };

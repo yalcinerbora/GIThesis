@@ -8,31 +8,27 @@ Just Renders the scene
 #ifndef __DEFERREDRENDERER_H__
 #define __DEFERREDRENDERER_H__
 
+#include <array>
+#include "MeshBatchI.h"
 #include "Shader.h"
-#include "FrameTransformBuffer.h"
 #include "GBuffer.h"
 #include "DrawPoint.h"
 #include "StructuredBuffer.h"
+#include "FrameTransformBuffer.h"
 #include "IEUtility/IEVector3.h"
-#include <array>
+#include "SceneLights.h"
 
 struct Camera;
 class SceneI;
 class RectPrism;
 
-struct BoundingSphere
-{
-	IEVector3 center;
-	float radius;
-};
-
 struct InvFrameTransform
 {
 	IEMatrix4x4 invViewProjection;
-	IEVector4 camPos;				// Used to generate eye vector
-	IEVector4 camDir;				// Used to calculate cascades
-	uint32_t viewport[4];			// Used to generate uv coords from gl_fragCoord
-	IEVector4 depthHalfNear;
+	IEVector4	camPos;				// Used to generate eye vector
+	IEVector4	camDir;				// Used to calculate cascades
+	uint32_t	viewport[4];		// Used to generate uv coords from gl_fragCoord
+	IEVector4	depthHalfNear;
 };
 
 using InvFrameTransformBuffer = StructuredBuffer<InvFrameTransform>;
@@ -41,12 +37,15 @@ using LightDrawArray = std::array<DrawPointIndexed, LightTypeCount>;
 // Deferred Renderer Light Shape
 class LightDrawBuffer
 {	
+	public:
+		static constexpr uint32_t	DirectionalCascadesCount = 4;
+		static constexpr uint32_t	ShadowMapMipCount = 8;
+		static constexpr uint32_t	ShadowMipSampleCount = 3;
+		static constexpr GLsizei	ShadowMapWH = /*512;*/1024;//*2048;*///4096;
+
 	private:
 		// Statics
-		static constexpr uint32_t	DirectionalCascadesCount	= 4;
-		static constexpr uint32_t	ShadowMapMipCount			= 8;
-		static constexpr uint32_t	ShadowMipSampleCount		= 3;
-		static constexpr char*		lightAOIFileName			= "lightAOI.gfg";
+		static constexpr char*		LightAOIFileName = "lightAOI.gfg";
 
 		// Buffer Data
 		LightDrawArray				lightDrawParams;
@@ -77,15 +76,16 @@ class LightDrawBuffer
 
 };
 
+static_assert(LightDrawBuffer::DirectionalCascadesCount <= SceneLights::CubeSide, "At most 6 cascades can be created");
+
 class DeferredRenderer
 {
 	public:
 		// Geometry Buffer Dimensions
-		static constexpr GLsizei	gBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1600;*///*1920;*//*2560;*///3840;
-		static constexpr GLsizei	gBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*900;*///*1080;*//*1440;*///2160;;
+		static constexpr GLsizei	GBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1600;*///*1920;*//*2560;*///3840;
+		static constexpr GLsizei	GBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*900;*///*1080;*//*1440;*///2160;;
 	
-		// ShadowMap Dimensions
-		static constexpr GLsizei	shadowMapWH = /*512;*/1024;//*2048;*///4096;
+		
 
 	private:
 		static constexpr float		postProcessTriData[6] =
@@ -149,11 +149,7 @@ class DeferredRenderer
 		GLuint						flatSampler;
 		GLuint						linearSampler;
 		GLuint						shadowMapSampler;
-
-		static BoundingSphere		CalculateShadowCascasde(float cascadeNear,
-															float cascadeFar,
-															const Camera& camera,
-															const IEVector3& lightDir);
+		
 		void						BindShadowMapGeometryShader(LightType t);
 		void						BindShadowMapVertexShader(MeshBatchType t);
 		
@@ -171,13 +167,10 @@ class DeferredRenderer
 		DeferredRenderer&			operator=(const DeferredRenderer&) = delete;
 									~DeferredRenderer();
 
-		GBuffer&					GetGBuffer();
-		GLuint						GetLightIntensityBufferGL();
+		GBuffer&					getGBuffer();
+		GLuint						getLightIntensityBufferGL();
 //		InvFrameTransformBuffer&	GetInvFTransfrom();
 //		FrameTransformBuffer&		GetFTransform();
-
-		static float				CalculateCascadeLength(float frustumFar,
-														   unsigned int cascadeNo);
 
 		void						RefreshInvFTransform(const Camera&,
 														 GLsizei width,

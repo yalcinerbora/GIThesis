@@ -234,7 +234,7 @@ void __stdcall OGLVoxelizer::OGLCallbackRender(GLenum,
 
 double OGLVoxelizer::DetermineSplits(float currentSpan)
 {
-	auto& aabbBuffer = batch.getDrawBuffer().getAABBBuffer();
+	auto& drawBuffer = batch.getDrawBuffer();
 
 	// Timing
 	OGLTimer t;
@@ -250,7 +250,7 @@ double OGLVoxelizer::DetermineSplits(float currentSpan)
 	glUniform1ui(U_VOX_LIMIT, VOX_PACK_LIMITATION);
 
 	// ShaderStorage
-	aabbBuffer.BindAsShaderStorageBuffer(LU_AABB);
+	drawBuffer.BindAABB(LU_AABB);
 	split.BindAsShaderStorageBuffer(LU_OBJECT_SPLIT_INFO);
 	objectInfos.BindAsShaderStorageBuffer(LU_OBJECT_VOXEL_INFO);
 
@@ -295,13 +295,12 @@ double OGLVoxelizer::AllocateVoxelCaches(float currentSpan, uint32_t currentCasc
 	geomVoxelize.Bind();
 
 	// Buffers
-	auto& drawBuffer = batch.getDrawBuffer().getDrawParamBuffer();
-	auto& aabbBuffer = batch.getDrawBuffer().getAABBBuffer();
-	auto& gpuBuffer = batch.getGPUBuffer();
+	auto& drawBuffer = batch.getDrawBuffer();
+	auto& vertexBuffer = batch.getVertexBuffer();
 
-	gpuBuffer.Bind();
+	vertexBuffer.Bind();
 	drawBuffer.BindAsDrawIndirectBuffer();
-	aabbBuffer.BindAsShaderStorageBuffer(LU_AABB);
+	drawBuffer.BindAABB(LU_AABB);
 	totalVoxCount.BindAsShaderStorageBuffer(LU_TOTAL_VOX_COUNT);
 	objectInfos.BindAsShaderStorageBuffer(LU_OBJECT_VOXEL_INFO);
 	
@@ -400,16 +399,15 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 
 	// Buffers
 	StructuredBuffer<uint32_t> index(1);
-	auto& drawBuffer = batch.getDrawBuffer().getDrawParamBuffer();
-	auto& aabbBuffer = batch.getDrawBuffer().getAABBBuffer();
-	auto& gpuBuffer = batch.getGPUBuffer();
+	auto& drawBuffer = batch.getDrawBuffer();
+	auto& vertexBuffer = batch.getVertexBuffer();
 
-	gpuBuffer.Bind();
+	vertexBuffer.Bind();
 	drawBuffer.BindAsDrawIndirectBuffer();
 	voxelNormPos.BindAsShaderStorageBuffer(LU_VOXEL_NORM_POS);
 	color.BindAsShaderStorageBuffer(LU_VOXEL_COLOR);
 	if(isSkeletal) weights.BindAsShaderStorageBuffer(LU_VOXEL_WEIGHT);
-	aabbBuffer.BindAsShaderStorageBuffer(LU_AABB);
+	drawBuffer.BindAABB(LU_AABB);
 	voxIds.BindAsShaderStorageBuffer(LU_VOXEL_IDS);
 	index.BindAsShaderStorageBuffer(LU_INDEX_CHECK);
 	colorArray.BindAsShaderStorageBuffer(LU_COLOR_SPARSE);
@@ -461,7 +459,7 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		
-			const AABBData& objAABB = batch.getDrawBuffer().getAABBBuffer().CPUData()[objIndex];
+			const AABBData& objAABB = batch.getDrawBuffer().getCPUAABBs()[objIndex];
 			GLuint voxDimX, voxDimY, voxDimZ;
 			voxDimX = static_cast<GLuint>(std::floor((objAABB.max.getX() - objAABB.min.getX()) / options.span)) + 1;
 			voxDimY = static_cast<GLuint>(std::floor((objAABB.max.getY() - objAABB.min.getY()) / options.span)) + 1;

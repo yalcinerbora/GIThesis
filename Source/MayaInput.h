@@ -11,31 +11,33 @@ other than that it is comparable to Autodesk Maya Input
 #ifndef __MAYAINPUT_H__
 #define __MAYAINPUT_H__
 
-#include "WindowInput.h"
+#include "CameraInputI.h"
 
-class MayaInput : public WindowInput
+class MayaInput : public CameraInputI
 {
 	private:
-		bool			moveMode;
-		bool			translateMode;
-		double			mouseX;
-		double			mouseY;
+		static const std::string	MayaInputName;
 
-		static double	Sensitivity;
-		static double	ZoomPrecentage;
-		static double	TranslateModifier;
+		const double				sensitivity;
+		const double				zoomPercentage;
+		const double				translateModifier;
+
+		bool						moveMode;
+		bool						translateMode;
+		double						mouseX;
+		double						mouseY;
 
 	protected:
 	public:
-						MayaInput(Camera& cam,
-								 uint32_t& currentSolution,
-								 uint32_t& currentScene,
-								 uint32_t& currentInput);
+									MayaInput(double sensitivity, 
+											  double zoomPercentage, 
+											  double translateModifier);
 
-		virtual void	KeyboardUsedFunc(int, int, int, int) override;
-		virtual void	MouseMovedFunc(double, double) override;
-		virtual void	MousePressedFunc(int, int, int) override;
-		virtual void	MouseScrolledFunc(double, double) override;
+		virtual void				KeyboardUsedFunc(Camera&, int, int, int, int) override;
+		virtual void				MouseMovedFunc(Camera&, double, double) override;
+		virtual void				MousePressedFunc(Camera&, int, int, int) override;
+		virtual void				MouseScrolledFunc(Camera&, double, double) override;
 
+		const std::string&			Name() const override;
 };
 #endif //__MAYAINPUT_H__

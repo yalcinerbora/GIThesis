@@ -13,17 +13,25 @@ Disables Keyboard and Mouse
 
 #include "WindowInput.h"
 
-class NoInput : public WindowInput
+class NoInput : public CameraInputI
 {
 	private:
+		static const std::string	NoInputName;
+
 	protected:
 	public:
-						NoInput(Camera& cam,
-								uint32_t& currentSolution,
-								uint32_t& currentScene,
-								uint32_t& currentInput) : WindowInput(cam,
-																	  currentSolution,
-																	  currentScene,
-																	  currentInput) {}
+		 void						KeyboardUsedFunc(Camera&, int, int, int, int) override {}
+		 void						MouseMovedFunc(Camera&, double, double) override {}
+		 void						MousePressedFunc(Camera&, int, int, int) override {}
+		 void						MouseScrolledFunc(Camera&, double, double) override {}
+
+		 const std::string&			Name() const override;
 };
+
+const std::string NoInput::NoInputName = "NoInput";
+
+const inline std::string& NoInput::Name() const
+{
+	return NoInputName;
+}
 #endif //__NOINPUT_H__

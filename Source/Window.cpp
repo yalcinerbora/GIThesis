@@ -1,7 +1,7 @@
 #include "Window.h"
 #include "Macros.h"
 #include "GLHeader.h"
-#include "InputManI.h"
+#include "WindowInput.h"
 #include "Globals.h"
 #include "IEUtility/IEVector3.h"
 
@@ -21,8 +21,7 @@ void Window::WindowPosGLFW(GLFWwindow* w, int width, int  height)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->WindowPosChangedFunc(width, height);
+		i->second->input.WindowPosChangedFunc(width, height);
 	}
 }
 
@@ -35,8 +34,7 @@ void Window::WindowFBGLFW(GLFWwindow* w, int width, int height)
 		TwSetCurrentWindow(i->second->twWindowId);
 		TwWindowSize(width, height);
 
-		assert(i->second->input != nullptr);
-		i->second->input->WindowFBChangedFunc(width, height);
+		i->second->input.WindowFBChangedFunc(width, height);
 	}
 }
 
@@ -46,8 +44,7 @@ void Window::WindowSizeGLFW(GLFWwindow* w, int width, int height)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->WindowSizeChangedFunc(width, height);
+		i->second->input.WindowSizeChangedFunc(width, height);
 	}
 }
 
@@ -57,8 +54,7 @@ void Window::WindowCloseGLFW(GLFWwindow* w)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->WindowClosedFunc();
+		i->second->input.WindowClosedFunc();
 	}
 }
 
@@ -68,8 +64,7 @@ void Window::WindowRefreshGLFW(GLFWwindow* w)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->WindowRefreshedFunc();
+		i->second->input.WindowRefreshedFunc();
 	}
 }
 
@@ -79,8 +74,7 @@ void Window::WindowFocusedGLFW(GLFWwindow* w, int b)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->WindowFocusedFunc((b == 1) ? true : false);
+		i->second->input.WindowFocusedFunc((b == 1) ? true : false);
 	}
 }
 
@@ -90,8 +84,7 @@ void Window::WindowMinimizedGLFW(GLFWwindow* w, int b)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		assert(i->second->input != nullptr);
-		i->second->input->WindowMinimizedFunc((b == 1) ? true : false);
+		i->second->input.WindowMinimizedFunc((b == 1) ? true : false);
 	}
 }
 
@@ -103,8 +96,7 @@ void Window::KeyboardUsedGLFW(GLFWwindow* w, int key, int scancode, int action, 
 	{
 		if(!TwEventKeyGLFW(key, action))
 		{
-			assert(i->second->input != nullptr);
-			i->second->input->KeyboardUsedFunc(key, scancode, action, mods);
+			i->second->input.KeyboardUsedFunc(key, scancode, action, mods);
 		}
 	}
 }
@@ -117,8 +109,7 @@ void Window::MouseMovedGLFW(GLFWwindow* w, double x, double y)
 	{
 		if(!TwEventMousePosGLFW(static_cast<int>(x), static_cast<int>(y)))
 		{
-			assert(i->second->input != nullptr);
-			i->second->input->MouseMovedFunc(x, y);
+			i->second->input.MouseMovedFunc(x, y);
 		}
 	}
 }
@@ -131,8 +122,7 @@ void Window::MousePressedGLFW(GLFWwindow* w, int button, int action, int mods)
 	{
 		if(!TwEventMouseButtonGLFW(button, action))
 		{
-			assert(i->second->input != nullptr);
-			i->second->input->MousePressedFunc(button, action, mods);
+			i->second->input.MousePressedFunc(button, action, mods);
 		}
 	}
 }
@@ -145,8 +135,7 @@ void Window::MouseScrolledGLFW(GLFWwindow* w, double xoffset, double yoffset)
 	{
 		if(!TwEventMouseWheelGLFW(static_cast<int>(xoffset)))
 		{
-			assert(i->second->input != nullptr);
-			i->second->input->MouseScrolledFunc(xoffset, yoffset);
+			i->second->input.MouseScrolledFunc(xoffset, yoffset);
 		}
 	}
 }
@@ -209,9 +198,9 @@ void __stdcall Window::OGLCallbackRender(GLenum,
 }
 
 
-Window::Window(InputManI& input,
+Window::Window(WindowInput& input,
 			   WindowProperties properties)
-	: input(&input)	
+	: input(input)	
 	, window(nullptr)
 {
 	// If you are first window init glfw
@@ -374,13 +363,6 @@ Window::~Window()
 		glfwTerminate();
 		TwTerminate();
 	}
-}
-
-void Window::ChangeInputScheme(InputManI& newInput)
-{
-	// Adress check is fine here
-	if(&newInput != input)
-		input = &newInput;
 }
 
 bool Window::WindowClosed() const

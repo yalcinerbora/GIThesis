@@ -23,8 +23,10 @@ class SceneLights;
 enum class MeshBatchType
 {
 	RIGID,
-	SKELETAL
+	SKELETAL,
+	END
 };
+static constexpr uint32_t MeshBatchTypeCount = static_cast<uint32_t>(MeshBatchType::END);
 
 class MeshBatchI
 {

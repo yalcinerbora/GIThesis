@@ -145,6 +145,9 @@
     <CudaCompile Include="..\..\..\Source\CDebug.cu" />
     <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IEBoundingSphere.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IEVector2.cpp" />
     <ClCompile Include="..\..\..\Source\VertexBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />
@@ -172,7 +175,11 @@
     <ClInclude Include="..\..\..\Source\GICudaStructMatching.h" />
     <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h" />
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEBoundingSphere.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEMacros.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IEVector2.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h" />
     <ClInclude Include="..\..\..\Source\MeshBatch.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchI.h" />

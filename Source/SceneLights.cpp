@@ -201,7 +201,7 @@ SceneLights::SceneLights()
 {}
 
 SceneLights::SceneLights(const std::vector<Light>& lights)
-	: gpuBuffer(lights.size() * (sizeof(Light) +  sizeof(IEMatrix4x4) * CubeSide))
+	: gpuData(lights.size() * (sizeof(Light) + sizeof(IEMatrix4x4) * CubeSide + sizeof(uint32_t)))
 	, lightOffset(0)
 	, matrixOffset(0)
 	, lightShadowMaps(0)
@@ -209,6 +209,7 @@ SceneLights::SceneLights(const std::vector<Light>& lights)
 	, shadowMapCubeDepth(0)
 	, shadowMapViews(lights.size())
 	, shadowMapFBOs(lights.size())
+	, lightIndices(lights.size())
 	, lights(lights)
 	, lightViewProjMatrices(lights.size() * CubeSide)
 	, lightProjMatrices(lights.size() * CubeSide)
@@ -251,6 +252,26 @@ SceneLights::SceneLights(const std::vector<Light>& lights)
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 	}		
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+	//Generate Light Index Buffer
+	int index = 0;
+	std::array<std::vector<uint32_t>, LightTypeCount> lightTypeIndices;	
+	for(const Light& l : lights)
+	{
+		int typeIndex = static_cast<int>(l.position.getW());
+
+		lightTypeIndices[typeIndex].push_back(index);
+		lightCounts[typeIndex]++;
+		index++;
+	}
+	for(const auto& indices : lightTypeIndices)
+	{
+		lightIndices.insert(lightIndices.end(), indices.begin(), indices.end());
+	}
+
+	// Everything is Generated Now Construct Buffer
+
 }
 
 SceneLights(SceneLights&&);
@@ -263,23 +284,19 @@ SceneLights::~SceneLights()
 	glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()), shadowMapFBOs.data());
 	glDeleteTextures(static_cast<GLsizei>(shadowMapViews.size()), shadowMapViews.data());
 	glDeleteVertexArrays(1, &lightVAO);
-	glDeleteTextures(1, &shadowMapArrayView);asdasdasdas
+	glDeleteTextures(1, &shadowMapArrayView);
 
 	So many missing deletes here
 }
 
-uint32_t SceneLights::TotalCount() const
+uint32_t SceneLights::getLightCount() const
 {
 	return static_cast<uint32_t>(lightShadowCast.size());
 }
 
-uint32_t SceneLights::AreaLightCount() const;
-uint32_t SceneLights::DirectionalLightCount() const;
-uint32_t SceneLights::PointLightCount() const;
-
-GLuint SceneLights::getShadowArrayGL()
+uint32_t SceneLights::getLightCount(LightType t) const
 {
-	return shadowMapArrayView;
+	return lightCounts[static_cast<int>(t)];
 }
 
 const std::vector<IEMatrix4x4>&	SceneLights::getLightProjMatrices()
@@ -363,10 +380,25 @@ bool SceneLights::getLightCastShadow(uint32_t index) const
 	return lightShadowCast[index];
 }
 
-GLuint SceneLights::getShadowArrayGL();
-GLuint SceneLights::getGLBuffer();
-size_t SceneLights::getLightOffset();
-size_t SceneLights::getMatrixOffset();
+GLuint SceneLights::getShadowArrayGL()
+{
+
+}
+
+GLuint SceneLights::getGLBuffer()
+{
+	return gpuData.getGLBuffer();
+}
+
+size_t SceneLights::getLightOffset()
+{
+	return lightOffset;
+}
+
+size_t SceneLights::getMatrixOffset()
+{
+	return matrixOffset;
+}
 
 void SceneLights::SendVPMatricesToGPU();
 void SceneLights::SendLightDataToGPU();

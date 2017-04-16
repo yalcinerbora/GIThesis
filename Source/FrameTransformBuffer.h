@@ -12,7 +12,7 @@
 #include "GLHeader.h"
 
 #pragma pack(push, 1)
-struct FrameTransformBufferData
+struct FrameTransformData
 {
 	IEMatrix4x4 view;
 	IEMatrix4x4 projection;

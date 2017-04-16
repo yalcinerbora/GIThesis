@@ -11,6 +11,7 @@
 #include "StructuredBuffer.h"
 #include "DrawPoint.h"
 #include <cstdint>
+#include <array>
 
 struct Camera;
 class DrawBuffer;
@@ -26,11 +27,11 @@ struct Light
 
 enum class LightType
 {
-	POINT = 0,
-	DIRECTIONAL = 1,
-	SPOT = 2,
-	SPHERICAL = 3,
-	RECTANGULAR = 4,
+	POINT,
+	DIRECTIONAL,
+	//SPOT,
+	//SPHERICAL,
+	//RECTANGULAR,
 	END
 };
 static constexpr uint32_t LightTypeCount = static_cast<uint32_t>(LightType::END);
@@ -49,7 +50,6 @@ class SceneLights
 		static constexpr int				CubeSide = 6;
 
 	private:
-
 		// Point Light Shadow Cubemap Related Stuff		
 		static const IEVector3				pLightDir[CubeSide];
 		static const IEVector3				pLightUp[CubeSide];
@@ -62,31 +62,34 @@ class SceneLights
 		// Directional Lights have one side used (others not allocated)
 		// Area Lights only use 5 sides of the cube map
 		// GPU Buffer
-		StructuredBuffer<uint8_t>			gpuBuffer;
-		size_t								lightOffset;
-		size_t								matrixOffset;
+		StructuredBuffer<uint8_t>				gpuData;
+		size_t									lightOffset;
+		size_t									matrixOffset;
+		size_t									lightIndexOffset;
 
 		// Textures and Framebuffers
-		GLuint								lightShadowMaps;
-		GLuint								shadowMapArrayView;
-		GLuint								shadowMapCubeDepth;
-		std::vector<GLuint>					shadowMapViews;
-		std::vector<GLuint>					shadowMapFBOs;
+		GLuint									lightShadowMaps;
+		GLuint									shadowMapArrayView;
+		GLuint									shadowMapCubeDepth;
+		std::vector<GLuint>						shadowMapViews;
+		std::vector<GLuint>						shadowMapFBOs;
 
 		// CPU Part
-		std::vector<Light>					lights;
-		std::vector<IEMatrix4x4>			lightViewProjMatrices;
-		std::vector<IEMatrix4x4>			lightProjMatrices;
-		std::vector<IEMatrix4x4>			lightInvViewProjMatrices;
-		std::vector<bool>					lightShadowCast;
+		std::array<uint32_t, LightTypeCount>	lightCounts;
+		std::vector<uint32_t>					lightIndices;
+		std::vector<Light>						lights;
+		std::vector<IEMatrix4x4>				lightViewProjMatrices;
+		std::vector<IEMatrix4x4>				lightProjMatrices;
+		std::vector<IEMatrix4x4>				lightInvViewProjMatrices;
+		std::vector<bool>						lightShadowCast;
 
-		static float						CalculateCascadeLength(float frustumFar,
-																   unsigned int cascadeNo);
-		static IEBoundingSphere				CalculateShadowCascasde(float cascadeNear,
-																	float cascadeFar,
-																	const Camera& camera,
-																	const IEVector3& lightDir);
-		void								GenerateMatrices(const Camera& camera);
+		static float							CalculateCascadeLength(float frustumFar,
+																	   unsigned int cascadeNo);
+		static IEBoundingSphere					CalculateShadowCascasde(float cascadeNear,
+																		float cascadeFar,
+																		const Camera& camera,
+																		const IEVector3& lightDir);
+		void									GenerateMatrices(const Camera& camera);
 		
 
 	protected:
@@ -100,10 +103,8 @@ class SceneLights
 		SceneLights&						operator=(const SceneLights&) = delete;
 											~SceneLights();
 
-		uint32_t							TotalCount() const;
-		uint32_t							AreaLightCount() const;
-		uint32_t							DirectionalLightCount() const;
-		uint32_t							PointLightCount() const;
+		uint32_t							getLightCount() const;
+		uint32_t							getLightCount(LightType) const;
 
 		void								ChangeLightPos(uint32_t index, IEVector3 position);
 		void								ChangeLightDir(uint32_t index, IEVector3 direction);
@@ -127,9 +128,11 @@ class SceneLights
 		GLuint								BindViewProjectionMatrices(GLuint bindPoint);
 		GLuint								BindLightParameters(GLuint bindPoint);
 
-		GLuint								getShadowArrayGL();
 		GLuint								getGLBuffer();
+		GLuint								getShadowTextureCubemapArray();
+		GLuint								getShadowTextureArrayView();
 		size_t								getLightOffset();
+		size_t								getLightIndexOffset();
 		size_t								getMatrixOffset();
 		
 		void								SendVPMatricesToGPU();

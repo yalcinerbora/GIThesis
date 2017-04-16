@@ -32,6 +32,12 @@ GLenum Shader::ShaderTypeToGLBit(ShaderType t)
 	return values[static_cast<int>(t)];
 }
 
+Shader::Shader()
+	: valid(false)
+	, shaderID(0)
+	, shaderType(ShaderType::VERTEX)
+{}
+
 Shader::Shader(ShaderType t, const char fileName[])
 	: valid(false)
 	, shaderID(0)
@@ -78,10 +84,20 @@ Shader::Shader(ShaderType t, const char fileName[])
 
 }
 
+Shader& Shader::operator=(Shader&& other)
+{
+	assert(this != &other);
+	shaderID = other.shaderID;
+	shaderType = other.shaderType;
+	valid = other.valid;
+	other.shaderID = 0;
+	return *this;
+}
+
 Shader::~Shader()
 {
 	glDeleteProgram(shaderID);
-	GI_LOG("Shader Deleted. Shader ID: %d", shaderID);
+	if(shaderID !=  0) GI_LOG("Shader Deleted. Shader ID: %d", shaderID);
 	shaderID = 0;
 
 	// We Need To Delete Pipeline Somehow Here
@@ -94,6 +110,7 @@ Shader::~Shader()
 
 void Shader::Bind()
 {
+	assert(valid);
 	glUseProgramStages(shaderPipelineID, ShaderTypeToGLBit(shaderType), shaderID);
 	glActiveShaderProgram(shaderPipelineID, shaderID);
 }

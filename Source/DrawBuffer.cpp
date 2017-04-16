@@ -32,6 +32,7 @@ uint32_t DrawBuffer::AddDrawCall(const DrawPointIndexed& dp,
 	cpuAABBs.push_back(aabb);
 	cpuModelTransformIndices.push_back(transIndex);
 	drawMaterialIndex.push_back(mIndex);
+	return static_cast<uint32_t>(cpuDrawPoints.size() - 1);
 }
 
 void DrawBuffer::LockAndLoad()
@@ -55,10 +56,9 @@ void DrawBuffer::LockAndLoad()
 	modelTransformIndexOffset = totalSize;
 	totalSize += cpuModelTransformIndices.size() * sizeof(uint32_t);
 
+	// Copy Data
 	auto& cpuImage = gpuData.CPUData();
 	cpuImage.resize(totalSize);
-
-	// Copy Data
 	std::copy(reinterpret_cast<uint8_t*>(cpuDrawPoints.data()), 
 			  reinterpret_cast<uint8_t*>(cpuDrawPoints.data()) + cpuDrawPoints.size(),
 			  cpuImage.begin() + drawPointOffset);
@@ -165,7 +165,7 @@ void DrawBuffer::BindMaterialForDraw(uint32_t meshIndex)
 
 void DrawBuffer::DrawCallSingle(GLuint drawId)
 {
-	GLsizei offset = static_cast<GLsizei>(drawId * sizeof(DrawPointIndexed));
+	GLintptr offset = static_cast<GLintptr>(drawId * sizeof(DrawPointIndexed));
 	glDrawElementsIndirect(GL_TRIANGLES,
 						   GL_UNSIGNED_INT,
 						   (void *)(offset));
@@ -184,7 +184,7 @@ void DrawBuffer::DrawCallMultiState()
 {
 	for(int i = 0; i < cpuDrawPoints.size(); i++)
 	{
-		GLsizei offset = static_cast<GLsizei>(i * sizeof(DrawPointIndexed));
+		GLintptr offset = static_cast<GLintptr>(i * sizeof(DrawPointIndexed));
 		glDrawElementsIndirect(GL_TRIANGLES,
 							   GL_UNSIGNED_INT,
 							   (void *) (offset));

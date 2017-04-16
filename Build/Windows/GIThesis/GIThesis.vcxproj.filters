@@ -91,6 +91,15 @@
     <ClCompile Include="..\..\..\Source\MayaInput.cpp">
       <Filter>WindowInput\CameraInput</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.cpp">
+      <Filter>IEUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IEBoundingSphere.cpp">
+      <Filter>IEUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IEVector2.cpp">
+      <Filter>IEUtility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -298,6 +307,18 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\BindPoints.h">
       <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEBoundingSphere.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEMacros.h">
+      <Filter>IEUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IEVector2.h">
+      <Filter>IEUtility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

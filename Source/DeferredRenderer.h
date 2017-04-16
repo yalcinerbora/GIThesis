@@ -33,6 +33,8 @@ struct InvFrameTransform
 
 using InvFrameTransformBuffer = StructuredBuffer<InvFrameTransform>;
 using LightDrawArray = std::array<DrawPointIndexed, LightTypeCount>;
+using LightShaderArray = std::array<Shader, LightTypeCount>;
+using MeshBatchShaderArray = std::array<Shader, MeshBatchTypeCount>;
 
 // Deferred Renderer Light Shape
 class LightDrawBuffer
@@ -55,17 +57,13 @@ class LightDrawBuffer
 		// 1- Draw Param (Static Depends on #LightTypes)
 		// 2- AOI Vertex (Static Depends on #LightTypes)
 		// 3- AOI Vertex Index (Static Depends on #LightTypes)
-		// 4- Light index buffer(Dynamic Depends on #Lights)
-		StructuredBuffer<uint8_t>	gpuBuffer;
+		StructuredBuffer<uint8_t>	gpuData;
 		size_t						drawOffset;
 		size_t						vertexOffset;
 		size_t						indexOffset;
-		size_t						lightIndexOffset;
 
 		// Light AOI VAO
 		GLuint						lightVAO;
-
-		static LightType			ParseLightType(float);
 
 	public:
 		// Constructors & Destructor
@@ -74,7 +72,7 @@ class LightDrawBuffer
 		LightDrawBuffer&			operator=(const LightDrawBuffer&) = delete;
 									~LightDrawBuffer();
 
-		void						ChangeLightCounts(const std::vector<Light>& lights);
+		void						AttachSceneLights(SceneLights&);
 
 		void						BindVAO();
 		void						BindDrawIndirectBuffer();		
@@ -102,13 +100,11 @@ class DeferredRenderer
 		};
 
 		// Geom Buffer Write Shaders
-		Shader						vertGBufferSkeletal;
-		Shader						vertGBufferWrite;
+		MeshBatchShaderArray		vertGBufferWrite;
 		Shader						fragGBufferWrite;
 
 		// Depth Prepass Shaders
-		Shader						vertDPass;
-		Shader						vertDPassSkeletal;
+		MeshBatchShaderArray		vertDPass;
 
 		// Light Pass Shaders
 		Shader						vertLightPass;
@@ -122,11 +118,8 @@ class DeferredRenderer
 		Shader						fragPPDepth;
 
 		// Shader for shadowmap
-		Shader						vertShadowMap;
-		Shader						vertShadowMapSkeletal;
-		Shader						geomAreaShadowMap;
-		Shader						geomPointShadowMap;
-		Shader						geomDirShadowMap;
+		MeshBatchShaderArray		vertShadowMap;
+		LightShaderArray			geomShadowMap;
 		Shader						fragShadowMap;
 		Shader						computeHierZ;
 
@@ -137,7 +130,7 @@ class DeferredRenderer
 		LightDrawBuffer				lightAOI;
 
 		// Frame Transform
-		FrameTransformBufferData	fTransform;
+		FrameTransformData			fTransform;
 		InvFrameTransform			ifTransform;
 		StructuredBuffer<uint8_t>	transformBuffer;
 
@@ -155,10 +148,7 @@ class DeferredRenderer
 		GLuint						flatSampler;
 		GLuint						linearSampler;
 		GLuint						shadowMapSampler;
-		
-		void						BindShadowMapGeometryShader(LightType t);
-		void						BindShadowMapVertexShader(MeshBatchType t);
-		
+				
 		void						BindInvFrameTransform(GLuint bindingPoint);
 		void						BindFrameTransform(GLuint bindingPoint);
 		void						UpdateFTransformBuffer();

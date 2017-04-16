@@ -36,9 +36,11 @@ class Shader
 
 	public:
 		// Constructors & Destructor
+							Shader();
 							Shader(ShaderType, const char fileName[]);
 							Shader(const Shader&) = delete;
-		const Shader&		operator=(const Shader&) = delete;
+		Shader&				operator=(Shader&&);
+		Shader&				operator=(const Shader&) = delete;
 							~Shader();
 		
 		// Renderer Usage

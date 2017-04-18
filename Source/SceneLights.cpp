@@ -141,7 +141,9 @@ void SceneLights::GenerateMatrices(const Camera& camera)
 					//												-radius, radius,
 					//												radius, -radius,
 					//												-800.0f, 800.0f);
-					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(2 * radius, 2 * radius, -800.0f, 800.0f);
+					float factor = static_cast<float>(2 / IEMathConstants::Sqrt2);
+					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(2.0f * radius, 2.0f * radius, 
+																	-800.0f, 800.0f);
 
 
 					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center,

@@ -314,6 +314,15 @@ Window::Window(WindowInput& input,
 							  GL_TRUE);
 	#endif
 
+	// Set Buffer Alignments
+	GLint alignment;
+
+	glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &alignment);
+	DeviceOGLParameters::ssboAlignment = alignment;
+	//const_cast<GLint&>(DeviceOGLParameters::ssboAlignment) = alignment;
+	glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
+	DeviceOGLParameters::uboAlignment = alignment;
+
 	// Get Some GPU Limitations
 	// DEBUG
 	GLint uniformBufferOffsetAlignment, ssbOffsetAlignment;

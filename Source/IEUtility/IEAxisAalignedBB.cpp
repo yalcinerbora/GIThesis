@@ -1,4 +1,5 @@
 #include "IEAxisAalignedBB.h"
+#include "IEMatrix4x4.h"
 #include "IERay.h"
 
 static constexpr IEVector3 aabbLookupTable[] =
@@ -21,9 +22,9 @@ IEAxisAlignedBB3 IEAxisAlignedBB3::Transform(const IEMatrix4x4& t) const
 	for(unsigned int i = 0; i < 8; i++)
 	{
 		IEVector3 data;
-		data[0] = aabbLookupTable[i][0] * gObjectAABB.max.x + (1.0f - aabbLookupTable[i].x) * gObjectAABB.min.x;
-		data[1] = aabbLookupTable[i][1] * gObjectAABB.max.y + (1.0f - aabbLookupTable[i].y) * gObjectAABB.min.y;
-		data[2] = aabbLookupTable[i][2] * gObjectAABB.max.z + (1.0f - aabbLookupTable[i].z) * gObjectAABB.min.z;
+		data[0] = aabbLookupTable[i][0] * max[0] + (1.0f - aabbLookupTable[i][0]) * min[0];
+		data[1] = aabbLookupTable[i][1] * max[1] + (1.0f - aabbLookupTable[i][1]) * min[1];
+		data[2] = aabbLookupTable[i][2] * max[2] + (1.0f - aabbLookupTable[i][2]) * min[2];
 
 		data = t * data;
 		newMax[0] = fmax(newMax[0], data[0]);
@@ -34,8 +35,7 @@ IEAxisAlignedBB3 IEAxisAlignedBB3::Transform(const IEMatrix4x4& t) const
 		newMin[1] = fmin(newMin[1], data[1]);
 		newMin[2] = fmin(newMin[2], data[2]);
 	}
-
-	return IEAxisAlignedBB3();
+	return IEAxisAlignedBB3(newMin, newMax);
 }
 
 IEAxisAlignedBB3& IEAxisAlignedBB3::TransformSelf(const IEMatrix4x4&)

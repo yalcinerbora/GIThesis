@@ -21,6 +21,7 @@ class SceneI
 		// Interface
 		virtual const std::vector<MeshBatchI*>&	getBatches() = 0;
 		virtual SceneLights&					getSceneLights() = 0;
+		virtual const SceneLights&				getSceneLights() const = 0;
 	
 		virtual size_t							ObjectCount() const = 0;
 		virtual size_t							DrawCount() const = 0;

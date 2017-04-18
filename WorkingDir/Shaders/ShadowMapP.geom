@@ -45,11 +45,12 @@ LU_LIGHT_MATRIX buffer LightProjections
 void main(void)
 {
 	// For each layer
-	for(unsigned int i = 0; i < 6; i++)
-	{
-		// For Each Vertex
+	for(uint i = 0; i < 6; i++)
+	{		
 		gl_Layer = int(i);
-		for(unsigned int j = 0; j < gl_in.length(); j++)
+
+		// For Each Vertex
+		for(uint j = 0; j < gl_in.length(); j++)
 		{	
 			gl_Position = lightMatrices[lightID].VPMatrices[i] * gl_in[j].gl_Position;
 			EmitVertex();

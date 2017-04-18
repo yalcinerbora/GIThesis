@@ -20,17 +20,14 @@ ConstantScene::ConstantScene(const std::string& name,
 	, objectCount(0)
 	, drawCallCount(0)
 	, totalPolygons(0)
-{
-	for(const MeshBatchI* batch : meshBatch)
-	{
-		materialCount += batch->MaterialCount();
-		objectCount += batch->ObjectCount();
-		drawCallCount += batch->DrawCount();
-		totalPolygons += batch->PolyCount();
-	}
-}
+{}
 
 SceneLights& ConstantScene::getSceneLights()
+{
+	return sceneLights;
+}
+
+const SceneLights& ConstantScene::getSceneLights() const
 {
 	return sceneLights;
 }
@@ -71,6 +68,14 @@ void ConstantScene::Load()
 	rigidBatch = MeshBatch(rigidMeshVertexDefinition, sizeof(VAO), rigidFileNames);
 	skeletalBatch = MeshBatchSkeletal(skeletalMeshVertexDefinition, sizeof(VAOSkel), skeletalFileNames);
 	sceneLights = SceneLights(lights);
+
+	for(const MeshBatchI* batch : meshBatch)
+	{
+		materialCount += batch->MaterialCount();
+		objectCount += batch->ObjectCount();
+		drawCallCount += batch->DrawCount();
+		totalPolygons += batch->PolyCount();
+	}
 }
 
 void ConstantScene::Release()

@@ -107,10 +107,10 @@ ThesisSolution::ThesisSolution(const std::string& name,
 {
 	renderType = TwDefineEnum("RenderType", renderSchemeVals, GI_END);
 	gridInfoBuffer.AddData({});
-	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
-	{
-		voxelScenes.emplace_back(intialCamPos, CascadeSpan * (0x1 << i), CascadeDim);
-	}
+	//for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
+	//{
+	//	voxelScenes.emplace_back(intialCamPos, CascadeSpan * (0x1 << i), CascadeDim);
+	//}
 }
 
 ThesisSolution::~ThesisSolution()
@@ -125,15 +125,15 @@ void ThesisSolution::Load(SceneI& s)
 {
 	// Reset GICudaScene
 	voxelCaches.clear();
-	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
-	{
-		voxelScenes[i].Reset();
-		voxelCaches.emplace_back();
-		voxelCaches.back().span = CascadeSpan * (1 << i);
-		voxelCaches.back().depth = (GI_CASCADE_COUNT - i - 1) + static_cast<uint32_t>(IEMath::Log2F(static_cast<float>(CascadeDim)));	
-		voxelCaches[i].voxOctreeCount = 0;
-		voxelCaches[i].voxOctreeSize = 0;
-	}
+	//for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
+	//{
+	//	voxelScenes[i].Reset();
+	//	voxelCaches.emplace_back();
+	//	voxelCaches.back().span = CascadeSpan * (1 << i);
+	//	voxelCaches.back().depth = (GI_CASCADE_COUNT - i - 1) + static_cast<uint32_t>(std::log2(static_cast<float>(CascadeDim)));	
+	//	voxelCaches[i].voxOctreeCount = 0;
+	//	voxelCaches[i].voxOctreeSize = 0;
+	//}
 	EmptyGISolution::Load(s);
 
 	// Voxelization
@@ -160,14 +160,14 @@ void ThesisSolution::Load(SceneI& s)
 	GI_LOG("Scene voxelization completed. Elapsed time %f ms", voxelTotaltime);
 	
 	// Voxel Page System Linking
-	for(unsigned int j = 0; j < GI_CASCADE_COUNT; j++)
-		LinkCacheWithVoxScene(voxelScenes[j], voxelCaches[j], 1.0f);
+	//for(unsigned int j = 0; j < GI_CASCADE_COUNT; j++)
+	//	LinkCacheWithVoxScene(voxelScenes[j], voxelCaches[j], 1.0f);
 	
 	// Allocators Link
 	// Ordering is reversed svo tree needs cascades from other to inner
-	std::vector<GICudaAllocator*> allocators;
-	for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
-		allocators.push_back(voxelScenes[GI_CASCADE_COUNT - i - 1].Allocator());
+	//std::vector<GICudaAllocator*> allocators;
+	//for(unsigned int i = 0; i < GI_CASCADE_COUNT; i++)
+	//	allocators.push_back(voxelScenes[GI_CASCADE_COUNT - i - 1].Allocator());
 
 	//voxelOctree.LinkAllocators(Array32<GICudaAllocator*>{allocators.data(), GI_CASCADE_COUNT},
 	//						   currentScene->SVOLevelSizes());
@@ -258,25 +258,26 @@ void ThesisSolution::Release()
 
 double ThesisSolution::LoadBatchVoxels(MeshBatchI* batch)
 {
-	IETimer t;
-	t.Start();
+	//IETimer t;
+	//t.Start();
 
-	// Voxelization
-	std::stringstream voxPrefix;
-	voxPrefix << "vox_" << CascadeSpan << "_" << GI_CASCADE_COUNT << "_";
-	
-	// Load GFG
-	std::string batchVoxFile = voxPrefix.str() + batch->BatchName() + ".gfg";
-	LoadVoxel(voxelCaches, batchVoxFile.c_str(), GI_CASCADE_COUNT,
-			  batch->MeshType() == MeshBatchType::RIGID,
-              batch->RepeatCount());
+	//// Voxelization
+	//std::stringstream voxPrefix;
+	//voxPrefix << "vox_" << CascadeSpan << "_" << GI_CASCADE_COUNT << "_";
+	//
+	//// Load GFG
+	//std::string batchVoxFile = voxPrefix.str() + batch->BatchName() + ".gfg";
+	//LoadVoxel(voxelCaches, batchVoxFile.c_str(), GI_CASCADE_COUNT,
+	//		  batch->MeshType() == MeshBatchType::RIGID,
+ //             batch->RepeatCount());
 
-	t.Stop();
-	// Voxel Load Complete
-	GI_LOG("Loading \"%s\" complete", batchVoxFile.c_str());
-	GI_LOG("\tDuration : %f ms", t.ElapsedMilliS());
-	GI_LOG("------");
-	return t.ElapsedMilliS();
+	//t.Stop();
+	//// Voxel Load Complete
+	//GI_LOG("Loading \"%s\" complete", batchVoxFile.c_str());
+	//GI_LOG("\tDuration : %f ms", t.ElapsedMilliS());
+	//GI_LOG("------");
+	//return t.ElapsedMilliS();
+	return 0.0;
 }
 
 bool ThesisSolution::LoadVoxel(std::vector<SceneVoxCache>& scenes,
@@ -534,6 +535,7 @@ double ThesisSolution::DebugRenderVoxelCache(const Camera& camera,
 	//glEndQuery(GL_TIME_ELAPSED);
 	//glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
 	//return timeElapsed / 1000000.0;
+	return 0.0;
 }
 
 void ThesisSolution::DebugRenderVoxelPage(const Camera& camera, 
@@ -579,22 +581,23 @@ void ThesisSolution::DebugRenderVoxelPage(const Camera& camera,
 //
 //	pageVoxels.Bind();
 //	pageVoxels.Draw(voxCount, offset);
-//}
-//
-//double ThesisSolution::DebugRenderSVO(const Camera& camera)
-//{
-//	// Raytrace voxel scene
-//	SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
-//	double time;
-//	time = voxelOctree.DebugTraceSVO(dRenderer,
-//									 camera,
-//									 svoRenderLevel,
-//									 traceTypeEnum);
-//	return time;
-//}
-//
-//void ThesisSolution::Frame(const Camera& mainRenderCamera)
-//{
+}
+
+double ThesisSolution::DebugRenderSVO(const Camera& camera)
+{
+	//	// Raytrace voxel scene
+	//	SVOTraceType traceTypeEnum = static_cast<SVOTraceType>(traceType % 3);
+	//	double time;
+	//	time = voxelOctree.DebugTraceSVO(dRenderer,
+	//									 camera,
+	//									 svoRenderLevel,
+	//									 traceTypeEnum);
+	//	return time;
+	return 0.0;
+}
+
+void ThesisSolution::Frame(const Camera& mainRenderCamera)
+{
 //	// Zero out debug transfer time since it may not be used
 //	miscTime = 0.0;
 //

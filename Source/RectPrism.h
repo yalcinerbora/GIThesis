@@ -54,9 +54,9 @@ inline RectPrism::RectPrism(const IEVector3& aabbMin,
 	: cornerPoint(aabbMin)
 {
 	IEVector3 diff = aabbMax - aabbMin;
-	basis[0] = IEVector3::Xaxis * diff.getX();
-	basis[1] = IEVector3::Yaxis * diff.getY();
-	basis[1] = IEVector3::Zaxis * diff.getZ();
+	basis[0] = IEVector3::XAxis * diff.getX();
+	basis[1] = IEVector3::YAxis * diff.getY();
+	basis[1] = IEVector3::ZAxis * diff.getZ();
 }
 
 inline void RectPrism::Transform(const IEMatrix4x4& transformMatrix)

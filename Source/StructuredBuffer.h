@@ -24,6 +24,8 @@ class StructuredBuffer
 		size_t					bufferCapacity;
 		std::vector<T>			dataGPUImage;
 
+		void					CheckBufferSize();
+
 	protected:
 
 	public:
@@ -31,7 +33,7 @@ class StructuredBuffer
 								StructuredBuffer(size_t initialCapacity = 0);
 								StructuredBuffer(StructuredBuffer&&);
 								StructuredBuffer(const StructuredBuffer&) = delete;
-		StructuredBuffer&		operator=(StructuredBuffer&&) = delete;
+		StructuredBuffer&		operator=(StructuredBuffer&&);
 		StructuredBuffer&		operator=(const StructuredBuffer&) = delete;
 								~StructuredBuffer();
 

@@ -17,14 +17,14 @@ void TW_CALL EmptyGISolution::GetLightType(void *value, void *clientData)
 		"AREA",
 	};
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
-	LightType t = lookup->solution->currentScene->getSceneLights().GetLightType(lookup->lightID);
+	LightType t = lookup->solution->currentScene->getSceneLights().getLightType(lookup->lightID);
 	*static_cast<const char**>(value) = names[static_cast<int>(t)];
 }
 
 void TW_CALL EmptyGISolution::GetLightShadow(void *value, void *clientData)
 {
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
-	*static_cast<bool*>(value) = lookup->solution->currentScene->getSceneLights().GetLightShadow(lookup->lightID);
+	*static_cast<bool*>(value) = lookup->solution->currentScene->getSceneLights().getLightCastShadow(lookup->lightID);
 }
 
 void TW_CALL EmptyGISolution::SetLightShadow(const void *value, void *clientData)
@@ -37,7 +37,7 @@ void TW_CALL EmptyGISolution::SetLightShadow(const void *value, void *clientData
 void TW_CALL EmptyGISolution::GetLightColor(void *value, void *clientData)
 {
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
-	IEVector3 color = lookup->solution->currentScene->getSceneLights().GetLightColor(lookup->lightID);
+	IEVector3 color = lookup->solution->currentScene->getSceneLights().getLightColor(lookup->lightID);
 	*static_cast<IEVector3*>(value) = color;
 }
 
@@ -51,7 +51,7 @@ void TW_CALL EmptyGISolution::SetLightColor(const void *value, void *clientData)
 void TW_CALL EmptyGISolution::GetLightIntensity(void *value, void *clientData)
 {
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
-	float intensity = lookup->solution->currentScene->getSceneLights().GetLightIntensity(lookup->lightID);
+	float intensity = lookup->solution->currentScene->getSceneLights().getLightIntensity(lookup->lightID);
 	*static_cast<float*>(value) = intensity;
 }
 
@@ -65,7 +65,7 @@ void TW_CALL EmptyGISolution::SetLightIntensity(const void *value, void *clientD
 void TW_CALL EmptyGISolution::GetLightPos(void *value, void *clientData)
 {
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
-	IEVector3 pos = lookup->solution->currentScene->getSceneLights().GetLightPos(lookup->lightID);
+	IEVector3 pos = lookup->solution->currentScene->getSceneLights().getLightPos(lookup->lightID);
 	*static_cast<IEVector3*>(value) = pos;
 }
 
@@ -79,7 +79,7 @@ void TW_CALL EmptyGISolution::SetLightPos(const void *value, void *clientData)
 void TW_CALL EmptyGISolution::GetLightDirection(void *value, void *clientData)
 {
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
-	IEVector3 intensity = lookup->solution->currentScene->getSceneLights().GetLightDir(lookup->lightID);
+	IEVector3 intensity = lookup->solution->currentScene->getSceneLights().getLightDir(lookup->lightID);
 	*static_cast<IEVector3*>(value) = intensity.Normalize();
 }
 
@@ -93,7 +93,7 @@ void TW_CALL EmptyGISolution::SetLightDirection(const void *value, void *clientD
 void TW_CALL EmptyGISolution::GetLightRadius(void *value, void *clientData)
 {
 	TwLightCallbackLookup* lookup = static_cast<TwLightCallbackLookup*>(clientData);
-	float radius = lookup->solution->currentScene->getSceneLights().GetLightRadius(lookup->lightID);
+	float radius = lookup->solution->currentScene->getSceneLights().getLightRadius(lookup->lightID);
 	*static_cast<float*>(value) = radius;
 }
 
@@ -123,6 +123,9 @@ void EmptyGISolution::Load(SceneI& s)
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	currentScene = &s;
 
+	// Attach new Scene's Light Indices
+	dRenderer.AttachSceneLightIndices(s);
+
 	// Bar Creation
 	bar = TwNewBar("Ligths");
 	TwDefine(" Ligths refresh=0.01 ");
@@ -144,12 +147,12 @@ void EmptyGISolution::Load(SceneI& s)
 		
 	std::string name;
 	std::string params;
-	twCallbackLookup.reserve(s.getSceneLights().Count());
+	twCallbackLookup.reserve(s.getSceneLights().getLightCount());
 	twCallbackLookup.clear();
-	for(unsigned int i = 0; i < s.getSceneLights().Count(); i++)
+	for(unsigned int i = 0; i < s.getSceneLights().getLightCount(); i++)
 	{
 		twCallbackLookup.push_back({ i, this });
-		LightType lightType = s.getSceneLights().GetLightType(i);
+		LightType lightType = s.getSceneLights().getLightType(i);
 
 		name = "lType" + std::to_string(i);
 		params = " label='Type' group='Light#"+ std::to_string(i);
@@ -195,8 +198,7 @@ void EmptyGISolution::Load(SceneI& s)
 				   &(twCallbackLookup.back()),
 				   params.c_str());
 
-		if(lightType == LightType::DIRECTIONAL ||
-		   lightType == LightType::RECTANGULAR)
+		if(lightType == LightType::DIRECTIONAL)
 		{
 			name = "lDirection" + std::to_string(i);
 			params = " label='Direction' group='Light#" + std::to_string(i);
@@ -209,8 +211,7 @@ void EmptyGISolution::Load(SceneI& s)
 					   params.c_str());
 		}
 
-		if(lightType == LightType::POINT ||
-		   lightType == LightType::RECTANGULAR)
+		if(lightType == LightType::POINT)
 		{
 			name = "lPosition" + std::to_string(i);
 			params = " label='Position' group='Light#" + std::to_string(i);
@@ -267,4 +268,9 @@ void EmptyGISolution::Frame(const Camera& mainRenderCamera)
 void EmptyGISolution::SetFPS(double fpsMS)
 {
 	frameTime = fpsMS;
+}
+
+const std::string& EmptyGISolution::Name() const
+{
+	return name;
 }

@@ -12,7 +12,6 @@ Solution implementtion
 #include <AntTweakBar.h>
 #include "EmptyGISolution.h"
 #include "Shader.h"
-#include "FrameTransformBuffer.h"
 #include "GICudaVoxelScene.h"
 #include "StructuredBuffer.h"
 #include "IEUtility/IEVector3.h"
@@ -63,8 +62,6 @@ class ThesisSolution : public EmptyGISolution
 		Shader								vertexDebugVoxelSkeletal;
 		Shader								vertexDebugWorldVoxel;
 		Shader								fragmentDebugVoxel;
-
-		FrameTransformBuffer				cameraTransform;
 
 		// Voxel Cache for each cascade
 		std::vector<SceneVoxCache>			voxelCaches;

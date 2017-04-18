@@ -86,9 +86,8 @@ void IERandom::Mat4x4(IEMatrix4x4& result,
 {
 	for(int i = 0; i < 16; i++)
 	{
-		result.setElement(i / 4,
-						  i % 4,
-						  static_cast<float>(Double(mean(i / 4, i % 4), variance(i / 4, i % 4))));
+		result(i / 4, i % 4) = static_cast<float>(Double(mean(i / 4, i % 4), 
+														 variance(i / 4, i % 4)));
 	}
 }
 

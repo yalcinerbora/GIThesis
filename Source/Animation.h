@@ -1,9 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
+#include <string>
 #include "Globals.h"
 #include "GFG/GFGHeader.h"
 #include "IEUtility/IEQuaternion.h"
+#include "IEUtility/IEVector3.h"
 
 enum class AnimationType
 {
@@ -14,23 +17,23 @@ enum class AnimationType
 
 struct Animation
 {
-	GFGAnimationHeader header;
-	uint32_t jointOffset;
-	uint32_t					keyCount;
+	GFGAnimationHeader					header;
+	uint32_t							jointOffset;
+	uint32_t							keyCount;
 	float								timeS;
 	float								delay;
 	float								speedMod;
 	AnimationType						type;
 	bool								animState;
 
-	void								GenInvBindMatrix();
-	void								FindKeys(uint32_t& keyFrom,
-												 uint32_t& keyTo,
-												 float& weight,
-												 float elapsedS);
-	void								UpdateAnimMatrices(uint32_t keyFrom,
-														   uint32_t keyTo,
-														   float weight);
+	//void								GenInvBindMatrix();
+	//void								FindKeys(uint32_t& keyFrom,
+	//											 uint32_t& keyTo,
+	//											 float& weight,
+	//											 float elapsedS);
+	//void								UpdateAnimMatrices(uint32_t keyFrom,
+	//													   uint32_t keyTo,
+	//													   float weight);
 
 };
 
@@ -50,14 +53,19 @@ class AnimationBatch
 	std::vector<ModelTransform>				invBindPoses;
 
 	public:
-		// Construcots
+		// Constructors & Destructor
+										AnimationBatch() = default;
 										AnimationBatch(const std::vector<std::string>& fileNames);
-	void								AnimationParams(float delay,
+										~AnimationBatch() = default;
+
+	void								AnimationParams(uint32_t animationIndex,
+														float delay,
 														float speedMod,
 														AnimationType type);
-	void								GenerateFinalTransforms(ModelTransform out[], float time);
+	//void								Update(double elapsedS);
+	void								GenerateFinalTransforms(ModelTransform out[], double time);
 	void								GenerateFinalTransforms(ModelTransform out[],
-																float time,
+																double time,
 																size_t animationOffset,
 																size_t animationCount);
 };

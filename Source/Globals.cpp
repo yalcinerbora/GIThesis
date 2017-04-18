@@ -2,17 +2,21 @@
 
 TwType twIEVector3Type;
 
-const GLuint DeviceOGLParameters::uboAlignment = 4;
-const GLuint DeviceOGLParameters::ssboAlignment = 4;
+GLint DeviceOGLParameters::uboAlignment = 4;
+GLint DeviceOGLParameters::ssboAlignment = 4;
 
 size_t DeviceOGLParameters::SSBOAlignOffset(size_t offset)
 {
-	if(offset % ssboAlignment == 0) return offset;
-	return offset + (ssboAlignment - offset % ssboAlignment);
+	return AlignOffset(offset, ssboAlignment);
 }
 
 size_t DeviceOGLParameters::UBOAlignOffset(size_t offset)
 {
-	if(offset % uboAlignment == 0) return offset;
-	return offset + (uboAlignment - offset % uboAlignment);
+	return AlignOffset(offset, uboAlignment);
+}
+
+size_t DeviceOGLParameters::AlignOffset(size_t offset, size_t alignment)
+{
+	if(offset % alignment == 0) return offset;
+	return offset + (alignment - offset % alignment);
 }

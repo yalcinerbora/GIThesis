@@ -3,7 +3,6 @@
 #include "VertexBuffer.h"
 #include "DrawBuffer.h"
 #include "Globals.h"
-#include "FrameTransformBuffer.h"
 #include "IEUtility/IEQuaternion.h"
 #include "IEUtility/IEMath.h"
 #include "GFG/GFGFileLoader.h"
@@ -54,7 +53,7 @@ float SceneLights::CalculateCascadeLength(float frustumFar,
 										  unsigned int cascadeNo)
 {
 	// Geometric sum
-	static const float exponent = 1.2f;
+	static constexpr float exponent = 1.1f;
 	float chunkSize = (std::powf(exponent, static_cast<float>(LightDrawBuffer::DirectionalCascadesCount)) - 1.0f) / (exponent - 1.0f);
 	return std::powf(exponent, static_cast<float>(cascadeNo)) * (frustumFar / chunkSize);
 }
@@ -137,14 +136,16 @@ void SceneLights::GenerateMatrices(const Camera& camera)
 
 					// Squre Orto Projection
 					float radius = viewSphere.radius;
-					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(//360.0f, -360.0f,
-																	//-230.0f, 230.0f,
-																	-radius, radius,
-																	radius, -radius,
-																	-800.0f, 800.0f);
+					//IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(//360.0f, -360.0f,
+					//												//-230.0f, 230.0f,
+					//												-radius, radius,
+					//												radius, -radius,
+					//												-800.0f, 800.0f);
+					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(2 * radius, 2 * radius, -800.0f, 800.0f);
 
-					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f),
-														   viewSphere.center * IEVector3(1.0f, 1.0f, 1.0f) + currentLight.direction,
+
+					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center,
+														   viewSphere.center + currentLight.direction,
 														   camera.up);
 
 					// To eliminate shadow shimmering only change pixel sized frusutm changes
@@ -166,28 +167,28 @@ void SceneLights::GenerateMatrices(const Camera& camera)
 				}
 				break;
 			}
-			case LightType::RECTANGULAR:
-			{
-				IEMatrix4x4 projections[2] = 
-				{
-					IEMatrix4x4::Perspective(45.0f, 1.0f, 0.1f, currentLight.color.getW()),
-					IEMatrix4x4::Perspective(90.0f, 1.0f, 0.1f, currentLight.color.getW())
-				};
+			//case LightType::RECTANGULAR:
+			//{
+			//	IEMatrix4x4 projections[2] = 
+			//	{
+			//		IEMatrix4x4::Perspective(45.0f, 1.0f, 0.1f, currentLight.color.getW()),
+			//		IEMatrix4x4::Perspective(90.0f, 1.0f, 0.1f, currentLight.color.getW())
+			//	};
 
-				// we'll use 5 sides but each will comply different ares that a point light
-				for(unsigned int j = 0; j < 6; j++)
-				{
-					uint32_t projIndex = (j == 3) ? 1 : 0;
-					IEMatrix4x4 view = IEMatrix4x4::LookAt(currentLight.position,
-														   currentLight.position + SceneLights::aLightDir[j],
-														   SceneLights::aLightUp[j]);
+			//	// we'll use 5 sides but each will comply different ares that a point light
+			//	for(unsigned int j = 0; j < 6; j++)
+			//	{
+			//		uint32_t projIndex = (j == 3) ? 1 : 0;
+			//		IEMatrix4x4 view = IEMatrix4x4::LookAt(currentLight.position,
+			//											   currentLight.position + SceneLights::aLightDir[j],
+			//											   SceneLights::aLightUp[j]);
 
-					lightViewProjMatrices[i * 6 + j] = projections[projIndex] * view;
-					lightProjMatrices[i * 6 + j] = projections[projIndex];
-					lightInvViewProjMatrices[i * 6 + j] = (projections[projIndex] * view).Inverse();
-				}
-				break;
-			}
+			//		lightViewProjMatrices[i * 6 + j] = projections[projIndex] * view;
+			//		lightProjMatrices[i * 6 + j] = projections[projIndex];
+			//		lightInvViewProjMatrices[i * 6 + j] = (projections[projIndex] * view).Inverse();
+			//	}
+			//	break;
+			//}
 		}
 	}
 }
@@ -198,7 +199,9 @@ SceneLights::SceneLights()
 	, lightShadowMaps(0)
 	, shadowMapArrayView(0)
 	, shadowMapCubeDepth(0)
-{}
+{
+	for(auto& l : lightCounts) l = 0;
+}
 
 SceneLights::SceneLights(const std::vector<Light>& lights)
 	: gpuData(lights.size() * (sizeof(Light) + sizeof(IEMatrix4x4) * CubeSide + sizeof(uint32_t)))
@@ -209,13 +212,13 @@ SceneLights::SceneLights(const std::vector<Light>& lights)
 	, shadowMapCubeDepth(0)
 	, shadowMapViews(lights.size())
 	, shadowMapFBOs(lights.size())
-	, lightIndices(lights.size())
 	, lights(lights)
 	, lightViewProjMatrices(lights.size() * CubeSide)
 	, lightProjMatrices(lights.size() * CubeSide)
 	, lightInvViewProjMatrices(lights.size() * CubeSide)
 	, lightShadowCast(lights.size(), true)
 {
+	for(auto& l : lightCounts) l = 0;
 	GLsizei lightCount = static_cast<GLsizei>(lights.size());
 
 	glGenTextures(1, &lightShadowMaps);
@@ -225,6 +228,8 @@ SceneLights::SceneLights(const std::vector<Light>& lights)
 				   CubeSide * lightCount);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_MAX_LEVEL, LightDrawBuffer::ShadowMapMipCount);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
 	
 	glGenFramebuffers(lightCount, shadowMapFBOs.data());
 	glGenTextures(lightCount, shadowMapViews.data());
@@ -235,6 +240,8 @@ SceneLights::SceneLights(const std::vector<Light>& lights)
 	glTexStorage2D(GL_TEXTURE_CUBE_MAP, 1, GL_DEPTH_COMPONENT32F, 
 				   LightDrawBuffer::ShadowMapWH, 
 				   LightDrawBuffer::ShadowMapWH);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0);
 
 	// Interpret CubemapTexture Array as 2D Texture
 	// Used for Directional Lights (each cube side is a cascade)
@@ -260,7 +267,6 @@ SceneLights::SceneLights(const std::vector<Light>& lights)
 	for(const Light& l : lights)
 	{
 		int typeIndex = static_cast<int>(l.position.getW());
-
 		lightTypeIndices[typeIndex].push_back(index);
 		lightCounts[typeIndex]++;
 		index++;
@@ -271,22 +277,94 @@ SceneLights::SceneLights(const std::vector<Light>& lights)
 	}
 
 	// Everything is Generated Now Construct Buffer
+	size_t totalSize = 0;
+	// LightStruct
+	lightOffset = totalSize;
+	totalSize += lights.size() * sizeof(Light);
+	// ViewProjTransforms
+	totalSize = DeviceOGLParameters::SSBOAlignOffset(totalSize);
+	matrixOffset = totalSize;
+	totalSize += lightViewProjMatrices.size() * sizeof(IEMatrix4x4);
+	// LightIndexOffset
+	//totalSize = DeviceOGLParameters::SSBOAlignOffset(totalSize);
+	lightIndexOffset = totalSize;
+	totalSize += lightIndices.size() * sizeof(uint32_t);
 
+	// Copy To Buffer
+	auto& cpuImage = gpuData.CPUData();
+	cpuImage.resize(totalSize);
+	std::copy(reinterpret_cast<const uint8_t*>(lights.data()),
+			  reinterpret_cast<const uint8_t*>(lights.data() + lights.size()),
+			  cpuImage.data() + lightOffset);
+	std::copy(reinterpret_cast<uint8_t*>(lightViewProjMatrices.data()),
+			  reinterpret_cast<uint8_t*>(lightViewProjMatrices.data() + lightViewProjMatrices.size()),
+			  cpuImage.data() + matrixOffset);
+	std::copy(reinterpret_cast<uint8_t*>(lightIndices.data()),
+			  reinterpret_cast<uint8_t*>(lightIndices.data() + lightIndices.size()),
+			  cpuImage.data() + lightIndexOffset);
+
+	// Finalize and Send
+	gpuData.SendData();
 }
 
-SceneLights(SceneLights&&);
-SceneLights&						operator=(SceneLights&&);
+SceneLights::SceneLights(SceneLights&& other)
+	: gpuData(std::move(other.gpuData))
+	, lightOffset(other.lightOffset)
+	, matrixOffset(other.matrixOffset)
+	, lightIndexOffset(other.lightIndexOffset)
+	, lightShadowMaps(other.lightShadowMaps)
+	, shadowMapArrayView(other.shadowMapArrayView)
+	, shadowMapCubeDepth(other.shadowMapCubeDepth)
+	, shadowMapViews(std::move(other.shadowMapViews))
+	, shadowMapFBOs(std::move(other.shadowMapFBOs))
+	, lightCounts(std::move(other.lightCounts))
+	, lightIndices(std::move(other.lightIndices))
+	, lights(std::move(other.lights))
+	, lightViewProjMatrices(std::move(other.lightViewProjMatrices))
+	, lightProjMatrices(std::move(other.lightProjMatrices))
+	, lightInvViewProjMatrices(std::move(other.lightInvViewProjMatrices))
+	, lightShadowCast(std::move(other.lightShadowCast))
+{
+	other.lightShadowMaps = 0;
+	other.shadowMapArrayView = 0;
+	other.shadowMapCubeDepth = 0;
+}
+
+SceneLights& SceneLights::operator=(SceneLights&& other)
+{
+	assert(this != &other);
+	gpuData = std::move(other.gpuData);
+	lightOffset = other.lightOffset;
+	matrixOffset = other.matrixOffset;
+	lightIndexOffset = other.lightIndexOffset;
+	lightShadowMaps = other.lightShadowMaps;
+	shadowMapArrayView = other.shadowMapArrayView;
+	shadowMapCubeDepth = other.shadowMapCubeDepth;
+	shadowMapViews = std::move(other.shadowMapViews);
+	shadowMapFBOs = std::move(other.shadowMapFBOs);
+	lightCounts = std::move(other.lightCounts);
+	lightIndices = std::move(other.lightIndices);
+	lights = std::move(other.lights);
+	lightViewProjMatrices = std::move(other.lightViewProjMatrices);
+	lightProjMatrices = std::move(other.lightProjMatrices);
+	lightInvViewProjMatrices = std::move(other.lightInvViewProjMatrices);
+	lightShadowCast = std::move(other.lightShadowCast);
+
+	other.lightShadowMaps = 0;
+	other.shadowMapArrayView = 0;
+	other.shadowMapCubeDepth = 0;
+	return *this;
+}
 
 SceneLights::~SceneLights()
 {
+	if(shadowMapFBOs.size() > 0) glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()), 
+													  shadowMapFBOs.data());
+	if(shadowMapViews.size() > 0) glDeleteFramebuffers(static_cast<GLsizei>(shadowMapViews.size()), 
+													   shadowMapViews.data());
 	glDeleteTextures(1, &shadowMapCubeDepth);
 	glDeleteTextures(1, &lightShadowMaps);
-	glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()), shadowMapFBOs.data());
-	glDeleteTextures(static_cast<GLsizei>(shadowMapViews.size()), shadowMapViews.data());
-	glDeleteVertexArrays(1, &lightVAO);
 	glDeleteTextures(1, &shadowMapArrayView);
-
-	So many missing deletes here
 }
 
 uint32_t SceneLights::getLightCount() const
@@ -299,14 +377,19 @@ uint32_t SceneLights::getLightCount(LightType t) const
 	return lightCounts[static_cast<int>(t)];
 }
 
-const std::vector<IEMatrix4x4>&	SceneLights::getLightProjMatrices()
+const std::vector<IEMatrix4x4>&	SceneLights::getLightProjMatrices() const
 {
 	return lightProjMatrices;
 }
 
-const std::vector<IEMatrix4x4>& SceneLights::getLightInvViewProjMatrices()
+const std::vector<IEMatrix4x4>& SceneLights::getLightInvViewProjMatrices() const
 {
 	return lightInvViewProjMatrices;
+}
+
+float SceneLights::getCascadeLength(float cameraFar) const
+{
+	return CalculateCascadeLength(cameraFar, 0);
 }
 
 void SceneLights::ChangeLightPos(uint32_t index, IEVector3 position)
@@ -380,9 +463,23 @@ bool SceneLights::getLightCastShadow(uint32_t index) const
 	return lightShadowCast[index];
 }
 
-GLuint SceneLights::getShadowArrayGL()
+void SceneLights::BindLightFramebuffer(uint32_t light)
 {
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBOs[light]);
+}
 
+void SceneLights::BindViewProjectionMatrices(GLuint bindPoint)
+{
+	gpuData.BindAsShaderStorageBuffer(bindPoint,
+									  static_cast<GLuint>(matrixOffset),
+									  static_cast<GLuint>(lightViewProjMatrices.size() * sizeof(IEMatrix4x4)));
+}
+
+void SceneLights::BindLightParameters(GLuint bindPoint)
+{
+	gpuData.BindAsShaderStorageBuffer(bindPoint,
+									  static_cast<GLuint>(lightOffset),
+									  static_cast<GLuint>(lights.size() * sizeof(Light)));
 }
 
 GLuint SceneLights::getGLBuffer()
@@ -390,9 +487,24 @@ GLuint SceneLights::getGLBuffer()
 	return gpuData.getGLBuffer();
 }
 
+GLuint SceneLights::getShadowTextureCubemapArray()
+{
+	return lightShadowMaps;
+}
+
+GLuint SceneLights::getShadowTextureArrayView()
+{
+	return shadowMapArrayView;
+}
+
 size_t SceneLights::getLightOffset()
 {
 	return lightOffset;
+}
+
+size_t SceneLights::getLightIndexOffset()
+{
+	return lightIndexOffset;
 }
 
 size_t SceneLights::getMatrixOffset()
@@ -400,5 +512,20 @@ size_t SceneLights::getMatrixOffset()
 	return matrixOffset;
 }
 
-void SceneLights::SendVPMatricesToGPU();
-void SceneLights::SendLightDataToGPU();
+void SceneLights::SendVPMatricesToGPU()
+{
+	std::copy(reinterpret_cast<uint8_t*>(lightViewProjMatrices.data()),
+			  reinterpret_cast<uint8_t*>(lightViewProjMatrices.data() + lightViewProjMatrices.size()),
+			  gpuData.CPUData().data() + matrixOffset);
+	gpuData.SendSubData(static_cast<uint32_t>(matrixOffset), 
+						static_cast<uint32_t>(lightViewProjMatrices.size() * sizeof(IEMatrix4x4)));
+}
+
+void SceneLights::SendLightDataToGPU()
+{
+	std::copy(reinterpret_cast<uint8_t*>(lights.data()),
+			  reinterpret_cast<uint8_t*>(lights.data() + lights.size()),
+			  gpuData.CPUData().data() + lightOffset);
+	gpuData.SendSubData(static_cast<uint32_t>(lightOffset),
+						static_cast<uint32_t>(lights.size() * sizeof(Light)));
+}

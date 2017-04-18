@@ -1,29 +1,25 @@
+#pragma once
 /**
 
 Globals For Rendering
 
 */
 
-
-#ifndef __GLOBALS_H__
-#define __GLOBALS_H__
-
 #include "VertexBuffer.h"
 #include "IEUtility/IEMatrix4x4.h"
 #include "IEUtility/IEVector4.h"
 #include <AntTweakBar.h>
 
-#define GI_CASCADE_COUNT 1
-
 namespace DeviceOGLParameters
 {
-	extern const GLuint		uboAlignment;
-	extern const GLuint		ssboAlignment;
+	extern GLint		uboAlignment;
+	extern GLint		ssboAlignment;
 
 	// Helper Functions
 	size_t					SSBOAlignOffset(size_t offset);
 	size_t					UBOAlignOffset(size_t offset);
-}
+	size_t					AlignOffset(size_t offset, size_t alignment);
+};
 
 #pragma pack(push, 1)
 struct ModelTransform
@@ -51,6 +47,11 @@ struct VAOSkel
 	float	vUV[2];
 	uint8_t	vWeight[4];
 	uint8_t	vWIndex[4];
+};
+struct FrameTransformData
+{
+	IEMatrix4x4 view;
+	IEMatrix4x4 projection;
 };
 #pragma pack(pop)
 
@@ -142,4 +143,3 @@ static const TwStructMember lightMembers[] =
 	{ "Y", TW_TYPE_FLOAT, 4, " help='Y' step=0.1 " },
 	{ "Z", TW_TYPE_FLOAT, 8, " help='Z' step=0.1 " }
 };
-#endif //__GLOBALS_H__

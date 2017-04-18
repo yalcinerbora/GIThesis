@@ -31,7 +31,7 @@ void MayaInput::MouseMovedFunc(Camera& camera, double x, double y)
 	{
 		// X Rotation
 		IEVector3 lookDir = camera.centerOfInterest - camera.pos;
-		IEQuaternion rotateX(static_cast<float>(-diffX * sensitivity), IEVector3::Yaxis);
+		IEQuaternion rotateX(static_cast<float>(-diffX * sensitivity), IEVector3::YAxis);
 		IEVector3 rotated = rotateX.ApplyRotation(lookDir);
 		camera.pos = camera.centerOfInterest - rotated;
 

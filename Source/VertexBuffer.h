@@ -57,8 +57,8 @@ class VertexBuffer
 
 		uint32_t								byteStride;
 		std::vector<size_t>						meshOffsets;
-		const std::vector<VertexElement>		vElements;
-		bool									addLocked;
+		std::vector<VertexElement>				vElements;
+		bool									locked;
 
 		static bool								GFGLogicHit(GFGVertexComponentLogic, VertexLogic);
 		static bool								GFGSupportedLogic(GFGVertexComponentLogic gfg);

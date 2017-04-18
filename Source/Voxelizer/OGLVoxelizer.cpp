@@ -459,7 +459,7 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		
-			const AABBData& objAABB = batch.getDrawBuffer().getCPUAABBs()[objIndex];
+			const AABBData& objAABB = batch.getDrawBuffer().getAABB(objIndex);
 			GLuint voxDimX, voxDimY, voxDimZ;
 			voxDimX = static_cast<GLuint>(std::floor((objAABB.max.getX() - objAABB.min.getX()) / options.span)) + 1;
 			voxDimY = static_cast<GLuint>(std::floor((objAABB.max.getY() - objAABB.min.getY()) / options.span)) + 1;

@@ -106,6 +106,10 @@ void WindowInput::WindowMinimizedFunc(bool minimized)
 
 void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 {	
+	// Camera Input
+	cameraInputs[currentCameraInput]->KeyboardUsedFunc(camera, key, osKey, action, modifier);
+
+	// Scene and Solution Management
 	if(action == GLFW_RELEASE)
 	switch(key)
 	{
@@ -114,7 +118,7 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 			GI_LOG("Changing Solution");
 			solutions[currentSolution]->Release();
 			currentSolution = (currentSolution == 0)
-								? (solutions.size() - 1)
+								? static_cast<uint32_t>(solutions.size() - 1)
 								: (currentSolution - 1);
 			solutions[currentSolution]->Load(*scenes[currentScene]);
 			GI_LOG("Solution \"%s\"", solutions[currentSolution]->Name().c_str());
@@ -133,7 +137,7 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 			solutions[currentSolution]->Release();
 			scenes[currentScene]->Release();
 			currentScene = (currentScene == 0)
-								? (scenes.size() - 1)
+								? static_cast<uint32_t>(scenes.size() - 1)
 								: (currentScene - 1);
 			scenes[currentScene]->Load();
 			solutions[currentSolution]->Load(*scenes[currentScene]);
@@ -153,7 +157,7 @@ void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 		// Input Schemes
 		case GLFW_KEY_KP_1:
 			currentCameraInput = (currentCameraInput == 0)
-								? (cameraInputs.size() - 1)
+								? static_cast<uint32_t>(cameraInputs.size() - 1)
 								: (currentCameraInput - 1);
 			GI_LOG("Input Scheme \"%s\"", cameraInputs[currentCameraInput]->Name().c_str());
 			break;
@@ -188,6 +192,12 @@ void WindowInput::MousePressedFunc(int button, int action, int modifier)
 void WindowInput::MouseScrolledFunc(double xOffset, double yOffset)
 {
 	cameraInputs[currentCameraInput]->MouseScrolledFunc(camera, xOffset, yOffset);
+}
+
+void WindowInput::Initialize()
+{
+	scenes[currentScene]->Load();
+	solutions[currentSolution]->Load(*scenes[currentScene]);
 }
 
 SolutionI* WindowInput::Solution()

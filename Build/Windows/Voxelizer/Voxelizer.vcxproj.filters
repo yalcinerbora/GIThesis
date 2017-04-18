@@ -44,6 +44,12 @@
     <ClCompile Include="..\..\..\Source\VertexBuffer.cpp">
       <Filter>FromThesis</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\Animation.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\Globals.cpp">
+      <Filter>FromThesis</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Voxelizer\OGLVoxelizer.h" />
@@ -104,6 +110,9 @@
       <Filter>FromThesis</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\Globals.h">
+      <Filter>FromThesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Animation.h">
       <Filter>FromThesis</Filter>
     </ClInclude>
   </ItemGroup>

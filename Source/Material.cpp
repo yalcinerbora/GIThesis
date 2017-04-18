@@ -24,11 +24,15 @@ Material::Material(ColorMaterial c)
 	// Has to be RGB uncompressed
 	assert(tgaColor.imageTypeCode == 2);
 
+	// Determine Mip Size
+	int maxSize = std::max(tgaColor.imageWidth, tgaColor.imageHeight);
+	int mipCount = static_cast<int>(std::floor(std::log2(static_cast<float>(maxSize)))) + 1;
+
 	// To the GL
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexStorage2D(GL_TEXTURE_2D,
-				   4,
+				   mipCount,
 				   (tgaColor.bitCount == 24) ? GL_RGB8 : GL_RGBA8,
 				   tgaColor.imageWidth,
 				   tgaColor.imageHeight);
@@ -46,7 +50,7 @@ Material::Material(ColorMaterial c)
 	glGenerateMipmap(GL_TEXTURE_2D);
 
 	// Tex Parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 8);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipCount);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_GREEN);

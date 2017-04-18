@@ -2,44 +2,6 @@
 template <class T>
 size_t StructuredBuffer<T>::resizeFactor = 2;
 
-//template <class T>
-//StructuredBuffer<T>::StructuredBuffer(const StructuredBuffer& cp)
-//	: bufferId(0)
-//	, bufferCapacity(cp.bufferCapacity)
-//{
-//	glGenBuffers(1, &bufferId);
-//	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
-//	glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),
-//				 nullptr, GL_DYNAMIC_DRAW);
-//
-//	glBindBuffer(GL_COPY_READ_BUFFER, cp.bufferId);
-//	glCopyBufferSubData(GL_COPY_READ_BUFFER,
-//						GL_COPY_WRITE_BUFFER,
-//						0, 0,
-//						bufferCapacity * sizeof(T));
-//}
-
-//template <class T>
-//const StructuredBuffer&	StructuredBuffer<T>::operator=(const StructuredBuffer& other)
-//{
-//	assert(*this != other);
-//	
-//
-//	glGenBuffers(1, &bufferId);
-//	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
-//	glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),
-//				 nullptr, GL_DYNAMIC_DRAW);
-//
-//	glBindBuffer(GL_COPY_READ_BUFFER, cp.bufferId);
-//	glCopyBufferSubData(GL_COPY_READ_BUFFER,
-//						GL_COPY_WRITE_BUFFER,
-//						0, 0,
-//						bufferCapacity * sizeof(T));
-//
-//	if(bufferCapacity >= other.buffer)
-//
-//}
-
 template <class T>
 StructuredBuffer<T>::StructuredBuffer(size_t initialCapacity)
 	: bufferId(0)
@@ -62,7 +24,18 @@ StructuredBuffer<T>::StructuredBuffer(StructuredBuffer&& other)
 	, dataGPUImage(std::move(other.dataGPUImage))
 {
 	other.bufferId = 0;
-	other.bufferCapacity = 0;
+}
+
+template <class T>
+StructuredBuffer<T>& StructuredBuffer<T>::operator=(StructuredBuffer&& other)
+{
+	assert(this != &other);
+	bufferId = other.bufferId;
+	bufferCapacity = other.bufferCapacity;
+	dataGPUImage = std::move(other.dataGPUImage);
+
+	other.bufferId = 0;
+	return *this;
 }
 
 template <class T>
@@ -72,7 +45,7 @@ StructuredBuffer<T>::~StructuredBuffer()
 }
 
 template <class T>
-void StructuredBuffer<T>::SendData()
+void StructuredBuffer<T>::CheckBufferSize()
 {
 	if(dataGPUImage.size() > bufferCapacity)
 	{
@@ -84,10 +57,31 @@ void StructuredBuffer<T>::SendData()
 		// Param Buffer
 		glGenBuffers(1, &newBuffer);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, newBuffer);
-		glBufferData(GL_COPY_WRITE_BUFFER, 
-						bufferCapacity * sizeof(T),
-						nullptr,
-						GL_DYNAMIC_DRAW);
+		glBufferData(GL_COPY_WRITE_BUFFER,
+					 bufferCapacity * sizeof(T),
+					 nullptr,
+					 GL_DYNAMIC_DRAW);
+		glDeleteBuffers(1, &bufferId);
+		bufferId = newBuffer;
+	}
+}
+
+template <class T>
+void StructuredBuffer<T>::SendData()
+{
+	if(dataGPUImage.size() > bufferCapacity)
+	{
+		bufferCapacity = std::max(dataGPUImage.size(), bufferCapacity * resizeFactor);
+		if(bufferCapacity == 0) bufferCapacity = dataGPUImage.size();
+
+		// Param Buffer
+		GLuint newBuffer;
+		glGenBuffers(1, &newBuffer);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, newBuffer);
+		glBufferData(GL_COPY_WRITE_BUFFER,
+					 bufferCapacity * sizeof(T),
+					 nullptr,
+					 GL_DYNAMIC_DRAW);
 		glDeleteBuffers(1, &bufferId);
 		bufferId = newBuffer;
 	}
@@ -102,11 +96,29 @@ void StructuredBuffer<T>::SendData()
 template <class T>
 void StructuredBuffer<T>::SendSubData(uint32_t offset, uint32_t size)
 {
+	if(dataGPUImage.size() > bufferCapacity)
+	{
+		bufferCapacity = std::max(dataGPUImage.size(), bufferCapacity * resizeFactor);
+		if(bufferCapacity == 0) bufferCapacity = dataGPUImage.size();
+
+		GLuint newBuffer;
+
+		// Param Buffer
+		glGenBuffers(1, &newBuffer);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, newBuffer);
+		glBufferData(GL_COPY_WRITE_BUFFER,
+					 bufferCapacity * sizeof(T),
+					 nullptr,
+					 GL_DYNAMIC_DRAW);
+		glDeleteBuffers(1, &bufferId);
+		bufferId = newBuffer;
+	}
+
 	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
 	glBufferSubData(GL_COPY_WRITE_BUFFER,
 					offset * sizeof(T),
 					size * sizeof(T),
-					dataGPUImage.data());
+					dataGPUImage.data() + offset * sizeof(T));
 }
 
 template <class T>
@@ -196,6 +208,8 @@ void StructuredBuffer<T>::Resize(size_t count)
 {
 	assert(count != 0);
 	if(count < bufferCapacity) return;
+
+	dataGPUImage.resize(count);
 
 	GLuint newBuffer;
 	glGenBuffers(1, &newBuffer);

@@ -29,8 +29,8 @@ class WindowInput
 		Camera&								camera;
 		CallbackArray						callbacks;
 		const std::vector<CameraInputI*>&	cameraInputs;
-		const std::vector<SceneI*>			scenes;
-		const std::vector<SolutionI*>		solutions;
+		const std::vector<SceneI*>&			scenes;
+		const std::vector<SolutionI*>&		solutions;
 		uint32_t							currentCameraInput;
 		uint32_t							currentSolution;
 		uint32_t							currentScene;
@@ -57,6 +57,7 @@ class WindowInput
 		virtual void						MouseScrolledFunc(double xOffset, double yOffset);
 		
 		// Fetch
+		void								Initialize();
 		SolutionI*							Solution();
 		SceneI*								Scene();
 
@@ -69,5 +70,5 @@ template <class Function, class... Args>
 void WindowInput::AddKeyCallback(int glfwKey, int glfwAction, Function&& f, Args&&... args)
 {
 	std::function<void()> func = std::bind(f, args...);
-	callbacks.emplace(glfwKey, glfwAction, func);
+	callbacks.emplace(std::make_pair(glfwKey, glfwAction), func);
 }

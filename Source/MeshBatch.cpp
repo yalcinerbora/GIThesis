@@ -4,21 +4,26 @@
 #include "GFGLoader.h"
 #include "IEUtility/IETimer.h"
 
-// Constructors & Destructor
+MeshBatch::MeshBatch()
+	: batchParams{0, 0, 0, 0}
+{}
+
 MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
 					 uint32_t byteStride,
 					 const std::vector<std::string>& sceneFiles)
 
 	: batchVertex(vertexDefintion, byteStride)
 	, batchDrawParams()
-	, batchParams(BatchParams{})
+	, batchParams{}
 {
+	if(sceneFiles.empty()) return;
+
 	IETimer timer;
 	timer.Start();
 
 	for(const std::string& file : sceneFiles)
 	{
-		BatchParams fileBatchParams;
+		BatchParams fileBatchParams = {};
 		auto err = GFGLoader::LoadGFG(fileBatchParams,
 									  batchVertex,
 									  batchDrawParams,
@@ -37,6 +42,7 @@ MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
 	// All Loaded
 	// Send Data then Attach Transform Index Buffer
 	batchDrawParams.LockAndLoad();
+	batchVertex.LockAndLoad();
 	batchVertex.AttachMTransformIndexBuffer(batchDrawParams.getGLBuffer(),
 											batchDrawParams.getModelTransformIndexOffset());
 	timer.Stop();
@@ -48,6 +54,21 @@ MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
 	GI_LOG("\tDrawPoints : %zd", batchParams.drawCallCount);
 	GI_LOG("\tPolyCount : %zd", batchParams.totalPolygons);
 	GI_LOG("----------");
+}
+
+MeshBatch::MeshBatch(MeshBatch&& other)
+	: batchVertex(std::move(other.batchVertex))
+	, batchDrawParams(std::move(other.batchDrawParams))
+	, batchParams(std::move(other.batchParams))
+{}
+
+MeshBatch& MeshBatch::operator=(MeshBatch&& other)
+{
+	assert(this != &other);
+	batchVertex = std::move(other.batchVertex);
+	batchDrawParams = std::move(other.batchDrawParams);
+	batchParams = std::move(other.batchParams);
+	return *this;
 }
 
 // Interface

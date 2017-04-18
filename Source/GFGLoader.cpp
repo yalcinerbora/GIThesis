@@ -68,7 +68,9 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
     }
 	
 	// Material Load
+	uint32_t relativeMaterial = static_cast<uint32_t>(drawBuffer.getMaterialCount());
 	int matIndex = -1;
+	params.materialCount = 0;
 	for(const GFGMaterialHeader& mat : gfgFile.Header().materials)
 	{
 		matIndex++;
@@ -99,9 +101,8 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 	}
 
 	// Write Total Transform
-    uint32_t relativeTransform = 0;    
     params.drawCallCount = 0;
-  
+	uint32_t relativeTransform = static_cast<uint32_t>(drawBuffer.getModelTransformCount());
     uint32_t transformIndex = 0;
     for(const GFGTransform& transform : gfgFile.Header().transformData.transforms)
     {
@@ -128,12 +129,13 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
         transformIndex++;
     }
        
+	uint32_t relativeDrawCall = static_cast<uint32_t>(drawBuffer.getDrawPointCount());
     for(const GFGMeshMatPair& pair : gfgFile.Header().meshMaterialConnections.pairs)
     {
         DrawPointIndexed dpi = drawCalls[pair.meshIndex];
         dpi.firstIndex += static_cast<uint32_t>(pair.indexOffset);
         dpi.count = static_cast<uint32_t>(pair.indexCount);
-        dpi.baseInstance = static_cast<uint32_t>(params.drawCallCount);
+        dpi.baseInstance = static_cast<uint32_t>(relativeDrawCall + params.drawCallCount);
 
         uint32_t meshIndex = pair.meshIndex;
         auto FindMeshTransform = [&meshIndex](const GFGNode& node) { return node.meshReference == meshIndex; };
@@ -143,7 +145,7 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
         drawBuffer.AddDrawCall
         (
             dpi,
-            pair.materialIndex,
+            relativeMaterial + pair.materialIndex,
             relativeTransform + transformIndex,
             {
                 IEVector4(IEVector3(gfgFile.Header().meshes[pair.meshIndex].headerCore.aabb.min)),
@@ -152,7 +154,6 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
         );
         params.drawCallCount++;
     }
-    relativeTransform += transformIndex;
 	return GFGLoadError::OK;
 }
 

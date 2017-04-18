@@ -48,6 +48,8 @@ class DrawBuffer
 		// Constructors & Destructor
 											DrawBuffer();
 											DrawBuffer(const DrawBuffer&) = delete;
+											DrawBuffer(DrawBuffer&&);
+		DrawBuffer&							operator=(DrawBuffer&&);
 		DrawBuffer&							operator=(const DrawBuffer&) = delete;
 											~DrawBuffer() = default;
 
@@ -71,10 +73,18 @@ class DrawBuffer
 		size_t									getDrawParamOffset() const;		
 		size_t									getModelTransformIndexOffset() const;
 
-		const std::vector<DrawPointIndexed>&	getCPUDrawPoints() const;
-		const std::vector<ModelTransform>&		getCPUModelTransforms() const;
-		const std::vector<AABBData>&			getCPUAABBs() const;
-		const std::vector<uint32_t>&			getCPUModelTransformIndices() const;
+		size_t									getDrawPointCount() const;
+		size_t									getModelTransformCount() const;
+		size_t									getAABBCount() const;
+		size_t									getModelTransformIndexCount() const;
+		size_t									getMaterialCount() const;
+
+		const AABBData&							getAABB(uint32_t drawId) const;
+		//const std::vector<DrawPointIndexed>&	getCPUDrawPoints() const;
+		//const std::vector<ModelTransform>&	getCPUModelTransforms() const;
+		//const std::vector<AABBData>&			getCPUAABBs() const;
+		//const std::vector<uint32_t>&			getCPUModelTransformIndices() const;
+		//const std::vector<Material>&			getMaterials() const;
 
 		void									BindAsDrawIndirectBuffer();
 		void									BindAABB(GLuint bindPoint);

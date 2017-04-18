@@ -35,9 +35,6 @@
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp">
       <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\Scene.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
@@ -83,8 +80,6 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IERandom.cpp">
       <Filter>IEUtility</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\VertexBuffer.cpp" />
-    <ClCompile Include="..\..\..\Source\Animation.cpp" />
     <ClCompile Include="..\..\..\Source\FPSInput.cpp">
       <Filter>WindowInput\CameraInput</Filter>
     </ClCompile>
@@ -100,6 +95,13 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector2.cpp">
       <Filter>IEUtility</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\IEUtility\IERay.cpp">
+      <Filter>Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\VertexBuffer.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\Animation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -149,9 +151,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\TGALoad.h">
       <Filter>Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\FrameTransformBuffer.h">
-      <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\Camera.h">
       <Filter>Utility</Filter>
@@ -291,8 +290,6 @@
     <ClInclude Include="..\..\..\Source\SVOLightInject.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\VertexBuffer.h" />
-    <ClInclude Include="..\..\..\Source\Animation.h" />
     <ClInclude Include="..\..\..\Source\FPSInput.h">
       <Filter>WindowInput\CameraInput</Filter>
     </ClInclude>
@@ -320,6 +317,13 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IEVector2.h">
       <Filter>IEUtility</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\IEUtility\IERay.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\VertexBuffer.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Animation.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">

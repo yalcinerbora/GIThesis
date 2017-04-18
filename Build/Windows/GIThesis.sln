@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GIThesis", "GIThesis\GIThesis.vcxproj", "{94B71C19-CC4A-4562-ADB1-63AC79E31CB9}"
 EndProject
@@ -20,6 +20,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VoxelRelated", "VoxelRelate
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42F0F4B2-2641-411B-8938-15FBF14395FA}"
 	ProjectSection(SolutionItems) = preProject
+		..\..\WorkingDir\Shaders\DPass.frag = ..\..\WorkingDir\Shaders\DPass.frag
 		..\..\WorkingDir\Shaders\DPass.vert = ..\..\WorkingDir\Shaders\DPass.vert
 		..\..\WorkingDir\Shaders\DPassSkeletal.vert = ..\..\WorkingDir\Shaders\DPassSkeletal.vert
 		..\..\WorkingDir\Shaders\GWriteGeneric.frag = ..\..\WorkingDir\Shaders\GWriteGeneric.frag

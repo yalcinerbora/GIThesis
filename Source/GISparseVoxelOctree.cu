@@ -72,22 +72,22 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	glBindTexture(GL_TEXTURE_2D, edgeTex);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RG8, TraceWidth, TraceHeight);
 	
-	// Dense Tex
-	glGenTextures(1, &svoDenseNode);
-	glBindTexture(GL_TEXTURE_3D, svoDenseNode);
-	glTexStorage3D(GL_TEXTURE_3D, 1, GL_R32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
-	CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseNodeResource, svoDenseNode, GL_TEXTURE_3D, 
-										   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
-										   //cudaGraphicsRegisterFlagsWriteDiscard*/));
+	//// Dense Tex
+	//glGenTextures(1, &svoDenseNode);
+	//glBindTexture(GL_TEXTURE_3D, svoDenseNode);
+	//glTexStorage3D(GL_TEXTURE_3D, 1, GL_R32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
+	//CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseNodeResource, svoDenseNode, GL_TEXTURE_3D, 
+	//									   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
+	//									   //cudaGraphicsRegisterFlagsWriteDiscard*/));
 
-	// Mat Texture Binds
-	// Mipped 3D tex
-	glGenTextures(1, &svoDenseMat);	
-	glBindTexture(GL_TEXTURE_3D, svoDenseMat);
-	glTexStorage3D(GL_TEXTURE_3D, GI_DENSE_TEX_COUNT, GL_RGBA32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
-	CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseTexResource, svoDenseMat, GL_TEXTURE_3D,
-										   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
-										   //cudaGraphicsRegisterFlagsWriteDiscard));
+	//// Mat Texture Binds
+	//// Mipped 3D tex
+	//glGenTextures(1, &svoDenseMat);	
+	//glBindTexture(GL_TEXTURE_3D, svoDenseMat);
+	//glTexStorage3D(GL_TEXTURE_3D, GI_DENSE_TEX_COUNT, GL_RGBA32UI, GI_DENSE_SIZE, GI_DENSE_SIZE, GI_DENSE_SIZE);
+	//CUDA_CHECK(cudaGraphicsGLRegisterImage(&svoDenseTexResource, svoDenseMat, GL_TEXTURE_3D,
+	//									   cudaGraphicsRegisterFlagsSurfaceLoadStore)); //|
+	//									   //cudaGraphicsRegisterFlagsWriteDiscard));
 	
 	// Flat Sampler for Node Index Fetch
 	glGenSamplers(1, &nodeSampler);
@@ -154,7 +154,7 @@ void GISparseVoxelOctree::LinkAllocators(std::vector<GICudaAllocator*> newAlloca
 		allocatorGrids[i] = &(newAllocators[i]->GetVoxelGridHost());
 
 	size_t sparseNodeCount = allocatorGrids[0]->depth + newAllocators.size() - GI_DENSE_LEVEL;
-	uint32_t totalLevel = allocatorGrids[0]->depth + newAllocators.size() - 1;
+	uint32_t totalLevel = allocatorGrids[0]->depth + static_cast<uint32_t>(newAllocators.size() - 1);
 
     size_t totalAlloc = 0;
     for(unsigned int i = GI_DENSE_LEVEL + 1; i <= totalLevel; i++)
@@ -209,7 +209,7 @@ void GISparseVoxelOctree::LinkAllocators(std::vector<GICudaAllocator*> newAlloca
 	hSVOConstants.denseDepth = GI_DENSE_LEVEL;
 	hSVOConstants.denseDim = GI_DENSE_SIZE;
 	hSVOConstants.totalDepth = totalLevel;
-	hSVOConstants.numCascades = newAllocators.size();
+	hSVOConstants.numCascades = static_cast<uint32_t>(newAllocators.size());
 
 	// Offset Set
 	uint32_t levelOffset = 0;
@@ -231,19 +231,19 @@ void GISparseVoxelOctree::LinkAllocators(std::vector<GICudaAllocator*> newAlloca
 
 void GISparseVoxelOctree::LinkSceneShadowMaps(SceneI* scene)
 {
-	GLuint lightParamBuffer = scene->getSceneLights().getGLBuffer();
-	GLuint shadowMapTexture = scene->getSceneLights().getShadowArrayGL();
+	//GLuint lightParamBuffer = scene->getSceneLights().getGLBuffer();
+	//GLuint shadowMapTexture = scene->getSceneLights().getShadowArrayGL();
 
 
-	if(sceneShadowMapResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneShadowMapResource));
-	if(sceneLightParamResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneLightParamResource));
-	if(sceneVPMatrixResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneVPMatrixResource));
-	CUDA_CHECK(cudaGraphicsGLRegisterImage(&sceneShadowMapResource, shadowMapTexture, GL_TEXTURE_2D_ARRAY,
-										   cudaGraphicsRegisterFlagsReadOnly));
-	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&sceneLightParamResource, lightParamBuffer,
-											cudaGraphicsRegisterFlagsReadOnly));
-	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&sceneVPMatrixResource, lightVPBuffer,
-											cudaGraphicsRegisterFlagsReadOnly));
+	//if(sceneShadowMapResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneShadowMapResource));
+	//if(sceneLightParamResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneLightParamResource));
+	//if(sceneVPMatrixResource) CUDA_CHECK(cudaGraphicsUnregisterResource(sceneVPMatrixResource));
+	//CUDA_CHECK(cudaGraphicsGLRegisterImage(&sceneShadowMapResource, shadowMapTexture, GL_TEXTURE_2D_ARRAY,
+	//									   cudaGraphicsRegisterFlagsReadOnly));
+	//CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&sceneLightParamResource, lightParamBuffer,
+	//										cudaGraphicsRegisterFlagsReadOnly));
+	//CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&sceneVPMatrixResource, lightVPBuffer,
+	//										cudaGraphicsRegisterFlagsReadOnly));
 }
 
 void GISparseVoxelOctree::CreateSurfFromArray(cudaArray_t& arr, cudaSurfaceObject_t& surf)

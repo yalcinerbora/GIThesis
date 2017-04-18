@@ -14,7 +14,7 @@ ATM only Camera
 
 #include "IEUtility/IEMatrix4x4.h"
 #include "IEUtility/IEVector3.h"
-#include "FrameTransformBuffer.h"
+#include "Globals.h"
 
 struct Camera
 {
@@ -32,7 +32,7 @@ struct Camera
 	IEVector3					centerOfInterest;
 	IEVector3					up;
 
-	FrameTransformBufferData	GenerateTransform() const
+	FrameTransformData			GenerateTransform() const
 	{
 		return
 		{

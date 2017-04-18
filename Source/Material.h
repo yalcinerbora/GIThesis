@@ -21,7 +21,7 @@ struct ColorMaterial
 class Material
 {
 	private:
-		uint32_t						materialIndex;
+		static constexpr GLsizei		levels = 4;
 		GLuint							texture;
 		GLuint							sampler;
 

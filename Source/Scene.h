@@ -46,6 +46,7 @@ class ConstantScene : public SceneI
 		
 		const std::vector<MeshBatchI*>&		getBatches() override;
 		SceneLights&						getSceneLights() override;
+		const SceneLights&					getSceneLights() const override;
 
 		size_t								ObjectCount() const override;
 		size_t								PolyCount() const override;

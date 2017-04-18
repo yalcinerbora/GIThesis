@@ -108,7 +108,7 @@ void main(void)
 		fIndex = vIndex;
 		return;
 	}
-	//vec4 fPos = projection * view * model * vec4(vPos.xyz, 1.0f);
+	vec4 fPos = projection * view * model * vec4(vPos.xyz, 1.0f);
 	fIndex = vIndex;
 	gl_Position = fPos;
 }

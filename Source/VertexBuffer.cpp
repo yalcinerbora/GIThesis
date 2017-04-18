@@ -4,13 +4,45 @@
 #include "GFG/GFGMeshHeader.h"
 #include <algorithm>
 
+VertexBuffer::VertexBuffer()
+	: vao(0)
+	, byteStride(0)
+	, locked(true)
+{}
+
 VertexBuffer::VertexBuffer(const std::vector<VertexElement>& elements,
 						   uint32_t byteStride)
 	: vao(0)
 	, byteStride(byteStride)
-	, vElements(elements.begin(), elements.end())
-	, addLocked(false)
+	, vElements(elements)
+	, locked(false)
 {}
+
+VertexBuffer::VertexBuffer(VertexBuffer&& other)
+	: vertexBuffer(std::move(other.vertexBuffer))
+	, indexBuffer(std::move(other.indexBuffer))
+	, vao(other.vao)
+	, byteStride(other.byteStride)
+	, meshOffsets(std::move(other.meshOffsets))
+	, vElements(std::move(other.vElements))
+	, locked(other.locked)
+{
+	other.vao = 0;
+}
+
+VertexBuffer& VertexBuffer::operator=(VertexBuffer&& other)
+{
+	vertexBuffer = std::move(other.vertexBuffer);
+	indexBuffer = std::move(other.indexBuffer);
+	vao = other.vao;
+	byteStride = other.byteStride;
+	meshOffsets = std::move(other.meshOffsets);
+	vElements = std::move(other.vElements);
+	locked = other.locked;
+
+	other.vao = 0;
+	return *this;
+}
 
 VertexBuffer::~VertexBuffer()
 {
@@ -83,6 +115,7 @@ bool VertexBuffer::GFGSameDataType(GFGDataType gfg, GPUDataType type, uint32_t t
 void VertexBuffer::GenerateVertexBuffer()
 {
 	// Gen VAO
+	glDeleteVertexArrays(1, &vao);
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 
@@ -124,11 +157,11 @@ void VertexBuffer::AddMesh(DrawPointIndexed& result,
 						   size_t vertexCount,
 						   size_t indexCount)
 {
-	assert(!addLocked);
-	if(addLocked) return;
+	assert(!locked);
+	if(locked) return;
 
 	// DP Populate
-	result.baseInstance = static_cast<uint32_t>(meshOffsets.size());
+	result.baseInstance = 0;// static_cast<uint32_t>(meshOffsets.size());
 	result.baseVertex = static_cast<uint32_t>(vertexBuffer.CPUData().size() / byteStride);
 	result.firstIndex = static_cast<uint32_t>(indexBuffer.CPUData().size() / sizeof(uint32_t));
 	result.count = static_cast<uint32_t>(indexCount);	
@@ -138,9 +171,11 @@ void VertexBuffer::AddMesh(DrawPointIndexed& result,
 	meshOffsets.push_back(result.baseVertex);
 
 	// Acutal data
-	vertexBuffer.CPUData().insert(vertexBuffer.CPUData().end(), data,
+	vertexBuffer.CPUData().insert(vertexBuffer.CPUData().end(), 
+								  data,
 								  data + vertexCount * byteStride);
-	indexBuffer.CPUData().insert(indexBuffer.CPUData().end(), indexData,
+	indexBuffer.CPUData().insert(indexBuffer.CPUData().end(), 
+								 indexData,
 								 indexData + indexCount * sizeof(uint32_t));
 }
 
@@ -148,12 +183,13 @@ void VertexBuffer::EditMesh(const uint8_t data[],
 							uint32_t meshId,
 							size_t vertexCount)
 {
+	assert(!locked);
 	size_t byteOffset = meshOffsets[meshId] * byteStride;
 	size_t byteCount = vertexCount * byteStride;
 	
 	std::copy(data, data + byteCount, vertexBuffer.CPUData().begin() + byteOffset);
-	if(addLocked) vertexBuffer.SendSubData(static_cast<uint32_t>(byteOffset), 
-										   static_cast<uint32_t>(byteCount));
+	if(locked) vertexBuffer.SendSubData(static_cast<uint32_t>(byteOffset),
+										static_cast<uint32_t>(byteCount));
 }
 
 bool VertexBuffer::IsSuitedGFGMesh(const GFGMeshHeader& meshHeader)
@@ -178,14 +214,14 @@ bool VertexBuffer::IsSuitedGFGMesh(const GFGMeshHeader& meshHeader)
 
 void VertexBuffer::Bind()
 {
-	assert(addLocked && vao != 0);
+	assert(locked && vao != 0);
 	glBindVertexArray(vao);
 }
 
 void VertexBuffer::LockAndLoad()
 {
 	// Lock Buffer for Adding Mesh and Send Data to GPU
-	addLocked = true;
+	locked = true;
 
 	vertexBuffer.SendData();
 	indexBuffer.SendData();
@@ -199,7 +235,7 @@ void VertexBuffer::AttachMTransformIndexBuffer(GLuint transformIndexBuffer,
 	glBindVertexArray(vao);
 	glBindVertexBuffer(1, 
 					   transformIndexBuffer, 
-					   transformIndexOffset, 
+					   transformIndexOffset,
 					   sizeof(uint32_t));
 	glVertexBindingDivisor(1, 1);
 	glEnableVertexAttribArray(IN_TRANS_INDEX);

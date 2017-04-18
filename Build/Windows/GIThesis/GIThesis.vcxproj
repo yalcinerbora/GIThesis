@@ -129,7 +129,6 @@
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\EmptyGISolution.cpp" />
     <ClCompile Include="..\..\..\Source\FPSInput.cpp" />
-    <ClCompile Include="..\..\..\Source\FrameTransformBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
     <ClInclude Include="..\..\..\Source\Animation.h" />
@@ -147,6 +146,7 @@
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEBoundingSphere.cpp" />
+    <ClCompile Include="..\..\..\Source\IEUtility\IERay.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector2.cpp" />
     <ClCompile Include="..\..\..\Source\VertexBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
@@ -179,6 +179,7 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IEBoundingSphere.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEMacros.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h" />
+    <ClInclude Include="..\..\..\Source\IEUtility\IERay.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEVector2.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h" />
     <ClInclude Include="..\..\..\Source\MeshBatch.h" />
@@ -207,7 +208,6 @@
     <ClInclude Include="..\..\..\Source\DrawBuffer.h" />
     <ClInclude Include="..\..\..\Source\EmptyGISolution.h" />
     <ClInclude Include="..\..\..\Source\FPSInput.h" />
-    <ClInclude Include="..\..\..\Source\FrameTransformBuffer.h" />
     <ClInclude Include="..\..\..\Source\GFGLoader.h" />
     <ClInclude Include="..\..\..\Source\GICudaAllocator.h" />
     <ClInclude Include="..\..\..\Source\GIKernels.cuh" />

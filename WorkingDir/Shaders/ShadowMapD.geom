@@ -9,8 +9,8 @@
 		Shadowmap Creation Shader
 */
 
-#define NUM_SHADOW_CASCADES 4
-#define NUM_SHADOW_CASCADE_TRI 12
+#define NUM_SHADOW_CASCADES 6
+#define NUM_SHADOW_CASCADE_TRI 18
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices = NUM_SHADOW_CASCADE_TRI) out;
@@ -49,14 +49,14 @@ LU_LIGHT_MATRIX buffer LightProjections
 void main(void)
 {
 	// For each layer
-	for(unsigned int i = 0; i < NUM_SHADOW_CASCADES; i++)
+	for(uint i = 0; i < NUM_SHADOW_CASCADES; i++)
 	{
 		// Dir Light needs only one face
 		// Each face will be a cascade
 		gl_Layer = int(i);
 
 		// For Each Vertex
-		for(unsigned int j = 0; j < gl_in.length(); j++)
+		for(uint j = 0; j < gl_in.length(); j++)
 		{	
 			gl_Position = lightMatrices[lightID].VPMatrices[i] * gl_in[j].gl_Position;
 			EmitVertex();

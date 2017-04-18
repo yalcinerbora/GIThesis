@@ -14,13 +14,19 @@ GBuffer::GBuffer(GLuint w, GLuint h)
 	// Color Tex
 	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::COLOR)]);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
 
 	// Normal Tex
 	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::NORMAL)]);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RG16UI, width, height);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
 	
 	glBindTexture(GL_TEXTURE_2D, rtTextures[static_cast<int>(RenderTargetLocation::DEPTH)]);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, width, height);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
 
 	// Sampler
 	glGenSamplers(1, &fboTexSampler);

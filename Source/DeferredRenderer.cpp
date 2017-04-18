@@ -40,29 +40,38 @@ LightDrawBuffer::LightDrawBuffer()
 		vOffset += static_cast<uint32_t>(mesh.headerCore.vertexCount);
 		viOffset += static_cast<uint32_t>(mesh.headerCore.indexCount);
 	}
-
+	
 	// Offset and Total Buffer Size Calculation
 	size_t totalSize = 0;
 	// DP
+	totalSize = DeviceOGLParameters::AlignOffset(totalSize, 4);
 	drawOffset = totalSize;
 	totalSize += lightDrawParams.size() * sizeof(DrawPointIndexed);
 	// Vertex
 	vertexOffset = totalSize;
 	totalSize += vOffset * sizeof(float) * 3;
 	// Index
+	totalSize = DeviceOGLParameters::AlignOffset(totalSize, sizeof(uint32_t));
 	indexOffset = totalSize;
 	totalSize += viOffset * sizeof(uint32_t);
 
+	// Incorporate Offset Into First Index
+	for(int i = 0; i < LightTypeCount; i++)
+	{
+		lightDrawParams[i].firstIndex += static_cast<uint32_t>(indexOffset / sizeof(uint32_t));
+	}
+
 	// Copy To Buffer
+	gpuData.Resize(totalSize);
 	auto& cpuImage = gpuData.CPUData();
-	cpuImage.resize(totalSize);
 	std::copy(reinterpret_cast<uint8_t*>(lightDrawParams.data()),
-			  reinterpret_cast<uint8_t*>(lightDrawParams.data()) + lightDrawParams.size(),
-			  cpuImage.begin() + drawOffset);
-	std::copy(vData.data(), vData.data() + vOffset * sizeof(float) * 3,
-			  cpuImage.begin() + vertexOffset);
+			  reinterpret_cast<uint8_t*>(lightDrawParams.data() + lightDrawParams.size()),
+			  cpuImage.data() + drawOffset);
+	std::copy(vData.data(), 
+			  vData.data() + vOffset * sizeof(float) * 3,
+			  cpuImage.data() + vertexOffset);
 	std::copy(viData.data(), viData.data() + viOffset * sizeof(uint32_t),			  
-			  cpuImage.begin() + indexOffset);
+			  cpuImage.data() + indexOffset);
 	gpuData.SendData();
 
 	// Create VAO
@@ -72,7 +81,8 @@ LightDrawBuffer::LightDrawBuffer()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpuData.getGLBuffer());
 
 	// Pos
-	glBindVertexBuffer(0, gpuData.getGLBuffer(), 0, sizeof(float) * 3);
+	glBindVertexBuffer(0, gpuData.getGLBuffer(),
+					   static_cast<GLintptr>(vertexOffset), sizeof(float) * 3);
 	glEnableVertexAttribArray(IN_POS);
 	glVertexAttribFormat(IN_POS, 3, GL_FLOAT, false, 0);
 	glVertexAttribBinding(IN_POS, 0);
@@ -85,17 +95,20 @@ LightDrawBuffer::~LightDrawBuffer()
 
 void LightDrawBuffer::AttachSceneLights(SceneLights& sceneLights)
 {
-
 	uint32_t instanceOffset = 0;
 	for(int i = 0; i < LightTypeCount; i++)
 	{
 		LightType currentType = static_cast<LightType>(i);
 		lightDrawParams[i].baseInstance = instanceOffset;
 		lightDrawParams[i].instanceCount = sceneLights.getLightCount(currentType);
-		instanceOffset += instanceOffset;
+		instanceOffset += lightDrawParams[i].instanceCount;
 	}
 	assert(instanceOffset == sceneLights.getLightCount());
-	gpuData.SendSubData(drawOffset, lightDrawParams.size() * sizeof(DrawPointIndexed));
+	std::copy(reinterpret_cast<uint8_t*>(lightDrawParams.data()),
+			  reinterpret_cast<uint8_t*>(lightDrawParams.data() + lightDrawParams.size()),
+			  gpuData.CPUData().data() + drawOffset);
+	gpuData.SendSubData(static_cast<uint32_t>(drawOffset),
+						static_cast<uint32_t>(lightDrawParams.size() * sizeof(DrawPointIndexed)));
 
 	// VAO
 	GLintptr bufferOffset = sceneLights.getLightIndexOffset();
@@ -119,34 +132,50 @@ void LightDrawBuffer::BindDrawIndirectBuffer()
 
 void LightDrawBuffer::DrawCall()
 {
-	GLsizei offset = static_cast<GLsizei>(indexOffset);
-	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 
+	static_assert(sizeof(GLintptr) == sizeof(void*), "Unappropirate GL Offset Parameter");
+	GLintptr offset = static_cast<GLintptr>(drawOffset);
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT,
 								(void*)(offset), LightTypeCount, sizeof(DrawPointIndexed));
+
 }
 
 void DeferredRenderer::BindInvFrameTransform(GLuint bindingPoint)
 {
-
+	gpuData.BindAsUniformBuffer(bindingPoint, 
+								static_cast<GLuint>(iOffset), 
+								sizeof(InvFrameTransform));
 }
 
 void DeferredRenderer::BindFrameTransform(GLuint bindingPoint)
 {
-
+	gpuData.BindAsUniformBuffer(bindingPoint,
+								static_cast<GLuint>(fOffset), 
+								sizeof(FrameTransformData));
 }
 
 void DeferredRenderer::UpdateFTransformBuffer()
 {
-
+	std::copy(reinterpret_cast<uint8_t*>(&fTransform),
+			  reinterpret_cast<uint8_t*>(&fTransform) + sizeof(FrameTransformData),
+			  gpuData.CPUData().data() + fOffset);
+	gpuData.SendSubData(static_cast<uint32_t>(fOffset),
+						sizeof(FrameTransformData));
 }
 
 void DeferredRenderer::UpdateInvFTransformBuffer()
 {
-
+	std::copy(reinterpret_cast<uint8_t*>(&ifTransform),
+			  reinterpret_cast<uint8_t*>(&ifTransform) + sizeof(InvFrameTransform),
+			  gpuData.CPUData().data() + iOffset);
+	gpuData.SendSubData(static_cast<uint32_t>(iOffset), 
+						sizeof(InvFrameTransform));
 }
 
 DeferredRenderer::DeferredRenderer()
 	// Geom Write
 	: fragGBufferWrite(ShaderType::FRAGMENT, "Shaders/GWriteGeneric.frag")
+	// Depth Prepass Shaders
+	, fragDPass(ShaderType::FRAGMENT, "Shaders/DPass.frag")
 	// Light Pass
 	, vertLightPass(ShaderType::VERTEX, "Shaders/LightPass.vert")
 	, fragLightPass(ShaderType::FRAGMENT, "Shaders/LightPass.frag")
@@ -167,10 +196,16 @@ DeferredRenderer::DeferredRenderer()
 				  IEVector4::ZeroVector,
 				  {0, 0, 0, 0},
 				  IEVector4::ZeroVector}
+	, fOffset(0)
+	, iOffset(0)
 	, lightIntensityTex(0)
 	, lightIntensityFBO(0)
 	, sRGBEndTex(0)
 	, sRGBEndFBO(0)
+	, postProcessTriVao(0)
+	, flatSampler(0)
+	, linearSampler(0)
+	, shadowMapSampler(0)
 {
 	// GBuffer Write
 	vertGBufferWrite[static_cast<int>(MeshBatchType::RIGID)] = Shader(ShaderType::VERTEX, "Shaders/GWriteGeneric.vert");
@@ -191,6 +226,8 @@ DeferredRenderer::DeferredRenderer()
 
 	glBindTexture(GL_TEXTURE_2D, lightIntensityTex);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, GBuffWidth, GBuffHeight);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, lightIntensityTex, 0);
@@ -215,15 +252,31 @@ DeferredRenderer::DeferredRenderer()
 										  &encoding);
 	assert(encoding == GL_SRGB);
 	
+	// Pack to GPU Buffer
+	size_t totalSize = 0;
+	// Light AOI Vertices
+	postTriOffset = totalSize;
+	totalSize += 6 * sizeof(float);
+	// Frame Transform 
+	totalSize = DeviceOGLParameters::UBOAlignOffset(totalSize);
+	fOffset = totalSize;
+	totalSize += sizeof(FrameTransformData);
+	// Inv Frame Transform
+	totalSize = DeviceOGLParameters::UBOAlignOffset(totalSize);
+	iOffset = totalSize;
+	totalSize += sizeof(InvFrameTransform);
+	// Copy Data
+	gpuData.Resize(totalSize);
+	auto& cpuImage = gpuData.CPUData();
+	std::copy(reinterpret_cast<const uint8_t*>(postProcessTriData),
+			  reinterpret_cast<const uint8_t*>(postProcessTriData) + 6 * sizeof(float),
+			  cpuImage.data() + postTriOffset);
+	gpuData.SendSubData(static_cast<uint32_t>(postTriOffset), 6 * sizeof(float));
+	
 	// PostProcess VAO
-	glGenBuffers(1, &postProcessTriBuffer);
 	glGenVertexArrays(1, &postProcessTriVao);
-
-	glBindBuffer(GL_COPY_WRITE_BUFFER, postProcessTriBuffer);
-	glBufferData(GL_COPY_WRITE_BUFFER, sizeof(float) * 6, postProcessTriData, GL_STATIC_DRAW);
-
 	glBindVertexArray(postProcessTriVao);
-	glBindVertexBuffer(0, postProcessTriBuffer, 0, sizeof(float) * 2);
+	glBindVertexBuffer(0, gpuData.getGLBuffer(), postTriOffset, sizeof(float) * 2);
 	glEnableVertexAttribArray(IN_POS);
 	glVertexAttribFormat(IN_POS, 2, GL_FLOAT, false, 0);
 	glVertexAttribBinding(IN_POS, 0);
@@ -254,10 +307,9 @@ DeferredRenderer::DeferredRenderer()
 DeferredRenderer::~DeferredRenderer()
 {
 	glDeleteTextures(1, &lightIntensityTex);
-	glDeleteTextures(1, &sRGBEndTex);
 	glDeleteFramebuffers(1, &lightIntensityFBO);
+	glDeleteTextures(1, &sRGBEndTex);	
 	glDeleteFramebuffers(1, &sRGBEndFBO);
-	glDeleteBuffers(1, &postProcessTriBuffer);
 	glDeleteVertexArrays(1, &postProcessTriVao);
 	glDeleteSamplers(1, &flatSampler);
 	glDeleteSamplers(1, &linearSampler);
@@ -292,6 +344,8 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 	glViewport(0, 0, LightDrawBuffer::ShadowMapWH, LightDrawBuffer::ShadowMapWH);
 
 	// Buffers
+	sLights.GenerateMatrices(camera);
+	sLights.SendVPMatricesToGPU();
 	sLights.BindViewProjectionMatrices(LU_LIGHT_MATRIX);
 	
 	// Shaders
@@ -311,6 +365,8 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 		const std::vector<MeshBatchI*>& batches = scene.getBatches();
 		for(size_t j = 0; j < batches.size(); j++)
 		{
+			if(batches[j]->DrawCount() == 0) continue;
+
 			// Batch Related Shaders
 			vertShadowMap[static_cast<int>(batches[j]->MeshType())].Bind();
 
@@ -330,7 +386,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 
 			// Type Related Binds
 			LightType t = sLights.getLightType(i);
-			geomShadowMap[static_cast<int>(t)].Bind;
+			geomShadowMap[static_cast<int>(t)].Bind();
 			switch(t)
 			{				
 				case LightType::POINT:
@@ -348,8 +404,6 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 			
 			// Draw Call
 			currentDrawBuffer.DrawCallMulti();
-			// Stays Here for Debugging purposes (nsight states)
-			// currentDrawBuffer.DrawCallMultiState();
 		}
 	}
 
@@ -397,14 +451,12 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 	glColorMask(true, true, true, true);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	// Without Depth Prepass
-	glDepthMask(true);
-	glClear(GL_DEPTH_BUFFER_BIT);
-	glDepthFunc(GL_LEQUAL);
+	//// Without Depth Prepass
+	//glDepthMask(true);
+	//glClear(GL_DEPTH_BUFFER_BIT);
+	//glDepthFunc(GL_LEQUAL);
 	
 	// Camera Transform
-	fTransform = camera.GenerateTransform();
-	UpdateFTransformBuffer();
 	BindFrameTransform(U_FTRANSFORM);
 
 	// Shaders
@@ -416,8 +468,9 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 	const std::vector<MeshBatchI*>& batches = scene.getBatches();
 	for(unsigned int i = 0; i < batches.size(); i++)
 	{
-		vertGBufferWrite[static_cast<int>(batches[i]->MeshType())].Bind();
+		if(batches[i]->DrawCount() == 0) continue;
 
+		vertGBufferWrite[static_cast<int>(batches[i]->MeshType())].Bind();
 		if(batches[i]->MeshType() == MeshBatchType::SKELETAL)
 		{
 			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches[i]);
@@ -463,11 +516,10 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	BindLightBuffers(scene);
 
 	// Frame Transforms
-	RefreshInvFTransform(camera, GBuffWidth, GBuffHeight);
+	RefreshInvFTransform(scene, camera, GBuffWidth, GBuffHeight);
 	BindInvFrameTransform(U_INVFTRANSFORM);
 	BindFrameTransform(U_FTRANSFORM);
 	
-
 	// Bind LightIntensity Buffer as framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glViewport(0, 0, GBuffWidth, GBuffHeight);
@@ -506,32 +558,33 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 
 void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 {
-	// Depth Pass that to utilize early fragment test
 	gBuffer.BindAsFBO();
 	gBuffer.AlignViewport();
 
-	// States
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDisable(GL_MULTISAMPLE);
 	glDepthMask(true);
+	glDepthFunc(GL_LEQUAL);
 	glColorMask(false, false, false, false);
-	glDepthFunc(GL_LESS);
-	glClear(GL_DEPTH_BUFFER_BIT |
-			GL_STENCIL_BUFFER_BIT);
-	
-	// Shaders
-	fragShadowMap.Bind();
-	Shader::Unbind(ShaderType::GEOMETRY);
+	glClear(GL_DEPTH_BUFFER_BIT);
 
-	// Uniform Buffers
+	// Camera Transform
 	BindFrameTransform(U_FTRANSFORM);
-	
+
+	// Shaders
+	Shader::Unbind(ShaderType::GEOMETRY);
+	fragDPass.Bind();
+
+	// DrawCall
 	// Draw Batches
 	const std::vector<MeshBatchI*>& batches = scene.getBatches();
 	for(unsigned int i = 0; i < batches.size(); i++)
 	{
-		vertDPass[static_cast<int>(batches[i]->MeshType())];
+		if(batches[i]->DrawCount() == 0) continue;
+
+		vertDPass[static_cast<int>(batches[i]->MeshType())].Bind();
 		if(batches[i]->MeshType() == MeshBatchType::SKELETAL)
 		{
 			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches[i]);
@@ -546,8 +599,6 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 		currentDrawBuffer.BindModelTransform(LU_MTRANSFORM);
 
 		currentDrawBuffer.DrawCallMulti();
-		// Stays Here for Debugging purposes (nsight states)
-		//currentDrawBuffer.DrawCallMultiState();
 	}
 }
 
@@ -617,7 +668,8 @@ void DeferredRenderer::Present(const Camera& camera)
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void DeferredRenderer::RefreshInvFTransform(const Camera& camera,
+void DeferredRenderer::RefreshInvFTransform(SceneI& scene,
+											const Camera& camera,
 											GLsizei width,
 											GLsizei height)
 {
@@ -628,7 +680,7 @@ void DeferredRenderer::RefreshInvFTransform(const Camera& camera,
 	ifTransform = InvFrameTransform
 	{
 		ft.view.Inverse() * ft.projection.Inverse(),
-		IEVector4(camera.pos, CalculateCascadeLength(camera.far, 0.0f)),
+		IEVector4(camera.pos, scene.getSceneLights().getCascadeLength(camera.far)),
 		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
 		{0, 0, static_cast<unsigned int>(width), static_cast<unsigned int>(height)},
 		{depthRange[0], depthRange[1], 0.0f, 0.0f}
@@ -639,7 +691,7 @@ void DeferredRenderer::RefreshInvFTransform(const Camera& camera,
 void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
 {
 	// Depth Pre-Pass
-//	DPass(scene, camera);
+	DPass(scene, camera);
 
 	// Actual Render
 	// G Pass
@@ -649,9 +701,14 @@ void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
 void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLight,
 							  const IEVector3& ambientColor)
 {
+
+
 	// Camera Transform Update
 	fTransform = camera.GenerateTransform();
 	UpdateFTransformBuffer();
+
+	// Send new Light Params
+	scene.getSceneLights().SendLightDataToGPU();
 
 	// Shadow Map Generation
 	GenerateShadowMaps(scene, camera);
@@ -754,4 +811,9 @@ void DeferredRenderer::BindLightBuffers(SceneI& scene)
 {
 	scene.getSceneLights().BindLightParameters(LU_LIGHT);
 	scene.getSceneLights().BindViewProjectionMatrices(LU_LIGHT_MATRIX);
+}
+
+void DeferredRenderer::AttachSceneLightIndices(SceneI& scene)
+{
+	lightAOI.AttachSceneLights(scene.getSceneLights());
 }

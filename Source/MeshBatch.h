@@ -28,8 +28,6 @@ class MeshBatch : public MeshBatchI
 		DrawBuffer				batchDrawParams;
 		BatchParams				batchParams;
 
-//		std::string				batchName;
-
 	public:
 		// Constructors & Destructor
 								MeshBatch();
@@ -47,8 +45,6 @@ class MeshBatch : public MeshBatchI
 		DrawBuffer&				getDrawBuffer() override;
 		VertexBuffer&			getVertexBuffer() override;
 
-		const std::string&		BatchName() const override;
-
 		MeshBatchType			MeshType() const override;
         int                     RepeatCount() const override;
 
@@ -56,8 +52,6 @@ class MeshBatch : public MeshBatchI
 		size_t					DrawCount() const override;
 		size_t					MaterialCount() const override;
 		size_t					PolyCount() const override;
-
-		float					MinSpan() const override;
 
 		static void				GenTransformMatrix(IEMatrix4x4& transform,
 												   IEMatrix4x4& rotation,

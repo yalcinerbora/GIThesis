@@ -37,17 +37,12 @@ class MeshBatchI
 	virtual DrawBuffer&			getDrawBuffer() = 0;
 	virtual VertexBuffer&		getVertexBuffer() = 0;
 
-	virtual const std::string&	BatchName() const = 0;
-
 	virtual size_t				ObjectCount() const = 0;
 	virtual size_t				DrawCount() const = 0;
 	virtual size_t				MaterialCount() const = 0;
 	virtual size_t				PolyCount() const = 0;
 
 	virtual MeshBatchType		MeshType() const = 0;
-    virtual int                 RepeatCount() const = 0;
-
-	virtual float				MinSpan() const = 0; // Minimum voxel span used in vox generation
-	
+    virtual int                 RepeatCount() const = 0;	
 };
 #endif //__MESHBATCHI_H__

@@ -35,15 +35,14 @@ int main()
 	{
 		90.0f,
 		0.15f,
-		600.0f,
+		650.0f,
 		1280,
 		720,
 		IEVector3(-180.0f, 145.0f, 0.3f),
 		IEVector3::ZeroVector,
-		IEVector3::Yaxis
+		IEVector3::YAxis
 	};
 
-	uint32_t currentSolution = 0, currentScene = 0, currentInputScheme = 0, oldSolution = currentSolution;
 	std::vector<SolutionI*> solutions;
 	std::vector<SceneI*> scenes;
 	std::vector<CameraInputI*> cameraInputSchemes;
@@ -74,7 +73,8 @@ int main()
 	DeferredRenderer deferredRenderer;
 
 	// Scenes
-	IEVector3 lightDir = IEQuaternion(IEMath::ToRadians(-84.266f), IEVector3::Xaxis).ApplyRotation(-IEVector3::Zaxis);
+	IEVector3 lightDir = IEQuaternion(static_cast<float>(IEMathConstants::DegToRadCoef * -84.266), 
+									  IEVector3::XAxis).ApplyRotation(-IEVector3::ZAxis);
 	std::vector<Light> sponzaLights =
 	{
 		// Directional Light
@@ -86,6 +86,7 @@ int main()
 			//{ 0.0f, -IEMath::CosF(IEMath::ToRadians(9.5f)), -IEMath::SinF(IEMath::ToRadians(9.5f)), std::numeric_limits<float>::infinity()},
 			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
 		},
+		// TODO: Point lights have bugs, direct depth write do not work properly
 		////Point Lights
 		////Various Colors color effecting radius 60 units
 		//{
@@ -111,7 +112,12 @@ int main()
 		// Diretly Comes from Front Door
 		{
 			{0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL)},
-			{IEMath::SinF(IEMath::ToRadians(45.0f)), -IEMath::CosF(IEMath::ToRadians(45.0f)), 0.0f, std::numeric_limits<float>::infinity()},
+			{
+				std::sin(static_cast<float>(IEMathConstants::DegToRadCoef * 45.0)), 
+				-std::cos(static_cast<float>(IEMathConstants::DegToRadCoef * 45.0)),
+				0.0f, 
+				std::numeric_limits<float>::infinity()
+			},
 			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
 		},
 		////Point Lights
@@ -214,6 +220,10 @@ int main()
 			 "\t\t Input Scheme#3 : FPS Input. (WASD to move MouseBTN1 to look around)\n"
 			 "' ");
 
+	// All Done
+	// Initialize First Scene and Solution
+	inputManager.Initialize();
+	
 	// FPS Timer
 	IETimer t;
 	t.Start();

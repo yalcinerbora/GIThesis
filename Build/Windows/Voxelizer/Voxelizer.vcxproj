@@ -81,8 +81,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\Source\Animation.cpp" />
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
+    <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEQuaternion.cpp" />
@@ -100,6 +102,7 @@
     <ClCompile Include="..\..\..\Source\Voxelizer\VoxFramebuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\Source\Animation.h" />
     <ClInclude Include="..\..\..\Source\DrawBuffer.h" />
     <ClInclude Include="..\..\..\Source\GFGLoader.h" />
     <ClInclude Include="..\..\..\Source\Globals.h" />

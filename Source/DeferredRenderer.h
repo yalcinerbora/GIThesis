@@ -14,9 +14,9 @@ Just Renders the scene
 #include "GBuffer.h"
 #include "DrawPoint.h"
 #include "StructuredBuffer.h"
-#include "FrameTransformBuffer.h"
 #include "IEUtility/IEVector3.h"
 #include "SceneLights.h"
+#include "Globals.h"
 
 struct Camera;
 class SceneI;
@@ -40,10 +40,10 @@ using MeshBatchShaderArray = std::array<Shader, MeshBatchTypeCount>;
 class LightDrawBuffer
 {	
 	public:
-		static constexpr uint32_t	DirectionalCascadesCount = 4;
-		static constexpr uint32_t	ShadowMapMipCount = 8;
+		static constexpr uint32_t	DirectionalCascadesCount = 6;
 		static constexpr uint32_t	ShadowMipSampleCount = 3;
-		static constexpr GLsizei	ShadowMapWH = /*512;*/1024;//*2048;*///4096;
+		static constexpr GLsizei	ShadowMapWH = /*512;*/1024;/*2048;*///4096;
+		static constexpr uint32_t	ShadowMapMipCount = 4;
 
 	private:
 		// Statics
@@ -51,7 +51,6 @@ class LightDrawBuffer
 
 		// Buffer Data
 		LightDrawArray				lightDrawParams;
-		std::vector<uint32_t>		lightIndexBuffer;
 
 		// Buffer Storage order
 		// 1- Draw Param (Static Depends on #LightTypes)
@@ -105,6 +104,7 @@ class DeferredRenderer
 
 		// Depth Prepass Shaders
 		MeshBatchShaderArray		vertDPass;
+		Shader						fragDPass;
 
 		// Light Pass Shaders
 		Shader						vertLightPass;
@@ -132,7 +132,10 @@ class DeferredRenderer
 		// Frame Transform
 		FrameTransformData			fTransform;
 		InvFrameTransform			ifTransform;
-		StructuredBuffer<uint8_t>	transformBuffer;
+		StructuredBuffer<uint8_t>	gpuData;
+		size_t						postTriOffset;
+		size_t						fOffset;
+		size_t						iOffset;
 
 		// Light Intensity Texture and sRGB output texture
 		GLuint						lightIntensityTex;
@@ -142,7 +145,6 @@ class DeferredRenderer
 
 		// Post Process Triangle 
 		GLuint						postProcessTriVao;
-		GLuint						postProcessTriBuffer;
 
 		// Samplers
 		GLuint						flatSampler;
@@ -168,7 +170,8 @@ class DeferredRenderer
 //		InvFrameTransformBuffer&	GetInvFTransfrom();
 //		FrameTransformBuffer&		GetFTransform();
 
-		void						RefreshInvFTransform(const Camera&,
+		void						RefreshInvFTransform(SceneI&,
+														 const Camera&,
 														 GLsizei width,
 														 GLsizei height);
 
@@ -194,5 +197,6 @@ class DeferredRenderer
 
 		void						BindShadowMaps(SceneI&);
 		void						BindLightBuffers(SceneI&);
+		void						AttachSceneLightIndices(SceneI&);
 };
 #endif //__DEFERREDRENDERER_H__

@@ -152,9 +152,9 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 		float worldDist = max(0.0f, dot(worldPos - camPos.xyz, camDir.xyz));
 	
 		// Inv geom sum
-		const float exponent = 1.2f;
+		const float exponent = 1.1f;
 		viewIndex = worldDist / camPos.w;
-		viewIndex = floor(log2(viewIndex * (exponent - 1.0f) + 1.0f) / log2(exponent));
+		viewIndex = floor(log2(viewIndex * (exponent - 1.0f) + 1.0f) / log2(exponent) + 0.5f);
 	}
 
 	// Mult with proper cube side matrix

@@ -41,7 +41,8 @@ namespace BatchFunctors
 						const IEVector3& axis)
 		{
 			float angleF = static_cast<float>(angle);
-			IEMatrix4x4 rot = IEMatrix4x4::Rotate(IEQuaternion(IEMath::ToRadians(angleF), axis));
+			IEMatrix4x4 rot = IEMatrix4x4::Rotate(IEQuaternion(static_cast<float>(IEMathConstants::DegToRadCoef) * angleF, 
+															   axis));
 			mtBuffer[index].model = mtBuffer[index].model * rot;
 			mtBuffer[index].modelRotation = mtBuffer[index].modelRotation * rot;
 		}

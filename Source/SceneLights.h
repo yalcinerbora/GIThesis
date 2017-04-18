@@ -88,9 +88,7 @@ class SceneLights
 		static IEBoundingSphere					CalculateShadowCascasde(float cascadeNear,
 																		float cascadeFar,
 																		const Camera& camera,
-																		const IEVector3& lightDir);
-		void									GenerateMatrices(const Camera& camera);
-		
+																		const IEVector3& lightDir);		
 
 	protected:
 	public:
@@ -120,13 +118,14 @@ class SceneLights
 		float								getLightRadius(uint32_t index) const;
 		float								getLightIntensity(uint32_t index) const;
 		bool								getLightCastShadow(uint32_t index) const;
-		const std::vector<IEMatrix4x4>&		getLightProjMatrices();
-		const std::vector<IEMatrix4x4>&		getLightInvViewProjMatrices();
+		const std::vector<IEMatrix4x4>&		getLightProjMatrices() const;
+		const std::vector<IEMatrix4x4>&		getLightInvViewProjMatrices() const;
+		float								getCascadeLength(float cameraFar) const;
 
 		// GL States
 		void								BindLightFramebuffer(uint32_t light);
-		GLuint								BindViewProjectionMatrices(GLuint bindPoint);
-		GLuint								BindLightParameters(GLuint bindPoint);
+		void								BindViewProjectionMatrices(GLuint bindPoint);
+		void								BindLightParameters(GLuint bindPoint);
 
 		GLuint								getGLBuffer();
 		GLuint								getShadowTextureCubemapArray();
@@ -137,6 +136,7 @@ class SceneLights
 		
 		void								SendVPMatricesToGPU();
 		void								SendLightDataToGPU();
+		void								GenerateMatrices(const Camera& camera);
 };
 
 #endif //__SCENE_H__

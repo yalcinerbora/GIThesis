@@ -15,11 +15,11 @@ void CudaInit::InitCuda()
 
 	// Info Print
 	GI_LOG("Cuda Information...");
-	GI_LOG("GPU Name\t\t: %s", props.name);
-	GI_LOG("GPU Compute Capability\t: %d%d", props.major, props.minor);
-	GI_LOG("GPU SM Count: %d", props.multiProcessorCount);
-	GI_LOG("GPU Shared Memory(SM)\t: %zdKB", props.sharedMemPerMultiprocessor / 1024);
-	GI_LOG("GPU Shared Memory(Block): %zdKB", props.sharedMemPerBlock / 1024);
+	GI_LOG("GPU Name                 : %s", props.name);
+	GI_LOG("GPU Compute Capability   : %d%d", props.major, props.minor);
+	GI_LOG("GPU SM Count             : %d", props.multiProcessorCount);
+	GI_LOG("GPU Shared Memory(SM)    : %zdKB", props.sharedMemPerMultiprocessor / 1024);
+	GI_LOG("GPU Shared Memory(Block) : %zdKB", props.sharedMemPerBlock / 1024);
 	GI_LOG("");
 
 	// Minimum Required Compute Capability

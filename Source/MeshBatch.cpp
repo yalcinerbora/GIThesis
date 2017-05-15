@@ -48,11 +48,11 @@ MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
 	timer.Stop();
 
 	GI_LOG("");
-	GI_LOG("\tDuration : %f ms", timer.ElapsedMilliS());
-	GI_LOG("\tMaterials : %zd", batchParams.materialCount);
-	GI_LOG("\tMeshes : %zd", batchParams.objectCount);
+	GI_LOG("\tDuration   : %f ms", timer.ElapsedMilliS());
+	GI_LOG("\tMaterials  : %zd", batchParams.materialCount);
+	GI_LOG("\tMeshes     : %zd", batchParams.objectCount);
 	GI_LOG("\tDrawPoints : %zd", batchParams.drawCallCount);
-	GI_LOG("\tPolyCount : %zd", batchParams.totalPolygons);
+	GI_LOG("\tPolyCount  : %zd", batchParams.totalPolygons);
 	GI_LOG("----------");
 }
 

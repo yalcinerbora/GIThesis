@@ -64,7 +64,7 @@ class DrawBuffer
 		// Locks Draw Call Addition and Loads data to GPU
 		void									LockAndLoad();
 		void									SendModelTransformToGPU(uint32_t offset = 0, uint32_t size = std::numeric_limits<uint32_t>::max());
-		ModelTransform&							ModelTransformBuffer(uint32_t transformId);
+		ModelTransform&							getModelTransform(uint32_t transformId);
 
 		GLuint									getGLBuffer();
 

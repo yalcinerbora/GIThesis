@@ -28,6 +28,7 @@ class SceneI
 		virtual size_t							MaterialCount() const = 0;
 		virtual size_t							PolyCount() const = 0;
 
+		virtual void							Initialize() = 0;
 		virtual void							Update(double elapsedS) = 0;
 		virtual void							Load() = 0;
 		virtual void							Release() = 0;

@@ -8,12 +8,28 @@ Globals For Rendering
 #include "VertexBuffer.h"
 #include "IEUtility/IEMatrix4x4.h"
 #include "IEUtility/IEVector4.h"
-#include <AntTweakBar.h>
+
+enum class RenderScheme
+{
+	FINAL,				// Final Image
+	LIGHT_INTENSITY,	// Light Intensity Buffer
+	G_DIFF_ALBEDO,		// G-Buffer Diffuse Albedo
+	G_SPEC_ALBEDO,		// G-Buffer Specular Albedo
+	G_NORMAL,			// G-Buffer Normals
+	G_DEPTH,			// G-Buffer Depth
+	SHADOW_MAP,			// Shadow Maps
+
+	SVO_SAMPLE,			// SVO Sample from Depth
+	SVO_VOXELS,			// SVO Voxel Ray-Marching (for testing svo)
+	VOXEL_PAGE,			// Rendering of Page Voxels (for testing voxel transform)
+	VOXEL_CACHE,		// Direct Rendering of Voxel Cache (for testing voxelization)
+	END
+};
 
 namespace DeviceOGLParameters
 {
-	extern GLint		uboAlignment;
-	extern GLint		ssboAlignment;
+	extern GLint			uboAlignment;
+	extern GLint			ssboAlignment;
 
 	// Helper Functions
 	size_t					SSBOAlignOffset(size_t offset);
@@ -134,12 +150,4 @@ static const std::vector<VertexElement> skeletalMeshVertexDefinition =
 		offsetof(struct VAOSkel, vWIndex),
 		false
 	}
-};
-
-extern TwType twIEVector3Type;
-static const TwStructMember lightMembers[] =
-{
-	{ "X", TW_TYPE_FLOAT, 0, " help='X' step=0.1 " },
-	{ "Y", TW_TYPE_FLOAT, 4, " help='Y' step=0.1 " },
-	{ "Z", TW_TYPE_FLOAT, 8, " help='Z' step=0.1 " }
 };

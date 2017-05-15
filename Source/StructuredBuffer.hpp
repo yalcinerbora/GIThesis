@@ -219,9 +219,9 @@ void StructuredBuffer<T>::Resize(size_t count)
 				 nullptr,
 				 GL_DYNAMIC_DRAW);
 
-	glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
 	if(bufferId != 0)
 	{
+		glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
 		glCopyBufferSubData(GL_COPY_READ_BUFFER,
 							GL_COPY_WRITE_BUFFER,
 							0, 0,

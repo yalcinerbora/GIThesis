@@ -17,6 +17,7 @@ class VertexBuffer;
 class DrawBuffer;
 class Material;
 struct BatchParams;
+class AnimationBatch;
 
 enum class GFGLoadError
 {
@@ -37,12 +38,7 @@ namespace GFGLoader
 							VertexBuffer& buffer,
 							DrawBuffer& drawBuffer,
 							const std::string& gfgFilename);
-	GFGLoadError	LoadAnim(GFGAnimationHeader& header,
-							 std::vector<IEVector3>& hipTranslations,
-							 std::vector<float>& keyTimes,
-							 std::vector<std::vector<IEQuaternion>>& jointKeys,
-							 std::vector<GFGTransform>& bindPose,
-							 std::vector<uint32_t>& jointHierarchy,
+	GFGLoadError	LoadAnim(AnimationBatch& animationBatch,
 							 const char* gfgFileName);
 };
 

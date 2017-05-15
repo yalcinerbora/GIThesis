@@ -157,12 +157,7 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
 	return GFGLoadError::OK;
 }
 
-GFGLoadError GFGLoader::LoadAnim(GFGAnimationHeader& header,
-								 std::vector<IEVector3>& hipTranslations,
-								 std::vector<float>& keyTimes,
-								 std::vector<std::vector<IEQuaternion>>& jointKeys,
-								 std::vector<GFGTransform>& bindPose,
-								 std::vector<uint32_t>& jointHierarchy,
+GFGLoadError GFGLoader::LoadAnim(AnimationBatch& animationBatch,
 								 const char* gfgFileName)
 {
 	std::ifstream stream(gfgFileName, std::ios_base::in | std::ios_base::binary);
@@ -170,52 +165,87 @@ GFGLoadError GFGLoader::LoadAnim(GFGAnimationHeader& header,
 	GFGFileLoader gfgFile(&stlFileReader);
 	gfgFile.ValidateAndOpen();
 
-	// 
-	assert(gfgFile.Header().animations.size() == 1);
-	const GFGAnimationHeader anim = gfgFile.Header().animations[0];
-	header = anim;
-	assert(anim.quatType == GFGQuatLayout::WXYZ);		
-	assert(anim.type == GFGAnimType::WITH_HIP_TRANSLATE);
-	assert(anim.layout == GFGAnimationLayout::KEYS_OF_BONES);
-	assert(anim.keyCount > 1);
+	// Data Vectors
+	std::vector<IEQuaternion> jointKeys;
+	std::vector<float> keyTimes;
+	std::vector<IEVector3> hipTranslations;
+	std::vector<ModelTransform> invBindPose;
+	std::vector<uint32_t> jointHierarchy;
+	std::vector<GFGTransform> bindPose;
 
-	// Now Load
-	uint32_t boneCount = gfgFile.Header().skeletons[anim.skeletonIndex].boneAmount;
-	uint64_t dataPtr = 0;
-	std::vector<uint8_t> data(gfgFile.AnimationKeyframeDataSize(0));
-	gfgFile.AnimationKeyframeData(data.data(), 0);
-
-	keyTimes.resize(anim.keyCount);
-	std::memcpy(keyTimes.data(), data.data() + dataPtr,
-				sizeof(float) * anim.keyCount);
-	dataPtr += sizeof(float) * anim.keyCount;
-
-	hipTranslations.resize(anim.keyCount);
-	std::memcpy(hipTranslations.data(), data.data() + dataPtr,
-				sizeof(float) * 3 * anim.keyCount);
-	dataPtr += sizeof(float) * 3 * anim.keyCount;
-
-	jointKeys.resize(boneCount);
-	for(unsigned int i = 0; i < boneCount; i++)
+	// Load All Animations on the GFG File
+	const GFGHeader& header = gfgFile.Header();
+	for(uint32_t i = 0; i < header.animations.size(); i++)
 	{
-		jointKeys[i].resize(anim.keyCount);
-		std::memcpy(jointKeys[i].data(), data.data() + dataPtr,
-					sizeof(IEQuaternion) * anim.keyCount);
-		dataPtr += sizeof(IEQuaternion) * anim.keyCount;
-	}
+		// Mandatory Animation Requirements
+		const GFGAnimationHeader anim = gfgFile.Header().animations[i];
+		assert(anim.quatType == GFGQuatLayout::WXYZ);
+		assert(anim.type == GFGAnimType::WITH_HIP_TRANSLATE);
+		assert(anim.layout == GFGAnimationLayout::KEYS_OF_BONES);
+		assert(anim.keyCount > 1);
 
-	// Load Transforms
-	bindPose = gfgFile.Header().bonetransformData.transforms;
+		// Load Data
+		uint32_t boneCount = gfgFile.Header().skeletons[anim.skeletonIndex].boneAmount;
+		uint64_t dataPtr = 0;
+		std::vector<uint8_t> data(gfgFile.AnimationKeyframeDataSize(i));
+		gfgFile.AnimationKeyframeData(data.data(), i);
 
-	// Generate Joint Key Down Top Hierarchy
-	bindPose.resize(boneCount);
-	jointHierarchy.resize(boneCount);
-	uint32_t index = 0;
-	for(const GFGBone& bone : gfgFile.Header().skeletons[anim.skeletonIndex].bones)
-	{
-		bindPose[index] = gfgFile.Header().bonetransformData.transforms[bone.transformIndex];
-		jointHierarchy[index] = bone.parentIndex;
-		index++;
+		// Keys
+		keyTimes.resize(anim.keyCount);
+		std::memcpy(keyTimes.data(), data.data() + dataPtr,
+					sizeof(float) * anim.keyCount);
+		dataPtr += sizeof(float) * anim.keyCount;
+
+		// Hip Translations
+		hipTranslations.resize(anim.keyCount);
+		std::memcpy(hipTranslations.data(), data.data() + dataPtr,
+					sizeof(IEVector3) * anim.keyCount);
+		dataPtr += sizeof(IEVector3) * anim.keyCount;
+
+		// Joint Rotations
+		jointKeys.resize(boneCount * anim.keyCount);
+		std::memcpy(jointKeys.data(), data.data() + dataPtr,
+					sizeof(IEQuaternion) * anim.keyCount * boneCount);
+		dataPtr += sizeof(IEQuaternion) * anim.keyCount * boneCount;
+
+		// Generate Joint Key Down Top Hierarchy
+		// Generate Inv Bind Pose Matrices		
+		jointHierarchy.resize(boneCount);
+		bindPose.resize(boneCount);
+
+		// Load Hierarchy and bone Transformations
+		for(uint32_t index = 0; index < gfgFile.Header().skeletons[anim.skeletonIndex].bones.size(); index++)
+		{
+			const GFGBone& bone = gfgFile.Header().skeletons[anim.skeletonIndex].bones[index];
+			bindPose[index] = gfgFile.Header().bonetransformData.transforms[bone.transformIndex];
+			jointHierarchy[index] = bone.parentIndex;
+		}
+
+		// Generate Inverse Bind Pose Matrix
+		invBindPose.resize(jointHierarchy.size());
+		for(uint32_t boneId = 0; boneId < jointHierarchy.size(); boneId++)
+		{
+			IEMatrix4x4 transform, rotation;
+			for(unsigned int i = boneId; i != 0xFFFFFFFF; i = jointHierarchy[i])
+			{
+				IEMatrix4x4 trans, rot;
+				MeshBatch::GenTransformMatrix(trans, rot, bindPose[i]);
+
+				transform = trans * transform;
+				rotation = rot * rotation;
+			}
+			invBindPose[boneId].model = transform.Inverse();
+			invBindPose[boneId].modelRotation = rotation.Inverse();
+		}
+
+		animationBatch.LoadAnimation(keyTimes,
+									 hipTranslations,
+									 jointKeys,
+									 bindPose,
+									 invBindPose,
+									 jointHierarchy,
+									 anim.keyCount,
+									 boneCount);
 	}
 	return GFGLoadError::OK;
 }

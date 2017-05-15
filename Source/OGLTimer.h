@@ -31,14 +31,14 @@ class OGLTimer
 };
 
 // 
-OGLTimer::OGLTimer()
+inline OGLTimer::OGLTimer()
 	: queryObj(0)
 	, timeStamp(0)
 {
 	glGenQueries(1, &queryObj);
 }
 
-OGLTimer::OGLTimer(OGLTimer&& other)
+inline OGLTimer::OGLTimer(OGLTimer&& other)
 	: queryObj(other.queryObj)
 	, timeStamp(other.timeStamp)
 {
@@ -46,7 +46,7 @@ OGLTimer::OGLTimer(OGLTimer&& other)
 	timeStamp = 0;
 }
 
-OGLTimer& OGLTimer::operator=(OGLTimer&& other)
+inline OGLTimer& OGLTimer::operator=(OGLTimer&& other)
 {
 	assert(this != &other);
 	queryObj = other.queryObj;
@@ -56,33 +56,33 @@ OGLTimer& OGLTimer::operator=(OGLTimer&& other)
 	return *this;
 }
 
-OGLTimer::~OGLTimer()
+inline OGLTimer::~OGLTimer()
 {
 	glDeleteQueries(1, &queryObj);
 }
 
-void OGLTimer::Start()
+inline void OGLTimer::Start()
 {
 	glBeginQuery(GL_TIME_ELAPSED, queryObj);
 }
 
-void OGLTimer::Stop()
+inline void OGLTimer::Stop()
 {
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjectui64v(queryObj, GL_QUERY_RESULT, &timeStamp);
 }
 
-double OGLTimer::ElapsedS() const
+inline double OGLTimer::ElapsedS() const
 {
 	return timeStamp / 1000000000.0;
 }
 
-double OGLTimer::ElapsedMS() const
+inline double OGLTimer::ElapsedMS() const
 {
 	return timeStamp / 1000000.0;
 }
 
-double OGLTimer::ElapsedUS() const
+inline double OGLTimer::ElapsedUS() const
 {
 	return timeStamp / 1000.0;
 }

@@ -219,7 +219,10 @@ IEQuaternion IEQuaternion::SLerp(const IEQuaternion& start, const IEQuaternion& 
 {
 	percent = IEFunctions::Clamp(percent, 0.0f, 1.0f);
 	float cosTetha = start.DotProduct(end);
-	// SLerp
+	// Lerp on close angle for sin denom
+	if(cosTetha > 0.99f)
+		return IEFunctions::Lerp<IEQuaternion>(start, end, percent);
+	// Normal Slerp
 	float angle = std::acos(cosTetha);
 	return (start * std::sin(angle * (1.0f - percent)) +
 			end * std::sin(angle * percent)) / std::sin(angle);

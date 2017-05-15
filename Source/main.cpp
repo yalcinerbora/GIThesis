@@ -1,6 +1,5 @@
 #include <iostream>
 #include <GFG/GFGHeader.h>
-#include <AntTweakBar.h>
 
 #include "Window.h"
 
@@ -16,9 +15,11 @@
 
 #include "Globals.h"
 #include "Camera.h"
-#include "Scene.h"
 #include "Macros.h"
 #include "CudaInit.h"
+
+#include "CornellScene.h"
+#include "SponzaScene.h"
 
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
@@ -33,7 +34,7 @@ int main()
 
 	Camera mainRenderCamera =
 	{
-		90.0f,
+		75.0f,
 		0.15f,
 		650.0f,
 		1280,
@@ -60,15 +61,25 @@ int main()
 							 cameraInputSchemes, 
 							 solutions, 
 							 scenes);
-
 	// Window Init
 	WindowProperties winProps
 	{
 		1280, 720,
 		WindowScreenType::WINDOWED
 	};
-	Window mainWindow(inputManager, winProps);
+	Window mainWindow("GI Thesis", inputManager, winProps);
 
+	// GUI Help
+	TwDefine(" GLOBAL iconpos=tl ");
+	TwDefine(" GLOBAL help='GI Implementation using voxels.\n"
+			 "\tUse NumPad 7,8 to change between solutions.\n"
+			 "\tUse NumPad 4,6 to change between scenes.\n"
+			 "\tUse NumPad 1,3 to change between camera input schemes.\n"
+			 "\t\t Input Scheme#1 : No Input.\n"
+			 "\t\t Input Scheme#2 : Maya Input. (MouseBTN1 to rotate around COI. Mouse BTN3 to translate COI)\n"
+			 "\t\t Input Scheme#3 : FPS Input. (WASD to move MouseBTN1 to look around)\n"
+			 "' ");
+	
 	// DeferredRenderer
 	DeferredRenderer deferredRenderer;
 
@@ -173,53 +184,34 @@ int main()
 	};
 	std::vector<std::string> sponzaSkeletal =
 	{
-		//"nyra.gfg"
+		"nyra.gfg"
 	};
-	ConstantScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
-	//nyraBatch.AnimationParams(0.0f, 0.6f, AnimationType::REPEAT);
+	SponzaScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
 	scenes.push_back(&sponza);
 	// Cornell
-	//std::vector<std::string> cornellRigid =
-	//{
-	//	"cornell.gfg"
-	//};
-	//std::vector<std::string> sponzaSkeletal = {};
-	//ConstantScene cornell("Cornell Box", cornellRigid, sponzaSkeletal, cornellLights);
-	//scenes.push_back(&cornell);
-	//// Sibernik Cathedral
-	//std::vector<std::string> sibernikRigid =
-	//{
-	//	"sibernik.gfg"
-	//};
-	//std::vector<std::string> sibernikSkeletal = {};
-	//ConstantScene sibernik("Sibernik Cathedral", sibernikRigid, sibernikSkeletal, sibernikLights);
-	//scenes.push_back(&sibernik);
+	std::vector<std::string> cornellRigid =
+	{
+		"cornell.gfg"
+	};
+	std::vector<std::string> cornellSkeletal = {};
+	CornellScene cornell("Cornell Box", cornellRigid, cornellSkeletal, cornellLights);
+	scenes.push_back(&cornell);
+	// Sibernik Cathedral
+	std::vector<std::string> sibernikRigid =
+	{
+		"sibernik.gfg"
+	};
+	std::vector<std::string> sibernikSkeletal = {};
+	ConstantScene sibernik("Sibernik Cathedral", sibernikRigid, sibernikSkeletal, sibernikLights);
+	scenes.push_back(&sibernik);
 	//// Dynamic Scene
 	////std::vector<std::string> dynamicScene =
 
 	// Solutions
-	EmptyGISolution emptySolution("No GI", deferredRenderer);
-	ThesisSolution thesisSolution("Thesis GI", deferredRenderer, mainRenderCamera.pos);
+	EmptyGISolution emptySolution("No GI", inputManager, deferredRenderer);
+	//ThesisSolution thesisSolution("Thesis GI", inputManager, deferredRenderer, mainRenderCamera.pos);
 	solutions.push_back(&emptySolution);
-	solutions.push_back(&thesisSolution);
-
-	// Window Callbacks (Thesis Solution Stuff)
-	inputManager.AddKeyCallback(GLFW_KEY_KP_ADD, GLFW_RELEASE, &ThesisSolution::SVOLevelIncrement, &thesisSolution);
-	inputManager.AddKeyCallback(GLFW_KEY_KP_SUBTRACT, GLFW_RELEASE, &ThesisSolution::SVOLevelDecrement, &thesisSolution);	
-	inputManager.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::TraceTypeIncrement, &thesisSolution);
-	inputManager.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::TraceTypeDecrement, &thesisSolution);
-	
-	// Main Help
-	TwDefine(" GLOBAL iconpos=tl ");
-	TwDefine(" GLOBAL help='GI Implementation using voxels.\n"
-			 "\tUse NumPad 7,8 to change between solutions.\n"
-			 "\tUse NumPad 4,6 to change between scenes.\n"
-			 "\tUse NumPad 1,3 to change between camera input schemes.\n"
-			 "\t\t Input Scheme#1 : No Input.\n"
-			 "\t\t Input Scheme#2 : Maya Input. (MouseBTN1 to rotate around COI. Mouse BTN3 to translate COI)\n"
-			 "\t\t Input Scheme#3 : FPS Input. (WASD to move MouseBTN1 to look around)\n"
-			 "' ");
-
+	//solutions.push_back(&thesisSolution);
 	// All Done
 	// Initialize First Scene and Solution
 	inputManager.Initialize();
@@ -248,5 +240,7 @@ int main()
 		t.Lap();
 		solution->SetFPS(t.ElapsedMilliS());
 	}
+
+
 	return 0;
 }

@@ -693,7 +693,7 @@ IEMatrix4x4 IEMatrix4x4::Rotate(const IEQuaternion& quat)
 }
 
 IEMatrix4x4 IEMatrix4x4::Perspective(float fovXRadians, float aspectRatio,
-										float nearPlane, float farPlane)
+									 float nearPlane, float farPlane)
 {
 	//	p		0		0		0
 	//	0		p		0		0

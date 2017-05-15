@@ -30,10 +30,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42
 		..\..\WorkingDir\Shaders\LightPass.frag = ..\..\WorkingDir\Shaders\LightPass.frag
 		..\..\WorkingDir\Shaders\LightPass.vert = ..\..\WorkingDir\Shaders\LightPass.vert
 		..\..\WorkingDir\Shaders\PPLightPresent.frag = ..\..\WorkingDir\Shaders\PPLightPresent.frag
-		..\..\WorkingDir\Shaders\PProcessDepth.frag = ..\..\WorkingDir\Shaders\PProcessDepth.frag
+		..\..\WorkingDir\Shaders\PProcessGBuff.frag = ..\..\WorkingDir\Shaders\PProcessGBuff.frag
 		..\..\WorkingDir\Shaders\PProcessGeneric.frag = ..\..\WorkingDir\Shaders\PProcessGeneric.frag
 		..\..\WorkingDir\Shaders\PProcessGeneric.vert = ..\..\WorkingDir\Shaders\PProcessGeneric.vert
-		..\..\WorkingDir\Shaders\PProcessNormal.frag = ..\..\WorkingDir\Shaders\PProcessNormal.frag
+		..\..\WorkingDir\Shaders\PProcessShadowMap.frag = ..\..\WorkingDir\Shaders\PProcessShadowMap.frag
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShadowMaps", "ShadowMaps", "{CEC68846-BCA8-4FEC-9016-2B716037C75A}"

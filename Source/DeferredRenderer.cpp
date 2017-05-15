@@ -183,8 +183,8 @@ DeferredRenderer::DeferredRenderer()
 	, vertPPGeneric(ShaderType::VERTEX, "Shaders/PProcessGeneric.vert")
 	, fragLightApply(ShaderType::FRAGMENT, "Shaders/PPLightPresent.frag")
 	, fragPPGeneric(ShaderType::FRAGMENT, "Shaders/PProcessGeneric.frag")
-	, fragPPNormal(ShaderType::FRAGMENT, "Shaders/PProcessNormal.frag")
-	, fragPPDepth(ShaderType::FRAGMENT, "Shaders/PProcessDepth.frag")
+	, fragPPGBuffer(ShaderType::FRAGMENT, "Shaders/PProcessGBuff.frag")
+	, fragPPShadowMap(ShaderType::FRAGMENT, "Shaders/PProcessShadowMap.frag")
 	// Shadow Map
 	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
 	, computeHierZ(ShaderType::COMPUTE, "Shaders/HierZ.glsl")
@@ -326,8 +326,10 @@ GLuint DeferredRenderer::getLightIntensityBufferGL()
 	return lightIntensityTex;
 }
 
-void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
+void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera, bool doTiming)
 {
+	if(doTiming) oglTimer.Start();
+
 	SceneLights& sLights = scene.getSceneLights();
 	uint32_t lightCount = static_cast<uint32_t>(sLights.getLightCount());
 	
@@ -395,7 +397,8 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 					break;
 				case LightType::DIRECTIONAL:
 					// Higher offset req since camera span is large
-					glPolygonOffset(6.12f, 1024.0f); 
+					glPolygonOffset(6.12f, 2048.0f);
+					//glPolygonOffset(6.12f, static_cast<float>(LightDrawBuffer::ShadowMapWH)); 
 					break;
 			}
 			glUniform1ui(U_LIGHT_ID, static_cast<GLuint>(i));
@@ -435,10 +438,18 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera)
 
 	glDisable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(0.0f, 0.0f);
+
+	if(doTiming)
+	{
+		oglTimer.Stop();
+		shadowMapTime = oglTimer.ElapsedMS();
+	}
 }
 
-void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
+void DeferredRenderer::GPass(SceneI& scene, const Camera& camera, bool doTiming)
 {
+	if(doTiming) oglTimer.Start();
+
 	gBuffer.BindAsFBO();
 	gBuffer.AlignViewport();
 
@@ -449,11 +460,11 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 	glDepthMask(false);
 	glDepthFunc(GL_EQUAL);
 	glColorMask(true, true, true, true);
-	glClear(GL_COLOR_BUFFER_BIT);
+	
 
 	//// Without Depth Prepass
 	//glDepthMask(true);
-	//glClear(GL_DEPTH_BUFFER_BIT);
+	//glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 	//glDepthFunc(GL_LEQUAL);
 	
 	// Camera Transform
@@ -490,6 +501,12 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera)
 			currentDrawBuffer.DrawCallSingle(j);
 		}
 	}
+
+	if(doTiming)
+	{
+		oglTimer.Stop();
+		gPassTime = oglTimer.ElapsedMS();
+	}
 }
 
 void DeferredRenderer::ClearLI(const IEVector3& ambientColor)
@@ -500,8 +517,10 @@ void DeferredRenderer::ClearLI(const IEVector3& ambientColor)
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
+void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera, bool doTiming)
 {
+	if(doTiming) oglTimer.Start();
+
 	// Light pass
 	// Texture Binds
 	gBuffer.BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
@@ -554,10 +573,18 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera)
 	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	glDisable(GL_DEPTH_CLAMP);
+
+	if(doTiming)
+	{
+		oglTimer.Stop();
+		lPassTime = oglTimer.ElapsedMS();
+	}
 }
 
-void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
+void DeferredRenderer::DPass(SceneI& scene, const Camera& camera, bool doTiming)
 {
+	if(doTiming) oglTimer.Start();
+
 	gBuffer.BindAsFBO();
 	gBuffer.AlignViewport();
 
@@ -568,7 +595,7 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 	glDepthMask(true);
 	glDepthFunc(GL_LEQUAL);
 	glColorMask(false, false, false, false);
-	glClear(GL_DEPTH_BUFFER_BIT);
+	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
 	// Camera Transform
 	BindFrameTransform(U_FTRANSFORM);
@@ -600,10 +627,18 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera)
 
 		currentDrawBuffer.DrawCallMulti();
 	}
+
+	if(doTiming)
+	{
+		oglTimer.Stop();
+		dPassTime = oglTimer.ElapsedMS();
+	}
 }
 
-void DeferredRenderer::Present(const Camera& camera)
-{
+void DeferredRenderer::Present(const Camera& camera, bool doTiming)
+{	
+	if(doTiming) oglTimer.Start();
+
 	// Render to main framebuffer as post process
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);
@@ -666,6 +701,12 @@ void DeferredRenderer::Present(const Camera& camera)
 
 	// Draw
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+
+	if(doTiming)
+	{
+		oglTimer.Stop();
+		mergeTime = oglTimer.ElapsedMS();
+	}
 }
 
 void DeferredRenderer::RefreshInvFTransform(SceneI& scene,
@@ -688,21 +729,19 @@ void DeferredRenderer::RefreshInvFTransform(SceneI& scene,
 	UpdateInvFTransformBuffer();
 }
 
-void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera)
+void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera, bool doTiming)
 {
 	// Depth Pre-Pass
-	DPass(scene, camera);
+	DPass(scene, camera, doTiming);
 
 	// Actual Render
 	// G Pass
-	GPass(scene, camera);
+	GPass(scene, camera, doTiming);
 }
 
 void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLight,
-							  const IEVector3& ambientColor)
+							  const IEVector3& ambientColor, bool doTiming)
 {
-
-
 	// Camera Transform Update
 	fTransform = camera.GenerateTransform();
 	UpdateFTransformBuffer();
@@ -711,10 +750,10 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLi
 	scene.getSceneLights().SendLightDataToGPU();
 
 	// Shadow Map Generation
-	GenerateShadowMaps(scene, camera);
+	GenerateShadowMaps(scene, camera, doTiming);
 
 	// GPass
-	PopulateGBuffer(scene, camera);
+	PopulateGBuffer(scene, camera, doTiming);
 	
 	// Clear LI with ambient color
 	ClearLI(ambientColor);
@@ -722,16 +761,16 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLi
 	// Light Pass
 	if(directLight)
 	{
-		LightPass(scene, camera);
+		LightPass(scene, camera, doTiming);
 	}
 
 	// Light Intensity Merge
-	Present(camera);
+	Present(camera, doTiming);
 
 	// All Done!
 }
 
-void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex, RenderTargetLocation location)
+void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex)//, RenderTargetLocation location)
 {
 	// Only Draw Color Buffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -752,19 +791,8 @@ void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex, RenderTarge
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);
 	vertPPGeneric.Bind();
+	fragPPGeneric.Bind();
 
-	if(location == RenderTargetLocation::COLOR)
-		fragPPGeneric.Bind();
-	else if(location == RenderTargetLocation::NORMAL)
-	{
-		fragPPNormal.Bind();
-	}
-	else if(location == RenderTargetLocation::DEPTH)
-	{
-		fragPPDepth.Bind();
-		glUniform2f(U_NEAR_FAR, camera.near, camera.far);
-	}
-	
 	// Texture
 	glActiveTexture(GL_TEXTURE0 + T_COLOR);
 	glBindTexture(GL_TEXTURE_2D, tex);
@@ -777,22 +805,100 @@ void DeferredRenderer::ShowTexture(const Camera& camera, GLuint tex, RenderTarge
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void DeferredRenderer::ShowColorGBuffer(const Camera& camera)
+void DeferredRenderer::ShowGBufferTexture(const Camera& camera, RenderScheme scheme)
 {
-	ShowTexture(camera, gBuffer.getColorGL());
+	// Only Draw Color Buffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0,
+			   static_cast<GLsizei>(camera.width),
+			   static_cast<GLsizei>(camera.height));
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+	glDisable(GL_MULTISAMPLE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDepthFunc(GL_LESS);
+	glDepthMask(true);
+	glColorMask(true, true, true, true);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// Shaders
+	Shader::Unbind(ShaderType::GEOMETRY);
+	vertPPGeneric.Bind();
+	fragPPGBuffer.Bind();
+
+	// Uniforms (frag shader)
+	glUniform2f(U_NEAR_FAR, camera.near, camera.far);
+	glUniform1ui(U_RENDER_MODE, static_cast<unsigned int>(scheme));
+
+	// Texture
+	glActiveTexture(GL_TEXTURE0 + T_COLOR);
+	if(scheme == RenderScheme::G_NORMAL)
+		glBindTexture(GL_TEXTURE_2D, gBuffer.getColorGL());
+	else if(scheme == RenderScheme::G_DIFF_ALBEDO ||
+			scheme == RenderScheme::G_SPEC_ALBEDO)
+		glBindTexture(GL_TEXTURE_2D, gBuffer.getColorGL());
+	glBindSampler(T_COLOR, linearSampler);
+	if(scheme == RenderScheme::G_DEPTH)
+	{
+		glBindTexture(GL_TEXTURE_2D, gBuffer.getDepthGL());
+		glActiveTexture(GL_TEXTURE0 + T_NORMAL);
+		glBindSampler(T_NORMAL, linearSampler);
+	}
+
+	// VAO
+	glBindVertexArray(postProcessTriVao);
+
+	// Draw
+	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void DeferredRenderer::ShowNormalGBuffer(const Camera& camera)
+void DeferredRenderer::ShowShadowMap(const Camera& camera,
+									 SceneI& s,
+									 int lightId, int layer)
 {
-	ShowTexture(camera, gBuffer.getNormalGL(), RenderTargetLocation::NORMAL);
+	// Only Draw Color Buffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0,
+			   static_cast<GLsizei>(camera.width),
+			   static_cast<GLsizei>(camera.height));
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+	glDisable(GL_MULTISAMPLE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDepthFunc(GL_LESS);
+	glDepthMask(true);
+	glColorMask(true, true, true, true);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// Shaders
+	Shader::Unbind(ShaderType::GEOMETRY);
+	vertPPGeneric.Bind();
+	fragPPShadowMap.Bind();
+
+	// Uniforms (frag shader)
+	if(s.getSceneLights().getLightType(lightId) == LightType::DIRECTIONAL)
+		glUniform2f(U_NEAR_FAR, 0.0f, 0.0f);
+	else if(s.getSceneLights().getLightType(lightId) == LightType::POINT)
+		glUniform2f(U_NEAR_FAR, SceneLights::PointLightNear, s.getSceneLights().getLightRadius(lightId));
+	glUniform1ui(U_LIGHT_ID, static_cast<unsigned int>(SceneLights::CubeSide * lightId + layer));
+
+	// Texture
+	glActiveTexture(GL_TEXTURE0 + T_COLOR);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, s.getSceneLights().getShadowTextureArrayView());
+	glBindSampler(T_COLOR, flatSampler);
+
+	// VAO
+	glBindVertexArray(postProcessTriVao);
+
+	// Draw
+	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void DeferredRenderer::ShowDepthGBuffer(const Camera& camera)
-{
-	ShowTexture(camera, gBuffer.getDepthGL(), RenderTargetLocation::DEPTH);
-}
-
-void DeferredRenderer::ShowLIBuffer(const Camera& camera)
+void DeferredRenderer::ShowLightIntensity(const Camera& camera)
 {
 	ShowTexture(camera, lightIntensityTex);
 }
@@ -816,4 +922,29 @@ void DeferredRenderer::BindLightBuffers(SceneI& scene)
 void DeferredRenderer::AttachSceneLightIndices(SceneI& scene)
 {
 	lightAOI.AttachSceneLights(scene.getSceneLights());
+}
+
+double DeferredRenderer::ShadowMapTime() const
+{
+	return shadowMapTime;
+}
+
+double DeferredRenderer::DPassTime() const
+{
+	return dPassTime;
+}
+
+double DeferredRenderer::GPassTime() const
+{
+	return gPassTime;
+}
+
+double DeferredRenderer::LPassTime() const
+{
+	return lPassTime;
+}
+
+double DeferredRenderer::MergeTime() const
+{
+	return mergeTime;
 }

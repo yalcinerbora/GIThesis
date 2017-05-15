@@ -123,19 +123,24 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\Animation.cpp" />
+    <ClCompile Include="..\..\..\Source\AntBar.cpp" />
+    <ClCompile Include="..\..\..\Source\CornellScene.cpp" />
     <ClCompile Include="..\..\..\Source\CudaInit.cpp" />
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
     <ClCompile Include="..\..\..\Source\DeferredRenderer.cpp" />
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp" />
+    <ClCompile Include="..\..\..\Source\EmptyGIBar.cpp" />
     <ClCompile Include="..\..\..\Source\EmptyGISolution.cpp" />
     <ClCompile Include="..\..\..\Source\FPSInput.cpp" />
     <ClCompile Include="..\..\..\Source\GBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
     <ClInclude Include="..\..\..\Source\Animation.h" />
+    <ClInclude Include="..\..\..\Source\AntBar.h" />
     <ClInclude Include="..\..\..\Source\BindPoints.h" />
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
     <ClInclude Include="..\..\..\Source\CHash.cuh" />
+    <ClInclude Include="..\..\..\Source\CornellScene.h" />
     <ClInclude Include="..\..\..\Source\CSVOTypes.cuh" />
     <ClInclude Include="..\..\..\Source\CudaInit.h" />
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
@@ -148,6 +153,11 @@
     <ClCompile Include="..\..\..\Source\IEUtility\IEBoundingSphere.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IERay.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEVector2.cpp" />
+    <ClCompile Include="..\..\..\Source\IndirectBar.cpp" />
+    <ClCompile Include="..\..\..\Source\LightBar.cpp" />
+    <ClCompile Include="..\..\..\Source\RenderSelect.cpp" />
+    <ClCompile Include="..\..\..\Source\SponzaScene.cpp" />
+    <ClCompile Include="..\..\..\Source\ThesisBar.cpp" />
     <ClCompile Include="..\..\..\Source\VertexBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix4x4.cpp" />
@@ -181,12 +191,16 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IERay.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEVector2.h" />
+    <ClInclude Include="..\..\..\Source\IndirectBar.h" />
+    <ClInclude Include="..\..\..\Source\LightBar.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h" />
     <ClInclude Include="..\..\..\Source\MeshBatch.h" />
     <ClInclude Include="..\..\..\Source\MeshBatchI.h" />
     <ClInclude Include="..\..\..\Source\OGLTimer.h" />
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
+    <ClInclude Include="..\..\..\Source\RenderSelect.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
+    <ClInclude Include="..\..\..\Source\SponzaScene.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
     <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp" />
@@ -194,6 +208,8 @@
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
     <ClInclude Include="..\..\..\Source\SVOLightInject.cuh" />
+    <ClInclude Include="..\..\..\Source\ThesisBar.h" />
+    <ClInclude Include="..\..\..\Source\EmptyGIBar.h" />
     <ClInclude Include="..\..\..\Source\VoxelCacheData.h" />
     <ClInclude Include="..\..\..\Source\VoxelCopyToVAO.cuh" />
     <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h" />

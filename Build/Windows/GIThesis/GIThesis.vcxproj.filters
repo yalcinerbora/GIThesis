@@ -35,9 +35,6 @@
     <ClCompile Include="..\..\..\Source\DrawBuffer.cpp">
       <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\Scene.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\IEUtility\IETimer.cpp">
       <Filter>IEUtility</Filter>
     </ClCompile>
@@ -52,9 +49,6 @@
     </ClCompile>
     <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp">
       <Filter>GI\Thesis\OGL</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\SceneLights.cpp">
-      <Filter>Scene</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\Source\GBuffer.cpp">
       <Filter>Render</Filter>
@@ -102,6 +96,36 @@
       <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\Source\Animation.cpp" />
+    <ClCompile Include="..\..\..\Source\LightBar.cpp">
+      <Filter>AntGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\AntBar.cpp">
+      <Filter>AntGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\IndirectBar.cpp">
+      <Filter>AntGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\RenderSelect.cpp">
+      <Filter>AntGUI\Vars</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\ThesisBar.cpp">
+      <Filter>AntGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\EmptyGIBar.cpp">
+      <Filter>AntGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\SponzaScene.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\CornellScene.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\SceneLights.cpp">
+      <Filter>Scene\Base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\Scene.cpp">
+      <Filter>Scene\Base</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -155,12 +179,6 @@
     <ClInclude Include="..\..\..\Source\Camera.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\SceneI.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\Scene.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\IEUtility\IETimer.h">
       <Filter>IEUtility</Filter>
     </ClInclude>
@@ -205,9 +223,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h">
       <Filter>GI\Thesis\OGL</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\SceneLights.h">
-      <Filter>Scene</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\GBuffer.h">
       <Filter>Render</Filter>
@@ -324,6 +339,39 @@
       <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\Animation.h" />
+    <ClInclude Include="..\..\..\Source\LightBar.h">
+      <Filter>AntGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\AntBar.h">
+      <Filter>AntGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\IndirectBar.h">
+      <Filter>AntGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\RenderSelect.h">
+      <Filter>AntGUI\Vars</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\ThesisBar.h">
+      <Filter>AntGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\EmptyGIBar.h">
+      <Filter>AntGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\SponzaScene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CornellScene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\SceneLights.h">
+      <Filter>Scene\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\SceneI.h">
+      <Filter>Scene\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\Scene.h">
+      <Filter>Scene\Base</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -364,6 +412,15 @@
     </Filter>
     <Filter Include="WindowInput\CameraInput">
       <UniqueIdentifier>{b69a8a4a-7771-409d-8d8a-214efaf7d38e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AntGUI">
+      <UniqueIdentifier>{f9bf1fe4-3155-491b-8067-7eaf24f93a57}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AntGUI\Vars">
+      <UniqueIdentifier>{c8cf6a68-6013-46e3-b214-34aaf7e5e0bd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\Base">
+      <UniqueIdentifier>{21f253f4-8054-4ce4-9115-21353b6d6a1e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

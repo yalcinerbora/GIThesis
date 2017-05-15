@@ -17,14 +17,15 @@ class MeshBatchSkeletal : public MeshBatch
 	private:
 		
 	protected:
+		AnimationBatch						animBatch;
 		StructuredBuffer<ModelTransform>	finalTransforms;
-		AnimationBatch						animations;
 
 	public:
 		// Constructors & Destructor
 											MeshBatchSkeletal();
-											MeshBatchSkeletal(const std::vector<VertexElement>& vertexDefintion, uint32_t byteStride,
-													  const std::vector<std::string>& sceneFiles);
+											MeshBatchSkeletal(const std::vector<VertexElement>& vertexDefintion, 
+															  uint32_t byteStride,
+															  const std::vector<std::string>& sceneFiles);
 											MeshBatchSkeletal(const MeshBatchSkeletal&) = delete;
 											MeshBatchSkeletal(MeshBatchSkeletal&&);
 		MeshBatchSkeletal&					operator=(MeshBatchSkeletal&&);
@@ -36,6 +37,7 @@ class MeshBatchSkeletal : public MeshBatch
 		MeshBatchType						MeshType() const override;
 		
 		StructuredBuffer<ModelTransform>&	getJointTransforms();
+		AnimationBatch&						getAnimationBatch();
 };
 
 #endif //__MESHBATCHSTATIC_H__

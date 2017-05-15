@@ -14,6 +14,7 @@ ATM only Camera
 
 #include "IEUtility/IEMatrix4x4.h"
 #include "IEUtility/IEVector3.h"
+#include "IEUtility/IEMath.h"
 #include "Globals.h"
 
 struct Camera
@@ -37,7 +38,8 @@ struct Camera
 		return
 		{
 			IEMatrix4x4::LookAt(pos, centerOfInterest, up),
-			IEMatrix4x4::Perspective(fovX, width / height, near, far)
+			IEMatrix4x4::Perspective(static_cast<float>(IEMathConstants::DegToRadCoef) * fovX, 
+									 width / height, near, far)
 		};
 	}
 };

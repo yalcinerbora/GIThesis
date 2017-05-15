@@ -47,6 +47,7 @@
 #define U_OBJ_TYPE 6
 #define U_IS_MIP 7
 #define U_LIGHT_ID 4
+#define U_RENDER_MODE 2
 
 // Unfiorm
 #define U_FTRANSFORM 0

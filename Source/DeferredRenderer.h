@@ -17,6 +17,7 @@ Just Renders the scene
 #include "IEUtility/IEVector3.h"
 #include "SceneLights.h"
 #include "Globals.h"
+#include "OGLTimer.h"
 
 struct Camera;
 class SceneI;
@@ -42,7 +43,7 @@ class LightDrawBuffer
 	public:
 		static constexpr uint32_t	DirectionalCascadesCount = 6;
 		static constexpr uint32_t	ShadowMipSampleCount = 3;
-		static constexpr GLsizei	ShadowMapWH = /*512;*/1024;/*2048;*///4096;
+		static constexpr GLsizei	ShadowMapWH = /*512;*//*1024;*/2048;//4096;
 		static constexpr uint32_t	ShadowMapMipCount = 4;
 
 	private:
@@ -85,10 +86,8 @@ class DeferredRenderer
 {
 	public:
 		// Geometry Buffer Dimensions
-		static constexpr GLsizei	GBuffWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1600;*///*1920;*//*2560;*///3840;
-		static constexpr GLsizei	GBuffHeight = /*90;*//*180;*//*360;*//*450;*/720;/*900;*///*1080;*//*1440;*///2160;;
-	
-		
+		static constexpr GLsizei	GBuffWidth = /*160;*//*320;*//*640;*//*800;*//*1280;*//*1600;*/1920;/*2560;*///3840;
+		static constexpr GLsizei	GBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*//*900;*/1080;/*1440;*///2160;
 
 	private:
 		static constexpr float		postProcessTriData[6] =
@@ -114,8 +113,8 @@ class DeferredRenderer
 		Shader						vertPPGeneric;
 		Shader						fragLightApply;
 		Shader						fragPPGeneric;
-		Shader						fragPPNormal;
-		Shader						fragPPDepth;
+		Shader						fragPPGBuffer;
+		Shader						fragPPShadowMap;
 
 		// Shader for shadowmap
 		MeshBatchShaderArray		vertShadowMap;
@@ -146,6 +145,14 @@ class DeferredRenderer
 		// Post Process Triangle 
 		GLuint						postProcessTriVao;
 
+		// Timings
+		OGLTimer					oglTimer;
+		double						shadowMapTime;
+		double						dPassTime;
+		double						gPassTime;		
+		double						lPassTime;
+		double						mergeTime;
+
 		// Samplers
 		GLuint						flatSampler;
 		GLuint						linearSampler;
@@ -175,28 +182,34 @@ class DeferredRenderer
 														 GLsizei width,
 														 GLsizei height);
 
-		void						Render(SceneI&, const Camera&, bool directLight, const IEVector3& ambientColor);
-		void						PopulateGBuffer(SceneI&, const Camera&);
+		void						Render(SceneI&, const Camera&, bool directLight, 
+										   const IEVector3& ambientColor,
+										   bool doTiming);
+		void						PopulateGBuffer(SceneI&, const Camera&, bool doTiming);
 
 		// Do stuff by function
-		void						GenerateShadowMaps(SceneI&, const Camera&);
-		void						DPass(SceneI&, const Camera&);
-		void						GPass(SceneI&, const Camera&);
+		void						GenerateShadowMaps(SceneI&, const Camera&, bool doTiming);
+		void						DPass(SceneI&, const Camera&, bool doTiming);
+		void						GPass(SceneI&, const Camera&, bool doTiming);
 		void						ClearLI(const IEVector3& ambientColor);
-		void						LightPass(SceneI&, const Camera&);
-		void						Present(const Camera&);
+		void						LightPass(SceneI&, const Camera&, bool doTiming);
+		void						Present(const Camera&, bool doTiming);
 
 		// Directly Renders Buffers
-		void						ShowColorGBuffer(const Camera& camera);
-		void						ShowNormalGBuffer(const Camera& camera);
-		void						ShowDepthGBuffer(const Camera& camera);
-		void						ShowLIBuffer(const Camera& camera);
-		void						ShowTexture(const Camera& camera, GLuint tex, RenderTargetLocation location = RenderTargetLocation::COLOR);
+		void						ShowGBufferTexture(const Camera& camera, RenderScheme);
+		void						ShowLightIntensity(const Camera& camera);
+		void						ShowShadowMap(const Camera& camera, 
+												  SceneI& scene, int lightId, int layer);
+		void						ShowTexture(const Camera& camera, GLuint tex);
 		
-		void						AddToLITexture(GLuint texture);
-
 		void						BindShadowMaps(SceneI&);
 		void						BindLightBuffers(SceneI&);
 		void						AttachSceneLightIndices(SceneI&);
+
+		double						ShadowMapTime() const;
+		double						DPassTime() const;
+		double						GPassTime() const;
+		double						LPassTime() const;
+		double						MergeTime() const;
 };
 #endif //__DEFERREDRENDERER_H__

@@ -112,7 +112,7 @@ void SceneLights::GenerateMatrices(const Camera& camera)
 				// Each Side will have 90 degree FOV
 				// Geom shader will render for each layer
 				IEMatrix4x4 projection = IEMatrix4x4::Perspective(90.0f, 1.0f,
-																  0.1f, currentLight.color.getW());
+																  PointLightNear, currentLight.color.getW());
 				for(int j = 0; j < CubeSide; j++)
 				{
 					IEMatrix4x4 view = IEMatrix4x4::LookAt(currentLight.position,
@@ -126,24 +126,22 @@ void SceneLights::GenerateMatrices(const Camera& camera)
 			}
 			case LightType::DIRECTIONAL:
 			{
+				float totalLength = 0.0f;
 				for(int j = 0; j < LightDrawBuffer::DirectionalCascadesCount; j++)
 				{
 					float cascade = CalculateCascadeLength(camera.far, j);
-					IEBoundingSphere viewSphere = CalculateShadowCascasde(cascade * j,
-																		  cascade * (j + 1),
+					IEBoundingSphere viewSphere = CalculateShadowCascasde(totalLength,
+																		  totalLength + cascade,
 																		  camera,
 																		  currentLight.direction);
+					totalLength += cascade;
 
 					// Squre Orto Projection
 					float radius = viewSphere.radius;
-					//IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(//360.0f, -360.0f,
-					//												//-230.0f, 230.0f,
-					//												-radius, radius,
-					//												radius, -radius,
-					//												-800.0f, 800.0f);
-					float factor = static_cast<float>(2 / IEMathConstants::Sqrt2);
+					//float factor = static_cast<float>(2.0 / IEMathConstants::Sqrt2);
 					IEMatrix4x4 projection = IEMatrix4x4::Ortogonal(2.0f * radius, 2.0f * radius, 
-																	-800.0f, 800.0f);
+																	DirectionalLightNear, 
+																	DirectionalLightFar);
 
 
 					IEMatrix4x4 view = IEMatrix4x4::LookAt(viewSphere.center,
@@ -160,7 +158,6 @@ void SceneLights::GenerateMatrices(const Camera& camera)
 					texelTranslate.setY(std::fmod(translatedOrigin.getY(), unitPerTexel.getY()));
 					texelTranslate.setZ(std::fmod(translatedOrigin.getZ(), unitPerTexel.getZ()));
 					texelTranslate = unitPerTexel - texelTranslate;
-					//texelTranslate.setZ(0.0f);
 
 					IEMatrix4x4 texelTranslateMatrix = IEMatrix4x4::Translate(texelTranslate);
 					lightViewProjMatrices[i * 6 + j] = projection * texelTranslateMatrix * view;

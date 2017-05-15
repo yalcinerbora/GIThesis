@@ -48,6 +48,9 @@ class SceneLights
 {
 	public:
 		static constexpr int				CubeSide = 6;
+		static constexpr float				DirectionalLightNear = -800.0f;
+		static constexpr float				DirectionalLightFar = 800.0f;
+		static constexpr float				PointLightNear = 0.1f;
 
 	private:
 		// Point Light Shadow Cubemap Related Stuff		

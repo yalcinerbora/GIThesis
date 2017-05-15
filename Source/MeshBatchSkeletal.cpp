@@ -12,25 +12,45 @@ MeshBatchSkeletal::MeshBatchSkeletal(const std::vector<VertexElement>& vertexDef
 									 uint32_t byteStride,
 									 const std::vector<std::string>& sceneFiles)
 	: MeshBatch(vertexDefintion, byteStride, sceneFiles)
-	, animations(sceneFiles)
-{}
+	, animBatch(sceneFiles)
+	, finalTransforms(animBatch.TotalJointCount())
+{
+	if(!sceneFiles.empty())
+	{
+		for(ModelTransform& t : finalTransforms.CPUData())
+		{
+			t.model = IEMatrix4x4::IdentityMatrix;
+			t.modelRotation = IEMatrix4x4::IdentityMatrix;
+		}
+		finalTransforms.SendData();
+	}
+}
 
 MeshBatchSkeletal::MeshBatchSkeletal(MeshBatchSkeletal&& other)
 	: MeshBatch(std::move(other))
 	, finalTransforms(std::move(other.finalTransforms))
-	, animations(std::move(other.animations))
+	, animBatch(std::move(other.animBatch))
 {}
 
 MeshBatchSkeletal& MeshBatchSkeletal::operator=(MeshBatchSkeletal&& other)
 {
 	assert(this != &other);
+	MeshBatch::operator=(std::move(other));
 	finalTransforms = std::move(other.finalTransforms);
-	animations = std::move(other.animations);
+	animBatch = std::move(other.animBatch);
 	return *this;
 }
 
 void MeshBatchSkeletal::Update(double elapsedS)
 {
+	for(uint32_t i = 0; i < animBatch.AnimationCount(); i++)
+	{
+		const Animation& anim = animBatch.GetAnimation(i);
+		animBatch.UpdateFinalTransforms(finalTransforms.CPUData().data() + anim.jointOffset,
+										elapsedS,
+										i);
+	}	
+	if(animBatch.AnimationCount() != 0) finalTransforms.SendData();
 }
 
 MeshBatchType MeshBatchSkeletal::MeshType() const
@@ -41,4 +61,9 @@ MeshBatchType MeshBatchSkeletal::MeshType() const
 StructuredBuffer<ModelTransform>& MeshBatchSkeletal::getJointTransforms()
 {
 	return finalTransforms;
+}
+
+AnimationBatch& MeshBatchSkeletal::getAnimationBatch()
+{
+	return animBatch;
 }

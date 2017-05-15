@@ -70,7 +70,8 @@ class Window
 	protected:
 	public:
 		// Constructors & Destructor
-								Window(WindowInput&,
+								Window(const std::string& title,
+									   WindowInput&,
 									   WindowProperties);
 								Window(const Window&) = delete;
 		const Window&			operator=(const Window&) = delete;

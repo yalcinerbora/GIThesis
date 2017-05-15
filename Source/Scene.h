@@ -9,7 +9,7 @@
 #include "SceneLights.h"
 
 // Constant Scene means that new objects cannot be added
-// after initialization time (can be updated freely)
+// after initialization time (can be updated moved etc..)
 class ConstantScene : public SceneI
 {
 	// Consta Scene means that objects cannot be
@@ -19,13 +19,14 @@ class ConstantScene : public SceneI
 		const std::vector<std::string>		skeletalFileNames;
 		const std::vector<Light>			lights;
 
+		// Batch References
+		std::vector<MeshBatchI*>			meshBatch;
+
+	protected:
 		// GPU
 		SceneLights							sceneLights;
 		MeshBatch							rigidBatch;
 		MeshBatchSkeletal					skeletalBatch;
-
-		// Batch References
-		std::vector<MeshBatchI*>			meshBatch;
 
 		// Some Data Related to the scene
 		size_t								materialCount;
@@ -33,7 +34,6 @@ class ConstantScene : public SceneI
 		size_t								drawCallCount;
 		size_t								totalPolygons;
 
-	protected:
 	public:
 		// Constructors & Destructor
 											ConstantScene(const std::string& name,
@@ -44,6 +44,7 @@ class ConstantScene : public SceneI
 		ConstantScene&						operator=(const ConstantScene&) = delete;
 											~ConstantScene() = default;
 		
+		// Interface
 		const std::vector<MeshBatchI*>&		getBatches() override;
 		SceneLights&						getSceneLights() override;
 		const SceneLights&					getSceneLights() const override;
@@ -53,6 +54,7 @@ class ConstantScene : public SceneI
 		size_t								MaterialCount() const override;
 		size_t								DrawCount() const override;
 
+		void								Initialize() override;
 		void								Update(double elapsedS) override;
 		void								Load() override;
 		void								Release() override;

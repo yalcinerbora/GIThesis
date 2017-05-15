@@ -9,69 +9,62 @@ Just Renders the scene
 #define __EMPTYGISOLUTION_H__
 
 #include "SolutionI.h"
-#include <AntTweakBar.h>
 #include <cstdint>
 #include <vector>
 #include "IEUtility/IEVector3.h"
+#include "LightBar.h"
+#include "EmptyGIBar.h"
 
 class DeferredRenderer;
-class EmptyGISolution;
-
-struct TwLightCallbackLookup
-{
-	uint32_t			lightID;
-	EmptyGISolution*	solution;
-};
+class WindowInput;
 
 class EmptyGISolution : public SolutionI
 {
 	private:
-		const std::string			name;
-		TwBar*						bar;
-		double						frameTime;
-
-		// For Callback Handling
-		static std::vector<TwLightCallbackLookup> twCallbackLookup;
-
-		static void TW_CALL			GetLightType(void *value, void *clientData);
-
-		static void TW_CALL			GetLightShadow(void *value, void *clientData);
-		static void TW_CALL			SetLightShadow(const void *value, void *clientData);
-
-		static void TW_CALL			GetLightColor(void *value, void *clientData);
-		static void TW_CALL			SetLightColor(const void *value, void *clientData);
-
-		static void TW_CALL			GetLightIntensity(void *value, void *clientData);
-		static void TW_CALL			SetLightIntensity(const void *value, void *clientData);
-
-		static void TW_CALL			GetLightPos(void *value, void *clientData);
-		static void TW_CALL			SetLightPos(const void *value, void *clientData);
-
-		static void TW_CALL			GetLightDirection(void *value, void *clientData);
-		static void TW_CALL			SetLightDirection(const void *value, void *clientData);
-
-		static void TW_CALL			GetLightRadius(void *value, void *clientData);
-		static void TW_CALL			SetLightRadius(const void *value, void *clientData);
+		const std::string					name;
 
 	protected:
-		DeferredRenderer&			dRenderer;
-		SceneI*						currentScene;
+		DeferredRenderer&					dRenderer;
+		SceneI*								currentScene;
+		
+		// Light Params
+		bool								directLighting;
+		bool								ambientLighting;
+		IEVector3							ambientColor;
 
-		bool						directLighting;
-		bool						ambientLighting;
-		IEVector3					ambientColor;
+		// Timing Params
+		double								frameTime;
+		double								shadowTime;
+		double								dPassTime;
+		double								gPassTime;
+		double								lPassTime;
+		double								mergeTime;
+
+		// Render Type
+		RenderScheme						scheme;
+
+		// GUI
+		LightBar							lightBar;
+		EmptyGIBar							emptyGIBar;
 	
 	public:
-									EmptyGISolution(const std::string& name, 
-													DeferredRenderer&);
-									~EmptyGISolution() = default;
+											EmptyGISolution(const std::string& name, 
+															WindowInput&,
+															DeferredRenderer&);
+											~EmptyGISolution() = default;
 	
-		bool						IsCurrentScene(SceneI&) override;
-		void						Load(SceneI&) override;
-		void						Release() override;
-		void						Frame(const Camera&) override;
-		void						SetFPS(double fpsMS) override;
+		bool								IsCurrentScene(SceneI&) override;
+		void								Load(SceneI&) override;
+		void								Release() override;
+		void								Frame(const Camera&) override;
+		void								SetFPS(double fpsMS) override;
 
-		const std::string&			Name() const override;
+		const std::string&					Name() const override;
+
+		// Key Callbacks
+		virtual void						Next();
+		virtual void						Previous();
+		virtual void						Up();
+		virtual void						Down();
 };
 #endif //__EMPTYGISOLUTION_H__

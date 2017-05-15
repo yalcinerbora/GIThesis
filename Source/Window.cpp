@@ -4,9 +4,9 @@
 #include "WindowInput.h"
 #include "Globals.h"
 #include "IEUtility/IEVector3.h"
+#include "AntBar.h"
 
 #include <GLFW/glfw3.h>
-#include <AntTweakBar.h>
 
 std::map<GLFWwindow*, Window*> Window::windowMappings;
 
@@ -31,9 +31,7 @@ void Window::WindowFBGLFW(GLFWwindow* w, int width, int height)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		TwSetCurrentWindow(i->second->twWindowId);
-		TwWindowSize(width, height);
-
+		AntBar::ResizeGUI(i->second->twWindowId, width, height);
 		i->second->input.WindowFBChangedFunc(width, height);
 	}
 }
@@ -94,7 +92,7 @@ void Window::KeyboardUsedGLFW(GLFWwindow* w, int key, int scancode, int action, 
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		if(!TwEventKeyGLFW(key, action))
+		if(!AntBar::KeyCallback(key, action))
 		{
 			i->second->input.KeyboardUsedFunc(key, scancode, action, mods);
 		}
@@ -107,7 +105,7 @@ void Window::MouseMovedGLFW(GLFWwindow* w, double x, double y)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		if(!TwEventMousePosGLFW(static_cast<int>(x), static_cast<int>(y)))
+		if(!AntBar::MousePosCallback(x, y))
 		{
 			i->second->input.MouseMovedFunc(x, y);
 		}
@@ -120,7 +118,7 @@ void Window::MousePressedGLFW(GLFWwindow* w, int button, int action, int mods)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		if(!TwEventMouseButtonGLFW(button, action))
+		if(!AntBar::MouseButtonCallback(button, action))
 		{
 			i->second->input.MousePressedFunc(button, action, mods);
 		}
@@ -133,7 +131,7 @@ void Window::MouseScrolledGLFW(GLFWwindow* w, double xoffset, double yoffset)
 	i = windowMappings.find(w);
 	if(i != windowMappings.end())
 	{
-		if(!TwEventMouseWheelGLFW(static_cast<int>(xoffset)))
+		if(!AntBar::MouseWheelCallback(xoffset))
 		{
 			i->second->input.MouseScrolledFunc(xoffset, yoffset);
 		}
@@ -198,7 +196,8 @@ void __stdcall Window::OGLCallbackRender(GLenum,
 }
 
 
-Window::Window(WindowInput& input,
+Window::Window(const std::string& title,
+			   WindowInput& input,
 			   WindowProperties properties)
 	: input(input)	
 	, window(nullptr)
@@ -256,17 +255,17 @@ Window::Window(WindowInput& input,
 			glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
 			glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
 			glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-			window = glfwCreateWindow(mode->width, mode->height, "GI Thesis", glfwGetPrimaryMonitor(), nullptr);
+			window = glfwCreateWindow(mode->width, mode->height, title.c_str(), glfwGetPrimaryMonitor(), nullptr);
 			break;
 		}
 		case WindowScreenType::WINDOWED:
 		{
-			window = glfwCreateWindow(properties.width, properties.height, "GI Thesis", nullptr, nullptr);
+			window = glfwCreateWindow(properties.width, properties.height, title.c_str(), nullptr, nullptr);
 			break;
 		}
 		case WindowScreenType::FULLSCREEN:
 		{
-			window = glfwCreateWindow(properties.width, properties.height, "GI Thesis", glfwGetPrimaryMonitor(), nullptr);
+			window = glfwCreateWindow(properties.width, properties.height, title.c_str(), glfwGetPrimaryMonitor(), nullptr);
 			break;
 		}
 		default:
@@ -289,6 +288,11 @@ Window::Window(WindowInput& input,
 		GI_ERROR_LOG("Error: %s\n", glewGetErrorString(err));
 		assert(false);
 	}
+
+	// Init Ant
+	if(windowMappings.size() == 0) AntBar::InitAntSystem();
+	twWindowId = static_cast<int>(windowMappings.size());
+	AntBar::SetCurrentWindow(twWindowId);
 
 	// Print Stuff Now
 	// Window Done
@@ -316,10 +320,8 @@ Window::Window(WindowInput& input,
 
 	// Set Buffer Alignments
 	GLint alignment;
-
 	glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &alignment);
 	DeviceOGLParameters::ssboAlignment = alignment;
-	//const_cast<GLint&>(DeviceOGLParameters::ssboAlignment) = alignment;
 	glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
 	DeviceOGLParameters::uboAlignment = alignment;
 
@@ -344,17 +346,6 @@ Window::Window(WindowInput& input,
 	glfwSetScrollCallback(window, Window::MouseScrolledGLFW);
 
 	glfwSwapInterval(0);
-
-	// TW Init
-	if(windowMappings.empty())
-	{
-		TwInit(TW_OPENGL_CORE, NULL);
-		twIEVector3Type = TwDefineStruct("Vector3", 
-										 lightMembers, 3, 
-										 sizeof(IEVector3), NULL, NULL);  // create a new TwType associated to the struct defined by the lightMembers array
-	}
-	twWindowId = static_cast<int>(windowMappings.size());
-	TwSetCurrentWindow(twWindowId);
 	
 	windowMappings.insert(std::make_pair(window, this));
 	glfwShowWindow(window);
@@ -369,8 +360,8 @@ Window::~Window()
 	windowMappings.erase(window);
 	if(windowMappings.empty())
 	{
+		AntBar::DeleteAntSystem();
 		glfwTerminate();
-		TwTerminate();
 	}
 }
 
@@ -381,7 +372,6 @@ bool Window::WindowClosed() const
 
 void Window::Present()
 {
-	TwSetCurrentWindow(twWindowId);
-	TwDraw();
+	AntBar::Draw(twWindowId);
 	glfwSwapBuffers(window);
 }

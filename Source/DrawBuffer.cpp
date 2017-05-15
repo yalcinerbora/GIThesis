@@ -114,18 +114,22 @@ void DrawBuffer::LockAndLoad()
 void DrawBuffer::SendModelTransformToGPU(uint32_t offset, uint32_t size)
 {
 	assert(locked);
-	assert((offset + size) <= (cpuModelTransforms.size() * sizeof(ModelTransform)));
 	if(locked)
 	{
 		uint32_t subSize = (size == std::numeric_limits<uint32_t>::max()) ?
 						   static_cast<uint32_t>(cpuModelTransforms.size()) : size;
+		assert((offset + subSize) <= cpuModelTransforms.size());
+
+		std::memcpy(gpuData.CPUData().data() + static_cast<uint32_t>(modelTransformOffset) + offset * sizeof(ModelTransform),
+					reinterpret_cast<uint8_t*>(cpuModelTransforms.data() + offset),
+					subSize * sizeof(ModelTransform));
 		gpuData.SendSubData(static_cast<uint32_t>(modelTransformOffset) +
 							offset * sizeof(ModelTransform),
 							subSize * sizeof(ModelTransform));
 	}
 }
 
-ModelTransform& DrawBuffer::ModelTransformBuffer(uint32_t transformId)
+ModelTransform& DrawBuffer::getModelTransform(uint32_t transformId)
 {
 	return cpuModelTransforms[transformId];
 }

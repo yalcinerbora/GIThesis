@@ -22,6 +22,16 @@ ConstantScene::ConstantScene(const std::string& name,
 	, totalPolygons(0)
 {}
 
+//MeshBatch& ConstantScene::getRigidBatch()
+//{
+//	return rigidBatch;
+//}
+//
+//MeshBatchSkeletal& ConstantScene::getSkeletalBatch()
+//{
+//	return skeletalBatch;
+//}
+
 SceneLights& ConstantScene::getSceneLights()
 {
 	return sceneLights;
@@ -57,6 +67,9 @@ size_t ConstantScene::DrawCount() const
 	return drawCallCount;
 }
 
+void ConstantScene::Initialize()
+{}
+
 void ConstantScene::Update(double elapsedS)
 {
 	for(MeshBatchI* batch : meshBatch)
@@ -76,6 +89,8 @@ void ConstantScene::Load()
 		drawCallCount += batch->DrawCount();
 		totalPolygons += batch->PolyCount();
 	}
+
+	Initialize();
 }
 
 void ConstantScene::Release()

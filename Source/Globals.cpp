@@ -1,7 +1,5 @@
 #include "Globals.h"
 
-TwType twIEVector3Type;
-
 GLint DeviceOGLParameters::uboAlignment = 4;
 GLint DeviceOGLParameters::ssboAlignment = 4;
 

@@ -124,7 +124,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\Animation.cpp" />
     <ClCompile Include="..\..\..\Source\AntBar.cpp" />
-    <ClCompile Include="..\..\..\Source\CornellScene.cpp" />
+    <ClCompile Include="..\..\..\Source\ThesisScenes.cpp" />
     <ClCompile Include="..\..\..\Source\CudaInit.cpp" />
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
     <ClCompile Include="..\..\..\Source\DeferredRenderer.cpp" />
@@ -140,7 +140,7 @@
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
     <ClInclude Include="..\..\..\Source\CHash.cuh" />
-    <ClInclude Include="..\..\..\Source\CornellScene.h" />
+    <ClInclude Include="..\..\..\Source\ThesisScenes.h" />
     <ClInclude Include="..\..\..\Source\CSVOTypes.cuh" />
     <ClInclude Include="..\..\..\Source\CudaInit.h" />
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
@@ -156,7 +156,6 @@
     <ClCompile Include="..\..\..\Source\IndirectBar.cpp" />
     <ClCompile Include="..\..\..\Source\LightBar.cpp" />
     <ClCompile Include="..\..\..\Source\RenderSelect.cpp" />
-    <ClCompile Include="..\..\..\Source\SponzaScene.cpp" />
     <ClCompile Include="..\..\..\Source\ThesisBar.cpp" />
     <ClCompile Include="..\..\..\Source\VertexBuffer.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEMatrix3x3.cpp" />
@@ -200,7 +199,6 @@
     <ClInclude Include="..\..\..\Source\RectPrism.h" />
     <ClInclude Include="..\..\..\Source\RenderSelect.h" />
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
-    <ClInclude Include="..\..\..\Source\SponzaScene.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
     <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp" />

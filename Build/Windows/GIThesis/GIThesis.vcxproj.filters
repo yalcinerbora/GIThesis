@@ -114,17 +114,14 @@
     <ClCompile Include="..\..\..\Source\EmptyGIBar.cpp">
       <Filter>AntGUI</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\SponzaScene.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\CornellScene.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\SceneLights.cpp">
       <Filter>Scene\Base</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\Source\Scene.cpp">
       <Filter>Scene\Base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\ThesisScenes.cpp">
+      <Filter>Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -357,12 +354,6 @@
     <ClInclude Include="..\..\..\Source\EmptyGIBar.h">
       <Filter>AntGUI</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\SponzaScene.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CornellScene.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\SceneLights.h">
       <Filter>Scene\Base</Filter>
     </ClInclude>
@@ -371,6 +362,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\Scene.h">
       <Filter>Scene\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\ThesisScenes.h">
+      <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1,5 +1,29 @@
-#include "SponzaScene.h"
+#include "ThesisScenes.h"
 #include "BatchFunctors.h"
+
+
+CornellScene::CornellScene(const std::string& name,
+						   const std::vector<std::string>& rigidFileNames,
+						   const std::vector<std::string>& skeletalFileNames,
+						   const std::vector<Light>& lights)
+	: ConstantScene(name, rigidFileNames,
+					skeletalFileNames,
+					lights)
+{}
+
+void CornellScene::Update(double elapsedS)
+{
+	// only one object (cube) rotate it from both directions
+	static constexpr float sphereSpeedSlow = 70.123f;
+	static constexpr float sphereSpeedFast = 113.123f;
+
+	DrawBuffer& dBuffer = rigidBatch.getDrawBuffer();
+	BatchFunctors::ApplyRotation(dBuffer.getModelTransform(2), sphereSpeedSlow * elapsedS, IEVector3::YAxis);
+	BatchFunctors::ApplyRotation(dBuffer.getModelTransform(3), sphereSpeedFast * elapsedS, IEVector3::YAxis);
+	
+	dBuffer.SendModelTransformToGPU(2, 2);	
+	ConstantScene::Update(elapsedS);
+}
 
 const IEQuaternion SponzaScene::initalOrientation = IEQuaternion(static_cast<float>(IEMathConstants::DegToRadCoef) * 270.0f,
 																 IEVector3::YAxis);
@@ -90,6 +114,74 @@ void SponzaScene::Update(double elapsedS)
 
 	// Nyra Patrol Animation
 	PatrolNyra(elapsedS);
+
+	ConstantScene::Update(elapsedS);
+}
+
+DynoScene::DynoScene(const std::string& name,
+					 const std::vector<std::string>& rigidFileNames,
+					 const std::vector<std::string>& skeletalFileNames,
+					 const std::vector<std::string>& skeletalInstanceFileNames,
+					 const std::vector<Light>& lights,
+					 const int repeatCount)
+	: ConstantScene(name, rigidFileNames,
+					skeletalFileNames,
+					lights)
+	, repeatCount(repeatCount)
+{}
+
+void DynoScene::Initialize()
+{
+	// Edit model matrices of the object    
+	DrawBuffer& dBuffer = skeletalBatch.getDrawBuffer();
+
+	//std::vector<ModelTransform>& mtBuff = batchDrawParams.getModelTransformBuffer().CPUData();
+	uint32_t repeatingObjCount = static_cast<uint32_t>(dBuffer.getModelTransformCount() / repeatCount);
+	for(int i = 0; i < dBuffer.getModelTransformCount(); i++)
+	{
+		if(i % repeatingObjCount == 0) continue;
+
+		float totalDistance = (i / repeatingObjCount) * distance;
+		IEVector3 vector(xStart + std::fmod(totalDistance, width),
+						 -10.0f,
+						 zStart + static_cast<int>(totalDistance / width) * distance);
+		IEMatrix4x4 trans = IEMatrix4x4::Translate(vector);
+		dBuffer.getModelTransform(i).model = trans * dBuffer.getModelTransform(i).model;
+	}
+	dBuffer.SendModelTransformToGPU();
+}
+
+void DynoScene::Update(double elapsedS)
+{
+	// Static Indexing Etc Yolo
+	// This ordering may change if maya gfg exporter decides to traverse DF differently
+	// but w/e
+	static constexpr uint32_t boxStart = 193;
+	static constexpr uint32_t boxEnd = 257;
+
+	static constexpr uint32_t torusStart = 0;
+	static constexpr uint32_t torusEnd = 192;
+
+	DrawBuffer& dBuffer = rigidBatch.getDrawBuffer();
+
+	// Rotation
+	// Torus Rotation (Degrees per second)
+	static constexpr float torusSmallSpeed = 90.5f;
+	static constexpr float torusMidSpeed = 50.33f;
+	static constexpr float torusLargeSpeed = 33.25f;
+
+	static constexpr float cubeSpeedRGB = 130.123f;
+
+	for(int i = 0; i < 64; i++)
+	{
+		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(torusStart + i * 3 + 0), torusSmallSpeed * elapsedS, IEVector3::XAxis);
+		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(torusStart + i * 3 + 1), torusMidSpeed * elapsedS, IEVector3::ZAxis);
+		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(torusStart + i * 3 + 2), torusLargeSpeed * elapsedS, IEVector3::ZAxis);
+
+		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(boxStart + i), cubeSpeedRGB * elapsedS, IEVector3::XAxis);
+		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(boxStart + i), cubeSpeedRGB * elapsedS, IEVector3::YAxis);
+	}
+	dBuffer.SendModelTransformToGPU();
 
 	ConstantScene::Update(elapsedS);
 }

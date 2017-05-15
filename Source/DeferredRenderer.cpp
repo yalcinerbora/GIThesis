@@ -450,22 +450,18 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera, bool doTiming)
 {
 	if(doTiming) oglTimer.Start();
 
-	gBuffer.BindAsFBO();
-	gBuffer.AlignViewport();
-
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDisable(GL_MULTISAMPLE);
+	
+	// With Depth Prepass
 	glDepthMask(false);
 	glDepthFunc(GL_EQUAL);
 	glColorMask(true, true, true, true);
 	
-
-	//// Without Depth Prepass
-	//glDepthMask(true);
-	//glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-	//glDepthFunc(GL_LEQUAL);
+	// Without Depth Prepass
+	glDepthMask(true);
+	glDepthFunc(GL_LEQUAL);
 	
 	// Camera Transform
 	BindFrameTransform(U_FTRANSFORM);
@@ -585,18 +581,13 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera, bool doTiming)
 {
 	if(doTiming) oglTimer.Start();
 
-	gBuffer.BindAsFBO();
-	gBuffer.AlignViewport();
-
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDisable(GL_MULTISAMPLE);
 	glDepthMask(true);
-	glDepthFunc(GL_LEQUAL);
 	glColorMask(false, false, false, false);
-	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-
+	glDepthFunc(GL_LEQUAL);	
+	
 	// Camera Transform
 	BindFrameTransform(U_FTRANSFORM);
 
@@ -731,8 +722,19 @@ void DeferredRenderer::RefreshInvFTransform(SceneI& scene,
 
 void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera, bool doTiming)
 {
+	// Bind FBO
+	gBuffer.BindAsFBO();
+	gBuffer.AlignViewport();
+
+	// Clear
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glDepthMask(true);
+	glColorMask(true, true, true, true);
+	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+
 	// Depth Pre-Pass
-	DPass(scene, camera, doTiming);
+	//DPass(scene, camera, doTiming);
 
 	// Actual Render
 	// G Pass

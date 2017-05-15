@@ -18,8 +18,7 @@
 #include "Macros.h"
 #include "CudaInit.h"
 
-#include "CornellScene.h"
-#include "SponzaScene.h"
+#include "ThesisScenes.h"
 
 #include "IEUtility/IEMath.h"
 #include "IEUtility/IEQuaternion.h"
@@ -204,8 +203,19 @@ int main()
 	std::vector<std::string> sibernikSkeletal = {};
 	ConstantScene sibernik("Sibernik Cathedral", sibernikRigid, sibernikSkeletal, sibernikLights);
 	scenes.push_back(&sibernik);
-	//// Dynamic Scene
-	////std::vector<std::string> dynamicScene =
+	// Dynamic Scene
+	std::vector<std::string> dynamicRigid =
+	{
+		"dynamicScene.gfg"
+	};
+	static constexpr int repeatCount = 128;
+	std::vector<std::string> dynamicSkeletal
+	{
+		"nyraJump.gfg"
+	};
+	DynoScene dynamic("Dynamic Scene", dynamicRigid, std::vector<std::string>(),
+					  dynamicSkeletal, sponzaLights);
+	scenes.push_back(&dynamic);
 
 	// Solutions
 	EmptyGISolution emptySolution("No GI", inputManager, deferredRenderer);

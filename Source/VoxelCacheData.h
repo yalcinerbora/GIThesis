@@ -13,18 +13,18 @@ enum class VoxelObjectType
 	MORPH_DYNAMIC,	// Object moves with morph targets (each voxel has their adjacent vertex morphs weighted)
 };
 
-#pragma pack(push, 1)
-struct VoxelNormPos
-{
-	uint32_t vNormPos[2];
-};
-
-struct VoxelIds
-{
-	uint32_t vIds[2];
-};
-
-typedef uint32_t VoxelColorData;
+//#pragma pack(push, 1)
+//struct VoxelNormPos
+//{
+//	uint32_t vNormPos[2];
+//};
+//
+//struct VoxelIds
+//{
+//	uint32_t vIds[2];
+//};
+//
+//typedef uint32_t VoxelColorData;
 
 struct VoxelWeightData
 {

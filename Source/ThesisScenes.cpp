@@ -121,7 +121,6 @@ void SponzaScene::Update(double elapsedS)
 DynoScene::DynoScene(const std::string& name,
 					 const std::vector<std::string>& rigidFileNames,
 					 const std::vector<std::string>& skeletalFileNames,
-					 const std::vector<std::string>& skeletalInstanceFileNames,
 					 const std::vector<Light>& lights,
 					 const int repeatCount)
 	: ConstantScene(name, rigidFileNames,
@@ -143,12 +142,30 @@ void DynoScene::Initialize()
 
 		float totalDistance = (i / repeatingObjCount) * distance;
 		IEVector3 vector(xStart + std::fmod(totalDistance, width),
-						 -10.0f,
+						 0.0f,
 						 zStart + static_cast<int>(totalDistance / width) * distance);
 		IEMatrix4x4 trans = IEMatrix4x4::Translate(vector);
 		dBuffer.getModelTransform(i).model = trans * dBuffer.getModelTransform(i).model;
 	}
 	dBuffer.SendModelTransformToGPU();
+}
+
+void DynoScene::Load()
+{
+	rigidBatch = MeshBatch(rigidMeshVertexDefinition, sizeof(VAO), rigidFileNames);
+	skeletalBatch = MeshBatchSkeletal(skeletalMeshVertexDefinition, sizeof(VAOSkel), skeletalFileNames,
+									  repeatCount);
+	sceneLights = SceneLights(lights);
+
+	for(const MeshBatchI* batch : meshBatch)
+	{
+		materialCount += batch->MaterialCount();
+		objectCount += batch->ObjectCount();
+		drawCallCount += batch->DrawCount();
+		totalPolygons += batch->PolyCount();
+	}
+
+	Initialize();
 }
 
 void DynoScene::Update(double elapsedS)

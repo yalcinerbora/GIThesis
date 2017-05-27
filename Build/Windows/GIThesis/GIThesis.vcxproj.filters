@@ -123,6 +123,12 @@
     <ClCompile Include="..\..\..\Source\ThesisScenes.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\GIVoxelPages.cpp">
+      <Filter>GI\Thesis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\VoxelCacheBatch.cpp">
+      <Filter>GI\Thesis</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -179,22 +185,10 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IETimer.h">
       <Filter>IEUtility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CAxisAlignedBB.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CMatrix.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\COpenGLCommon.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CSparseVoxelOctree.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CVoxel.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\GIKernels.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\GICudaAllocator.h">
@@ -233,9 +227,6 @@
     <ClInclude Include="..\..\..\Source\DrawPoint.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CVoxelPage.h">
-      <Filter>GI\Thesis</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
@@ -257,17 +248,8 @@
     <ClInclude Include="..\..\..\Source\CDebug.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CHash.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h">
       <Filter>GI\Thesis</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CSVOTypes.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CudaInit.h">
       <Filter>Utility</Filter>
@@ -277,9 +259,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\BatchFunctors.h">
       <Filter>MeshBatch</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CVoxelTypes.h">
-      <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatchSkeletal.h">
       <Filter>MeshBatch</Filter>
@@ -292,9 +271,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\OGLTimer.h">
       <Filter>Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\VoxelSceneCache.h">
-      <Filter>GI\Thesis</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h">
       <Filter>IEUtility</Filter>
@@ -366,6 +342,39 @@
     <ClInclude Include="..\..\..\Source\ThesisScenes.h">
       <Filter>Scene</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelCacheBatch.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GIVoxelPages.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CMatrix.cuh">
+      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CHash.cuh">
+      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CVoxel.cuh">
+      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CVoxelTypes.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh">
+      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CAxisAlignedBB.cuh">
+      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\PageKernels.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVOTypes.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\SVOKernels.cuh">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -416,11 +425,14 @@
     <Filter Include="Scene\Base">
       <UniqueIdentifier>{21f253f4-8054-4ce4-9115-21353b6d6a1e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GI\Thesis\Kernels\CudaTypes">
+      <UniqueIdentifier>{c8570d00-c4e0-4f00-af3e-fd6625875e3d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GI\Thesis\Kernels\HelperFunctions">
+      <UniqueIdentifier>{3b92bc4c-d339-48e3-8366-84dcf40d1b91}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
@@ -441,6 +453,12 @@
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu">
       <Filter>GI\Thesis</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\PageKernels.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\SVOKernels.cu">
+      <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

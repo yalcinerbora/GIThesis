@@ -11,19 +11,10 @@
 #include "CudaVector.cuh"
 #include "SceneLights.h"
 #include "VoxelDebugVAO.h"
-#include "GICudaVoxelScene.h"
-#include "CSVOTypes.cuh"
+
+#include "CSVOTypes.h"
 #include "Shader.h"
 #include "SceneI.h"
-
-#define GI_DENSE_TEX_COUNT 4//5
-#define GI_DENSE_LEVEL 6
-#define GI_DENSE_SIZE 64
-#define GI_DENSE_SIZE_CUBE (GI_DENSE_SIZE * GI_DENSE_SIZE * GI_DENSE_SIZE)
-
-static_assert(GI_DENSE_SIZE >> GI_DENSE_LEVEL == 1, "Pow of Two Mismatch.");
-static_assert(GI_DENSE_LEVEL - GI_DENSE_TEX_COUNT > 0, "DENSE_TEX_COUNT_MISMATCH");
-static_assert(GI_DENSE_TEX_COUNT >= 1, "Dense Count has to be atleast 1");
 
 class GICudaAllocator;
 class DeferredRenderer;
@@ -99,18 +90,33 @@ struct InvFrameTransform;
 
 class GISparseVoxelOctree
 {
+	public:
+		// SVO Const Params
+		static constexpr uint32_t				DenseLevel = 6;
+		static constexpr uint32_t				DenseSize = 1 << DenseLevel;
+		static constexpr uint32_t				DenseSizeCube = DenseSize * DenseSize * DenseSize;
+
+		static constexpr uint32_t				DenseLevelCount = 4;
+
 	private:
-		// Allocator References
+		// Main Page Allocator
+	//	GIVoxelPage								voxelPage;
+
+
+
+
+
 		std::vector<GICudaAllocator*>			allocators;			// Page Allocators
 		std::vector<const CVoxelGrid*>			allocatorGrids;		// Allocator's Responsible Grids
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
 
-		// SVO Data (Sparse)
-		StructuredBuffer<CSVONode>				svoNodeBuffer;
-		StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
-		StructuredBuffer<uint32_t>				svoLevelOffsets;
+		
+		//// SVO Data (Sparse)
+		//StructuredBuffer<CSVONode>				svoNodeBuffer;
+		//StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
+		//StructuredBuffer<uint32_t>				svoLevelOffsets;
 		
         // SVO Data (Dense)
 		GLuint									svoDenseNode;
@@ -258,4 +264,8 @@ class GISparseVoxelOctree
 		uint32_t								MinLevel() const;
 		uint32_t								MaxLevel() const;
 };
+
+static_assert(GISparseVoxelOctree::DenseLevel - GISparseVoxelOctree::DenseLevelCount > 0, "Too many dense levels");
+static_assert(GISparseVoxelOctree::DenseLevelCount >= 1, "Dense Count has to be atleast 1");
+
 #endif //__GICUDASPARSEVOXELOCTREE_H__

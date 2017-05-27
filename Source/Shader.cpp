@@ -32,56 +32,93 @@ GLenum Shader::ShaderTypeToGLBit(ShaderType t)
 	return values[static_cast<int>(t)];
 }
 
+
+bool Shader::GenSeperableProgam(const char fileName[], bool spirv,
+								const GLchar entryPointName[])
+{
+	std::string file(fileName);
+	std::string onlyFileName = file.substr(onlyFileName.find_last_of("/") + 1);
+
+	file += (spirv) ? "" : ".spirv";
+
+	std::vector<GLchar> source;
+	source.resize(std::ifstream(fileName, std::ifstream::ate | std::ifstream::binary).tellg());
+	std::ifstream shaderFile(fileName);
+	shaderFile.read(source.data(), source.size());
+
+	const GLuint shader = glCreateShader(ShaderTypeToGL(shaderType));
+	if(spirv)
+	{
+		const GLchar* sourcePtr = source.data();
+		const GLint sourceSize = static_cast<GLint>(source.size());
+		const GLint* sizePtr = &sourceSize;
+		glShaderSource(shader, 1, &sourcePtr, &source.size);
+		glCompileShader(shader);
+	}
+	else
+	{
+		// spir-v binary load
+		glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V_ARB,
+					   source.data(),
+					   static_cast<GLsizei>(source.size()));
+		glSpecializeShaderARB(shader,
+							  entryPointName,
+							  0,
+							  nullptr,
+							  nullptr);
+	}
+
+	GLint compiled = 0;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+	if(!compiled)
+	{
+		GLint blen = 0;
+		glGetProgramiv(shaderID, GL_INFO_LOG_LENGTH, &blen);
+		std::vector<GLchar> log(blen);
+		glGetProgramInfoLog(shaderID, blen, &blen, &log[0]);
+		GI_ERROR_LOG("Shader Compilation Error on File %s :\n%s", onlyFileName.c_str(), &log[0]);
+		return false;
+	}
+	else
+	{
+		shaderID = glCreateProgram();
+		glProgramParameteri(shaderID, GL_PROGRAM_SEPARABLE, GL_TRUE);
+		glAttachShader(shaderID, shader);
+		glLinkProgram(shaderID);
+		glDetachShader(shaderID, shader);
+		GI_LOG("Shader Compiled Successfully. Shader ID: %d, Name: %s", shaderID, onlyFileName.c_str());
+	}
+	glDeleteShader(shader);
+	return true;
+}
+
 Shader::Shader()
 	: valid(false)
 	, shaderID(0)
 	, shaderType(ShaderType::VERTEX)
 {}
 
-Shader::Shader(ShaderType t, const char fileName[])
+Shader::Shader(ShaderType t, const char fileName[], bool spirv,
+			   const GLchar entryPointName[])
 	: valid(false)
 	, shaderID(0)
 	, shaderType(t)
 {
-	std::string onlyFileName(fileName);
-	onlyFileName = onlyFileName.substr(onlyFileName.find_last_of("/") + 1);
-
-	std::vector<char> source;
-	source.resize(std::ifstream(fileName, std::ifstream::ate | std::ifstream::binary).tellg());
-	std::ifstream shaderFile(fileName);
-	shaderFile.read(source.data(), source.size());
-
 	// Create Pipeline If not Avail
 	if(shaderPipelineID == 0)
 	{
 		glGenProgramPipelines(1, &shaderPipelineID);
 		glBindProgramPipeline(shaderPipelineID);
 	}
+	valid = GenSeperableProgam(fileName, spirv, entryPointName);
+}
 
-	// Compile
-	const char* sourcePtr = source.data();
-	shaderID = glCreateShaderProgramv(ShaderTypeToGL(shaderType), 1, (const GLchar**) &sourcePtr);
-
-	GLint result;
-	glGetProgramiv(shaderID, GL_LINK_STATUS, &result);
-	// Check Errors
-	if(result == GL_FALSE)
-	{
-		GLint blen = 0;
-		glGetProgramiv(shaderID, GL_INFO_LOG_LENGTH, &blen);
-		if(blen > 1)
-		{
-			std::vector<GLchar> log(blen);
-			glGetProgramInfoLog(shaderID, blen, &blen, &log[0]);
-			GI_ERROR_LOG("Shader Compilation Error on File %s :\n%s", onlyFileName.c_str(), &log[0]);
-		}
-	}
-	else
-	{
-		GI_LOG("Shader Compiled Successfully. Shader ID: %d, Name: %s", shaderID, onlyFileName.c_str());
-		valid = true;
-	}
-
+Shader::Shader(Shader&& other)
+	: shaderID(other.shaderID)
+	, shaderType(other.shaderType)
+	, valid(other.valid)
+{
+	other.shaderID = 0;
 }
 
 Shader& Shader::operator=(Shader&& other)

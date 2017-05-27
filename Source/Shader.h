@@ -31,14 +31,19 @@ class Shader
 
 		static GLenum		ShaderTypeToGL(ShaderType);
 		static GLenum		ShaderTypeToGLBit(ShaderType);
-				
+		
+		bool				GenSeperableProgam(const char fileName[], bool spirv,
+											   const GLchar entryPointName[]);
+
 	protected:
 
 	public:
 		// Constructors & Destructor
 							Shader();
-							Shader(ShaderType, const char fileName[]);
+							Shader(ShaderType, const char fileName[], bool spirv = false,
+								   const GLchar entryPointName[] = "main");
 							Shader(const Shader&) = delete;
+							Shader(Shader&&);
 		Shader&				operator=(Shader&&);
 		Shader&				operator=(const Shader&) = delete;
 							~Shader();

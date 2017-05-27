@@ -23,6 +23,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deferred", "Deferred", "{42
 		..\..\WorkingDir\Shaders\DPass.frag = ..\..\WorkingDir\Shaders\DPass.frag
 		..\..\WorkingDir\Shaders\DPass.vert = ..\..\WorkingDir\Shaders\DPass.vert
 		..\..\WorkingDir\Shaders\DPassSkeletal.vert = ..\..\WorkingDir\Shaders\DPassSkeletal.vert
+		..\..\WorkingDir\Shaders\GLSLBindPoints.h = ..\..\WorkingDir\Shaders\GLSLBindPoints.h
 		..\..\WorkingDir\Shaders\GWriteGeneric.frag = ..\..\WorkingDir\Shaders\GWriteGeneric.frag
 		..\..\WorkingDir\Shaders\GWriteGeneric.vert = ..\..\WorkingDir\Shaders\GWriteGeneric.vert
 		..\..\WorkingDir\Shaders\GWriteSkeletal.vert = ..\..\WorkingDir\Shaders\GWriteSkeletal.vert

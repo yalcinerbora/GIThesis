@@ -33,6 +33,12 @@ Determines shared memory modes etc.
 
 class CudaInit
 {
+	public:
+		// Thread per Block counts
+		static constexpr int	TBPSmall = 128;
+		static constexpr int	TBP = 512;
+		static constexpr int	TBP_XY = 16;
+
 	private:
 		static cudaDeviceProp	props;
 		static bool				init;
@@ -42,6 +48,10 @@ class CudaInit
 		static unsigned int		CapabilityMajor();
 		static unsigned int		CapabilityMinor();
 		static unsigned int		SMCount();
+
+		static int				GenBlockSize(int totalThread);
+		static int				GenBlockSizeSmall(int totalThread);
+		static int2				GenBlockSize2D(int2 totalThread);
 
 };
 #endif //__CUDAINIT_H__

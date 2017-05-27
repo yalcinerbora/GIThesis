@@ -25,7 +25,8 @@ class MeshBatchSkeletal : public MeshBatch
 											MeshBatchSkeletal();
 											MeshBatchSkeletal(const std::vector<VertexElement>& vertexDefintion, 
 															  uint32_t byteStride,
-															  const std::vector<std::string>& sceneFiles);
+															  const std::vector<std::string>& sceneFiles,
+															  uint32_t repeatCount = 1);
 											MeshBatchSkeletal(const MeshBatchSkeletal&) = delete;
 											MeshBatchSkeletal(MeshBatchSkeletal&&);
 		MeshBatchSkeletal&					operator=(MeshBatchSkeletal&&);

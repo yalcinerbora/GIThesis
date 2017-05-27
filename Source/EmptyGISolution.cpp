@@ -8,9 +8,9 @@
 #include "WindowInput.h"
 #include <GLFW/glfw3.h>
 
-EmptyGISolution::EmptyGISolution(const std::string& name, 
-								 WindowInput& inputManager,
-								 DeferredRenderer& defferedRenderer)
+EmptyGISolution::EmptyGISolution(WindowInput& inputManager,
+								 DeferredRenderer& defferedRenderer,
+								 const std::string& name)
 	: name(name)
 	, currentScene(nullptr)
 	, dRenderer(defferedRenderer)

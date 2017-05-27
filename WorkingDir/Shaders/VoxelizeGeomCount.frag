@@ -53,8 +53,8 @@ LU_OBJECT_VOXEL_INFO buffer VoxelInfo
 {
 	struct
 	{
-		float span;
 		uint voxCount;
+		uint voxOffset;
 	} voxInfo[];
 };
 

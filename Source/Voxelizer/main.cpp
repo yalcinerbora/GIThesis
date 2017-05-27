@@ -181,7 +181,7 @@ int main(int argc, char* argv[])
 	Shader fragVoxelizeCount(ShaderType::FRAGMENT, "Shaders/VoxelizeGeomCount.frag");
 	
 	// FBO
-	GLsizei frameSize = static_cast<GLsizei>(VOX_3D_TEX_SIZE * options.splatRatio);
+	GLsizei frameSize = static_cast<GLsizei>(VOX_3D_TEX_SIZE);
 	VoxFramebuffer fbo(frameSize, frameSize);
 	fbo.Bind();
 
@@ -220,7 +220,8 @@ int main(int argc, char* argv[])
 		voxelizer.Start();
 
 		std::string voxFile = voxPrefix.str() + fileName;
-		voxelizer.Write(voxFile);
+
+		voxelizer.Write(voxFile, uint32_t cascadeNo);
 	}
 
 	// Skeletal Voxelization

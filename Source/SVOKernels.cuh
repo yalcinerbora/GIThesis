@@ -8,7 +8,7 @@ Global Illumination Kernels
 #define __GIKERNELS_H__
 
 #include "GICudaAllocator.h"
-#include "CSVOTypes.cuh"
+#include "CSVOTypes.h"
 
 struct CAABB;
 typedef CAABB CObjectAABB;
@@ -20,68 +20,6 @@ struct CVoxelPage;
 struct CVoxelGrid;
 struct CSVOConstants;
 
-// Voxel Transform
-// Transforms existing voxels in order to cut voxel reconstruction each frame
-// Call Logic "per voxel in the grid"
-extern  __global__ void VoxelTransform(// Voxel Pages
-									   CVoxelPage* gVoxelData,
-									   const CVoxelGrid& gGridInfo,
-									   const float3 hNewGridPosition,
-
-									   // Object Related
-									   CObjectTransform** gObjTransforms,
-									   CObjectTransform** gJointTransforms,
-									   uint32_t** gObjTransformIds,
-									   CVoxelNormPos** gVoxNormPosCacheData,
-									   CVoxelColor** gVoxRenderData,
-									   CVoxelWeight** gVoxWeightData,
-
-									   CObjectVoxelInfo** gObjInfo,
-									   CObjectAABB** gObjectAABB);
-
-// Voxel Allocate - Deallocate
-// Allocates-Deallocates Voxels withn pages segment by segment
-// Call Logic "per object per segement"
-// Each segment allocates itself within the pages
-extern __global__ void VoxelObjectDealloc(// Voxel System
-										  CVoxelPage* gVoxelData,
-										  const CVoxelGrid& gGridInfo,
-
-										  // Per Object Segment Related
-										  ushort2* gObjectAllocLocations,
-										  const SegmentObjData* gSegmentObjectData,
-										  const uint32_t totalSegments,
-
-										  // Per Object Related
-										  const CObjectAABB* gObjectAABB,
-										  const CObjectTransform* gObjTransforms,
-										  const unsigned int* gObjTransformIds);
-
-extern __global__ void VoxelObjectAlloc(// Voxel System
-										CVoxelPage* gVoxelData,
-										const unsigned int gPageAmount,
-										const CVoxelGrid& gGridInfo,
-
-										// Per Object Segment Related
-										ushort2* gObjectAllocLocations,
-										const SegmentObjData* gSegmentObjectData,
-										const uint32_t totalSegments,
-
-										// Per Object Related
-										const CObjectAABB* gObjectAABB,
-										const CObjectTransform* gObjTransforms,
-										const unsigned int* gObjTransformIds);
-
-// Voxel Clear Marked
-// Clears the deallocated voxels marked by "VxoelObjecDealloc" function
-// Logic per voxel in page system
-__global__ void VoxelClearMarked(CVoxelPage* gVoxelData);
-
-// Voxel Clear Signal
-// Stops Clear Signal 
-// Logic per segment in page system
-__global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
-								 const uint32_t numPages);
 
 // Reconstruct SVO
 // Creates SVO tree top down manner

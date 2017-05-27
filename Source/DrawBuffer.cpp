@@ -275,3 +275,50 @@ void DrawBuffer::DrawCallMultiState()
 							   (void *) (offset));
 	}
 }
+
+void DrawBuffer::RepeatDrawCalls(uint32_t instanceCount)
+{
+	assert(!locked);
+	if(!locked)
+	{
+		size_t initialDrawCount = cpuDrawPoints.size();
+		size_t initalTransformCount = cpuModelTransforms.size();
+
+		for(uint32_t i = 0; i < instanceCount; i++)
+		{
+			size_t drawPointOldSize = cpuDrawPoints.size();
+			size_t modelTransformOldSize = cpuModelTransforms.size();
+
+			// Per Draw Call
+			cpuDrawPoints.resize(drawPointOldSize + initialDrawCount);
+			cpuAABBs.resize(drawPointOldSize + initialDrawCount);
+			cpuModelTransformIndices.resize(drawPointOldSize + initialDrawCount);
+			drawMaterialIndex.resize(drawPointOldSize + initialDrawCount);
+			std::copy_n(cpuDrawPoints.begin(),
+						initialDrawCount,
+						cpuDrawPoints.begin() + drawPointOldSize);
+			std::copy_n(cpuAABBs.begin(),
+						initialDrawCount,
+						cpuAABBs.begin() + drawPointOldSize);
+			std::copy_n(cpuModelTransformIndices.begin(),
+						initialDrawCount,
+						cpuModelTransformIndices.begin() + drawPointOldSize);
+			std::copy_n(drawMaterialIndex.begin(),
+						initialDrawCount,
+						drawMaterialIndex.begin() + drawPointOldSize);
+
+			// Per Transform
+			cpuModelTransforms.resize(modelTransformOldSize + initalTransformCount);
+			std::copy_n(cpuModelTransforms.begin(),
+						initalTransformCount,
+						cpuModelTransforms.begin() + modelTransformOldSize);
+
+			// Adjust Offsets
+			for(int i = 0; i < initialDrawCount; i++)
+			{
+				cpuModelTransformIndices[drawPointOldSize + i] += static_cast<uint32_t>(modelTransformOldSize);
+				cpuDrawPoints[drawPointOldSize + i].baseInstance += static_cast<uint32_t>(drawPointOldSize);
+			}
+		}
+	}
+}

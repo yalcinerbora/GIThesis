@@ -10,8 +10,9 @@ MeshBatchSkeletal::MeshBatchSkeletal()
 
 MeshBatchSkeletal::MeshBatchSkeletal(const std::vector<VertexElement>& vertexDefintion,
 									 uint32_t byteStride,
-									 const std::vector<std::string>& sceneFiles)
-	: MeshBatch(vertexDefintion, byteStride, sceneFiles)
+									 const std::vector<std::string>& sceneFiles,
+									 uint32_t repeatCount)
+	: MeshBatch(vertexDefintion, byteStride, sceneFiles, repeatCount)
 	, animBatch(sceneFiles)
 	, finalTransforms(animBatch.TotalJointCount())
 {

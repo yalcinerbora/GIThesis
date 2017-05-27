@@ -22,6 +22,12 @@ class RenderSelect
 
 		const RenderScheme*				scheme;
 
+		// Protected Constructors
+										RenderSelect(TwBar* bar,
+													 const SceneLights&,
+													 RenderScheme&,
+													 TwType);
+
 	public:
 		static	void					GenRenderTypeEnum();
 
@@ -30,10 +36,6 @@ class RenderSelect
 										RenderSelect(TwBar* bar,
 													 const SceneLights&,
 													 RenderScheme&);
-										RenderSelect(TwBar* bar,
-													 const SceneLights&,
-													 RenderScheme&,
-													 TwType);
 										~RenderSelect() = default;
 
 		void							Next();
@@ -50,9 +52,9 @@ class VoxelRenderSelect : public RenderSelect
 	private:
 		static TwType					twThesisRenderType;
 
-		const int						totalCascades;
-		const int						minSVOLevel;
-		const int						maxSVOLevel;
+		int								totalCascades;
+		int								minSVOLevel;
+		int								maxSVOLevel;
 
 		int								currentSVOLevel;
 		int								currentCacheCascade;
@@ -63,6 +65,7 @@ class VoxelRenderSelect : public RenderSelect
 		static	void					GenRenderTypeEnum();
 
 		// Constructors & Destructor
+										VoxelRenderSelect() = default;
 										VoxelRenderSelect(TwBar* bar, 
 														  const SceneLights&, 
 														  RenderScheme&,

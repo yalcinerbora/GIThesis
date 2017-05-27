@@ -55,7 +55,6 @@ class SponzaScene : public ConstantScene
 class DynoScene : public ConstantScene
 {
 	private:
-		static constexpr int				repeatCount = 128;
 		static constexpr float				xStart = -150.0f;
 		static constexpr float				zStart = -150.0f;
 		static constexpr float				distance = 30.0f;
@@ -63,21 +62,19 @@ class DynoScene : public ConstantScene
 
 		const int							repeatCount;
 
-		MeshBatchSkeletalInstanced			instancedSkeletal;
-
 	protected:
 	public:
 		// Constructors & Destructor
 											DynoScene(const std::string& name,
 													  const std::vector<std::string>& rigidFileNames,
 													  const std::vector<std::string>& skeletalFileNames,
-													  const std::vector<std::string>& skeletalInstanceFileNames,
 													  const std::vector<Light>& lights,
 													  int repeatCount);
 											DynoScene(const DynoScene&) = delete;
 		DynoScene&							operator=(const DynoScene&) = delete;
 											~DynoScene() = default;
 
+		void								Load() override;
 		void								Initialize() override;
 		void								Update(double elapsedS) override;
 };

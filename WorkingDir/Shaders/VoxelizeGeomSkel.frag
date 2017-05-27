@@ -1,5 +1,4 @@
 #version 430
-#extension GL_NV_shader_atomic_float : require
 /*	
 	**Voxelize Geom Shader**
 	
@@ -18,9 +17,9 @@
 #define IN_WEIGHT_INDEX layout(location = 5)
 
 #define LU_AABB layout(std430, binding = 3) readonly
-#define LU_NORMAL_SPARSE layout(std430, binding = 6) coherent volatile
-#define LU_COLOR_SPARSE layout(std430, binding = 7) coherent volatile
-#define LU_WEIGHT_SPARSE layout(std430, binding = 8) coherent volatile
+#define LU_NORMAL_DENSE layout(std430, binding = 6) coherent volatile writeonly
+#define LU_ALBEDO_DENSE layout(std430, binding = 7) coherent volatile writeonly
+#define LU_WEIGHT_DENSE layout(std430, binding = 8) coherent volatile writeonly
 
 #define I_LOCK layout(r32ui, binding = 0) coherent volatile
 
@@ -50,70 +49,67 @@ U_SPAN uniform float span;
 U_SEGMENT_SIZE uniform float segmentSize;
 U_SPLIT_CURRENT uniform uvec3 currentSplit;
 U_OBJ_ID uniform uint objId;
-U_TEX_SIZE uniform uint texSize3D;
+U_TEX_SIZE uniform uvec4 texSize3D;
+
+struct AABB
+{
+	vec4 aabbMin;
+	vec4 aabbMax;
+};
 
 // Shader Torage
-LU_AABB buffer AABB
+LU_AABB buffer AABBBuffer
 {
-	struct
-	{
-		vec4 aabbMin;
-		vec4 aabbMax;
-	} objectAABBInfo[];
+	AABB objectAABBInfo[];
 };
 
-LU_COLOR_SPARSE buffer ColorBuffer 
+LU_ALBEDO_DENSE buffer ColorBuffer 
 {
-	vec4 colorSparse[];
+	vec4 albedoDense[];
 };
 
-LU_NORMAL_SPARSE buffer NormalBuffer 
+LU_NORMAL_DENSE buffer NormalBuffer 
 {
-	vec4 normalSparse[];
+	vec4 normalDense[];
 };
 
-LU_WEIGHT_SPARSE buffer WeightBuffer 
+LU_WEIGHT_DENSE buffer WeightBuffer 
 {
-	uvec2 weightSparse[];
+	uvec2 weightDense[];
 };
 
-void Average(in vec3 normal, in vec3 color, 
-			 in float specular, in ivec3 iCoord)
-{
-	// Load
-	vec4 avgNormal = normalSparse[iCoord.z * texSize3D * texSize3D +
-								  iCoord.y * texSize3D +
-								  iCoord.x];
-	vec4 avgColor = colorSparse[iCoord.z * texSize3D * texSize3D +
-								iCoord.y * texSize3D +
-								iCoord.x];
+//void Average(in vec3 normal, in vec3 color, 
+//			 in float specular, in ivec3 iCoord)
+//{
+//	// Load
+//	vec4 avgNormal = normalSparse[iCoord.z * texSize3D.w * texSize3D.w +
+//								  iCoord.y * texSize3D.w +
+//								  iCoord.x];
+//	vec4 avgColor = colorSparse[iCoord.z * texSize3D.w * texSize3D.w +
+//								iCoord.y * texSize3D.w +
+//								iCoord.x];
 	
-	// Average Normal.w holds count
-	avgNormal.xyz *=  avgNormal.w;
-	avgColor *= avgNormal.w;
+//	// Average Normal.w holds count
+//	avgNormal.xyz *=  avgNormal.w;
+//	avgColor *= avgNormal.w;
 
-	avgNormal.xyz += fNormal;
-	avgColor.xyz += color;
-	avgColor.w += specular;
+//	avgNormal.xyz += fNormal;
+//	avgColor.xyz += color;
+//	avgColor.w += specular;
 
-	float denom = 1.0f / (avgNormal.w + 1.0f);
-	avgNormal.xyz *= denom;
-	avgColor *= denom;
-	avgNormal.w += 1.0f;
+//	float denom = 1.0f / (avgNormal.w + 1.0f);
+//	avgNormal.xyz *= denom;
+//	avgColor *= denom;
+//	avgNormal.w += 1.0f;
 	
-	// Write
-	normalSparse[iCoord.z * texSize3D * texSize3D +
-				 iCoord.y * texSize3D +
-			 	 iCoord.x] = avgNormal;
-	colorSparse[iCoord.z * texSize3D * texSize3D +
-				iCoord.y * texSize3D +
-				iCoord.x] = avgColor;
-}
-
-uint PackWeight(vec4 weights)
-{
-	return packUnorm4x8(weights);
-}
+//	// Write
+//	normalSparse[iCoord.z * texSize3D * texSize3D +
+//				 iCoord.y * texSize3D +
+//			 	 iCoord.x] = avgNormal;
+//	colorSparse[iCoord.z * texSize3D * texSize3D +
+//				iCoord.y * texSize3D +
+//				iCoord.x] = avgColor;
+//}
 
 uint PackWIndex(uvec4 wIndices)
 {
@@ -125,11 +121,10 @@ uint PackWIndex(uvec4 wIndices)
 	return result;
 }
 
-void AtomicAverage(in vec3 normal, in vec3 color, 
-				   in float specular, in ivec3 iCoord)
+void AtomicAverage(in vec3 normal, in vec4 albedo, in ivec3 iCoord)
 {	
-	uint coord = iCoord.z * texSize3D * texSize3D +
-				 iCoord.y * texSize3D +
+	uint coord = iCoord.z * texSize3D.w * texSize3D.w +
+				 iCoord.y * texSize3D.w +
 			 	 iCoord.x;
 
 	// Thanks nvidia Kappa
@@ -138,10 +133,10 @@ void AtomicAverage(in vec3 normal, in vec3 color,
 	atomicAdd(normalSparse[coord].z, normal.z);
 	atomicAdd(normalSparse[coord].w, 1.0f);
 
-	atomicAdd(colorSparse[coord].x, color.x);
-	atomicAdd(colorSparse[coord].y, color.y);
-	atomicAdd(colorSparse[coord].z, color.z);
-	atomicAdd(colorSparse[coord].w, specular);
+	atomicAdd(colorSparse[coord].x, albedo.x);
+	atomicAdd(colorSparse[coord].y, albedo.y);
+	atomicAdd(colorSparse[coord].z, albedo.z);
+	atomicAdd(colorSparse[coord].w, albedo.w);
 }
 
 void main(void)
@@ -154,29 +149,29 @@ void main(void)
 
 	vec4 color = texture2D(colorTex, fUV).rgba;
 
-	if(iCoord.x < texSize3D &&
-	   iCoord.y < texSize3D &&
-	   iCoord.z < texSize3D &&
+	if(iCoord.x < texSize3D.x &&
+	   iCoord.y < texSize3D.y &&
+	   iCoord.z < texSize3D.z &&
 	   iCoord.x >= 0 &&
 	   iCoord.y >= 0 &&
 	   iCoord.z >= 0)
 	{
-		AtomicAverage(fNormal, color.rgb, color.a, iCoord);
+		AtomicAverage(fNormal, color, iCoord);
 
 		// Weight write
 		uvec2 weights;
-		weights.x = PackWeight(fWeight);
+		weights.x = packUnorm4x8(fWeight);
 		weights.y = PackWIndex(fWIndex);
-		weightSparse[iCoord.z * texSize3D * texSize3D +
-					 iCoord.y * texSize3D +
+		weightSparse[iCoord.z * texSize3D.w * texSize3D.w +
+					 iCoord.y * texSize3D.w +
 					 iCoord.x] = weights;
 
 		//// Non atomic overwrite version
-		//normalSparse[iCoord.z * texSize3D * texSize3D +
-		//			 iCoord.y * texSize3D +
+		//normalSparse[iCoord.z * texSize3D.w * texSize3D.w +
+		//			 iCoord.y * texSize3D.w +
 		//			 iCoord.x] = vec4(fNormal, 1.0f);
-		//colorSparse[iCoord.z * texSize3D * texSize3D +
-		//			iCoord.y * texSize3D +
+		//colorSparse[iCoord.z * texSize3D.w * texSize3D.w +
+		//			iCoord.y * texSize3D.w +
 		//			iCoord.x] = vec4(color, 1.0f);
 	}
 }

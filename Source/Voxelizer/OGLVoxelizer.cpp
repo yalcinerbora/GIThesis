@@ -318,7 +318,7 @@ double OGLVoxelizer::AllocateVoxelCaches(float currentSpan, uint32_t currentCasc
 	glStencilMask(0x0000);
 	glColorMask(false, false, false, false);
 
-	GLsizei totalSize = static_cast<GLsizei>(VOX_3D_TEX_SIZE * options.splatRatio);
+	GLsizei totalSize = static_cast<GLsizei>(VOX_3D_TEX_SIZE);
 	glViewport(0, 0, totalSize, totalSize);
 	
 	// For Each Object
@@ -338,7 +338,6 @@ double OGLVoxelizer::AllocateVoxelCaches(float currentSpan, uint32_t currentCasc
 			glUniform1ui(U_OBJ_ID, objIndex);
 			glUniform3ui(U_SPLIT_CURRENT, a, b, c);
 			glUniform1f(U_SEGMENT_SIZE, segmentSize);
-			glUniform1f(U_SPLAT_RATIO, options.splatRatio);
 	
 			// Fragment Shader
 			fragVoxelizeCount.Bind();
@@ -429,7 +428,7 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 	glStencilMask(0x0000);
 	glColorMask(false, false, false, false);
 
-	GLsizei totalSize = static_cast<GLsizei>(VOX_3D_TEX_SIZE * options.splatRatio);
+	GLsizei totalSize = static_cast<GLsizei>(VOX_3D_TEX_SIZE);
 	glViewport(0, 0, totalSize, totalSize);
 
 
@@ -535,7 +534,6 @@ void OGLVoxelizer::VoxelizeObject(uint32_t objIndex, float segmentSize,
 	glUniform1ui(U_OBJ_ID, objIndex);
 	glUniform3ui(U_SPLIT_CURRENT, splitX, splitY, splitZ);
 	glUniform1f(U_SEGMENT_SIZE, segmentSize);
-	glUniform1f(U_SPLAT_RATIO, options.splatRatio);
 
 	// Fragment Shader
 	if(isSkeletal) fragVoxelizeSkel.Bind();
@@ -664,7 +662,7 @@ double OGLVoxelizer::FormatToGFG(float currentSpan)
 	return t.ElapsedMilliS();
 }
 
-double OGLVoxelizer::Write(const std::string& fileName)
+double OGLVoxelizer::WriteCascade(const std::string& fileName)
 {
 	IETimer t;
 	t.Start();

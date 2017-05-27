@@ -14,31 +14,29 @@ class ThesisBar : public AntBar
 
 		VoxelRenderSelect			renderSelect;
 
-		double						frameTime;
+		//double						frameTime;
 
-		double						directTime;
-		double						ioTime;
-		double						transTime;
-		double						svoReconTime;
-		double						svoAverageTime;
-		double						coneTraceTime;
+		//double						directTime;
+		//double						ioTime;
+		//double						transTime;
+		//double						svoReconTime;
+		//double						svoAverageTime;
+		//double						coneTraceTime;
 
-//		double						totalTime;
-
-		const int					totalCascades;
-		const int					minSVO;
-		const int					maxSVO;
-		
-		std::vector<int>			svoVoxelCounts;
-		std::string					svoTotalSize;
-		std::vector<int>			pageCascadeCounts;
-		std::vector<std::string>	pageCascadeSize;
-		std::vector<int>			cacheCascadeCounts;
-		std::vector<std::string>	cacheCascadeSize;
-		
-		bool						giOn;
-		bool						aoOn;
-		bool						injectOn;
+		//int							totalCascades;
+		//int							minSVO;
+		//int							maxSVO;
+		//
+		//std::vector<int>			svoVoxelCounts;
+		//std::string					svoTotalSize;
+		//std::vector<int>			pageCascadeCounts;
+		//std::vector<std::string>	pageCascadeSize;
+		//std::vector<int>			cacheCascadeCounts;
+		//std::vector<std::string>	cacheCascadeSize;
+		//
+		//bool						giOn;
+		//bool						aoOn;
+		//bool						injectOn;
 
 	protected:
 	public:
@@ -49,6 +47,18 @@ class ThesisBar : public AntBar
 											  int totalCascades,
 											  int minSVO, int maxSVO);
 									~ThesisBar() = default;
+
+		// Timing Related
+		int							CurrentLight() const;
+		int							CurrentLevel() const;
+		int							CurrentSVOLevel() const;
+		int							CurrentCacheCascade() const;
+		int							CurrentPageLevel() const;
+
+		void						Next();
+		void						Previous();
+		void						Up();
+		void						Down();
 
 		//// Timing Related
 		//void						SetTotalTime();

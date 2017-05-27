@@ -14,6 +14,13 @@ class ConstantScene : public SceneI
 {
 	// Consta Scene means that objects cannot be
 	private:
+
+	protected:
+		// GPU
+		SceneLights							sceneLights;
+		MeshBatch							rigidBatch;
+		MeshBatchSkeletal					skeletalBatch;
+
 		const std::string					name;
 		const std::vector<std::string>		rigidFileNames;
 		const std::vector<std::string>		skeletalFileNames;
@@ -21,12 +28,6 @@ class ConstantScene : public SceneI
 
 		// Batch References
 		std::vector<MeshBatchI*>			meshBatch;
-
-	protected:
-		// GPU
-		SceneLights							sceneLights;
-		MeshBatch							rigidBatch;
-		MeshBatchSkeletal					skeletalBatch;
 
 		// Some Data Related to the scene
 		size_t								materialCount;

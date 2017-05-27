@@ -1,5 +1,4 @@
 #include "CudaVector.cuh"
-#include "CVoxelPage.h"
 #include <cuda_runtime.h>
 #include <cassert>
 #include <algorithm>
@@ -139,10 +138,10 @@ void CudaVector<T>::Assign(size_t index, size_t dataLength, const T* hostData)
 }
 
 template<class T>
-void CudaVector<T>::Memset(int value, size_t stride, size_t count)
+void CudaVector<T>::Memset(int value, size_t offset, size_t count)
 {
-	assert(stride + count <= size);
-	CUDA_CHECK(cudaMemset(d_data + stride, value, count * sizeof(T)));
+	assert(offset + count <= size);
+	CUDA_CHECK(cudaMemset(d_data + offset, value, count * sizeof(T)));
 }
 
 template<class T>
@@ -196,35 +195,6 @@ size_t CudaVector<T>::Size() const
 static std::ostream& operator<< (std::ostream& ostr, const ushort2& shrt2)
 {
 	ostr << "{" << shrt2.x << ", " << shrt2.y << "}";
-	return ostr;
-}
-
-static std::ostream& operator<< (std::ostream& ostr, const uint2& int2)
-{
-	ostr << "{" << int2.x << ", " << int2.y << "}";
-	return ostr;
-}
-
-static std::ostream& operator<< (std::ostream& ostr, const SegmentOccupation& seg)
-{
-	ostr << static_cast<int>(seg);
-	return ostr;
-}
-
-static std::ostream& operator<< (std::ostream& ostr, const SegmentObjData& segObj)
-{
-	uint16_t objType = segObj.packed >> 14;
-	uint16_t occupation = (segObj.packed >> 11) & 0x000F;
-	uint16_t segmentO = segObj.packed & 0x07FF;
-
-	ostr << segObj.batchId << " ";
-	ostr << segObj.objId << " | ";
-	ostr << segObj.objectSegmentId << " | ";
-	ostr << objType << " ";
-	ostr << occupation << " ";
-	ostr << segmentO << " ";
-	ostr << segObj.voxStride;
-
 	return ostr;
 }
 

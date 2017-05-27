@@ -211,10 +211,9 @@ int main()
 	static constexpr int repeatCount = 128;
 	std::vector<std::string> dynamicSkeletal
 	{
-		"nyraJump.gfg"
+		"nyra.gfg"
 	};
-	DynoScene dynamic("Dynamic Scene", dynamicRigid, std::vector<std::string>(),
-					  dynamicSkeletal, sponzaLights);
+	DynoScene dynamic("Dynamic Scene", dynamicRigid, dynamicSkeletal, sponzaLights, repeatCount);
 	scenes.push_back(&dynamic);
 
 	// Solutions

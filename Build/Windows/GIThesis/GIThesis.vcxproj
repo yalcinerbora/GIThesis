@@ -124,6 +124,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\Animation.cpp" />
     <ClCompile Include="..\..\..\Source\AntBar.cpp" />
+    <ClCompile Include="..\..\..\Source\GIVoxelPages.cpp" />
     <ClCompile Include="..\..\..\Source\ThesisScenes.cpp" />
     <ClCompile Include="..\..\..\Source\CudaInit.cpp" />
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
@@ -140,8 +141,10 @@
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
     <ClInclude Include="..\..\..\Source\CHash.cuh" />
+    <ClInclude Include="..\..\..\Source\GIVoxelPages.h" />
+    <ClInclude Include="..\..\..\Source\PageKernels.cuh" />
     <ClInclude Include="..\..\..\Source\ThesisScenes.h" />
-    <ClInclude Include="..\..\..\Source\CSVOTypes.cuh" />
+    <ClInclude Include="..\..\..\Source\CSVOTypes.h" />
     <ClInclude Include="..\..\..\Source\CudaInit.h" />
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <FileType>Document</FileType>
@@ -175,7 +178,6 @@
     <ClCompile Include="..\..\..\Source\Shader.cpp" />
     <ClInclude Include="..\..\..\Source\CudaTimer.h" />
     <ClInclude Include="..\..\..\Source\CudaVector.cuh" />
-    <ClInclude Include="..\..\..\Source\CVoxelPage.h" />
     <ClInclude Include="..\..\..\Source\CVoxelTypes.h" />
     <ClInclude Include="..\..\..\Source\DeferredRenderer.h" />
     <ClInclude Include="..\..\..\Source\DrawPoint.h" />
@@ -201,6 +203,7 @@
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
+    <ClCompile Include="..\..\..\Source\VoxelCacheBatch.cpp" />
     <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp" />
     <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
@@ -224,7 +227,7 @@
     <ClInclude Include="..\..\..\Source\FPSInput.h" />
     <ClInclude Include="..\..\..\Source\GFGLoader.h" />
     <ClInclude Include="..\..\..\Source\GICudaAllocator.h" />
-    <ClInclude Include="..\..\..\Source\GIKernels.cuh" />
+    <ClInclude Include="..\..\..\Source\SVOKernels.cuh" />
     <ClInclude Include="..\..\..\Source\GLHeader.h" />
     <ClInclude Include="..\..\..\Source\GLHeaderLite.h" />
     <ClInclude Include="..\..\..\Source\Globals.h" />
@@ -250,14 +253,15 @@
     <ClInclude Include="..\..\..\Source\TGALoad.h" />
     <ClInclude Include="..\..\..\Source\CVoxel.cuh" />
     <ClInclude Include="..\..\..\Source\ThesisSolution.h" />
-    <ClInclude Include="..\..\..\Source\VoxelSceneCache.h" />
+    <ClInclude Include="..\..\..\Source\VoxelCacheBatch.h" />
     <ClInclude Include="..\..\..\Source\Window.h" />
     <ClInclude Include="..\..\..\Source\WindowInput.h" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu" />
     <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu" />
-    <CudaCompile Include="..\..\..\Source\SVOReconstruct.cu">
+    <CudaCompile Include="..\..\..\Source\PageKernels.cu" />
+    <CudaCompile Include="..\..\..\Source\SVOKernels.cu">
       <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">32</MaxRegCount>
       <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>
     </CudaCompile>

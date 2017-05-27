@@ -10,7 +10,8 @@ MeshBatch::MeshBatch()
 
 MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
 					 uint32_t byteStride,
-					 const std::vector<std::string>& sceneFiles)
+					 const std::vector<std::string>& sceneFiles,
+					 uint32_t repeatCount)
 
 	: batchVertex(vertexDefintion, byteStride)
 	, batchDrawParams()
@@ -37,6 +38,12 @@ MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
 		assert(err == GFGLoadError::OK);
 		if(err != GFGLoadError::OK) return;
 		GI_LOG("Loading \"%s\" complete", file.c_str());
+	}
+
+	if(repeatCount > 1)
+	{
+		batchDrawParams.RepeatDrawCalls(repeatCount - 1);
+		batchParams.drawCallCount = batchDrawParams.getDrawPointCount();
 	}
 
 	// All Loaded

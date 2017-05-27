@@ -23,7 +23,6 @@ class EmptyGISolution : public SolutionI
 	private:
 		const std::string					name;
 
-	protected:
 		DeferredRenderer&					dRenderer;
 		SceneI*								currentScene;
 		
@@ -47,10 +46,13 @@ class EmptyGISolution : public SolutionI
 		LightBar							lightBar;
 		EmptyGIBar							emptyGIBar;
 	
+	protected:
 	public:
-											EmptyGISolution(const std::string& name, 
-															WindowInput&,
-															DeferredRenderer&);
+											EmptyGISolution(WindowInput&,
+															DeferredRenderer&,
+															const std::string& name);
+											EmptyGISolution(const EmptyGISolution&) = delete;
+		EmptyGISolution&					operator=(const EmptyGISolution&) = delete;
 											~EmptyGISolution() = default;
 	
 		bool								IsCurrentScene(SceneI&) override;
@@ -62,9 +64,9 @@ class EmptyGISolution : public SolutionI
 		const std::string&					Name() const override;
 
 		// Key Callbacks
-		virtual void						Next();
-		virtual void						Previous();
-		virtual void						Up();
-		virtual void						Down();
+		void								Next();
+		void								Previous();
+		void								Up();
+		void								Down();
 };
 #endif //__EMPTYGISOLUTION_H__

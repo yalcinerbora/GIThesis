@@ -29,7 +29,6 @@ enum class MipInfo
 
 struct VoxelizerOptions
 {
-	float		splatRatio;
 	float		span;
 	uint32_t	cascadeCount;
 };
@@ -37,8 +36,8 @@ struct VoxelizerOptions
 #pragma pack(push, 1)
 struct ObjInfo
 {
-	float span;
 	uint32_t voxCount;
+	uint32_t voxOffset;
 };
 
 struct ObjVoxSplit

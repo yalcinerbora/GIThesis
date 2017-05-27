@@ -1,4 +1,4 @@
-#include "GIKernels.cuh"
+#include "SVOKernels.cuh"
 #include "CSparseVoxelOctree.cuh"
 #include "CVoxel.cuh"
 #include "SVOLightInject.cuh"

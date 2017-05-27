@@ -1,6 +1,5 @@
 #pragma once
 
-#include <AntTweakBar.h>
 #include "IEUtility/IEVector3.h"
 #include "SceneLights.h"
 #include "AntBar.h"

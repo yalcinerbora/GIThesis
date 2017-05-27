@@ -2,7 +2,7 @@
 #include "CMatrix.cuh"
 #include "CAxisAlignedBB.cuh"
 #include "CVoxel.cuh"
-#include "CSVOTypes.cuh"
+#include "CSVOTypes.h"
 #include "CSparseVoxelOctree.cuh"
 #include <cassert>
 #include <limits>

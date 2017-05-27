@@ -94,6 +94,7 @@ class DrawBuffer
 		void									DrawCallMulti();
 		void									DrawCallMultiState();
 
-		void									BindMaterialForDraw(uint32_t drawId);		
+		void									BindMaterialForDraw(uint32_t drawId);
+		void									RepeatDrawCalls(uint32_t instanceCount);
 };
 #endif //__DRAWBUFFER_H__

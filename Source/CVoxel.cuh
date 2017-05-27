@@ -8,17 +8,16 @@ Voxel Sturcutres
 #define __CVOXEL_H__
 
 #include "CVoxelTypes.h"
-#include "CVoxelPage.h"
 
 inline __device__ SegmentOccupation ExpandOnlyOccupation(const uint16_t packed)
 {
 	return static_cast<SegmentOccupation>((packed >> 11) & 0x0007);
 }
 
-inline __device__ void ExpandSegmentPacked(CVoxelObjectType& type,
-										   SegmentOccupation& occupation,
-										   uint16_t& segOccupancy,
-										   const uint16_t packed)
+inline __device__ void ExpandSegmentObj(CVoxelObjectType& type,
+										SegmentOccupation& occupation,
+										uint16_t& segOccupancy,
+										const uint16_t packed)
 {
 	// MSB to LSB 2 bit object type 2 bit
 	type = static_cast<CVoxelObjectType>((packed >> 14) & 0x0003);
@@ -26,19 +25,7 @@ inline __device__ void ExpandSegmentPacked(CVoxelObjectType& type,
 	segOccupancy = packed & 0x07FF;
 }
 
-inline __device__ uint16_t PackSegmentPacked(const CVoxelObjectType type,
-											 const SegmentOccupation occupation,
-											 const uint16_t segOccupancy)
-{
-	//
-	uint16_t packed = 0;
-	packed |= (static_cast<uint16_t>(type) & 0x0003) << 14;
-	packed |= (static_cast<uint16_t>(occupation) & 0x0007) << 11;
-	packed |= (segOccupancy & 0x07FF) << 0;
-	return packed;
-}
-
-inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
+inline __device__ uint3 ExpandOnlyVoxPos(const CVoxelPos packedVoxX)
 {
 	uint3 result;
 	result.x = (packedVoxX & 0x000003FF);
@@ -47,7 +34,7 @@ inline __device__ uint3 ExpandOnlyVoxPos(const unsigned int packedVoxX)
 	return result;
 }
 
-inline __device__ float3 ExpandOnlyVoxNormal(const unsigned int packedVoxY)
+inline __device__ float3 ExpandOnlyVoxNormal(const CVoxelNorm packedVoxY)
 {
 	float3 result;
 	result.x = static_cast<float>(static_cast<char>((packedVoxY >>  0) & 0xFF)) / 0x7F;
@@ -97,6 +84,8 @@ inline __device__ void ExpandVoxelIds(unsigned int& voxId,
 	voxId = packedVoxIds.y;
 }
 
+//-------------------------------------------------------------------------------------------//
+
 inline __device__ void PackVoxelIds(CVoxelIds& packedVoxId,
 									const ushort2& objId,
 									const CVoxelObjectType& objType,
@@ -114,8 +103,8 @@ inline __device__ void PackVoxelIds(CVoxelIds& packedVoxId,
 	packedVoxId.y = voxRenderPtr;
 }
 
-inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
-											  const bool isMip)
+inline __device__ CVoxelPos PackOnlyVoxPos(const uint3& voxPos,
+										   const bool isMip)
 {
 	unsigned int packed = 0;
 	unsigned int uintMip = (isMip) ? 1 : 0;
@@ -126,7 +115,7 @@ inline __device__ unsigned int PackOnlyVoxPos(const uint3& voxPos,
 	return packed;
 }
 
-inline __device__ unsigned int PackOnlyVoxNorm(const float3& normal)
+inline __device__ CVoxelNorm PackOnlyVoxNorm(const float3& normal)
 {
 	unsigned int value = 0;
 	value |= (static_cast<int>(normal.z * 0x7F) & 0xFF) << 16;
@@ -135,7 +124,7 @@ inline __device__ unsigned int PackOnlyVoxNorm(const float3& normal)
 	return value;
 }
 
-inline __device__ unsigned int PackOccupancy(const uint3& neigbourBits, const float3 weights)
+inline __device__ CVoxelOccupancy PackOccupancy(const uint3& neigbourBits, const float3 weights)
 {
 	unsigned int result;
 	result = neigbourBits.z << 26;
@@ -158,4 +147,17 @@ inline __device__ void PackVoxelNormPos(CVoxelNormPos& packedVoxNormPos,
 	// Second word holds normal 
 	packedVoxNormPos.y = PackOnlyVoxNorm(normal);
 }
+
+inline __device__ uint16_t PackSegmentObj(const CVoxelObjectType type,
+										  const SegmentOccupation occupation,
+										  const uint16_t segOccupancy)
+{
+	//
+	uint16_t packed = 0;
+	packed |= (static_cast<uint16_t>(type) & 0x0003) << 14;
+	packed |= (static_cast<uint16_t>(occupation) & 0x0007) << 11;
+	packed |= (segOccupancy & 0x07FF) << 0;
+	return packed;
+}
+
 #endif //__CVOXEL_H__

@@ -10,7 +10,7 @@ Copying voxels to VAO
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cstdint>
-#include "CSVOTypes.cuh"
+#include "CSVOTypes.h"
 
 struct CVoxelPage;
 struct CVoxelColor;

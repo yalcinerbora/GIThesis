@@ -60,3 +60,22 @@ unsigned int CudaInit::SMCount()
 	assert(init);
 	return static_cast<unsigned int>(props.multiProcessorCount);
 }
+
+int CudaInit::GenBlockSize(int totalThread)
+{
+
+}
+
+int CudaInit::GenBlockSizeSmall(int totalThread)
+{
+	return (totalThread + TBPSmall - 1) / TBPSmall;
+}
+
+int2 CudaInit::GenBlockSize2D(int2 totalThread)
+{
+	return
+	{
+		(totalThread.x + TBPSmall - 1) / TBPSmall,
+		(totalThread.y + TBPSmall - 1) / TBPSmall
+	};
+}

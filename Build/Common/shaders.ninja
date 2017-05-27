@@ -1,0 +1,6 @@
+
+glslc = ../../L
+glslcFlags = --target-env=opengl
+
+rule glsl
+	command = glsl

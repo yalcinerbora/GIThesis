@@ -1,8 +1,10 @@
 #version 430
+#extension GL_GOOGLE_include_directive : require
 #extension GL_NV_gpu_shader5 : require
 #extension GL_ARB_gpu_shader_int64 : require
 #extension GL_NV_shader_atomic_int64 : require
 #extension GL_NV_shader_atomic_float : require
+
 /*	
 	**Voxelize Geom Shader**
 	
@@ -13,14 +15,17 @@
 		Voxelizes Objects
 */
 
+#include "GLSLBindPoints.h"
+
+
 // Definitions
 #define IN_UV layout(location = 0)
 #define IN_NORMAL layout(location = 1)
 #define IN_POS layout(location = 2)
 
 #define LU_AABB layout(std430, binding = 3) readonly
-#define LU_NORMAL_SPARSE layout(std430, binding = 6) coherent volatile
-#define LU_COLOR_SPARSE layout(std430, binding = 7) coherent volatile
+#define LU_NORMAL_DENSE layout(std430, binding = 6) coherent volatile
+#define LU_ALBEDO_DENSE layout(std430, binding = 7) coherent volatile
 #define LU_VOXEL_DATA layout(std430, binding = 8) coherent volatile
 
 #define I_LOCK layout(r32ui, binding = 0) coherent volatile
@@ -45,28 +50,30 @@ uniform I_LOCK uimage3D lock;
 uniform T_COLOR sampler2D colorTex;
 
 // Uniform Constants
+U_OBJ_ID uniform uint objId;
 U_SPAN uniform float span;
 U_SEGMENT_SIZE uniform float segmentSize;
 U_SPLIT_CURRENT uniform uvec3 currentSplit;
-U_OBJ_ID uniform uint objId;
-U_TEX_SIZE uniform uint texSize3D;
+U_TEX_SIZE uniform uvec4 texSize3D;
 
-// Shader Torage
-LU_AABB buffer AABB
+struct AABB
 {
-	struct
-	{
-		vec4 aabbMin;
-		vec4 aabbMax;
-	} objectAABBInfo[];
+	vec4 aabbMin;
+	vec4 aabbMax;
 };
 
-LU_COLOR_SPARSE buffer ColorBuffer 
+// Shader Torage
+LU_AABB buffer AABBData
+{
+	vec4 objectAABBInfo[];
+};
+
+LU_ALBEDO_DENSE buffer AlbedoBuffer 
 {
 	vec4 colorSparse[];
 };
 
-LU_NORMAL_SPARSE buffer NormalBuffer 
+LU_NORMAL_DENSE buffer NormalBuffer 
 {
 	vec4 normalSparse[];
 };
@@ -97,8 +104,8 @@ LU_NORMAL_SPARSE buffer NormalBuffer
 //void AtomicAverage(in vec3 normal, in vec3 color, 
 //				   in float specular, in ivec3 iCoord)
 //{
-//	uint coord = iCoord.z * texSize3D * texSize3D +
-//				 iCoord.y * texSize3D +
+//	uint coord = iCoord.z * texSize3D.w * texSize3D.w +
+//				 iCoord.y * texSize3D.w +
 //			 	 iCoord.x;
 //	uint64_t current;
 //	uint64_t previous = 0;
@@ -111,44 +118,44 @@ LU_NORMAL_SPARSE buffer NormalBuffer
 //}
 
 
-void Average(in vec3 normal, in vec3 color, 
-			 in float specular, in ivec3 iCoord)
-{
-	// Load
-	vec4 avgNormal = normalSparse[iCoord.z * texSize3D * texSize3D +
-								  iCoord.y * texSize3D +
-								  iCoord.x];
-	vec4 avgColor = colorSparse[iCoord.z * texSize3D * texSize3D +
-								iCoord.y * texSize3D +
-								iCoord.x];
+//void Average(in vec3 normal, in vec3 color, 
+//			 in float specular, in ivec3 iCoord)
+//{
+//	// Load
+//	vec4 avgNormal = normalSparse[iCoord.z * texSize3D.w * texSize3D.w +
+//								  iCoord.y * texSize3D.w +
+//								  iCoord.x];
+//	vec4 avgColor = colorSparse[iCoord.z * texSize3D.w * texSize3D.w +
+//								iCoord.y * texSize3D.w +
+//								iCoord.x];
 	
-	// Average Normal.w holds count
-	avgNormal.xyz *=  avgNormal.w;
-	avgColor *= avgNormal.w;
+//	// Average Normal.w holds count
+//	avgNormal.xyz *=  avgNormal.w;
+//	avgColor *= avgNormal.w;
 
-	avgNormal.xyz += fNormal;
-	avgColor.xyz += color;
-	avgColor.w += specular;
+//	avgNormal.xyz += fNormal;
+//	avgColor.xyz += color;
+//	avgColor.w += specular;
 
-	float denom = 1.0f / (avgNormal.w + 1.0f);
-	avgNormal.xyz *= denom;
-	avgColor *= denom;
-	avgNormal.w += 1.0f;
+//	float denom = 1.0f / (avgNormal.w + 1.0f);
+//	avgNormal.xyz *= denom;
+//	avgColor *= denom;
+//	avgNormal.w += 1.0f;
 	
-	// Write
-	normalSparse[iCoord.z * texSize3D * texSize3D +
-				 iCoord.y * texSize3D +
-			 	 iCoord.x] = avgNormal;
-	colorSparse[iCoord.z * texSize3D * texSize3D +
-				iCoord.y * texSize3D +
-				iCoord.x] = avgColor;
-}
+//	// Write
+//	normalSparse[iCoord.z * texSize3D.w * texSize3D.w +
+//				 iCoord.y * texSize3D.w +
+//			 	 iCoord.x] = avgNormal;
+//	colorSparse[iCoord.z * texSize3D.w * texSize3D.w +
+//				iCoord.y * texSize3D.w +
+//				iCoord.x] = avgColor;
+//}
 
 void AtomicAverage(in vec3 normal, in vec3 color, 
 				   in float specular, in ivec3 iCoord)
 {	
-	uint coord = iCoord.z * texSize3D * texSize3D +
-				 iCoord.y * texSize3D +
+	uint coord = iCoord.z * texSize3D.w * texSize3D.w +
+				 iCoord.y * texSize3D.w +
 			 	 iCoord.x;
 
 	// Thanks nvidia Kappa
@@ -173,9 +180,9 @@ void main(void)
 
 	vec4 color = texture2D(colorTex, fUV).rgba;
 
-	if(iCoord.x < texSize3D &&
-	   iCoord.y < texSize3D &&
-	   iCoord.z < texSize3D &&
+	if(iCoord.x < texSize3D.x &&
+	   iCoord.y < texSize3D.y &&
+	   iCoord.z < texSize3D.z &&
 	   iCoord.x >= 0 &&
 	   iCoord.y >= 0 &&
 	   iCoord.z >= 0)
@@ -183,11 +190,11 @@ void main(void)
 		AtomicAverage(fNormal, color.rgb, color.a, iCoord);
 
 		//// Non atomic overwrite version
-		//normalSparse[iCoord.z * texSize3D * texSize3D +
-		//			 iCoord.y * texSize3D +
+		//normalSparse[iCoord.z * texSize3D.w * texSize3D.w +
+		//			 iCoord.y * texSize3D.w +
 		//			 iCoord.x] = vec4(fNormal, 1.0f);
-		//colorSparse[iCoord.z * texSize3D * texSize3D +
-		//			iCoord.y * texSize3D +
+		//colorSparse[iCoord.z * texSize3D.w * texSize3D.w +
+		//			iCoord.y * texSize3D.w +
 		//			iCoord.x] = vec4(color, 1.0f);
 	}
 }

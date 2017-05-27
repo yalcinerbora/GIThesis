@@ -2,7 +2,7 @@
 #include <cuda.h>
 #include <assert.h>
 
-#include "GIKernels.cuh"
+#include "PageKernels.cuh"
 #include "CVoxel.cuh"
 #include "CAxisAlignedBB.cuh"
 #include "COpenGLCommon.cuh"

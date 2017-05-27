@@ -1,3 +1,75 @@
+#include "ThesisSolution.h"
+
+
+// Constructors & Destructor
+ThesisSolution::ThesisSolution(const std::string& name,
+							   WindowInput& inputManager,
+							   DeferredRenderer& deferredDenderer)
+	: name(name)
+	, currentScene(nullptr)
+	, dRenderer(deferredDenderer)
+	, giOn(false)
+	, aoOn(false)
+	, injectOn(false)
+	, directLighting(true)
+
+{}
+
+bool ThesisSolution::IsCurrentScene(SceneI& scene)
+{
+	return &scene == currentScene;
+}
+
+void ThesisSolution::Load(SceneI&)
+{
+
+}
+
+void ThesisSolution::Release()
+{
+
+}
+
+void ThesisSolution::Frame(const Camera&)
+{
+
+}
+
+void ThesisSolution::SetFPS(double fpsMS)
+{
+
+}
+
+void ThesisSolution::Next()
+{
+
+}
+
+void ThesisSolution::Previous()
+{
+
+}
+
+void ThesisSolution::Up()
+{
+
+}
+
+void ThesisSolution::Down()
+{
+
+}
+
+
+
+
+
+
+
+
+
+
+
 //#include "ThesisSolution.h"
 //#include "Globals.h"
 //#include "SceneI.h"

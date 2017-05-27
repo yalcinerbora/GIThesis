@@ -179,7 +179,7 @@ class GICudaAllocator
 		CObjectVoxelInfo*		GetObjectInfoDevice(uint32_t index);
 
 		CVoxelNormPos*			GetObjCacheNormPosDevice(uint32_t index);
-		//CVoxelIds*				GetObjCacheIdsDevice(uint32_t index);
+		//CVoxelIds*			GetObjCacheIdsDevice(uint32_t index);
 		CVoxelColor*			GetObjRenderCacheDevice(uint32_t index);
 
 		// Pages

@@ -32,7 +32,8 @@ class MeshBatch : public MeshBatchI
 		// Constructors & Destructor
 								MeshBatch();
 								MeshBatch(const std::vector<VertexElement>& vertexDefintion, uint32_t byteStride,
-										  const std::vector<std::string>& sceneFiles);
+										  const std::vector<std::string>& sceneFiles,
+										  uint32_t repeatCount = 1);
 								MeshBatch(const MeshBatch&) = delete;
 								MeshBatch(MeshBatch&&);
 		MeshBatch&				operator=(MeshBatch&&);

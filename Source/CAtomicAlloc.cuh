@@ -30,7 +30,7 @@ inline __device__ unsigned int AtomicDealloc(unsigned int* gStackSize,
 	do
 	{
 		assumed = old;
-		unsigned int result = (assumed == GI_SEGMENT_PER_PAGE) ? maxValue : (assumed + 1);
+		unsigned int result = (assumed == maxValue) ? maxValue : (assumed + 1);
 		old = atomicCAS(gStackSize, assumed, result);
 	}
 	while(assumed != old);

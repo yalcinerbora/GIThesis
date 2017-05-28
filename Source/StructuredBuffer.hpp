@@ -3,13 +3,13 @@ template <class T>
 size_t StructuredBuffer<T>::resizeFactor = 2;
 
 template <class T>
-StructuredBuffer<T>::StructuredBuffer(size_t initialCapacity)
+StructuredBuffer<T>::StructuredBuffer(size_t initialCapacity, bool allocCPU)
 	: bufferId(0)
 	, bufferCapacity(initialCapacity)
 {
 	if(bufferCapacity != 0)
 	{
-		dataGPUImage.resize(initialCapacity);
+		if(allocCPU) dataGPUImage.resize(initialCapacity);
 		glGenBuffers(1, &bufferId);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
 		glBufferData(GL_COPY_WRITE_BUFFER, bufferCapacity * sizeof(T),

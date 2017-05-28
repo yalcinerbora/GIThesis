@@ -3,10 +3,11 @@
 #include "CAxisAlignedBB.cuh"
 #include "CVoxel.cuh"
 #include "CSVOTypes.h"
-#include "CSparseVoxelOctree.cuh"
+#include "CSVO.cuh"
 #include <cassert>
 #include <limits>
 #include <cstdio>
+#include "COpenglTypes.cuh"
 
 __global__ void DebugCheckNodeId(const CSVONode* gSVODense,
 								 const CSVONode* gSVOSparse,
@@ -92,7 +93,9 @@ __global__ void DebugCheckSegmentAlloc(const CVoxelGrid& gGridInfo,
 	if(globalId >= segmentCount) return;
 
 	unsigned int objectId = gSegmentObjectId[globalId];
-	bool intersects = CheckGridVoxIntersect(gGridInfo, gObjectAABB[objectId], gObjTransforms[objectId].transform);
+	bool intersects = CheckGridVoxIntersect(gGridInfo, 
+											gObjectAABB[objectId], 
+											gObjTransforms[objectId].transform);
 	ushort2 myAllocLoc = gObjectAllocLocations[globalId];
 	
 	if(intersects &&

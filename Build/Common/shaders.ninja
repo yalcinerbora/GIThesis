@@ -9,6 +9,7 @@ rule glsl
   description = glslc $in
   
 build $outFolder/ApplyVoxLI.comp.spirv : glsl $srcFolder/ApplyVoxLI.comp
+build $outFolder/DetermineSplitCount.comp.spirv : glsl $srcFolder/DetermineSplitCount.comp
 build $outFolder/EdgeDetect.comp.spirv : glsl $srcFolder/EdgeDetect.comp
 build $outFolder/Gauss32.comp.spirv : glsl $srcFolder/Gauss32.comp
 build $outFolder/HierZ.comp.spirv : glsl $srcFolder/HierZ.comp

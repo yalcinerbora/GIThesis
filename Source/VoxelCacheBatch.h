@@ -6,20 +6,7 @@
 #include "CVoxelTypes.h"
 #include "VoxelDebugVAO.h"
 
-//#pragma pack(push, 1)
-//struct ObjGridInfo
-//{
-//	float span;
-//	uint32_t voxCount;
-//};
-//
-//struct VoxelGridInfoGL
-//{
-//	IEVector4		posSpan;
-//	uint32_t		dimension[4];
-//};
-//#pragma pack(pop)
-
+struct Camera;
 class Shader;
 class MeshBatchI;
 
@@ -31,7 +18,7 @@ class VoxelCacheBatch
 			CVoxelPos*						dVoxelPos;
 			CVoxelNorm*						dVoxelNorm;
 			CVoxelAlbedo*					dVoxelAlbedo;
-			CVoxelWeight*					dVoxelWeight;
+			CVoxelWeights*					dVoxelWeight;
 		};
 
 		struct Mesh
@@ -68,7 +55,8 @@ class VoxelCacheBatch
 		static const std::string			GenVoxelGFGFileName(const std::string& fileName, float span);
 
 		uint32_t							FetchVoxelCount(const std::string& voxelGFGFile);
-		size_t								LoadVoxels(size_t offset, const std::string& voxelGFGFile);
+		size_t								LoadVoxels(size_t offset, int repeatCount,
+													   const std::string& voxelGFGFile);
 		double								CaclulateCascadeMemoryUsageMB(uint32_t cascade) const;
 
 	protected:
@@ -84,8 +72,7 @@ class VoxelCacheBatch
 											VoxelCacheBatch(VoxelCacheBatch&&);
 											~VoxelCacheBatch() = default;
 
-		void								AllocateGL(uint32_t cascade,
-													   const std::vector<uint32_t>);
+		void								AllocateGL(uint32_t cascade);
 		void								DeallocateGL();
 		void								Draw(uint32_t cascade,
 												 Shader& vDebugVoxel,

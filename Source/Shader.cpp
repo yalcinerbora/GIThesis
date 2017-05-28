@@ -37,9 +37,11 @@ bool Shader::GenSeperableProgam(const char fileName[], bool spirv,
 								const GLchar entryPointName[])
 {
 	std::string file(fileName);
-	std::string onlyFileName = file.substr(onlyFileName.find_last_of("/") + 1);
+	size_t pos = file.find_last_of("\\/");
+	pos = (pos == std::string::npos) ? 0 : (pos + 1);
+	std::string onlyFileName = file.substr(pos);
 
-	file += (spirv) ? "" : ".spirv";
+	file += (spirv) ? (".spirv") : "";
 
 	std::vector<GLchar> source;
 	source.resize(std::ifstream(fileName, std::ifstream::ate | std::ifstream::binary).tellg());
@@ -48,14 +50,6 @@ bool Shader::GenSeperableProgam(const char fileName[], bool spirv,
 
 	const GLuint shader = glCreateShader(ShaderTypeToGL(shaderType));
 	if(spirv)
-	{
-		const GLchar* sourcePtr = source.data();
-		const GLint sourceSize = static_cast<GLint>(source.size());
-		const GLint* sizePtr = &sourceSize;
-		glShaderSource(shader, 1, &sourcePtr, &source.size);
-		glCompileShader(shader);
-	}
-	else
 	{
 		// spir-v binary load
 		glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V_ARB,
@@ -67,15 +61,22 @@ bool Shader::GenSeperableProgam(const char fileName[], bool spirv,
 							  nullptr,
 							  nullptr);
 	}
-
+	else
+	{
+		const GLchar* sourcePtr = source.data();
+		const GLint sourceSize = static_cast<GLint>(source.size());
+		glShaderSource(shader, 1, &sourcePtr, &sourceSize);
+		glCompileShader(shader);
+	}
+	
 	GLint compiled = 0;
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-	if(!compiled)
+	if(compiled == GL_FALSE)
 	{
 		GLint blen = 0;
-		glGetProgramiv(shaderID, GL_INFO_LOG_LENGTH, &blen);
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &blen);
 		std::vector<GLchar> log(blen);
-		glGetProgramInfoLog(shaderID, blen, &blen, &log[0]);
+		glGetShaderInfoLog(shader, blen, &blen, &log[0]);
 		GI_ERROR_LOG("Shader Compilation Error on File %s :\n%s", onlyFileName.c_str(), &log[0]);
 		return false;
 	}

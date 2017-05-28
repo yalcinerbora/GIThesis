@@ -127,6 +127,9 @@
     <None Include="..\..\..\Source\Shaders\PackObjectVoxelsSkel.comp">
       <Filter>Voxelization\Skeletal</Filter>
     </None>
+    <None Include="..\..\..\Source\Shaders\DetermineSplitCount.comp">
+      <Filter>Voxelization</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Deferred">

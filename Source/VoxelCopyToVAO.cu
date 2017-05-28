@@ -1,10 +1,10 @@
 #include "VoxelCopyToVAO.cuh"
-#include "COpenGLCommon.cuh"
+#include "COpenGLTypes.cuh"
 #include "CVoxel.cuh"
-#include "CSVOTypes.cuh"
-#include "CVoxelPage.h"
+#include "CSVOTypes.h"
 #include <cstdio>
 #include <cassert>
+#include "GIVoxelPages.h"
 
 __global__ void VoxCountPage(int& totalVox,
 
@@ -13,8 +13,8 @@ __global__ void VoxCountPage(int& totalVox,
 							 const uint32_t pageCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GI_PAGE_SIZE;
-	unsigned int pageLocalId = (globalId - pageId * GI_PAGE_SIZE);
+	unsigned int pageId = globalId / GIVoxelPages::PageSize;
+	unsigned int pageLocalId = (globalId - pageId * GIVoxelPages::PageSize);
 
 	// All one normal means invalid voxel
 	if(gVoxPages[pageId].dGridVoxPos[pageLocalId] != 0xFFFFFFFF)
@@ -34,7 +34,7 @@ __global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
 						   unsigned int** gObjectAllocIndexLookup,
 
 						   // Per vox
-						   CVoxelColor** gVoxelRenderData,
+						   CVoxelAlbedo** gVoxelRenderData,
 
 						   // Page
 						   const CVoxelPage* gVoxPages,
@@ -42,10 +42,10 @@ __global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
 						   const CVoxelGrid& gGridInfo)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = blockIdx.x / GI_BLOCK_PER_PAGE;
-	unsigned int pageLocalId = globalId - (pageId * GI_PAGE_SIZE);
-	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
-	unsigned int segmentLocalVoxId = pageLocalId % GI_SEGMENT_SIZE;
+	unsigned int pageId = blockIdx.x / GIVoxelPages::BlockPerPage;
+	unsigned int pageLocalId = globalId - (pageId * GIVoxelPages::PageSize);
+	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
+	unsigned int segmentLocalVoxId = pageLocalId % GIVoxelPages::SegmentSize;
 
 	// Skip whole segment if necessary
 	if(ExpandOnlyOccupation(gVoxPages[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::EMPTY) return;
@@ -71,7 +71,7 @@ __global__ void VoxCpyPage(// Two ogl Buffers for rendering used voxels
 		unsigned int cacheVoxelId = objData.voxStride + segmentLocalVoxId;
 
 		voxelNormPosData[index] = uint2{voxPosPacked, voxNormpacked};
-		voxelColorData[index] = gVoxelRenderData[objectId.y][cacheVoxelId].color;
+		voxelColorData[index] = gVoxelRenderData[objectId.y][cacheVoxelId];
 	}
 }
 

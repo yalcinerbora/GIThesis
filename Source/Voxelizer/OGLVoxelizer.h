@@ -55,7 +55,6 @@ class OGLVoxelizer
 	private:
 		static GLFWwindow*					window;
 
-		GFGFileExporter						fileOut;
 		bool								isSkeletal;
 		VoxelizerOptions					options;
 		MeshBatch&							batch;
@@ -68,16 +67,18 @@ class OGLVoxelizer
 		StructuredBuffer<uint32_t>			totalVoxCount;
 
 		// Voxel Related
-		StructuredBuffer<VoxelNormPos>		voxelNormPos;
-		StructuredBuffer<VoxelColorData>	color;
-		StructuredBuffer<VoxelWeightData>	weights;
-		StructuredBuffer<VoxelIds>			voxIds;
+		StructuredBuffer<VoxelPosition>		vPositions;
+		StructuredBuffer<VoxelNormal>		vNormals;
+		StructuredBuffer<VoxelAlbedo>		vAlbedos;
+		StructuredBuffer<VoxelWeights>		vWeights;
 		
+		// Dense Storage
 		GL3DTexture&						lockTex;
-		StructuredBuffer<IEVector4>&		normalArray;
-		StructuredBuffer<IEVector4>&		colorArray;
-		StructuredBuffer<VoxelWeightData>&	weightArray;
+		StructuredBuffer<IEVector4>&		vNormalDense;
+		StructuredBuffer<IEVector4>&		vAlbedoDense;
+		StructuredBuffer<VoxelWeights>&		vWeightDense;
 
+		// Shaders
 		Shader&								compSplitCount;
 		Shader&								compPackVoxels;
 		Shader&								compPackVoxelsSkel;
@@ -92,9 +93,6 @@ class OGLVoxelizer
 
 		Shader&								fragVoxelizeCount;
 		
-		std::vector<uint8_t>				totalObjInfos;
-		std::vector<MipInfo>				mipInfo;
-
 		// Debug Context Callbacks
 		static void						ErrorCallbackGLFW(int, const char*);
 		static void __stdcall			OGLCallbackRender(GLenum source,
@@ -107,15 +105,16 @@ class OGLVoxelizer
 
 		// Logics
 		double							DetermineSplits(float currentSpan);
-		double							AllocateVoxelCaches(float currentSpan, uint32_t curentCascade);
+		double							AllocateVoxelCaches(float currentSpan);
 		double							GenVoxelWeights();
 		double							Voxelize(float currentSpan);
-		double							FormatToGFG(float currentSpan);
+		double							WriteCascadeToGFG(float currentSpan,
+														  const std::string& batchName);
 
 		void							VoxelizeObject(uint32_t objIndex, float segmentSize,
 													   GLuint splitX, GLuint splitY, GLuint splitZ,
 													   float currentSpan);
-		void							PackObjectVoxels(uint32_t objIndex, GLuint isMip,
+		void							PackObjectVoxels(uint32_t objIndex,
 														 uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ,
 														 uint32_t splitX, uint32_t splitY, uint32_t splitZ);
 		
@@ -128,9 +127,9 @@ class OGLVoxelizer
 										OGLVoxelizer(const VoxelizerOptions&,
 													 MeshBatch&,
 													 GL3DTexture& lockTex,
-													 StructuredBuffer<IEVector4>& normalArray,
-													 StructuredBuffer<IEVector4>& colorArray,
-													 StructuredBuffer<VoxelWeightData>& weightArray,
+													 StructuredBuffer<IEVector4>& vNormalDense,
+													 StructuredBuffer<IEVector4>& vAlbedoDense,
+													 StructuredBuffer<VoxelWeights>& vWeightDense,
 													 Shader& compSplitCount,
 													 Shader& compPackVoxels,
 													 Shader& compPackVoxelsSkel,
@@ -146,9 +145,7 @@ class OGLVoxelizer
 
 
 		// Voxelization Functions
-		void							Start();
-		double							Write(const std::string& fileName);
-
+		void							Execute(const std::string& batchName);
 
 		// Generic Init
 		static bool						InitGLSystem();

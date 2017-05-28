@@ -1,5 +1,4 @@
 #include "CudaVector.cuh"
-#include <cuda_runtime.h>
 #include <cassert>
 #include <algorithm>
 #include "CudaInit.h"

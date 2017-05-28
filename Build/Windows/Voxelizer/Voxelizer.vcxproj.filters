@@ -97,7 +97,6 @@
       <Filter>FromThesis</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\Voxelizer\GL3DTexture.h" />
-    <ClInclude Include="..\..\..\Source\Voxelizer\BindPoints.h" />
     <ClInclude Include="..\..\..\Source\Shader.h">
       <Filter>FromThesis</Filter>
     </ClInclude>
@@ -115,6 +114,7 @@
     <ClInclude Include="..\..\..\Source\Animation.h">
       <Filter>FromThesis</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\Voxelizer\VoxelizerBindPoints.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="FromThesis">

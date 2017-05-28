@@ -1,19 +1,19 @@
 #include "GIVoxelPages.h"
 #include "PageKernels.cuh"
 
-static std::ostream& operator<<(std::ostream& ostr, const uint2& int2)
+inline static std::ostream& operator<<(std::ostream& ostr, const uint2& int2)
 {
 	ostr << "{" << int2.x << ", " << int2.y << "}";
 	return ostr;
 }
 
-static std::ostream& operator<<(std::ostream& ostr, const SegmentOccupation& seg)
+inline static std::ostream& operator<<(std::ostream& ostr, const SegmentOccupation& seg)
 {
 	ostr << static_cast<int>(seg);
 	return ostr;
 }
 
-static std::ostream& operator<<(std::ostream& ostr, const SegmentObjData& segObj)
+inline static std::ostream& operator<<(std::ostream& ostr, const SegmentObjData& segObj)
 {
 	uint16_t objType = segObj.packed >> 14;
 	uint16_t occupation = (segObj.packed >> 11) & 0x000F;
@@ -72,10 +72,10 @@ VoxelPageData::VoxelPageData(size_t pageCount)
 	}
 	assert(offset == pageData.Size());
 
-	// KC to Initialize Empty Segment Stack
-	int blockSize = CudaInit::GenBlockSizeSmall(pageCount * GIVoxelPages::SegmentPerPage);
-	InitializePage<<<blockSize, CudaInit::TPB>>>(pages.front().dEmptySegmentPos,
-												 sizePerPage, pageCount);
+	//// KC to Initialize Empty Segment Stack
+	//int blockSize = CudaInit::GenBlockSizeSmall(pageCount * GIVoxelPages::SegmentPerPage);
+	//InitializePage<<<blockSize, CudaInit::TPB>>>(pages.front().dEmptySegmentPos,
+	//											 sizePerPage, pageCount);
 }
 
 VoxelPageData::VoxelPageData(VoxelPageData&& other)
@@ -96,8 +96,8 @@ const std::vector<CVoxelPage>& VoxelPageData::Pages() const
 
 //----------------------//
 
-GIVoxelPages(SceneI& scene);
-GIVoxelPages(const GIVoxelPages&) = delete;
-GIVoxelPages&				operator=(const GIVoxelPages&) = delete;
-GIVoxelPages(GIVoxelPages&&);
-~GIVoxelPages() = default;
+//GIVoxelPages(SceneI& scene);
+//GIVoxelPages(const GIVoxelPages&) = delete;
+//GIVoxelPages&				operator=(const GIVoxelPages&) = delete;
+//GIVoxelPages(GIVoxelPages&&);
+//~GIVoxelPages() = default;

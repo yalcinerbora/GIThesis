@@ -123,12 +123,6 @@
     <ClCompile Include="..\..\..\Source\ThesisScenes.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\GIVoxelPages.cpp">
-      <Filter>GI\Thesis</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\VoxelCacheBatch.cpp">
-      <Filter>GI\Thesis</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -185,15 +179,6 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IETimer.h">
       <Filter>IEUtility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\COpenGLCommon.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CSparseVoxelOctree.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\GICudaAllocator.h">
-      <Filter>GI\Thesis</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\ThesisSolution.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
@@ -226,12 +211,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\DrawPoint.h">
       <Filter>Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h">
-      <Filter>GI\Thesis</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\GICudaStructMatching.h">
-      <Filter>GI\Thesis</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\VoxelCopyToVAO.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
@@ -275,9 +254,6 @@
     <ClInclude Include="..\..\..\Source\IEUtility\IERandom.h">
       <Filter>IEUtility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\SVOLightInject.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\FPSInput.h">
       <Filter>WindowInput\CameraInput</Filter>
     </ClInclude>
@@ -289,9 +265,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CameraInputI.h">
       <Filter>WindowInput\CameraInput</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\BindPoints.h">
-      <Filter>Utility</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.h">
       <Filter>IEUtility</Filter>
@@ -375,6 +348,18 @@
     <ClInclude Include="..\..\..\Source\SVOKernels.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\GLSLBindPoints.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\COpenGLTypes.cuh">
+      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVO.cuh">
+      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVOLightInject.cuh">
+      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="WindowInput">
@@ -433,18 +418,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu">
-      <Filter>GI\Thesis</Filter>
-    </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\VoxelInclude.cu">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu">
-      <Filter>GI\Thesis</Filter>
-    </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
@@ -460,5 +433,14 @@
     <CudaCompile Include="..\..\..\Source\SVOKernels.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\GIVoxelPages.cu">
+      <Filter>GI\Thesis</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\VoxelCacheBatch.cu">
+      <Filter>GI\Thesis</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Common\shaders.ninja" />
   </ItemGroup>
 </Project>

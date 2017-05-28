@@ -57,10 +57,10 @@ U_SEGMENT_SIZE uniform float segmentSize;
 U_SPLIT_CURRENT uniform uvec3 currentSplit;
 U_TEX_SIZE uniform uvec4 texSize3D;
 
-// Shader Torage
-LU_AABB buffer AABBData
+// Shader Storage
+LU_AABB buffer AABBBuffer
 {
-	vec4 objectAABBInfo[];
+	AABB objectAABBInfo[];
 };
 
 LU_ALBEDO_DENSE buffer AlbedoBuffer 
@@ -158,7 +158,7 @@ void AtomicAverage(in vec3 normal, in vec3 color,
 	atomicAdd(normalDense[coord].y, normal.y);
 	atomicAdd(normalDense[coord].z, normal.z);
 	atomicAdd(normalDense[coord].w, 1.0f);
-					
+	
 	atomicAdd(albedoDense[coord].x, color.x);
 	atomicAdd(albedoDense[coord].y, color.y);
 	atomicAdd(albedoDense[coord].z, color.z);

@@ -2,7 +2,7 @@
 /*	
 	**32x32 Gaussian Blur Compute Shader**
 	
-	File Name	: EdgeDetect.glsl
+	File Name	: EdgeDetect.comp
 	Author		: Bora Yalciner
 	Description	:
 

@@ -2,18 +2,7 @@
 
 #include <cstdint>
 #include "CVoxelTypes.h"
-#include "GIVoxelPages.h"
-//
-//struct CAABB;
-//typedef CAABB CObjectAABB;
-//typedef uint2 CVoxelNormPos;
-//typedef uint2 CVoxelIds;
-//
-//struct CObjectTransform;
-//struct CVoxelColor;
-//struct CVoxelPage;
-//struct CVoxelGrid;
-//struct CSVOConstants;
+#include "COpenGLTypes.cuh"
 
 // Initialize Pages
 extern __global__ void InitializePage(unsigned char* emptySegments,
@@ -57,20 +46,22 @@ extern __global__ void VoxelObjectAlloc(// Voxel System
 // Transforms existing voxels in order to cut voxel reconstruction each frame
 // Call Logic "per voxel in the grid"
 extern  __global__ void VoxelTransform(// Voxel Pages
-									   CVoxelPage* gVoxelData,
+									   CVoxelPage* gVoxelPages,
 									   const CVoxelGrid& gGridInfo,
 									   const float3 hNewGridPosition,
 
 									   // Object Related
 									   CObjectTransform** gObjTransforms,
 									   CObjectTransform** gJointTransforms,
+									   CObjectAABB** gObjectAABB,
 									   uint32_t** gObjTransformIds,
-									   CVoxelNormPos** gVoxNormPosCacheData,
-									   CVoxelColor** gVoxRenderData,
-									   CVoxelWeight** gVoxWeightData,
 
-									   CObjectVoxelInfo** gObjInfo,
-									   CObjectAABB** gObjectAABB);
+									   // Cache
+									   CVoxelPos** gVoxPosCache,
+									   CVoxelNorm** gVoxNormCache,
+									   CVoxelAlbedo** gVoxAlbedoCache,
+									   CVoxelWeights** gVoxWeightCache,
+									   CObjectVoxelInfo** gObjInfoCache);
 
 // Voxel Clear Marked
 // Clears the deallocated voxels marked by "VxoelObjecDealloc" function
@@ -82,3 +73,6 @@ __global__ void VoxelClearMarked(CVoxelPage* gVoxelData);
 // Logic per segment in page system
 __global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
 								 const uint32_t numPages);
+
+
+//__host__ void

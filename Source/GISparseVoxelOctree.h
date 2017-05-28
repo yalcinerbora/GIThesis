@@ -106,8 +106,8 @@ class GISparseVoxelOctree
 
 
 
-		std::vector<GICudaAllocator*>			allocators;			// Page Allocators
-		std::vector<const CVoxelGrid*>			allocatorGrids;		// Allocator's Responsible Grids
+		//std::vector<GICudaAllocator*>			allocators;			// Page Allocators
+		//std::vector<const CVoxelGrid*>			allocatorGrids;		// Allocator's Responsible Grids
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
@@ -165,8 +165,8 @@ class GISparseVoxelOctree
 		// Shadows
 		cudaMipmappedArray_t					shadowMapArray;
 		cudaTextureObject_t						tShadowMapArray;
-		CLight*									dLightParamArray;
-		CMatrix4x4* 							dLightVPArray;
+		//CLight*									dLightParamArray;
+		//CMatrix4x4* 							dLightVPArray;
 		
 		// Trace Shaders
 		Shader									computeVoxTraceWorld;

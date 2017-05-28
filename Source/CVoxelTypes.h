@@ -7,6 +7,7 @@
 #ifndef __CVOXELTYPES_H__
 #define __CVOXELTYPES_H__
 
+#include "VoxelCacheData.h"
 #include <vector_types.h>
 #include <cstdint>
 
@@ -28,19 +29,22 @@ struct CVoxelGrid
 };
 
 // Further Seperated Voxel Data
-typedef unsigned int CVoxelPos;
-typedef unsigned int CVoxelNorm;
-typedef unsigned int CVoxelOccupancy;
+typedef VoxelPosition CVoxelPos;
+typedef VoxelNormal CVoxelNorm;
+typedef uint32_t CVoxelOccupancy;
 typedef uchar4 CVoxelAlbedo;
 
 // Voxel Rendering Data
 #pragma pack(push, 1)
-struct CVoxelWeight
+struct CVoxelWeights
 {
-	uchar4			weight;
-	uchar4			weightIndex;
+	uchar4 weight;
+	uchar4 weightIndex;
 };
 #pragma pack(pop)
+
+static_assert(sizeof(CVoxelAlbedo) == sizeof(VoxelAlbedo), "Voxel albedo size mismatch.");
+static_assert(sizeof(CVoxelWeights) == sizeof(VoxelWeights), "Voxel albedo size mismatch.");
 
 enum class SegmentOccupation : unsigned char
 {

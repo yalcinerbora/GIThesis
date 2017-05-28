@@ -217,7 +217,7 @@ int main()
 	scenes.push_back(&dynamic);
 
 	// Solutions
-	EmptyGISolution emptySolution("No GI", inputManager, deferredRenderer);
+	EmptyGISolution emptySolution(inputManager, deferredRenderer, "No GI");
 	//ThesisSolution thesisSolution("Thesis GI", inputManager, deferredRenderer, mainRenderCamera.pos);
 	solutions.push_back(&emptySolution);
 	//solutions.push_back(&thesisSolution);

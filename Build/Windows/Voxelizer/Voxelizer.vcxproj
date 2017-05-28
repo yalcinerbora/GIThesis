@@ -60,6 +60,9 @@
       <AdditionalLibraryDirectories>$(SolutionDir)..\..\Lib\x64;$(SolutionDir)..\..\Lib\x64\$(Configuration);$(CudaToolkitLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glew32.lib;glfw3dll.lib;GFGFileIO.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy $(SolutionDir)..\..\Lib\x64\*.dll $(OutDir) /Y /I</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -79,6 +82,9 @@
       <AdditionalLibraryDirectories>$(SolutionDir)..\..\Lib\x64;$(SolutionDir)..\..\Lib\x64\$(Configuration);$(CudaToolkitLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glew32.lib;glfw3dll.lib;GFGFileIO.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy $(SolutionDir)..\..\Lib\x64\*.dll $(OutDir) /Y /I</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\Animation.cpp" />
@@ -122,11 +128,16 @@
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClInclude Include="..\..\..\Source\VertexBuffer.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\ASCIIProgressBar.h" />
-    <ClInclude Include="..\..\..\Source\Voxelizer\BindPoints.h" />
+    <ClInclude Include="..\..\..\Source\Voxelizer\VoxelizerBindPoints.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\GL3DTexture.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\OGLVoxelizer.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\VoxFramebuffer.h" />
     <ClInclude Include="..\..\..\Source\Voxelizer\VoxWriter.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GLSLShaderCompiler\GLSLShaderCompiler.vcxproj">
+      <Project>{50d26e91-4510-4c44-ab79-1dd97e3687d2}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

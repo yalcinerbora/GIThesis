@@ -1,6 +1,6 @@
 #include "CudaInit.h"
 #include "Macros.h"
-#include "GIKernels.cuh"
+#include "PageKernels.cuh"
 
 cudaDeviceProp CudaInit::props = {};
 bool CudaInit::init = false;

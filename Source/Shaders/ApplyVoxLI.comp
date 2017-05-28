@@ -2,7 +2,7 @@
 /*	
 	**Apply Voxel Light Buffer Compute Shader**
 	
-	File Name	: ApplyVoxLI.glsl
+	File Name	: ApplyVoxLI.comp
 	Author		: Bora Yalciner
 	Description	:
 

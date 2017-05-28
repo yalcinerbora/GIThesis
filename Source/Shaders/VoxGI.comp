@@ -2,7 +2,7 @@
 /*	
 	**Voxel Global Illumination Compute Shader**
 	
-	File Name	: VoxGI.glsl
+	File Name	: VoxGI.comp
 	Author		: Bora Yalciner
 	Description	:
 		Global Illumination approximation using SVO

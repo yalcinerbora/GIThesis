@@ -137,10 +137,10 @@ void AtomicAverage(in vec3 normal, in vec4 albedo, in ivec3 iCoord)
 	atomicAdd(normalDense[coord].z, normal.z);
 	atomicAdd(normalDense[coord].w, 1.0f);
 
-	atomicAdd(colorDense[coord].x, albedo.x);
-	atomicAdd(colorDense[coord].y, albedo.y);
-	atomicAdd(colorDense[coord].z, albedo.z);
-	atomicAdd(colorDense[coord].w, albedo.w);
+	atomicAdd(albedoDense[coord].x, albedo.x);
+	atomicAdd(albedoDense[coord].y, albedo.y);
+	atomicAdd(albedoDense[coord].z, albedo.z);
+	atomicAdd(albedoDense[coord].w, albedo.w);
 }
 
 void main(void)

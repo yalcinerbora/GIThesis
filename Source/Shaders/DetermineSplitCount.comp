@@ -12,8 +12,8 @@
 				
 // Definitions
 #define LU_AABB layout(std430, binding = 3) readonly
-#define LU_OBJECT_SPLIT_INFO layout(std430, binding = 4) restrict writeonly
-#define LU_OBJECT_VOXEL_INFO layout(std430, binding = 2) restrict writeonly
+#define LU_MESH_SPLIT_INFO layout(std430, binding = 4) restrict writeonly
+#define LU_MESH_VOXEL_INFO layout(std430, binding = 2) restrict writeonly
 
 #define U_TOTAL_OBJ_COUNT layout(location = 0)
 #define U_SPAN layout(location = 1)
@@ -22,32 +22,30 @@
 
 #define BLOCK_SIZE 256
 
+struct AABB
+{
+	vec4 aabbMin;
+	vec4 aabbMax;
+};
+
 U_TOTAL_OBJ_COUNT uniform uint objCount;
 U_SPAN uniform float span;
 U_GRID_DIM uniform uint gridDim;
 U_VOX_LIMIT uniform uint voxLimit;
 
-LU_OBJECT_SPLIT_INFO buffer SplitInfo
+LU_MESH_SPLIT_INFO buffer SplitInfo
 {
 	uvec2 splitInfo[];
 };
 
-LU_AABB buffer AABB
+LU_AABB buffer AABBBuffer
 {
-	struct
-	{
-		vec4 aabbMin;
-		vec4 aabbMax;
-	} objectAABBInfo[];
+	AABB objectAABBInfo[];
 };
 
-LU_OBJECT_VOXEL_INFO buffer VoxelInfo
+LU_MESH_VOXEL_INFO buffer MeshVoxelInfo
 {
-	struct
-	{
-		uint voxCount;
-		uint voxOffset;
-	} voxInfo[];
+	uvec2 voxInfo[];
 };
 
 uvec2 PackUInt4x16(uvec4 data)
@@ -81,6 +79,6 @@ void main(void)
 	splitInfo[globalId] = PackUInt4x16(splits);
 
 	// Init
-	voxInfo[globalId].voxOffset = 0;
-	voxInfo[globalId].voxCount = 0;
+	voxInfo[globalId].x = 0;
+	voxInfo[globalId].y = 0;
 }

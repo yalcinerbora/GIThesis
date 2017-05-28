@@ -7,7 +7,7 @@ CUDA timer class that uses cuda runtime
 #ifndef __CUDAVECTOR_H__
 #define __CUDAVECTOR_H__
 
-//#include <cuda_runtime.h>
+#include <cuda_runtime.h>
 #include <vector>
 #include <type_traits>
 

@@ -8,9 +8,9 @@ Voxel Sturcutres
 #define __CAXISALIGNEDBB_H__
 
 #include <vector_types.h>
-#include "CVoxelTypes.h"
 #include "CMatrix.cuh"
-#include "COpenGLCommon.cuh"
+#include "CAxisAlignedBB.cuh"
+#include "CVoxelTypes.h"
 #include <limits>
 
 //struct CVoxelGrid;
@@ -23,7 +23,6 @@ struct CAABB
 	float4	min;	// World Position of the voxel grid
 	float4	max;	// Voxel Grid Dimentions last component voxel span
 };
-typedef CAABB CObjectAABB;
 
 // 1.0f means use max, 0.0f means use min
 __device__ static const float3 aabbLookupTable[] =
@@ -42,7 +41,7 @@ __device__ static const float3 aabbLookupTable[] =
 __device__ bool Intersects(const CAABB& boxA, const CAABB& boxB);
 
 __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
-									  const CObjectAABB& gObjectAABB,
+									  const CAABB& gObjectAABB,
 									  const CMatrix4x4& gObjectTransform);
 
 inline __device__ bool Intersects(const CAABB& boxA, const CAABB& boxB)
@@ -53,8 +52,8 @@ inline __device__ bool Intersects(const CAABB& boxA, const CAABB& boxB)
 }
 
 inline __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
-									  const CObjectAABB& gObjectAABB,
-									  const CMatrix4x4& gObjectTransform)
+											 const CAABB& gObjectAABB,
+											 const CMatrix4x4& gObjectTransform)
 {
 	// Comparing two AABB (Grid Itself is an AABB)
 	const CAABB gridAABB =

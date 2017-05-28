@@ -2,7 +2,7 @@
 /*	
 	**32x32 Gaussian Blur Compute Shader**
 	
-	File Name	: Gauss32.glsl
+	File Name	: Gauss32.comp
 	Author		: Bora Yalciner
 	Description	:
 

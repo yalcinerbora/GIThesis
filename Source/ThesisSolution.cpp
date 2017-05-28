@@ -2,9 +2,10 @@
 
 
 // Constructors & Destructor
-ThesisSolution::ThesisSolution(const std::string& name,
-							   WindowInput& inputManager,
-							   DeferredRenderer& deferredDenderer)
+ThesisSolution::ThesisSolution(uint32_t cascadeCount,
+							   WindowInput&,
+							   DeferredRenderer& deferredDenderer,
+							   const std::string& name)
 	: name(name)
 	, currentScene(nullptr)
 	, dRenderer(deferredDenderer)
@@ -12,7 +13,7 @@ ThesisSolution::ThesisSolution(const std::string& name,
 	, aoOn(false)
 	, injectOn(false)
 	, directLighting(true)
-
+	, cascadeCount(cascadeCount)
 {}
 
 bool ThesisSolution::IsCurrentScene(SceneI& scene)

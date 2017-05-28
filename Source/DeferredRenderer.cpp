@@ -9,7 +9,7 @@
 #include "RectPrism.h"
 #include "DrawBuffer.h"
 #include "MeshBatchSkeletal.h"
-#include "BindPoints.h"
+#include "GLSLBindPoints.h"
 
 LightDrawBuffer::LightDrawBuffer()
 {
@@ -187,7 +187,7 @@ DeferredRenderer::DeferredRenderer()
 	, fragPPShadowMap(ShaderType::FRAGMENT, "Shaders/PProcessShadowMap.frag")
 	// Shadow Map
 	, fragShadowMap(ShaderType::FRAGMENT, "Shaders/ShadowMap.frag")
-	, computeHierZ(ShaderType::COMPUTE, "Shaders/HierZ.glsl")
+	, computeHierZ(ShaderType::COMPUTE, "Shaders/HierZ.comp")
 	// GBuffer
 	, gBuffer(GBuffWidth, GBuffHeight)
 	, fTransform{IEMatrix4x4::IdentityMatrix, IEMatrix4x4::IdentityMatrix}

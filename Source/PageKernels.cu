@@ -5,14 +5,15 @@
 #include "PageKernels.cuh"
 #include "CVoxel.cuh"
 #include "CAxisAlignedBB.cuh"
-#include "COpenGLCommon.cuh"
+#include "COpenGLTypes.cuh"
 #include "CAtomicAlloc.cuh"
+#include "GIVoxelPages.h"
 
-#define GI_MAX_JOINT_COUNT GI_MAX_SHARED_COUNT
+#define GI_MAX_JOINT_COUNT 64
 
-extern __global__ void InitializePage(unsigned char* emptySegments,
-									  const ptrdiff_t stride,
-									  size_t pageCount)
+__global__ void InitializePage(unsigned char* emptySegments,
+							   const ptrdiff_t stride,
+							   size_t pageCount)
 {
 
 }
@@ -29,7 +30,7 @@ __global__ void VoxelObjectDealloc(// Voxel System
 								   // Per Object Related
 								   const CObjectAABB* gObjectAABB,
 								   const CObjectTransform* gObjTransforms,
-								   const unsigned int* gObjTransformIds)
+								   const uint32_t* gObjTransformIds)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -51,16 +52,16 @@ __global__ void VoxelObjectDealloc(// Voxel System
 	{
 		// "Dealocate"
 		assert(ExpandOnlyOccupation(gVoxelData[objAlloc.x].dSegmentObjData[objAlloc.y].packed) == SegmentOccupation::OCCUPIED);
-		unsigned int size = AtomicDealloc(&(gVoxelData[objAlloc.x].dEmptySegmentStackSize), GI_SEGMENT_PER_PAGE);
-		assert(size != GI_SEGMENT_PER_PAGE);
-		if(size != GI_SEGMENT_PER_PAGE)
+		unsigned int size = AtomicDealloc(&(gVoxelData[objAlloc.x].dEmptySegmentStackSize), GIVoxelPages::SegmentPerPage);
+		assert(size != GIVoxelPages::SegmentPerPage);
+		if(size != GIVoxelPages::SegmentPerPage)
 		{
 			unsigned int location = size;
 			gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
 
 			SegmentObjData segObjId = {0};
-			segObjId.packed = PackSegmentPacked(CVoxelObjectType::STATIC,
-												SegmentOccupation::MARKED_FOR_CLEAR, 0);
+			segObjId.packed = PackSegmentObj(CVoxelObjectType::STATIC,
+											 SegmentOccupation::MARKED_FOR_CLEAR, 0);
 			gVoxelData[objAlloc.x].dSegmentObjData[objAlloc.y] = segObjId;
 			gObjectAllocLocations[globalId] = ushort2{0xFFFF, 0xFFFF};
 		}
@@ -123,9 +124,9 @@ __global__ void VoxelObjectAlloc(// Voxel System
 __global__ void VoxelClearMarked(CVoxelPage* gVoxelData)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GI_PAGE_SIZE;
-	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
-	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
+	unsigned int pageId = globalId / GIVoxelPages::PageSize;
+	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
+	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
 
 	// Check if segment is marked for clear
 	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::MARKED_FOR_CLEAR)
@@ -141,16 +142,15 @@ __global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
 								 const uint32_t numPages)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GI_SEGMENT_PER_PAGE;
-	unsigned int pageLocalSegmentId = globalId % GI_SEGMENT_PER_PAGE;
+	unsigned int pageId = globalId / GIVoxelPages::SegmentPerPage;
+	unsigned int pageLocalSegmentId = globalId % GIVoxelPages::SegmentPerPage;
 
 	// Check if segment is marked for clear
-	if(globalId >= numPages * GI_SEGMENT_PER_PAGE) return;
+	if(globalId >= numPages * GIVoxelPages::SegmentPerPage) return;
 	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::MARKED_FOR_CLEAR)
 	{
 		gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId] = {0};
 	}
-
 }
 
 inline __device__ void LoadTransformData(// Shared Mem
@@ -268,23 +268,22 @@ inline __device__ void LoadTransformData(// Shared Mem
 }
 
 __global__ void VoxelTransform(// Voxel Pages
-							   CVoxelPage* gVoxelData,
+							   CVoxelPage* gVoxelPages,
 							   const CVoxelGrid& gGridInfo,
 							   const float3 hNewGridPosition,
 
 							   // Object Related
 							   CObjectTransform** gObjTransforms,
 							   CObjectTransform** gJointTransforms,
+							   CObjectAABB** gObjectAABB,
 							   uint32_t** gObjTransformIds,
 
 							   // Cache
 							   CVoxelPos** gVoxPosCache,
-							   CVoxelNorm** gVoxNormCache
-							   CVoxelAlbedo** gVoxAlbedo,
-							   CVoxelWeight** gVoxWeight,
-
-							   CObjectVoxelInfo** gObjInfo,
-							   CObjectAABB** gObjectAABB)
+							   CVoxelNorm** gVoxNormCache,
+							   CVoxelAlbedo** gVoxAlbedoCache,
+							   CVoxelWeights** gVoxWeightCache,
+							   CObjectVoxelInfo** gObjInfoCache)
 {
 	// Cache Loading
 	// Shared Memory which used for transform rendering
@@ -293,17 +292,17 @@ __global__ void VoxelTransform(// Voxel Pages
 	__shared__ uint8_t sMatrixLookup[GI_MAX_JOINT_COUNT];
 
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GI_PAGE_SIZE;
-	unsigned int pageLocalId = globalId % GI_PAGE_SIZE;
-	unsigned int pageLocalSegmentId = pageLocalId / GI_SEGMENT_SIZE;
-	unsigned int segmentLocalVoxId = pageLocalId % GI_SEGMENT_SIZE;
+	unsigned int pageId = globalId / GIVoxelPages::PageSize;
+	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
+	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
+	unsigned int segmentLocalVoxId = pageLocalId % GIVoxelPages::SegmentSize;
 
 	// Get Segments Obj Information Struct
-	SegmentObjData segObj = gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId];
+	SegmentObjData segObj = gVoxelPages[pageId].dSegmentObjData[pageLocalSegmentId];
 	CVoxelObjectType objType;
 	uint16_t segLoad;
 	SegmentOccupation segOccup;
-	ExpandSegmentPacked(objType, segOccup, segLoad, segObj.packed);
+	ExpandSegmentObj(objType, segOccup, segLoad, segObj.packed);
 
 	if(segOccup == SegmentOccupation::EMPTY) return;
 	assert(segOccup != SegmentOccupation::MARKED_FOR_CLEAR);
@@ -311,10 +310,10 @@ __global__ void VoxelTransform(// Voxel Pages
 	// Calculate your Object VoxelId
 	unsigned int cacheVoxelId = segObj.voxStride + segmentLocalVoxId;
 
-	CVoxelWeight weights = {{0x00, 0x00, 0x00, 0x00},{0xFF, 0xFF, 0xFF, 0xFF}};
+	CVoxelWeights weights = {{0x00, 0x00, 0x00, 0x00},{0xFF, 0xFF, 0xFF, 0xFF}};
 	if(segmentLocalVoxId < segLoad &&
 	   objType == CVoxelObjectType::SKEL_DYNAMIC)
-		weights = gVoxWeightData[segObj.batchId][cacheVoxelId];
+		weights = gVoxWeightCache[segObj.batchId][cacheVoxelId];
 
 	// Segment is occupied so load matrices before culling unused warps
 	LoadTransformData(// Shared Mem
@@ -342,11 +341,15 @@ __global__ void VoxelTransform(// Voxel Pages
 	uint3 voxPos;
 	float3 normal;
 	bool isMip;
-	ExpandNormalPos(voxPos, normal, isMip, gVoxNormPosCacheData[segObj.batchId][cacheVoxelId]);
+	voxPos = ExpandVoxPos(isMip, gVoxPosCache[segObj.batchId][cacheVoxelId]);
+	normal = ExpandVoxNormal(gVoxNormCache[segObj.batchId][cacheVoxelId]);
 
 	// Fetch AABB min, transform and span
 	float4 objAABBMin = gObjectAABB[segObj.batchId][segObj.objId].min;
-	float objSpan = gObjInfo[segObj.batchId][segObj.objId].span;
+
+	// TODO FIXXX
+	// ..............
+	float objSpan = 0.0f;// gObjInfoCache[segObj.batchId][segObj.objId].span;
 
 	// Generate World Position
 	// start with object space position
@@ -498,17 +501,13 @@ __global__ void VoxelTransform(// Voxel Pages
 	if(!outOfBounds)
 	{
 		// Write to page
-		uint2 packedVoxNormPos;
-
-		PackVoxelNormPos(packedVoxNormPos, voxPos, normal, isMip);
-		gVoxelData[pageId].dGridVoxPos[pageLocalId] = packedVoxNormPos.x;
-		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = packedVoxNormPos.y;
-
-		gVoxelData[pageId].dGridVoxOccupancy[pageLocalId] = PackOccupancy(neigbourBits, volumeWeight);
+		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = PackVoxPos(voxPos, isMip);
+		gVoxelPages[pageId].dGridVoxNorm[pageLocalId] = PackVoxNormal(normal);
+		gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId] = PackOccupancy(neigbourBits, volumeWeight);
 	}
 	else
 	{
-		gVoxelData[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
-		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
+		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
+		gVoxelPages[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
 	}
 }

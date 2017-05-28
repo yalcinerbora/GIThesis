@@ -15,8 +15,9 @@
 #define IN_POS layout(location = 2)
 
 #define LU_AABB layout(std430, binding = 3) readonly
-#define LU_OBJECT_VOXEL_INFO layout(std430, binding = 2) writeonly
+#define LU_MESH_VOXEL_INFO layout(std430, binding = 2) writeonly
 #define LU_TOTAL_VOX_COUNT layout(std430, binding = 4) writeonly
+#define LU_NORMAL_DENSE layout(std430, binding = 6) writeonly
 
 #define I_LOCK layout(r32ui, binding = 0) coherent volatile
 
@@ -30,12 +31,6 @@ struct AABB
 {
 	vec4 aabbMin;
 	vec4 aabbMax;
-};
-
-struct VoxelInfo
-{
-	uint voxCount;
-	uint voxOffset;
 };
 
 // Input
@@ -57,15 +52,30 @@ LU_AABB buffer AABBBuffer
 	AABB objectAABBInfo[];
 };
 
-LU_OBJECT_VOXEL_INFO buffer VoxelInfoBuffer
+LU_MESH_VOXEL_INFO buffer MeshVoxelInfo
 {
-	VoxelInfo voxInfo[];
+	uvec2 voxInfo[];
 };
 
 LU_TOTAL_VOX_COUNT buffer TotalVox
 {
 	uint totalVox;
 };
+
+LU_NORMAL_DENSE buffer NormalBuffer 
+{
+	uvec4 normalDense[];
+};
+
+uint PackVoxelPos(in uvec3 voxCoord)
+{
+	// Voxel Ids 10 Bit Each (last 2 bit will be used for cascade no)
+	uint result = 0;
+	result |= voxCoord.z << 20;
+	result |= voxCoord.y << 10;
+	result |= voxCoord.x;
+	return result;
+}
 
 void main(void)
 {
@@ -82,9 +92,9 @@ void main(void)
 	   iCoord.y >= 0 &&
 	   iCoord.z >= 0)
 	{
-		if(imageAtomicExchange(lock, iCoord, 1) == 0) 
+		if(imageAtomicExchange(lock, iCoord, 1) == 0)
 		{
-			atomicAdd(voxInfo[objId].voxCount, 1);
+			atomicAdd(voxInfo[objId].x, 1);
 			atomicAdd(totalVox, 1);
 		}
 	}

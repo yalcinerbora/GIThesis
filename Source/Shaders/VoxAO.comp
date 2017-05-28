@@ -2,7 +2,7 @@
 /*	
 	**Voxel Ambient Occulusion Compute Shader**
 	
-	File Name	: VoxAO.glsl
+	File Name	: VoxAO.comp
 	Author		: Bora Yalciner
 	Description	:
 

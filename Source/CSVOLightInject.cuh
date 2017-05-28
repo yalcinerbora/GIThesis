@@ -1,9 +1,8 @@
-#ifndef __SVOLIGHTINJECT_H__
-#define __SVOLIGHTINJECT_H__
+#pragma once
 
-#include "GIKernels.cuh"
-#include "CSparseVoxelOctree.cuh"
+#include "CSVO.cuh"
 #include "CVoxel.cuh"
+#include "COpenGLTypes.cuh"
 
 #define GI_LIGHT_POINT 0.0f
 #define GI_LIGHT_DIRECTIONAL 1.0f
@@ -349,4 +348,3 @@ __device__ inline float3 LightInject(const float3& worldPos,
 	}
 	return totalIllum;
 }
-#endif //__SVOLIGHTINJECT_H__

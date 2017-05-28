@@ -109,8 +109,8 @@ class ThesisSolution : public SolutionI
 		
 	public:
 		// Constructors & Destructor
-											ThesisSolution(
-												WindowInput&,
+											ThesisSolution(uint32_t cascadeCount,
+														   WindowInput&,
 														   DeferredRenderer&,
 														   const std::string& name);
 											ThesisSolution(const ThesisSolution&) = delete;

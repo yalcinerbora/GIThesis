@@ -124,7 +124,9 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\Animation.cpp" />
     <ClCompile Include="..\..\..\Source\AntBar.cpp" />
-    <ClCompile Include="..\..\..\Source\GIVoxelPages.cpp" />
+    <CudaCompile Include="..\..\..\Source\GIVoxelPages.cu">
+      <FileType>CppCode</FileType>
+    </CudaCompile>
     <ClCompile Include="..\..\..\Source\ThesisScenes.cpp" />
     <ClCompile Include="..\..\..\Source\CudaInit.cpp" />
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
@@ -137,7 +139,7 @@
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
     <ClInclude Include="..\..\..\Source\Animation.h" />
     <ClInclude Include="..\..\..\Source\AntBar.h" />
-    <ClInclude Include="..\..\..\Source\BindPoints.h" />
+    <ClInclude Include="..\..\..\Source\GLSLBindPoints.h" />
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
     <ClInclude Include="..\..\..\Source\CHash.cuh" />
@@ -150,7 +152,6 @@
       <FileType>Document</FileType>
     </ClInclude>
     <CudaCompile Include="..\..\..\Source\CDebug.cu" />
-    <CudaCompile Include="..\..\..\Source\GICudaAllocator.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEBoundingSphere.cpp" />
@@ -183,8 +184,6 @@
     <ClInclude Include="..\..\..\Source\DrawPoint.h" />
     <ClInclude Include="..\..\..\Source\BatchFunctors.h" />
     <ClInclude Include="..\..\..\Source\GBuffer.h" />
-    <ClInclude Include="..\..\..\Source\GICudaStructMatching.h" />
-    <ClInclude Include="..\..\..\Source\GICudaVoxelScene.h" />
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.h" />
     <ClInclude Include="..\..\..\Source\IEUtility\IEBoundingSphere.h" />
@@ -203,12 +202,14 @@
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
-    <ClCompile Include="..\..\..\Source\VoxelCacheBatch.cpp" />
+    <CudaCompile Include="..\..\..\Source\VoxelCacheBatch.cu">
+      <FileType>CppCode</FileType>
+    </CudaCompile>
     <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp" />
     <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
-    <ClInclude Include="..\..\..\Source\SVOLightInject.cuh" />
+    <ClInclude Include="..\..\..\Source\CSVOLightInject.cuh" />
     <ClInclude Include="..\..\..\Source\ThesisBar.h" />
     <ClInclude Include="..\..\..\Source\EmptyGIBar.h" />
     <ClInclude Include="..\..\..\Source\VoxelCacheData.h" />
@@ -220,13 +221,12 @@
     <ClInclude Include="..\..\..\Source\Camera.h" />
     <ClInclude Include="..\..\..\Source\CAxisAlignedBB.cuh" />
     <ClInclude Include="..\..\..\Source\CMatrix.cuh" />
-    <ClInclude Include="..\..\..\Source\COpenGLCommon.cuh" />
-    <ClInclude Include="..\..\..\Source\CSparseVoxelOctree.cuh" />
+    <ClInclude Include="..\..\..\Source\COpenGLTypes.cuh" />
+    <ClInclude Include="..\..\..\Source\CSVO.cuh" />
     <ClInclude Include="..\..\..\Source\DrawBuffer.h" />
     <ClInclude Include="..\..\..\Source\EmptyGISolution.h" />
     <ClInclude Include="..\..\..\Source\FPSInput.h" />
     <ClInclude Include="..\..\..\Source\GFGLoader.h" />
-    <ClInclude Include="..\..\..\Source\GICudaAllocator.h" />
     <ClInclude Include="..\..\..\Source\SVOKernels.cuh" />
     <ClInclude Include="..\..\..\Source\GLHeader.h" />
     <ClInclude Include="..\..\..\Source\GLHeaderLite.h" />
@@ -258,7 +258,6 @@
     <ClInclude Include="..\..\..\Source\WindowInput.h" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="..\..\..\Source\GICudaVoxelScene.cu" />
     <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu" />
     <CudaCompile Include="..\..\..\Source\PageKernels.cu" />
     <CudaCompile Include="..\..\..\Source\SVOKernels.cu">
@@ -266,19 +265,14 @@
       <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu" />
-    <CudaCompile Include="..\..\..\Source\VoxelInclude.cu">
-      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">32</MaxRegCount>
-      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>
-    </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\VoxelTransform.cu">
-      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">32</MaxRegCount>
-      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>
-    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GLSLShaderCompiler\GLSLShaderCompiler.vcxproj">
       <Project>{50d26e91-4510-4c44-ab79-1dd97e3687d2}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Common\shaders.ninja" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

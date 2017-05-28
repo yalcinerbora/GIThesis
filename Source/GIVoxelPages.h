@@ -4,13 +4,13 @@
 
 //#define GI_VOXEL_NEIGBOURS 8
 
-typedef uint2 CVoxelIds;
-
 #include <cstdint>
 #include <vector>
 #include "CudaInit.h"
 #include "CudaVector.cuh"
 #include "CVoxelTypes.h"
+
+typedef uint2 CVoxelIds;
 
 class SceneI;
 
@@ -54,7 +54,7 @@ class GIVoxelPages
 	protected:
 	public:
 		// Constrcutors & Destructor
-									GIVoxelPages(SceneI& scene, );
+									GIVoxelPages(SceneI& scene);
 									GIVoxelPages(const GIVoxelPages&) = delete;
 		GIVoxelPages&				operator=(const GIVoxelPages&) = delete;
 									GIVoxelPages(GIVoxelPages&&);

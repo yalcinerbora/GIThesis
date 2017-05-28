@@ -7,19 +7,8 @@ Global Illumination Kernels
 #ifndef __GIKERNELS_H__
 #define __GIKERNELS_H__
 
-#include "GICudaAllocator.h"
 #include "CSVOTypes.h"
-
-struct CAABB;
-typedef CAABB CObjectAABB;
-typedef uint2 CVoxelNormPos;
-typedef uint2 CVoxelIds;
-struct CObjectTransform;
-struct CVoxelColor;
-struct CVoxelPage;
-struct CVoxelGrid;
-struct CSVOConstants;
-
+#include "CVoxelTypes.h"
 
 // Reconstruct SVO
 // Creates SVO tree top down manner
@@ -62,10 +51,10 @@ extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
                                                   cudaTextureObject_t tSVODense,
 
                                                   // Page Data
-                                                  const CVoxelPage* gVoxelData,
+                                                  const CVoxelPage* gVoxelPages,
 
                                                   // For Color Lookup
-                                                  CVoxelColor** gVoxelRenderData,
+                                                  CVoxelAlbedo** gVoxelAlbedoCache,
 
                                                   // Constants
                                                   const unsigned int matSparseOffset,
@@ -81,8 +70,8 @@ extern __global__ void SVOReconstructMaterialLeaf(CSVOMaterial* gSVOMat,
                                                   const float4 camPos,
                                                   const float3 camDir,
 
-                                                  const CMatrix4x4* lightVP,
-                                                  const CLight* lightStruct,
+                                                  //const CMatrix4x4* lightVP,
+                                                  //const CLight* lightStruct,
 
                                                   const float depthNear,
                                                   const float depthFar,
@@ -120,7 +109,7 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
 
                                       // For Color Lookup
                                       const CVoxelPage* gVoxelData,
-                                      CVoxelColor** gVoxelRenderData,
+                                      CVoxelAlbedo** gVoxelRenderData,
 
                                       const unsigned int matSparseOffset,
                                       const unsigned int cascadeNo,
@@ -135,8 +124,8 @@ extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
                                       const float4 camPos,
                                       const float3 camDir,
 
-                                      const CMatrix4x4* lightVP,
-                                      const CLight* lightStruct,
+                                      //const CMatrix4x4* lightVP,
+                                      //const CLight* lightStruct,
 
                                       const float depthNear,
                                       const float depthFar,
@@ -155,7 +144,7 @@ extern __global__ void SVOUpdate(CSVOMaterial* gSVOMat,
 
 								 // For Color Lookup
 								 const CVoxelPage* gVoxelData,
-								 CVoxelColor** gVoxelRenderData,
+								 //CVoxelColor** gVoxelRenderData,
 
 								 const unsigned int matSparseOffset,
 								 const unsigned int cascadeNo,
@@ -170,8 +159,8 @@ extern __global__ void SVOUpdate(CSVOMaterial* gSVOMat,
 								 const float4 camPos,
 								 const float3 camDir,
 
-								 const CMatrix4x4* lightVP,
-								 const CLight* lightStruct,
+								 //const CMatrix4x4* lightVP,
+								 //const CLight* lightStruct,
 
 								 const float depthNear,
 								 const float depthFar,

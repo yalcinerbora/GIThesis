@@ -13,6 +13,7 @@ whgen data chagnes it resend the data bind time
 #include <vector>
 #include <cstdint>
 #include <cassert>
+#include <algorithm>
 
 template <class T>
 class StructuredBuffer
@@ -30,7 +31,7 @@ class StructuredBuffer
 
 	public:
 		// Constructors & Destructor
-								StructuredBuffer(size_t initialCapacity = 0);
+								StructuredBuffer(size_t initialCapacity = 0, bool allocCPU = true);
 								StructuredBuffer(StructuredBuffer&&);
 								StructuredBuffer(const StructuredBuffer&) = delete;
 		StructuredBuffer&		operator=(StructuredBuffer&&);

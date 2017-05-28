@@ -155,6 +155,7 @@ xcopy $(SolutionDir)..\..\Source\Shaders\*.comp $(SolutionDir)..\..\WorkingDir\S
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\Source\Shaders\ApplyVoxLI.comp" />
+    <None Include="..\..\..\Source\Shaders\DetermineSplitCount.comp" />
     <None Include="..\..\..\Source\Shaders\DPass.frag" />
     <None Include="..\..\..\Source\Shaders\DPass.vert" />
     <None Include="..\..\..\Source\Shaders\DPassSkeletal.vert" />

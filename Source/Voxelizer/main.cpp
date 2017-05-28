@@ -15,9 +15,7 @@
 static const VoxelizerOptions defaults =
 {
 	1.0f,		// 1 pixel per voxel
-	1.0f,		// 1 unit coverage per voxel
-//	512,		// 512^3 voxel dim
-	1			// Single cascade
+	1,			// 1 cascade
 };
 
 enum class VoxErrorType
@@ -120,20 +118,6 @@ VoxErrorType ParseOptions(VoxelizerOptions& opts,
 					}
 					break;
 				}
-				else if(argId == 4) // -splat
-				{
-					i++;
-					if(i < argc && !isSwitch(argv[i]))
-					{
-						opts.splatRatio = std::stof(argv[i]);
-					}
-					else
-					{
-						std::cout << "-splat switch needs at least one float value" << std::endl;
-						return VoxErrorType::PARSE_ERROR;
-					}
-					break;
-				}
 			}
 			argId++;
 		}
@@ -155,20 +139,28 @@ int main(int argc, char* argv[])
 	if(error != VoxErrorType::OK) return 1;
 	if(!OGLVoxelizer::InitGLSystem()) return 1;
 	
-	GL3DTexture lockTex(TextureDataType::UINT_1);
+	// TODO Change this to bitmap
+	GL3DTexture lockTex(TextureDataType::UINT_1,
+						VOX_3D_TEX_SIZE,
+						VOX_3D_TEX_SIZE,
+						VOX_3D_TEX_SIZE);
+
 	StructuredBuffer<IEVector4> normalArray(VOX_3D_TEX_SIZE *
 											VOX_3D_TEX_SIZE *
-											VOX_3D_TEX_SIZE);
+											VOX_3D_TEX_SIZE,
+											false);
 	StructuredBuffer<IEVector4> colorArray(VOX_3D_TEX_SIZE *
 										   VOX_3D_TEX_SIZE *
-										   VOX_3D_TEX_SIZE);
-	StructuredBuffer<VoxelWeightData> weightArray(VOX_3D_TEX_SIZE *
-												  VOX_3D_TEX_SIZE *
-												  VOX_3D_TEX_SIZE);
+										   VOX_3D_TEX_SIZE,
+										   false);
+	StructuredBuffer<VoxelWeights> weightArray(VOX_3D_TEX_SIZE *
+											   VOX_3D_TEX_SIZE *
+											   VOX_3D_TEX_SIZE,
+											   false);
 
-	Shader compSplitCount(ShaderType::COMPUTE, "Shaders/DetermineSplitCount.glsl");
-	Shader compPackVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.glsl");
-	Shader compPackVoxelsSkel(ShaderType::COMPUTE, "Shaders/PackObjectVoxelsSkel.glsl");
+	Shader compSplitCount(ShaderType::COMPUTE, "Shaders/DetermineSplitCount.comp");
+	Shader compPackVoxels(ShaderType::COMPUTE, "Shaders/PackObjectVoxels.comp");
+	Shader compPackVoxelsSkel(ShaderType::COMPUTE, "Shaders/PackObjectVoxelsSkel.comp");
 
 	Shader vertVoxelize(ShaderType::VERTEX, "Shaders/VoxelizeGeom.vert");
 	Shader geomVoxelize(ShaderType::GEOMETRY, "Shaders/VoxelizeGeom.geom");
@@ -184,11 +176,6 @@ int main(int argc, char* argv[])
 	GLsizei frameSize = static_cast<GLsizei>(VOX_3D_TEX_SIZE);
 	VoxFramebuffer fbo(frameSize, frameSize);
 	fbo.Bind();
-
-	// Voxelization
-	float span = options.span;
-	std::stringstream voxPrefix;
-	voxPrefix << "vox_" << span << "_" << options.cascadeCount << "_";
 
 	for(auto& fileName : fileNames)
 	{
@@ -217,11 +204,9 @@ int main(int argc, char* argv[])
 							   fragVoxelizeCount,
 							   false);
 
-		voxelizer.Start();
-
-		std::string voxFile = voxPrefix.str() + fileName;
-
-		voxelizer.Write(voxFile, uint32_t cascadeNo);
+		std::string fileNameOnly = fileName.substr(fileName.find_last_of("\\/") + 1,
+												   fileName.find_last_of("."));
+		voxelizer.Execute(fileNameOnly);
 	}
 
 	// Skeletal Voxelization
@@ -251,9 +236,9 @@ int main(int argc, char* argv[])
 							   fragVoxelizeSkel,
 							   fragVoxelizeCount,
 							   true);
-			voxelizer.Start();
-			std::string voxFile = voxPrefix.str() + fileName;
-			voxelizer.Write(voxFile);
+
+		std::string fileNameOnly = fileName.substr(fileName.find_last_of("\\/") + 1);
+		voxelizer.Execute(fileNameOnly);
 	}
 	OGLVoxelizer::DestroyGLSystem();
 	return 0;

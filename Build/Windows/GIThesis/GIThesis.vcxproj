@@ -275,6 +275,11 @@
       <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>
     </CudaCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GLSLShaderCompiler\GLSLShaderCompiler.vcxproj">
+      <Project>{50d26e91-4510-4c44-ab79-1dd97e3687d2}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 8.0.targets" />

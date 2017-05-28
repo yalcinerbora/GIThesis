@@ -1,6 +1,102 @@
 
-glslc = ../../L
-glslcFlags = --target-env=opengl
+glslc = ../../../../Lib/glslc.exe
+glslcFlags = --target-env=opengl -c
+srcFolder = ../../../../Source/Shaders
 
 rule glsl
-	command = glsl
+  depfile = $out.deps
+  command = $glslc -MD -MF $out.deps $in $glslcFlags
+  description = glslc $in
+  
+build $outFolder/ApplyVoxLI.comp.spirv : glsl $srcFolder/ApplyVoxLI.comp
+build $outFolder/EdgeDetect.comp.spirv : glsl $srcFolder/EdgeDetect.comp
+build $outFolder/Gauss32.comp.spirv : glsl $srcFolder/Gauss32.comp
+build $outFolder/HierZ.comp.spirv : glsl $srcFolder/HierZ.comp
+build $outFolder/PackObjectVoxels.comp.spirv : glsl $srcFolder/PackObjectVoxels.comp
+build $outFolder/PackObjectVoxelsSkel.comp.spirv : glsl $srcFolder/PackObjectVoxelsSkel.comp
+build $outFolder/VoxAO.comp.spirv : glsl $srcFolder/VoxAO.comp
+build $outFolder/VoxGI.comp.spirv : glsl $srcFolder/VoxGI.comp
+build $outFolder/VoxTraceDeferred.comp.spirv : glsl $srcFolder/VoxTraceDeferred.comp
+build $outFolder/VoxTraceDeferredLerp.comp.spirv : glsl $srcFolder/VoxTraceDeferredLerp.comp
+build $outFolder/VoxTraceWorld.comp.spirv : glsl $srcFolder/VoxTraceWorld.comp
+
+build $outFolder/DPass.frag.spirv : glsl $srcFolder/DPass.frag
+build $outFolder/GWriteGeneric.frag.spirv : glsl $srcFolder/GWriteGeneric.frag
+build $outFolder/LightPass.frag.spirv : glsl $srcFolder/LightPass.frag
+build $outFolder/PPLightPresent.frag.spirv : glsl $srcFolder/PPLightPresent.frag
+build $outFolder/PProcessGBuff.frag.spirv : glsl $srcFolder/PProcessGBuff.frag
+build $outFolder/PProcessGeneric.frag.spirv : glsl $srcFolder/PProcessGeneric.frag
+build $outFolder/PProcessShadowMap.frag.spirv : glsl $srcFolder/PProcessShadowMap.frag
+build $outFolder/ShadowMap.frag.spirv : glsl $srcFolder/ShadowMap.frag
+build $outFolder/VoxelizeGeom.frag.spirv : glsl $srcFolder/VoxelizeGeom.frag
+build $outFolder/VoxelizeGeomCount.frag.spirv : glsl $srcFolder/VoxelizeGeomCount.frag
+build $outFolder/VoxelizeGeomSkel.frag.spirv : glsl $srcFolder/VoxelizeGeomSkel.frag
+build $outFolder/VoxRender.frag.spirv : glsl $srcFolder/VoxRender.frag
+
+build $outFolder/ShadowMapA.geom.spirv : glsl $srcFolder/ShadowMapA.geom
+build $outFolder/ShadowMapD.geom.spirv : glsl $srcFolder/ShadowMapD.geom
+build $outFolder/ShadowMapP.geom.spirv : glsl $srcFolder/ShadowMapP.geom
+build $outFolder/VoxelizeGeom.geom.spirv : glsl $srcFolder/VoxelizeGeom.geom
+build $outFolder/VoxelizeGeomSkel.geom.spirv : glsl $srcFolder/VoxelizeGeomSkel.geom
+
+build $outFolder/DPass.vert.spirv : glsl $srcFolder/DPass.vert
+build $outFolder/DPassSkeletal.vert.spirv : glsl $srcFolder/DPassSkeletal.vert
+build $outFolder/GWriteGeneric.vert.spirv : glsl $srcFolder/GWriteGeneric.vert
+build $outFolder/GWriteSkeletal.vert.spirv : glsl $srcFolder/GWriteSkeletal.vert
+build $outFolder/LightPass.vert.spirv : glsl $srcFolder/LightPass.vert
+build $outFolder/PProcessGeneric.vert.spirv : glsl $srcFolder/PProcessGeneric.vert
+build $outFolder/ShadowMap.vert.spirv : glsl $srcFolder/ShadowMap.vert
+build $outFolder/ShadowMapSkeletal.vert.spirv : glsl $srcFolder/ShadowMapSkeletal.vert
+build $outFolder/VoxelizeGeom.vert.spirv : glsl $srcFolder/VoxelizeGeom.vert
+build $outFolder/VoxelizeGeomSkel.vert.spirv : glsl $srcFolder/VoxelizeGeomSkel.vert
+build $outFolder/VoxRender.vert.spirv : glsl $srcFolder/VoxRender.vert
+build $outFolder/VoxRenderSkeletal.vert.spirv : glsl $srcFolder/VoxRenderSkeletal.vert
+build $outFolder/VoxRenderWorld.vert.spirv : glsl $srcFolder/VoxRenderWorld.vert
+
+build all : phony $
+  $outFolder/PPLightPresent.frag.spirv $
+  $outFolder/DPass.frag.spirv $
+  $outFolder/ApplyVoxLI.comp.spirv $
+  $outFolder/EdgeDetect.comp.spirv $
+  $outFolder/Gauss32.comp.spirv $
+  $outFolder/HierZ.comp.spirv $
+  $outFolder/PackObjectVoxels.comp.spirv $
+  $outFolder/PackObjectVoxelsSkel.comp.spirv $
+  $outFolder/VoxAO.comp.spirv $
+  $outFolder/VoxGI.comp.spirv $
+  $outFolder/VoxTraceDeferred.comp.spirv $
+  $outFolder/VoxTraceDeferredLerp.comp.spirv $
+  $outFolder/VoxTraceWorld.comp.spirv $
+  $outFolder/DPass.frag.spirv $
+  $outFolder/GWriteGeneric.frag.spirv $
+  $outFolder/LightPass.frag.spirv $
+  $outFolder/PPLightPresent.frag.spirv $
+  $outFolder/PProcessGBuff.frag.spirv $
+  $outFolder/PProcessGeneric.frag.spirv $
+  $outFolder/PProcessShadowMap.frag.spirv $
+  $outFolder/ShadowMap.frag.spirv $
+  $outFolder/VoxelizeGeomCount.frag.spirv $
+  $outFolder/VoxRender.frag.spirv $
+  $outFolder/ShadowMapA.geom.spirv $
+  $outFolder/ShadowMapD.geom.spirv $
+  $outFolder/ShadowMapP.geom.spirv $
+  $outFolder/VoxelizeGeom.geom.spirv $
+  $outFolder/VoxelizeGeomSkel.geom.spirv $
+  $outFolder/DPass.vert.spirv $
+  $outFolder/DPassSkeletal.vert.spirv $
+  $outFolder/GWriteGeneric.vert.spirv $
+  $outFolder/GWriteSkeletal.vert.spirv $
+  $outFolder/LightPass.vert.spirv $
+  $outFolder/PProcessGeneric.vert.spirv $
+  $outFolder/ShadowMap.vert.spirv $
+  $outFolder/ShadowMapSkeletal.vert.spirv $
+  $outFolder/VoxelizeGeom.vert.spirv $
+  $outFolder/VoxelizeGeomSkel.vert.spirv $
+  $outFolder/VoxRender.vert.spirv $
+  $outFolder/VoxRenderSkeletal.vert.spirv $
+  $outFolder/VoxRenderWorld.vert.spirv
+
+# $outFolder/VoxelizeGeom.frag.spirv
+# $outFolder/VoxelizeGeomSkel.frag.spirv
+
+default all

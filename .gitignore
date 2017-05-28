@@ -47,15 +47,13 @@
 # Binaries
 Bin/
 
-# Working Dir Except Shaders
+# Working Dir Except Some Other
 WorkingDir/*
 !WorkingDir/**/*.qrc
-!WorkingDir/Shaders/
-!WorkingDir/Shaders/*.frag
-!WorkingDir/Shaders/*.geom
-!WorkingDir/Shaders/*.vert
 
 # Keep Provided Libraries
+!Lib/**/*.out
+!Lib/**/*.exe
 !Lib/**/*.lai
 !Lib/**/*.la
 !Lib/**/*.a
@@ -65,7 +63,3 @@ WorkingDir/*
 !Lib/**/*.dvlib
 !Lib/**/*.dll
 !Lib/**/*.pch
-/Build/Windows/NamiSimulatorCPU/x64/Debug/*.cache
-/Source/NamiDance/*.aps
-*.autosave
-/Source/NamiDance/*.bak

@@ -1,0 +1,157 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="..\..\..\Source\Shaders\GLSLBindPoints.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\Source\Shaders\DPass.frag">
+      <Filter>Deferred</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\DPass.vert">
+      <Filter>Deferred</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\DPassSkeletal.vert">
+      <Filter>Deferred</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\LightPass.frag">
+      <Filter>Deferred</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\LightPass.vert">
+      <Filter>Deferred</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\GWriteSkeletal.vert">
+      <Filter>Deferred</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\GWriteGeneric.vert">
+      <Filter>Deferred</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\GWriteGeneric.frag">
+      <Filter>Deferred</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\ShadowMap.frag">
+      <Filter>ShadowMap</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\ShadowMap.vert">
+      <Filter>ShadowMap</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\ShadowMapA.geom">
+      <Filter>ShadowMap</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\ShadowMapD.geom">
+      <Filter>ShadowMap</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\ShadowMapP.geom">
+      <Filter>ShadowMap</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\ShadowMapSkeletal.vert">
+      <Filter>ShadowMap</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxelizeGeomCount.frag">
+      <Filter>Voxelization</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\HierZ.comp">
+      <Filter>ShadowMap</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxTraceDeferred.comp">
+      <Filter>ConeTracing</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxTraceDeferredLerp.comp">
+      <Filter>ConeTracing</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxTraceWorld.comp">
+      <Filter>ConeTracing</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxGI.comp">
+      <Filter>ConeTracing</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxAO.comp">
+      <Filter>ConeTracing</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\ApplyVoxLI.comp">
+      <Filter>PostProcess</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\PPLightPresent.frag">
+      <Filter>PostProcess</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\PProcessGBuff.frag">
+      <Filter>PostProcess</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\PProcessGeneric.frag">
+      <Filter>PostProcess</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\PProcessGeneric.vert">
+      <Filter>PostProcess</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\PProcessShadowMap.frag">
+      <Filter>PostProcess</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxRender.frag">
+      <Filter>VoxelRender</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxRender.vert">
+      <Filter>VoxelRender</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxRenderSkeletal.vert">
+      <Filter>VoxelRender</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxRenderWorld.vert">
+      <Filter>VoxelRender</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\EdgeDetect.comp">
+      <Filter>PostProcess</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\Gauss32.comp">
+      <Filter>PostProcess</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\PackObjectVoxels.comp">
+      <Filter>Voxelization\Rigid</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxelizeGeom.frag">
+      <Filter>Voxelization\Rigid</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxelizeGeom.geom">
+      <Filter>Voxelization\Rigid</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxelizeGeom.vert">
+      <Filter>Voxelization\Rigid</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxelizeGeomSkel.frag">
+      <Filter>Voxelization\Skeletal</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxelizeGeomSkel.geom">
+      <Filter>Voxelization\Skeletal</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\VoxelizeGeomSkel.vert">
+      <Filter>Voxelization\Skeletal</Filter>
+    </None>
+    <None Include="..\..\..\Source\Shaders\PackObjectVoxelsSkel.comp">
+      <Filter>Voxelization\Skeletal</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Deferred">
+      <UniqueIdentifier>{4a06b265-d3a5-4c83-8a82-9117ceec9fc1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ShadowMap">
+      <UniqueIdentifier>{e92edb47-e9bb-4c92-89f1-bed6acebb3a6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Voxelization">
+      <UniqueIdentifier>{35cad8c2-5d6f-4e0d-8f40-2ea37371b5c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ConeTracing">
+      <UniqueIdentifier>{28bb0c1a-ff4e-44e0-b6f5-ac13b242fbf2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="PostProcess">
+      <UniqueIdentifier>{a8e513e1-8993-41e4-9b43-98be415d53b9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VoxelRender">
+      <UniqueIdentifier>{3c8c5182-4f9a-4abf-8796-3d6b1f43d5ec}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Voxelization\Rigid">
+      <UniqueIdentifier>{466dfcde-c0b1-430c-8ae7-fcf8a6cd1672}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Voxelization\Skeletal">
+      <UniqueIdentifier>{bd9d1388-1676-4298-b9b0-cd67c89c8a0c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

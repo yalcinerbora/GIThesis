@@ -202,7 +202,7 @@
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
-    <CudaCompile Include="..\..\..\Source\VoxelCacheBatch.cu">
+    <CudaCompile Include="..\..\..\Source\VoxelCacheBatches.cu">
       <FileType>CppCode</FileType>
     </CudaCompile>
     <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp" />
@@ -253,7 +253,7 @@
     <ClInclude Include="..\..\..\Source\TGALoad.h" />
     <ClInclude Include="..\..\..\Source\CVoxel.cuh" />
     <ClInclude Include="..\..\..\Source\ThesisSolution.h" />
-    <ClInclude Include="..\..\..\Source\VoxelCacheBatch.h" />
+    <ClInclude Include="..\..\..\Source\VoxelCacheBatches.h" />
     <ClInclude Include="..\..\..\Source\Window.h" />
     <ClInclude Include="..\..\..\Source\WindowInput.h" />
   </ItemGroup>

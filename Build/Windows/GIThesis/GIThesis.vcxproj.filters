@@ -315,9 +315,6 @@
     <ClInclude Include="..\..\..\Source\ThesisScenes.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\VoxelCacheBatch.h">
-      <Filter>GI\Thesis</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\GIVoxelPages.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
@@ -359,6 +356,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CSVOLightInject.cuh">
       <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelCacheBatches.h">
+      <Filter>GI\Thesis</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -436,7 +436,7 @@
     <CudaCompile Include="..\..\..\Source\GIVoxelPages.cu">
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\VoxelCacheBatch.cu">
+    <CudaCompile Include="..\..\..\Source\VoxelCacheBatches.cu">
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
   </ItemGroup>

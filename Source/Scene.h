@@ -46,6 +46,7 @@ class ConstantScene : public SceneI
 											~ConstantScene() = default;
 		
 		// Interface
+		const std::vector<std::string>&		getBatchFileNames(uint32_t batchId) override;
 		const std::vector<MeshBatchI*>&		getBatches() override;
 		SceneLights&						getSceneLights() override;
 		const SceneLights&					getSceneLights() const override;

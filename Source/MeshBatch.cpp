@@ -6,6 +6,7 @@
 
 MeshBatch::MeshBatch()
 	: batchParams{0, 0, 0, 0}
+	, repeatCount(0)
 {}
 
 MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
@@ -16,6 +17,7 @@ MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
 	: batchVertex(vertexDefintion, byteStride)
 	, batchDrawParams()
 	, batchParams{}
+	, repeatCount(repeatCount)
 {
 	if(sceneFiles.empty()) return;
 
@@ -99,7 +101,7 @@ MeshBatchType MeshBatch::MeshType() const
 
 int MeshBatch::RepeatCount() const
 {
-    return 1;
+    return repeatCount;
 }
 
 size_t MeshBatch::ObjectCount() const

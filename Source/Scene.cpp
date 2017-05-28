@@ -42,6 +42,12 @@ const SceneLights& ConstantScene::getSceneLights() const
 	return sceneLights;
 }
 
+const std::vector<std::string>& ConstantScene::getBatchFileNames(uint32_t batchId)
+{
+	assert(batchId < meshBatch.size());
+	return (batchId == 0) ? rigidFileNames : skeletalFileNames;
+}
+
 const std::vector<MeshBatchI*>& ConstantScene::getBatches()
 {
 	return meshBatch;

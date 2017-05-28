@@ -11,7 +11,7 @@ Solution implementtion
 #include "ThesisBar.h"
 #include "IndirectBar.h"
 #include "LightBar.h"
-#include "VoxelCacheBatch.h"
+#include "VoxelCacheBatches.h"
 
 class DeferredRenderer;
 class WindowInput;
@@ -20,7 +20,8 @@ class ThesisSolution : public SolutionI
 {
 	private:
 		// Entire Voxel Cache one Per Batch
-		std::vector<VoxelCacheBatch>			voxelCache;
+		VoxelCacheBatches				voxelCaches;
+		//GIVoxelPages					voxelPages;
 
 		//// Voxel Render Shaders
 		//Shader								vertexDebugVoxel;

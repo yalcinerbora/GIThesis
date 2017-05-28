@@ -1,5 +1,6 @@
 #include "ThesisSolution.h"
-
+#include "DeferredRenderer.h"
+#include "SceneI.h"
 
 // Constructors & Destructor
 ThesisSolution::ThesisSolution(uint32_t cascadeCount,
@@ -21,9 +22,16 @@ bool ThesisSolution::IsCurrentScene(SceneI& scene)
 	return &scene == currentScene;
 }
 
-void ThesisSolution::Load(SceneI&)
+void ThesisSolution::Load(SceneI& s)
 {
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	currentScene = &s;
 
+	// Attach new Scene's Light Indices
+	dRenderer.AttachSceneLightIndices(s);
+
+	// Load Voxel Caches
+	//currentScene->
 }
 
 void ThesisSolution::Release()

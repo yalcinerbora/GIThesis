@@ -19,6 +19,7 @@ class SceneI
 		virtual									~SceneI() = default;
 
 		// Interface
+		virtual const std::vector<std::string>&	getBatchFileNames(uint32_t batchId) = 0;
 		virtual const std::vector<MeshBatchI*>&	getBatches() = 0;
 		virtual SceneLights&					getSceneLights() = 0;
 		virtual const SceneLights&				getSceneLights() const = 0;

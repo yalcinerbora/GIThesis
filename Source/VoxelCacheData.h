@@ -23,5 +23,11 @@ struct VoxelWeights
 	uint32_t		weight;
 	uint32_t		weightIndex;
 };
+
+struct MeshVoxelInfo
+{
+	uint32_t voxCount;
+	uint32_t voxOffset;
+};
 #pragma pack(pop)
 #endif //__VOXELCACHEDATA_H__

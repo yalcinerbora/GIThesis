@@ -22,7 +22,8 @@ struct BatchParams
 class MeshBatch : public MeshBatchI
 {
 	private:
-		
+		int						repeatCount;
+
 	protected:
 		VertexBuffer			batchVertex;
 		DrawBuffer				batchDrawParams;

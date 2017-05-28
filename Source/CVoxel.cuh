@@ -99,12 +99,14 @@ inline __device__ CVoxelOccupancy PackOccupancy(const uint3& neigbourBits, const
 
 inline __device__ uint16_t PackSegmentObj(const CVoxelObjectType type,
 										  const SegmentOccupation occupation,
+										  const uint8_t cascadeNo,
 										  const uint16_t segOccupancy)
 {
 	//
 	uint16_t packed = 0;
 	packed |= (static_cast<uint16_t>(type) & 0x0003) << 14;
-	packed |= (static_cast<uint16_t>(occupation) & 0x0007) << 11;
+	packed |= (static_cast<uint16_t>(occupation) & 0x0003) << 12;
+	packed |= (static_cast<uint16_t>(occupation) & 0x0003) << 11;
 	packed |= (segOccupancy & 0x07FF) << 0;
 	return packed;
 }

@@ -10,11 +10,12 @@ struct Camera;
 class Shader;
 class MeshBatchI;
 
-class VoxelCacheBatch
+class VoxelCacheBatches
 {
 	public:
-		struct Cascade
+		struct CascadeBatch
 		{
+			CMeshVoxelInfo*					dMeshVoxelInfo;
 			CVoxelPos*						dVoxelPos;
 			CVoxelNorm*						dVoxelNorm;
 			CVoxelAlbedo*					dVoxelAlbedo;
@@ -31,8 +32,7 @@ class VoxelCacheBatch
 		
 	private:
 		// Mesh Batch
-		MeshBatchI*							batch;
-		const std::vector<std::string>*		gfgNames;
+		const std::vector<MeshBatchI*>*		batches;
 
 		// Actual Data
 		CudaVector<uint8_t>					gpuData;
@@ -44,33 +44,33 @@ class VoxelCacheBatch
 		std::vector<Mesh>					meshData;
 		
 		// Per Cascade Data
-		std::vector<VoxelDebugVAO>			cascadeDebugVAOs;
-		std::vector<Cascade>				cascadeDataPointers;
+//		std::vector<VoxelDebugVAO>			cascadeDebugVAOs;
+		std::vector<CascadeBatch>			cascadeDataPointers;
 		std::vector<uint32_t>				cascadeVoxelCount;
 		std::vector<double>					cascadeVoxelSizes;
 		
-		bool								isSkeletal;
 		bool								glAllocated;
 	
 		static const std::string			GenVoxelGFGFileName(const std::string& fileName, float span);
 
-		uint32_t							FetchVoxelCount(const std::string& voxelGFGFile);
-		size_t								LoadVoxels(size_t offset, int repeatCount,
-													   const std::string& voxelGFGFile);
-		double								CaclulateCascadeMemoryUsageMB(uint32_t cascade) const;
+		size_t								FetchFileVoxelSize(const std::string& voxelGFGFile, bool isSkeletal, int repeatCount = 1);
+		size_t								LoadBatchVoxels(size_t gpuBufferOffset, float currentSpan,
+															const MeshBatchI* batch,
+															const std::vector<std::string>& gfgFiles);
+		static double						CaclulateCascadeMemoryUsageMB(uint32_t voxelCount, uint32_t meshCount, bool isSkeletal);
 
 	protected:
 
 
 	public:
 		// Constructors & Destructor
-											VoxelCacheBatch();
-											VoxelCacheBatch(float minSpan, uint32_t levelCount,
-															MeshBatchI& batch,
-															const std::vector<std::string>& batchNames);
-											VoxelCacheBatch(const VoxelCacheBatch&) = delete;
-											VoxelCacheBatch(VoxelCacheBatch&&);
-											~VoxelCacheBatch() = default;
+											VoxelCacheBatches();
+											VoxelCacheBatches(float minSpan, uint32_t levelCount,
+															  const std::vector<MeshBatchI*>* batches,
+															  const std::vector<std::vector<std::string>>& batchFileNames);
+											VoxelCacheBatches(const VoxelCacheBatches&) = delete;
+											VoxelCacheBatches(VoxelCacheBatches&&);
+											~VoxelCacheBatches() = default;
 
 		void								AllocateGL(uint32_t cascade);
 		void								DeallocateGL();
@@ -79,5 +79,5 @@ class VoxelCacheBatch
 												 Shader& fDebugVoxel,
 												 const Camera& camera);
 
-		const Cascade&						getCascade(uint32_t cascade) const;
+		const CascadeBatch&					getCascade(uint32_t cascade, uint32_t batch) const;
 };

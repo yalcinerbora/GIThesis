@@ -33,6 +33,7 @@ typedef VoxelPosition CVoxelPos;
 typedef VoxelNormal CVoxelNorm;
 typedef uint32_t CVoxelOccupancy;
 typedef uchar4 CVoxelAlbedo;
+typedef MeshVoxelInfo CMeshVoxelInfo;
 
 // Voxel Rendering Data
 #pragma pack(push, 1)
@@ -44,7 +45,7 @@ struct CVoxelWeights
 #pragma pack(pop)
 
 static_assert(sizeof(CVoxelAlbedo) == sizeof(VoxelAlbedo), "Voxel albedo size mismatch.");
-static_assert(sizeof(CVoxelWeights) == sizeof(VoxelWeights), "Voxel albedo size mismatch.");
+static_assert(sizeof(CVoxelWeights) == sizeof(VoxelWeights), "Voxel weþght size mismatch.");
 
 enum class SegmentOccupation : unsigned char
 {
@@ -58,8 +59,8 @@ struct SegmentObjData
 	uint16_t			batchId;
 	uint16_t			objId;
 	uint16_t			objectSegmentId;
-	uint16_t			packed;	// Containts 2 bit Obj Type 4 bit Occupation 10 bit segment occupancy
-	uint32_t			voxStride;
+//	uint16_t			packed;	// Containts 2 bit Obj Type 3 bit Occupation 11 bit segment occupancy
+//	uint32_t			voxStride;
 };
 
 struct CVoxelPage

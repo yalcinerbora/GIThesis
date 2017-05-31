@@ -32,16 +32,17 @@ __global__ void InitializePage(unsigned char* emptySegments, const size_t pageCo
 	emptySegments[pageId * sizePerPage + pageLocalSegmentId] = GIVoxelPages::SegmentSize - pageLocalSegmentId - 1;
 }
 
-__global__ void VoxelObjectDealloc(// Voxel System
-								   CVoxelPage* gVoxelData,
-								   const CVoxelGrid* gGridInfos,
-								   // Helper Structures								  
-								   ushort2* gSegmentAllocInfo,
-								   const CSegmentInfo* gSegmentInfo,
-								   // Per Object Related
-								   const BatchOGLData* gBatchOGLData,
-								   // Limits
-								   const uint32_t totalSegments)
+__global__ void VoxelObjectIO(// Voxel System
+							  CVoxelPage* gVoxelData,
+							  const CVoxelGrid* gGridInfos,
+							  // Helper Structures								  
+							  ushort2* gSegmentAllocInfo,
+							  const CSegmentInfo* gSegmentInfo,
+							  // Per Object Related
+							  const BatchOGLData* gBatchOGLData,
+							  // Limits
+							  const uint32_t totalSegments,
+							  const uint32_t pageAmount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -78,6 +79,27 @@ __global__ void VoxelObjectDealloc(// Voxel System
 			CSegmentInfo segObjId = {0};
 			gVoxelData[objAlloc.x].dSegmentInfo[objAlloc.y] = segObjId;
 			gSegmentAllocInfo[globalId] = ushort2{0xFFFF, 0xFFFF};
+		}
+	}
+	else if(intersects && objAlloc.x == 0xFFFF)
+	{
+		// "Allocate"
+		// Check page by page
+		for(unsigned int i = 0; i < pageAmount; i++)
+		{
+			unsigned int size = AtomicAlloc(&(gVoxelData[i].dEmptySegmentStackSize));
+			if(size != 0)
+			{
+				unsigned int location = gVoxelData[i].dEmptySegmentPos[size - 1];
+				assert(ExpandOnlyOccupation(gVoxelData[i].dSegmentInfo[location].packed) == CSegmentOccupation::EMPTY);
+				gSegmentAllocInfo[globalId] = ushort2
+				{
+					static_cast<unsigned short>(i),
+					static_cast<unsigned short>(location)
+				};
+				gVoxelData[i].dSegmentInfo[location] = segInfo;
+				return;
+			}
 		}
 	}
 }
@@ -140,13 +162,10 @@ inline __device__ void LoadTransformData(// Shared Mem
 										 CMatrix4x4* sTransformMatrices,
 										 CMatrix3x3* sRotationMatrices,
 										 uint8_t* sMatrixLookup,
-
 										 // Object Transform Matrix
 										 const BatchOGLData& gBatchOGLData,
-
 										 // Current Voxel Weight
 										 const uchar4& voxelWeightIndex,
-
 										 // Object Type that will be broadcasted
 										 const CObjectType& objType,
 										 const uint16_t& objId,
@@ -248,14 +267,13 @@ inline __device__ void LoadTransformData(// Shared Mem
 
 __global__ void VoxelTransform(// Voxel Pages
 							   CVoxelPage* gVoxelPages,
-							   const CVoxelGrid& gGridInfo,
-							   const float3 hNewGridPosition,
+							   const CVoxelGrid* gGridInfos,
+							   const float3* gNewGridPositions,
 							   // OGL Related
 							   const BatchOGLData* gBatchOGLData,
 							   // Voxel Cache Related
 							   const BatchVoxelCache* gBatchVoxelCache,
-							   
-							   const float baseSpan,
+							   // Limits
 							   const uint32_t batchCount)
 {
 	// Cache Loading
@@ -263,9 +281,11 @@ __global__ void VoxelTransform(// Voxel Pages
 	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_JOINT_COUNT + 1];	// First index holds model matrix
 	__shared__ CMatrix3x3 sRotationMatrices[GI_MAX_JOINT_COUNT + 1];
 	__shared__ uint8_t sMatrixLookup[GI_MAX_JOINT_COUNT];	
-	// Shared Memory which is used by
+	// Shared Memory for generic data
 	__shared__ CMeshVoxelInfo sMeshVoxelInfo;
 	__shared__ CSegmentInfo sSegInfo;
+	__shared__ CVoxelGrid sGridInfo;
+	__shared__ float3 sNewGridPos;
 	__shared__ uint16_t	sObjTransformId;
 	
 	unsigned int blockLocalId = threadIdx.x;
@@ -282,10 +302,13 @@ __global__ void VoxelTransform(// Voxel Pages
 	if(blockLocalId == 0)
 	{
 		// Load to smem
+		// Todo split this into the threadss
 		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
 		ExpandSegmentInfo(cascadeId, objType, occupation, sSegInfo.packed);
 		sObjTransformId = gBatchOGLData[sSegInfo.batchId].dModelTransformIndices[sSegInfo.objId];
 		sMeshVoxelInfo = gBatchVoxelCache[cascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId];
+		sGridInfo = gGridInfos[cascadeId];
+		sNewGridPos = gNewGridPositions[cascadeId];
 	}
 	__syncthreads();
 	if(blockLocalId != 0)
@@ -301,7 +324,6 @@ __global__ void VoxelTransform(// Voxel Pages
 	const uint16_t& objectId = sSegInfo.objId;
 	const BatchOGLData& batchOGLData = gBatchOGLData[batchId];
 	const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
-	float cascadeSpan = baseSpan * static_cast<float>(1 << cascadeId);
 
 	// Voxel Ids
 	const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
@@ -349,9 +371,9 @@ __global__ void VoxelTransform(// Voxel Pages
 	// Generate World Position
 	// start with object space position
 	float3 worldPos;
-	worldPos.x = objAABBMin.x + voxPos.x * cascadeSpan;
-	worldPos.y = objAABBMin.y + voxPos.y * cascadeSpan;
-	worldPos.z = objAABBMin.z + voxPos.z * cascadeSpan;
+	worldPos.x = objAABBMin.x + voxPos.x * sGridInfo.span;
+	worldPos.y = objAABBMin.y + voxPos.y * sGridInfo.span;
+	worldPos.z = objAABBMin.z + voxPos.z * sGridInfo.span;
 
 	// Joint Transformations
 	if(objType == CObjectType::SKEL_DYNAMIC)
@@ -437,30 +459,30 @@ __global__ void VoxelTransform(// Voxel Pages
 	//MultMatrixSelf(normal, rotation);
 
 	// Reconstruct Voxel Indices relative to the new pos of the grid
-	worldPos.x -= hNewGridPosition.x;
-	worldPos.y -= hNewGridPosition.y;
-	worldPos.z -= hNewGridPosition.z;
+	worldPos.x -= sNewGridPos.x;
+	worldPos.y -= sNewGridPos.y;
+	worldPos.z -= sNewGridPos.z;
 
 	bool outOfBounds;
-	outOfBounds = (worldPos.x < 0.0f) || (worldPos.x >= gGridInfo.dimension.x * gGridInfo.span);
-	outOfBounds |= (worldPos.y < 0.0f) || (worldPos.y >= gGridInfo.dimension.y * gGridInfo.span);
-	outOfBounds |= (worldPos.z < 0.0f) || (worldPos.z >= gGridInfo.dimension.z * gGridInfo.span);
+	outOfBounds = (worldPos.x < 0.0f) || (worldPos.x >= sGridInfo.dimension.x * sGridInfo.span);
+	outOfBounds |= (worldPos.y < 0.0f) || (worldPos.y >= sGridInfo.dimension.y * sGridInfo.span);
+	outOfBounds |= (worldPos.z < 0.0f) || (worldPos.z >= sGridInfo.dimension.z * sGridInfo.span);
 
 	// If its mip dont update inner cascade
 	bool inInnerCascade = false;
 	if(cascadeId > 0)
 	{
-		inInnerCascade = (worldPos.x > gGridInfo.dimension.x * gGridInfo.span * 0.25f) &&
-			(worldPos.x < gGridInfo.dimension.x * gGridInfo.span * 0.75f);
-		inInnerCascade &= (worldPos.y > gGridInfo.dimension.y * gGridInfo.span * 0.25f) &&
-			(worldPos.y < gGridInfo.dimension.y * gGridInfo.span * 0.75f);
-		inInnerCascade &= (worldPos.z > gGridInfo.dimension.z * gGridInfo.span * 0.25f) &&
-			(worldPos.z < gGridInfo.dimension.z * gGridInfo.span * 0.75f);
+		inInnerCascade = (worldPos.x > sGridInfo.dimension.x * sGridInfo.span * 0.25f) &&
+			(worldPos.x < sGridInfo.dimension.x * sGridInfo.span * 0.75f);
+		inInnerCascade &= (worldPos.y > sGridInfo.dimension.y * sGridInfo.span * 0.25f) &&
+			(worldPos.y < sGridInfo.dimension.y * sGridInfo.span * 0.75f);
+		inInnerCascade &= (worldPos.z > sGridInfo.dimension.z * sGridInfo.span * 0.25f) &&
+			(worldPos.z < sGridInfo.dimension.z * sGridInfo.span * 0.75f);
 	}
 	outOfBounds |= inInnerCascade;
 
 	// Voxel Space
-	float invSpan = 1.0f / gGridInfo.span;
+	float invSpan = 1.0f / sGridInfo.span;
 	voxPos.x = static_cast<unsigned int>(worldPos.x * invSpan);
 	voxPos.y = static_cast<unsigned int>(worldPos.y * invSpan);
 	voxPos.z = static_cast<unsigned int>(worldPos.z * invSpan);
@@ -485,9 +507,9 @@ __global__ void VoxelTransform(// Voxel Pages
 	neigbourBits.z = (volumeWeight.z > 0) ? 1 : 0;
 
 	// Outer Bound Check
-	outOfBounds |= (voxPos.x >= gGridInfo.dimension.x);
-	outOfBounds |= (voxPos.y >= gGridInfo.dimension.y);
-	outOfBounds |= (voxPos.z >= gGridInfo.dimension.z);
+	outOfBounds |= (voxPos.x >= sGridInfo.dimension.x);
+	outOfBounds |= (voxPos.y >= sGridInfo.dimension.y);
+	outOfBounds |= (voxPos.z >= sGridInfo.dimension.z);
 
 	// Now Write
 	// Discard the out of bound voxels

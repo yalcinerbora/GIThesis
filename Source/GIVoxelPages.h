@@ -15,7 +15,7 @@
 typedef uint2 CVoxelIds;
 
 class SceneI;
-class VoxelCache;
+class GIVoxelCache;
 
 struct CModelTransform;
 
@@ -54,19 +54,30 @@ class GIVoxelPages
 		// Batch
 		const std::vector<MeshBatchI*>*			batches;
 
-		//Page System
+		uint32_t								segmentSize;
+
+		// Static GPU Data
+		CudaVector<uint8_t>						gpuData;
+		// All these pointers are offseted on the gpuData
+		// Grid Related
+		CVoxelGrid*								dVoxelGrids;
+		float3*									dNewGridPositions;
+		// OGL Pointer Data
+		BatchOGLData*							dBatchOGLData;
+		// Helper Data
+		CSegmentInfo*							dSegmentInfo;
+		ushort2*								dSegmentAllocInfo;
+
+		//Page System (Theoretically Dynamic Data)
 		std::vector<MultiPage>					hPages;
 		CudaVector<CVoxelPage>					dPages;
-
-		// Helper Data
-		CudaVector<CSegmentInfo>				dSegmentInfo;
-		CudaVector<ushort2>						dSegmentAllocInfo;
-
+		
 		// OGL Related
 		std::vector<cudaGraphicsResource_t>		batchOGLResources;
-		CudaVector<BatchOGLData>				dBatchOGLData;
+		
 
 		void									AllocatePages(size_t voxelCapacity);
+		void									UpdateGridPositions(const IEVector3& cameraPos);
 		void									MapOGLResources();
 		void									UnmapOGLResources();
 
@@ -83,8 +94,14 @@ class GIVoxelPages
 												~GIVoxelPages() = default;
 
 		double									VoxelIO();
-		double									VoxelTransform(VoxelCache& cache);
+		double									Transform(const GIVoxelCache& cache,
+														  const IEVector3 cameraPos);
 	
+		// Debug Draw
+		void									AllocateDraw();
+		void									Draw(size_t cascadeCount);
+		void									DeallocateDraw();
+
 		const CVoxelPageConst*					getVoxelPages() const;
 		const CVoxelPage*						getVoxelPages();
 };

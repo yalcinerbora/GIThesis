@@ -3,6 +3,7 @@
 #include "DrawBuffer.h"
 #include "CudaInit.h"
 #include "CudaTimer.h"
+#include "GIVoxelCache.h"
 #include <cuda_gl_interop.h>
 
 inline static std::ostream& operator<<(std::ostream& ostr, const uint2& int2)
@@ -138,7 +139,12 @@ void GIVoxelPages::MapOGLResources()
 		batchIndex++;
 		newOGLData.push_back(batchGL);
 	}
-	dBatchOGLData = newOGLData;
+
+	// Copy generated pointers to GPU
+	CUDA_CHECK(cudaMemcpy(dBatchOGLData,
+						  newOGLData.data(),
+						  batches->size() * sizeof(BatchOGLData),
+						  cudaMemcpyHostToDevice));
 }
 
 void GIVoxelPages::UnmapOGLResources()
@@ -169,61 +175,51 @@ GIVoxelPages& GIVoxelPages::operator=(GIVoxelPages&&)
 	return *this;
 }
 
-
-double VoxelIO()
+double GIVoxelPages::VoxelIO()
 {
 	CudaTimer t;
 	t.Start();
-
-	//VoxelObjectAlloc(// Voxel System
-	//				 CVoxelPage* gVoxelData,
-	//				 const unsigned int gPageAmount,
-	//				 const CVoxelGrid& gGridInfo,
-
-	//				 // Per Object Segment Related
-	//				 ushort2* gObjectAllocLocations,
-	//				 const CSegmentInfo* gSegmentObjectData,
-	//				 const uint32_t totalSegments,
-
-	//				 // Per Object Related
-	//				 const CAABB* gObjectAABB,
-	//				 const CModelTransform* gObjTransforms,
-	//				 const uint32_t* gObjTransformIds);
-
-	//VoxelObjectDealloc(// Voxel System
-	//				   CVoxelPage* gVoxelData,
-	//				   const CVoxelGrid& gGridInfo,
-
-	//				   // Per Object Segment Related
-	//				   ushort2* gObjectAllocLocations,
-	//				   const CSegmentInfo* gSegmentObjectData,
-	//				   const uint32_t totalSegments,
-
-	//				   // Per Object Related
-	//				   const CAABB* gObjectAABB,
-	//				   const CModelTransform* gObjTransforms,
-	//				   const uint32_t* gObjTransformIds);
+	
+	// KC
+	int blockSize = CudaInit::GenBlockSize(static_cast<int>(segmentSize));
+	int threadSize = CudaInit::TBP;
+	VoxelObjectIO<<<blockSize, threadSize>>>(// Voxel System
+											 dPages.Data(),
+											 dVoxelGrids,
+											 // Helper Structures		
+											 dSegmentAllocInfo,
+											 dSegmentInfo,
+											 // Per Object Related
+											 dBatchOGLData,
+											 // Limits
+											 static_cast<uint32_t>(dPages.Size()),
+											 static_cast<uint32_t>(dPages.Size()));
 	t.Stop();
 	return t.ElapsedMilliS();
 }
 
-double GIVoxelPages::VoxelTransform(VoxelCache& cache)
+double GIVoxelPages::Transform(const GIVoxelCache& cache,
+							   const IEVector3 cameraPos)
 {
 	CudaTimer t;
 	t.Start();
 
-	//VoxelTransform(// Voxel Pages
-	//			   CVoxelPage* gVoxelPages,
-	//			   const CVoxelGrid& gGridInfo,
-	//			   const float3 hNewGridPosition,
-	//			   // OGL Related
-	//			   const BatchOGLData* gBatchOGLData,
-	//			   // Voxel Cache Related
-	//			   const BatchVoxelCache* gBatchVoxelCache,
-
-	//			   const float baseSpan,
-	//			   const uint32_t batchCount);
-
+	// Determine Grid Positions
+	UpdateGridPositions(cameraPos);
+	
+	// KC
+	int blockSize = CudaInit::GenBlockSize(static_cast<int>(dPages.Size() * PageSize));
+	int threadSize = CudaInit::TBP;
+	VoxelTransform<<<blockSize,threadSize>>>(// Voxel Pages
+										     dPages.Data(),
+										     dVoxelGrids,
+										     dNewGridPositions,
+										     // OGL Related
+										     dBatchOGLData,
+										     // Voxel Cache Related
+											 cache.getDeviceCascadePointersDevice().Data(),
+										     // Limits
+										     static_cast<uint32_t>(batches->size()));
 	t.Stop();
 	return t.ElapsedMilliS();
 }

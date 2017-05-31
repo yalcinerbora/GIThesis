@@ -12,42 +12,42 @@ extern __global__ void InitializePage(unsigned char* emptySegments,
 // Allocates-Deallocates Voxels withn pages segment by segment
 // Call Logic "per object per segement"
 // Each segment allocates itself within the pages
-extern __global__ void VoxelObjectDealloc(// Voxel System
-										  CVoxelPage* gVoxelData,
-										  const CVoxelGrid* gGridInfos,
-										  // Helper Structures
-										  ushort2* gSegmentAllocInfo,
-										  const CSegmentInfo* gSegmentInfo,
-										  // Per Object Related
-										  const BatchOGLData* gBatchOGLData,
-										  // Limits
-										  const uint32_t totalSegments);
+extern __global__ void VoxelObjectIO(// Voxel System
+									 CVoxelPage* gVoxelData,
+									 const CVoxelGrid* gGridInfos,
+									 // Helper Structures
+									 ushort2* gSegmentAllocInfo,
+									 const CSegmentInfo* gSegmentInfo,
+									 // Per Object Related
+									 const BatchOGLData* gBatchOGLData,
+									 // Limits
+									 const uint32_t totalSegments,
+									 const uint32_t pageAmount);
 
-extern __global__ void VoxelObjectAlloc(// Voxel System
-										CVoxelPage* gVoxelData,
-										const CVoxelGrid* gGridInfos,
-										// Helper Structures
-										ushort2* gSegmentAllocInfo,
-										const CSegmentInfo* gSegmentInfo,
-										// Per Object Related
-										const BatchOGLData* gBatchOGLData,
-										// Limits
-										const uint32_t totalSegments,
-										const uint32_t pageAmount);
+//extern __global__ void VoxelObjectAlloc(// Voxel System
+//										CVoxelPage* gVoxelData,
+//										const CVoxelGrid* gGridInfos,
+//										// Helper Structures
+//										ushort2* gSegmentAllocInfo,
+//										const CSegmentInfo* gSegmentInfo,
+//										// Per Object Related
+//										const BatchOGLData* gBatchOGLData,
+//										// Limits
+//										const uint32_t totalSegments,
+//										const uint32_t pageAmount);
 
 // Voxel Transform
 // Transforms existing voxels in order to cut voxel reconstruction each frame
 // Call Logic "per voxel in the grid"
 extern  __global__ void VoxelTransform(// Voxel Pages
 									   CVoxelPage* gVoxelPages,
-									   const CVoxelGrid& gGridInfo,
-									   const float3 hNewGridPosition,
+									   const CVoxelGrid* gGridInfos,
+									   const float3* gNewGridPositions,
 									   // OGL Related
 									   const BatchOGLData* gBatchOGLData,
 									   // Voxel Cache Related
 									   const BatchVoxelCache* gBatchVoxelCache,
-
-									   const float baseSpan,
+									   // Limits
 									   const uint32_t batchCount);
 
 // Voxel Clear Marked

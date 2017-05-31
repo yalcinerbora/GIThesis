@@ -29,8 +29,8 @@ class EmptyGIBar : public AntBar
 
 		// Timing Related
 		bool						DoTiming() const;
-		int							CurrentLight() const;
-		int							CurrentLevel() const;
+		int							Light() const;
+		int							LightLevel() const;
 
 		void						Next();
 		void						Previous();

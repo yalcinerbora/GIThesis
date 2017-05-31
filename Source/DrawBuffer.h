@@ -89,7 +89,8 @@ class DrawBuffer
 		void									BindAsDrawIndirectBuffer();
 		void									BindAABB(GLuint bindPoint);
 		void									BindModelTransform(GLuint bindPoint);
-		
+		void									BindModelTransformIndex(GLuint bindPoint);
+
 		void									DrawCallSingle(GLuint drawId);
 		void									DrawCallMulti();
 		void									DrawCallMultiState();

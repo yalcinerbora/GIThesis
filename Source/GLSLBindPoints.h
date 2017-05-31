@@ -35,6 +35,7 @@
 #define U_FETCH_LEVEL 1
 #define U_PIX_COUNT 1
 #define U_SAMPLE_DISTANCE 2
+#define U_DRAW_ID 2
 #define U_LIGHT_INDEX 2
 #define U_ON_OFF_SWITCH 3
 #define U_IMAGE_SIZE 3

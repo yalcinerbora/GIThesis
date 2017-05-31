@@ -7,15 +7,13 @@ class SceneLights;
 
 class RenderSelect
 {
-	public:
-	
 	private:
 		static TwType					twDeferredRenderType;
 
 		int								totalLight;
 		std::vector<int>				lightMaxLevel;
-		int								currentLight;
-		int								currentLightLevel;
+		int								light;
+		int								lightLevel;
 
 	protected:
 		static const TwEnumVal			renderSchemeVals[];
@@ -43,8 +41,8 @@ class RenderSelect
 		void							Up();
 		void							Down();
 
-		int								CurrentLight() const;
-		int								CurrentLightLevel() const;
+		int								Light() const;
+		int								LightLevel() const;
 };
 
 class VoxelRenderSelect : public RenderSelect
@@ -56,9 +54,13 @@ class VoxelRenderSelect : public RenderSelect
 		int								minSVOLevel;
 		int								maxSVOLevel;
 
-		int								currentSVOLevel;
-		int								currentCacheCascade;
-		int								currentPageLevel;
+		int								svoLevel;
+		int								cacheCascade;
+		int								pageCascade;
+
+		SVORender						svoRenderType;
+		VoxelRender						cacheRenderType;
+		VoxelRender						pageRenderType;
 
 	protected:
 	public:
@@ -78,8 +80,14 @@ class VoxelRenderSelect : public RenderSelect
 		void							Up();
 		void							Down();
 
-		int								CurrentSVOLevel() const;
-		int								CurrentCacheCascade() const;
-		int								CurrentPageLevel() const;
+		int								SVOLevel() const;
+		SVORender						SVORenderType() const;
+
+		int								CacheCascade() const;
+		VoxelRender						CacheRenderType() const;
+
+		int								PageCascade() const;
+		VoxelRender						PageRenderType() const;
+		
 
 };

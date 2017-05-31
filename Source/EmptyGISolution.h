@@ -20,9 +20,10 @@ class WindowInput;
 
 class EmptyGISolution : public SolutionI
 {
-	private:
+	public:
 		const std::string					name;
 
+	private:		
 		DeferredRenderer&					dRenderer;
 		SceneI*								currentScene;
 		

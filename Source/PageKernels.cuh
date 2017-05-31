@@ -2,11 +2,10 @@
 
 #include <cstdint>
 #include "CVoxelTypes.h"
-#include "COpenGLTypes.cuh"
+#include "COpenGLTypes.h"
 
 // Initialize Pages
-extern __global__ void InitializePage(unsigned char* emptySegments,
-									  const ptrdiff_t stride,
+extern __global__ void InitializePage(unsigned char* emptySegments, 
 									  const size_t pageCount);
 
 // Voxel Allocate - Deallocate
@@ -15,32 +14,26 @@ extern __global__ void InitializePage(unsigned char* emptySegments,
 // Each segment allocates itself within the pages
 extern __global__ void VoxelObjectDealloc(// Voxel System
 										  CVoxelPage* gVoxelData,
-										  const CVoxelGrid& gGridInfo,
-
-										  // Per Object Segment Related
-										  ushort2* gObjectAllocLocations,
-										  const SegmentObjData* gSegmentObjectData,
-										  const uint32_t totalSegments,
-
+										  const CVoxelGrid* gGridInfos,
+										  // Helper Structures
+										  ushort2* gSegmentAllocInfo,
+										  const CSegmentInfo* gSegmentInfo,
 										  // Per Object Related
-										  const CObjectAABB* gObjectAABB,
-										  const CObjectTransform* gObjTransforms,
-										  const uint32_t* gObjTransformIds);
+										  const BatchOGLData* gBatchOGLData,
+										  // Limits
+										  const uint32_t totalSegments);
 
 extern __global__ void VoxelObjectAlloc(// Voxel System
 										CVoxelPage* gVoxelData,
-										const unsigned int gPageAmount,
-										const CVoxelGrid& gGridInfo,
-
-										// Per Object Segment Related
-										ushort2* gObjectAllocLocations,
-										const SegmentObjData* gSegmentObjectData,
-										const uint32_t totalSegments,
-
+										const CVoxelGrid* gGridInfos,
+										// Helper Structures
+										ushort2* gSegmentAllocInfo,
+										const CSegmentInfo* gSegmentInfo,
 										// Per Object Related
-										const CObjectAABB* gObjectAABB,
-										const CObjectTransform* gObjTransforms,
-										const uint32_t* gObjTransformIds);
+										const BatchOGLData* gBatchOGLData,
+										// Limits
+										const uint32_t totalSegments,
+										const uint32_t pageAmount);
 
 // Voxel Transform
 // Transforms existing voxels in order to cut voxel reconstruction each frame
@@ -49,19 +42,13 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 									   CVoxelPage* gVoxelPages,
 									   const CVoxelGrid& gGridInfo,
 									   const float3 hNewGridPosition,
+									   // OGL Related
+									   const BatchOGLData* gBatchOGLData,
+									   // Voxel Cache Related
+									   const BatchVoxelCache* gBatchVoxelCache,
 
-									   // Object Related
-									   CObjectTransform** gObjTransforms,
-									   CObjectTransform** gJointTransforms,
-									   CObjectAABB** gObjectAABB,
-									   uint32_t** gObjTransformIds,
-
-									   // Cache
-									   CVoxelPos** gVoxPosCache,
-									   CVoxelNorm** gVoxNormCache,
-									   CVoxelAlbedo** gVoxAlbedoCache,
-									   CVoxelWeights** gVoxWeightCache,
-									   CObjectVoxelInfo** gObjInfoCache);
+									   const float baseSpan,
+									   const uint32_t batchCount);
 
 // Voxel Clear Marked
 // Clears the deallocated voxels marked by "VxoelObjecDealloc" function

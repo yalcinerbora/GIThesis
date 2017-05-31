@@ -1,16 +1,13 @@
+#pragma once
 /**
 
 
 
 */
 
-#ifndef __GICUDASPARSEVOXELOCTREE_H__
-#define __GICUDASPARSEVOXELOCTREE_H__
-
 #include <cuda.h>
 #include "CudaVector.cuh"
 #include "SceneLights.h"
-#include "VoxelDebugVAO.h"
 
 #include "CSVOTypes.h"
 #include "Shader.h"
@@ -19,6 +16,47 @@
 class GICudaAllocator;
 class DeferredRenderer;
 struct Camera;
+
+class OctreeParameters
+{
+	public:
+		// SVO Const Params
+		const uint32_t				DenseLevel;
+		const uint32_t				DenseSize;
+		const uint32_t				DenseSizeCube;
+		const uint32_t				DenseLevelCount;
+
+		const uint32_t				CascadeCount;
+		const uint32_t				CascadeBaseLevel;
+		const uint32_t				CascadeBaseLevelSize;
+
+		const float					BaseSpan;
+
+		const uint32_t				MinSVOLevel;
+		const uint32_t				MaxSVOLevel;
+
+		OctreeParameters(uint32_t denseLevel,
+						 uint32_t denseLevelCount,
+						 uint32_t cascadeCount,
+						 uint32_t cascadeBaseLevel,
+						 float baseSpan)
+			: DenseLevel(denseLevel)
+			, DenseSize(1 << denseLevel)
+			, DenseSizeCube(DenseSize * DenseSize * DenseSize)
+			, DenseLevelCount(denseLevelCount)
+			, CascadeCount(cascadeCount)
+			, CascadeBaseLevel(CascadeBaseLevel)
+			, CascadeBaseLevelSize(1 << CascadeBaseLevel)
+			, BaseSpan(baseSpan)
+			, MinSVOLevel(denseLevel - denseLevelCount + 1)
+			, MaxSVOLevel(cascadeBaseLevel + cascadeCount - 1)
+		{
+			assert(static_cast<int>(DenseLevel) - static_cast<int>(DenseLevelCount) > 0);
+			assert(DenseLevelCount >= 1);
+			assert(CascadeBaseLevel <= 10);
+			assert(CascadeCount <= 4);
+		}
+};
 
 enum class SVOTraceType : uint32_t
 {
@@ -91,28 +129,13 @@ struct InvFrameTransform;
 class GISparseVoxelOctree
 {
 	public:
-		// SVO Const Params
-		static constexpr uint32_t				DenseLevel = 6;
-		static constexpr uint32_t				DenseSize = 1 << DenseLevel;
-		static constexpr uint32_t				DenseSizeCube = DenseSize * DenseSize * DenseSize;
-
-		static constexpr uint32_t				DenseLevelCount = 4;
+		const OctreeParameters&					octreeParams;
 
 	private:
-		// Main Page Allocator
-	//	GIVoxelPage								voxelPage;
-
-
-
-
-
-		//std::vector<GICudaAllocator*>			allocators;			// Page Allocators
-		//std::vector<const CVoxelGrid*>			allocatorGrids;		// Allocator's Responsible Grids
 
 		CSVOConstants							hSVOConstants;
 		CudaVector<CSVOConstants>				dSVOConstants;
 
-		
 		//// SVO Data (Sparse)
 		//StructuredBuffer<CSVONode>				svoNodeBuffer;
 		//StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
@@ -165,7 +188,7 @@ class GISparseVoxelOctree
 		// Shadows
 		cudaMipmappedArray_t					shadowMapArray;
 		cudaTextureObject_t						tShadowMapArray;
-		//CLight*									dLightParamArray;
+		//CLight*								dLightParamArray;
 		//CMatrix4x4* 							dLightVPArray;
 		
 		// Trace Shaders
@@ -179,13 +202,13 @@ class GISparseVoxelOctree
 		Shader									computeAOSurf;
 		Shader									computeLIApply;
 
-		static void								CreateSurfFromArray(cudaArray_t&,
+		void									CreateSurfFromArray(cudaArray_t&,
 																	cudaSurfaceObject_t&);
-		static void								CreateTexFromArray(cudaArray_t&,
+		void									CreateTexFromArray(cudaArray_t&,
 																   cudaTextureObject_t&);
-		static void								CopyFromBufferToTex(cudaArray_t&, 
+		void									CopyFromBufferToTex(cudaArray_t&,
 																	unsigned int* dPtr);
-		static void								CreateTexLayeredFromArray(cudaMipmappedArray_t&,
+		void									CreateTexLayeredFromArray(cudaMipmappedArray_t&,
 																		  cudaTextureObject_t&);
 
 		//
@@ -206,7 +229,7 @@ class GISparseVoxelOctree
 
 	public:
 		// Constructors & Destructor
-												GISparseVoxelOctree();
+												GISparseVoxelOctree(const OctreeParameters& octreeParams);
 												GISparseVoxelOctree(const GISparseVoxelOctree&) = delete;
 		GISparseVoxelOctree&					operator=(const GISparseVoxelOctree&) = delete;
 												~GISparseVoxelOctree();
@@ -264,8 +287,3 @@ class GISparseVoxelOctree
 		uint32_t								MinLevel() const;
 		uint32_t								MaxLevel() const;
 };
-
-static_assert(GISparseVoxelOctree::DenseLevel - GISparseVoxelOctree::DenseLevelCount > 0, "Too many dense levels");
-static_assert(GISparseVoxelOctree::DenseLevelCount >= 1, "Dense Count has to be atleast 1");
-
-#endif //__GICUDASPARSEVOXELOCTREE_H__

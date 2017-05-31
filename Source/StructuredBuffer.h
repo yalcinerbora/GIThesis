@@ -55,7 +55,7 @@ class StructuredBuffer
 		void					BindAsShaderStorageBuffer(GLuint location);
 		void					BindAsDrawIndirectBuffer();
 
-		void					Resize(size_t count);
+		void					Resize(size_t count, bool resizeCPU = true);
 		void					RecieveData(size_t newSize);
 		T						GetData(uint32_t index);
 		void					ChangeData(uint32_t index, const T& newData);

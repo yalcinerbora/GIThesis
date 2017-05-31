@@ -76,10 +76,11 @@
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <GenerateLineInfo>true</GenerateLineInfo>
       <MaxRegCount>32</MaxRegCount>
-      <AdditionalOptions>-Xptxas="-dlcm=ca" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-Xptxas="-dlcm=ca" -Wno-deprecated-gpu-targets %(AdditionalOptions)</AdditionalOptions>
       <AdditionalCompilerOptions>
       </AdditionalCompilerOptions>
       <Defines>_ITERATOR_DEBUG_LEVEL=0;</Defines>
+      <KeepDir>$(IntDir)\Cuda</KeepDir>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -117,8 +118,9 @@
       <GPUDebugInfo>false</GPUDebugInfo>
       <GenerateLineInfo>true</GenerateLineInfo>
       <MaxRegCount>32</MaxRegCount>
-      <AdditionalOptions>-Xptxas="-dlcm=ca" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-Xptxas="-dlcm=ca" -Wno-deprecated-gpu-targets %(AdditionalOptions)</AdditionalOptions>
       <Defines>_ITERATOR_DEBUG_LEVEL=0;</Defines>
+      <KeepDir>$(IntDir)\Cuda</KeepDir>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -139,6 +141,7 @@
     <ClCompile Include="..\..\..\Source\GFGLoader.cpp" />
     <ClInclude Include="..\..\..\Source\Animation.h" />
     <ClInclude Include="..\..\..\Source\AntBar.h" />
+    <ClInclude Include="..\..\..\Source\CMatrixFunctions.cuh" />
     <ClInclude Include="..\..\..\Source\GLSLBindPoints.h" />
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
@@ -202,27 +205,24 @@
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
-    <CudaCompile Include="..\..\..\Source\VoxelCacheBatches.cu">
+    <CudaCompile Include="..\..\..\Source\GIVoxelCache.cu">
       <FileType>CppCode</FileType>
     </CudaCompile>
-    <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp" />
-    <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp" />
+    <ClCompile Include="..\..\..\Source\VoxelVAO.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
     <ClInclude Include="..\..\..\Source\CSVOLightInject.cuh" />
     <ClInclude Include="..\..\..\Source\ThesisBar.h" />
     <ClInclude Include="..\..\..\Source\EmptyGIBar.h" />
-    <ClInclude Include="..\..\..\Source\VoxelCacheData.h" />
+    <ClInclude Include="..\..\..\Source\VoxelizerTypes.h" />
     <ClInclude Include="..\..\..\Source\VoxelCopyToVAO.cuh" />
-    <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h" />
-    <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h" />
+    <ClInclude Include="..\..\..\Source\VoxelVAO.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Camera.h" />
-    <ClInclude Include="..\..\..\Source\CAxisAlignedBB.cuh" />
-    <ClInclude Include="..\..\..\Source\CMatrix.cuh" />
-    <ClInclude Include="..\..\..\Source\COpenGLTypes.cuh" />
-    <ClInclude Include="..\..\..\Source\CSVO.cuh" />
+    <ClInclude Include="..\..\..\Source\CAABBFunctions.cuh" />
+    <ClInclude Include="..\..\..\Source\COpenGLTypes.h" />
+    <ClInclude Include="..\..\..\Source\CSVOFunctions.cuh" />
     <ClInclude Include="..\..\..\Source\DrawBuffer.h" />
     <ClInclude Include="..\..\..\Source\EmptyGISolution.h" />
     <ClInclude Include="..\..\..\Source\FPSInput.h" />
@@ -251,9 +251,9 @@
     <ClInclude Include="..\..\..\Source\Scene.h" />
     <ClInclude Include="..\..\..\Source\SolutionI.h" />
     <ClInclude Include="..\..\..\Source\TGALoad.h" />
-    <ClInclude Include="..\..\..\Source\CVoxel.cuh" />
+    <ClInclude Include="..\..\..\Source\CVoxelFunctions.cuh" />
     <ClInclude Include="..\..\..\Source\ThesisSolution.h" />
-    <ClInclude Include="..\..\..\Source\VoxelCacheBatches.h" />
+    <ClInclude Include="..\..\..\Source\GIVoxelCache.h" />
     <ClInclude Include="..\..\..\Source\Window.h" />
     <ClInclude Include="..\..\..\Source\WindowInput.h" />
   </ItemGroup>

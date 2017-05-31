@@ -12,7 +12,7 @@ OGL Context Creation
 #include <IEUtility/IEVector4.h>
 #include "GLHeaderLite.h"
 #include "GFG/GFGFileLoader.h"
-#include "VoxelCacheData.h"
+#include "VoxelizerTypes.h"
 #include "StructuredBuffer.h"
 #include "GFG/GFGFileExporter.h"
 
@@ -105,7 +105,7 @@ class OGLVoxelizer
 
 		// Logics
 		double							DetermineSplits(float currentSpan);
-		double							AllocateVoxelCaches(float currentSpan);
+		double							AllocateVoxelCaches(bool& hasVoxels, float currentSpan);
 		double							GenVoxelWeights();
 		double							Voxelize(float currentSpan);
 		double							WriteCascadeToGFG(float currentSpan,

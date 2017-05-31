@@ -98,8 +98,8 @@ void main(void)
 				
 			}
 			// Clear Texture
-			normalDense[coord] = vec4(0.0f);
-			albedoDense[coord] = vec4(0.0f);
+			//normalDense[coord] = vec4(0.0f);
+			//albedoDense[coord] = vec4(0.0f);
 		}
 	}
 }

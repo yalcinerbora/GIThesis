@@ -45,13 +45,11 @@ void EmptyGISolution::Load(SceneI& s)
 	dRenderer.AttachSceneLightIndices(s);
 
 	// Init GUI
-	lightBar = std::move(LightBar());
 	lightBar = std::move(LightBar(currentScene->getSceneLights(),
 								  directLighting,
 								  ambientLighting,
 								  ambientColor));
 
-	emptyGIBar = std::move(EmptyGIBar());
 	emptyGIBar = std::move(EmptyGIBar(currentScene->getSceneLights(),
 									  scheme,
 									  frameTime,
@@ -63,14 +61,18 @@ void EmptyGISolution::Load(SceneI& s)
 }
 
 void EmptyGISolution::Release()
-{}
+{
+	emptyGIBar = std::move(EmptyGIBar());
+	lightBar = std::move(LightBar());
+	currentScene = nullptr;
+}
 
-void EmptyGISolution::Frame(const Camera& mainRenderCamera)
+void EmptyGISolution::Frame(const Camera& mainCam)
 {
 	// Do Deferred Rendering
 	bool doTiming = emptyGIBar.DoTiming();
 	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
-	dRenderer.Render(*currentScene, mainRenderCamera, directLighting, aColor, doTiming);
+	dRenderer.Render(*currentScene, mainCam, directLighting, aColor, doTiming);
 
 	// Get Timings
 	shadowTime = dRenderer.ShadowMapTime();
@@ -82,17 +84,17 @@ void EmptyGISolution::Frame(const Camera& mainRenderCamera)
 	if(scheme >= RenderScheme::G_DIFF_ALBEDO &&
 	   scheme <= RenderScheme::G_DEPTH)
 	{
-		dRenderer.ShowGBufferTexture(mainRenderCamera, scheme);
+		dRenderer.ShowGBufferTexture(mainCam, scheme);
 	}
 	else if(scheme == RenderScheme::LIGHT_INTENSITY)
 	{
-		dRenderer.ShowLightIntensity(mainRenderCamera);
+		dRenderer.ShowLightIntensity(mainCam);
 	}
 	else if(scheme == RenderScheme::SHADOW_MAP)
 	{
-		dRenderer.ShowShadowMap(mainRenderCamera, *currentScene,
-								emptyGIBar.CurrentLight(),
-								emptyGIBar.CurrentLevel());
+		dRenderer.ShowShadowMap(mainCam, *currentScene,
+								emptyGIBar.Light(),
+								emptyGIBar.LightLevel());
 	}
 }
 
@@ -108,20 +110,20 @@ const std::string& EmptyGISolution::Name() const
 
 void EmptyGISolution::Next()
 {
-	emptyGIBar.Next();
+	if(currentScene) emptyGIBar.Next();
 }
 
 void EmptyGISolution::Previous()
 {
-	emptyGIBar.Previous();
+	if(currentScene) emptyGIBar.Previous();
 }
 
 void EmptyGISolution::Up()
 {
-	emptyGIBar.Up();
+	if(currentScene) emptyGIBar.Up();
 }
 
 void EmptyGISolution::Down()
 {
-	emptyGIBar.Down();
+	if(currentScene) emptyGIBar.Down();
 }

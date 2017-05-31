@@ -8,8 +8,8 @@ Designed for fast reconstruction from its bottom
 
 #include <cuda.h>
 #include <cuda_fp16.h>
-#include "CVoxel.cuh"
 #include "CSVOTypes.h"
+#include "CVoxelFunctions.cuh"
 #include <cassert>
 #include <cstdio>
 
@@ -140,12 +140,13 @@ inline __device__ uint3 CalculateLevelVoxId(const uint3& voxelPos,
 	return levelVoxelId;
 }
 
-inline __device__ uint3 ExpandToSVODepth(const uint3& localVoxelPos,
-										 const unsigned int cascadeNo,
+inline __device__ uint3 ExpandToSVODepth(const uint4& voxelPos,
 										 const unsigned int numCascades,
 										 const unsigned int totalLevel)
 {
-	uint3 expandedVoxId = localVoxelPos;
+	unsigned int cascadeNo = voxelPos.w;
+
+	uint3 expandedVoxId = {voxelPos.x, voxelPos.y, voxelPos.z};
 	expandedVoxId.x = expandedVoxId.x << (numCascades - cascadeNo - 1);
 	expandedVoxId.y = expandedVoxId.y << (numCascades - cascadeNo - 1);
 	expandedVoxId.z = expandedVoxId.z << (numCascades - cascadeNo - 1);
@@ -220,16 +221,18 @@ inline __device__ uint3 UnpackNodeId(const unsigned int nodePacked,
 									 const unsigned int numCascades,
 									 const unsigned int totalLevel)
 {
-	bool isMip;
-	uint3 nodeId = ExpandVoxPos(isMip, nodePacked);
+	uint4 nodeId = ExpandVoxPos(nodePacked);
 	unsigned int packLevel = totalLevel - numCascades + 1;
 	unsigned int cascadeNo = fmaxf(level, packLevel) - packLevel;
 
 	assert(nodeId.x < (0x1u << min(level, packLevel)));
 	assert(nodeId.y < (0x1u << min(level, packLevel)));
 	assert(nodeId.z < (0x1u << min(level, packLevel)));
+	nodeId.w = cascadeNo;
 
-	uint3 result = ExpandToSVODepth(nodeId, cascadeNo, numCascades, totalLevel);
+	uint3 result = ExpandToSVODepth(nodeId, 
+									numCascades, 
+									totalLevel);
 
 	result.x >>= (numCascades - cascadeNo - 1);
 	result.y >>= (numCascades - cascadeNo - 1);

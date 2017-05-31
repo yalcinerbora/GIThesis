@@ -40,14 +40,14 @@ bool EmptyGIBar::DoTiming() const
 	return opened != 0;
 }
 
-int EmptyGIBar::CurrentLight() const
+int EmptyGIBar::Light() const
 {
-	return renderSelect.CurrentLight();
+	return renderSelect.Light();
 }
 
-int EmptyGIBar::CurrentLevel() const
+int EmptyGIBar::LightLevel() const
 {
-	return renderSelect.CurrentLightLevel();
+	return renderSelect.LightLevel();
 }
 
 void EmptyGIBar::Next()

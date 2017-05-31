@@ -11,124 +11,85 @@ Solution implementtion
 #include "ThesisBar.h"
 #include "IndirectBar.h"
 #include "LightBar.h"
-#include "VoxelCacheBatches.h"
+#include "GIVoxelCache.h"
+#include "GIVoxelPages.h"
+#include "GISparseVoxelOctree.h"
 
 class DeferredRenderer;
 class WindowInput;
 
 class ThesisSolution : public SolutionI
 {
+	public:
+		const OctreeParameters		octreeParams;
+		const std::string			name;
+
 	private:
 		// Entire Voxel Cache one Per Batch
-		VoxelCacheBatches				voxelCaches;
-		//GIVoxelPages					voxelPages;
+		GIVoxelCache				voxelCaches;
+		GIVoxelPages				voxelPages;
+		//GISparseVoxelOctree		voxelOctree;
 
-		//// Voxel Render Shaders
-		//Shader								vertexDebugVoxel;
-		//Shader								vertexDebugVoxelSkeletal;
-		//Shader								vertexDebugWorldVoxel;
-		//Shader								fragmentDebugVoxel;
-
-		//// Voxel Cache for each cascade
-		//std::vector<SceneVoxCache>			voxelCaches;
-
-		//// Cuda Stuff
-		//std::vector<GICudaVoxelScene>			voxelScenes;
-		//GISparseVoxelOctree					voxelOctree;
-
-		//// Utility(Debug) Buffers (Page Voxel Rendering)
-		//StructuredBuffer<VoxelGridInfoGL>	gridInfoBuffer;
-		//StructuredBuffer<VoxelNormPos>		voxelNormPosBuffer;
-		//StructuredBuffer<uchar4>			voxelColorBuffer;
-
-		//cudaGraphicsResource_t				vaoNormPosResource;
-		//cudaGraphicsResource_t				vaoRenderResource;
-
-		const std::string					name;
-
-		DeferredRenderer&					dRenderer;
-		SceneI*								currentScene;
-		
-		// On/Off Switches
-		bool								giOn;
-		bool								aoOn;
-        bool                                injectOn;
-
-		// Light Params
-		bool								directLighting;
-		bool								ambientLighting;
-		IEVector3							ambientColor;
-
-		// Times
-		double								directTime;
-		double								ioTime;
-		double								transTime;
-		double								svoReconTime;
-		double								svoAverageTime;
-		double								coneTraceTime;
-		double								miscTime;
+		// Timings
+		double						frameTime;
+		double						directTime;
+		double						ioTime;
+		double						transTime;
+		double						svoReconTime;
+		double						svoAverageTime;
+		double						coneTraceTime;
+		double						miscTime;
 
 		// Render Type
-		RenderScheme						scheme;
-											
+		RenderScheme				scheme;
+
+		DeferredRenderer&			dRenderer;
+		SceneI*						currentScene;
+		
+		// On/Off Switches
+		bool						giOn;
+		bool						aoOn;
+        bool                        injectOn;
+
+		// Light Params
+		bool						directLighting;
+		bool						ambientLighting;
+		IEVector3					ambientColor;
+
 		// GUI
-		LightBar							lightBar;
-		ThesisBar							thesisBar;
-		IndirectBar							indirectBar;
-
-		const uint32_t						cascadeCount;
-
-
-		//// Debug Rendering					
-		//double								DebugRenderVoxelCache(const Camera& camera,
-		//														  SceneVoxCache&);
-		//void								DebugRenderVoxelPage(const Camera& camera,
-		//														 VoxelDebugVAO& pageVoxels,
-		//														 const CVoxelGrid& voxGrid,
-		//														 uint32_t offset,
-		//														 uint32_t voxCount);
-		//double								DebugRenderSVO(const Camera& camera);
-
-		 // Voxelizes the scene for a cache level
-		//double								LoadBatchVoxels(MeshBatchI* batch);
-		//bool								LoadVoxel(std::vector<SceneVoxCache>& scenes,
-		//											  const char* gfgFileName, uint32_t cascadeCount,
-		//											  bool isSkeletal,
-  //                                                    int repeatCount = 1);
-		//void								LinkCacheWithVoxScene(GICudaVoxelScene&, 
-		//														  SceneVoxCache&,
-		//														  float coverageRatio);
-													 
-		//// Cuda Segment
-		//static const size_t		InitialObjectGridSize;
-
-		//AOBar					aoBar;
-		//unsigned int			svoRenderLevel;
-		//unsigned int			traceType;
+		LightBar					lightBar;
+		ThesisBar					thesisBar;
+		IndirectBar					indirectBar;
 
 	protected:
 		
 	public:
 		// Constructors & Destructor
-											ThesisSolution(uint32_t cascadeCount,
-														   WindowInput&,
-														   DeferredRenderer&,
-														   const std::string& name);
-											ThesisSolution(const ThesisSolution&) = delete;
-		const ThesisSolution&				operator=(const ThesisSolution&) = delete;
-											~ThesisSolution() = default;
+									ThesisSolution(uint32_t denseLevel,
+												   uint32_t denseLevelCount,
+												   uint32_t cascadeCont,
+												   uint32_t cascadeBaseLevel,
+												   float baseSpan,
+												   WindowInput&,
+												   DeferredRenderer&,
+												   const std::string& name);
+									ThesisSolution(const ThesisSolution&) = delete;
+		const ThesisSolution&		operator=(const ThesisSolution&) = delete;
+									~ThesisSolution() = default;
 
 		// Interface
-		bool								IsCurrentScene(SceneI&) override;
-		void								Load(SceneI&) override;
-		void								Release() override;
-		void								Frame(const Camera&) override;
-		void								SetFPS(double fpsMS) override;
+		bool						IsCurrentScene(SceneI&) override;
+		void						Load(SceneI&) override;
+		void						Release() override;
+		void						Frame(const Camera&) override;
+		void						SetFPS(double fpsMS) override;
+
+		const std::string&			Name() const override;
 
 		// Key Callbacks
-		void								Next();
-		void								Previous();
-		void								Up();
-		void								Down();
+		void						Next();
+		void						Previous();
+		void						Up();
+		void						Down();
 };
 #endif //__THESISSOLUTION_H__

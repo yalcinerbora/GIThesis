@@ -270,7 +270,7 @@ double OGLVoxelizer::DetermineSplits(float currentSpan)
 	return t.ElapsedMS();
 }
 
-double OGLVoxelizer::AllocateVoxelCaches(float currentSpan)
+double OGLVoxelizer::AllocateVoxelCaches(bool& hasVoxels, float currentSpan)
 {
 	GI_LOG("Calculating Allocation Size...");
 	OGLTimer timer;
@@ -345,6 +345,13 @@ double OGLVoxelizer::AllocateVoxelCaches(float currentSpan)
 	objectInfos.RecieveData(static_cast<uint32_t>(batch.DrawCount()));
 
 	uint32_t totalVox = totalVoxCount.CPUData().front();
+	if(totalVox == 0)
+	{
+		timer.Stop();
+		hasVoxels = false;
+		return timer.ElapsedMS();
+	}
+
 	vPositions.Resize(totalVox);
 	vNormals.Resize(totalVox);
 	vAlbedos.Resize(totalVox);
@@ -355,6 +362,7 @@ double OGLVoxelizer::AllocateVoxelCaches(float currentSpan)
 	GI_LOG("Allocation %fms, %dvox", timer.ElapsedMS(), totalVoxCount.CPUData().front());
 	GI_LOG("Allocation Size %fmb", (VoxelSize() / 1024.0 / 1024.0));
 	GI_LOG("");
+	hasVoxels = true;
 	return timer.ElapsedMS();
 }
 
@@ -428,6 +436,9 @@ double OGLVoxelizer::Voxelize(float currentSpan)
 		for(GLuint b = 0; b < voxSplit[1]; b++)
 		for(GLuint c = 0; c < voxSplit[2]; c++)
 		{
+			vNormalDense.Memset(static_cast<uint32_t>(0));
+			vAlbedoDense.Memset(static_cast<uint32_t>(0));
+			if(isSkeletal) vWeightDense.Memset(static_cast<uint32_t>(0));
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		
 			const AABBData& objAABB = batch.getDrawBuffer().getAABB(objIndex);
@@ -555,7 +566,7 @@ double OGLVoxelizer::WriteCascadeToGFG(float currentSpan,
 
 	vPositions.RecieveData(totalVox);
 	vNormals.RecieveData(totalVox);
-	vAlbedos.Resize(totalVox);
+	vAlbedos.RecieveData(totalVox);
 	if(isSkeletal) vWeights.RecieveData(totalVox);
 
 	std::vector<uint8_t> data(totalVox * (sizeof(VoxelPosition) +
@@ -592,7 +603,7 @@ double OGLVoxelizer::WriteCascadeToGFG(float currentSpan,
 			GFGVertexComponentLogic::POSITION,
 			0,
 			0,
-			GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)]
+			GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_1)]
 		},
 		GFGVertexComponent
 		{	// Ids
@@ -600,7 +611,7 @@ double OGLVoxelizer::WriteCascadeToGFG(float currentSpan,
 			GFGVertexComponentLogic::NORMAL,
 			totalVox * sizeof(VoxelPosition),
 			0,
-			GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)]
+			GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_1)]
 		},
 		GFGVertexComponent
 		{	// Albedo
@@ -694,16 +705,19 @@ void OGLVoxelizer::Execute(const std::string& batchName)
 		totalTime += DetermineSplits(currentSpan);
 
 		// Voxel Count Determination
-		totalTime += AllocateVoxelCaches(currentSpan);
+		bool hasVoxels = false;
+		totalTime += AllocateVoxelCaches(hasVoxels, currentSpan);
+		if(hasVoxels)
+		{
+			// Actual Voxelization
+			totalTime += Voxelize(currentSpan);
 
-		// Actual Voxelization
-		totalTime += Voxelize(currentSpan);
+			// Weight Generation
+			if(isSkeletal) GenVoxelWeights();
 
-		// Weight Generation
-		if(isSkeletal) GenVoxelWeights();
-
-		// Sending to GFG File
-		totalTime += WriteCascadeToGFG(currentSpan, batchName);
+			// Sending to GFG File
+			totalTime += WriteCascadeToGFG(currentSpan, batchName);
+		}
 
 		GI_LOG("Cascade#%d %fms, Span %f", i, totalTime, currentSpan);
 		GI_LOG("------------------------------------");

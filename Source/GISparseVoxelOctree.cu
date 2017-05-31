@@ -16,11 +16,9 @@
 const GLsizei GISparseVoxelOctree::TraceWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1600;*//*1920;*//*2560;*///3840;
 const GLsizei GISparseVoxelOctree::TraceHeight = /*90;*//*180;*//*360;*//*450;*/720;/*900;*//*1080;*//*1440;*///2160;
 
-GISparseVoxelOctree::GISparseVoxelOctree()
-	//: svoNodeBuffer(512)
-	//, svoMaterialBuffer(512)
-	//, svoLevelOffsets(32)
-	: dSVOConstants(1)
+GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams)
+	: octreeParams(octreeParams)
+	, dSVOConstants(1)
 	, computeVoxTraceWorld(ShaderType::COMPUTE, "Shaders/VoxTraceWorld.comp")
 	, computeVoxTraceDeferredLerp(ShaderType::COMPUTE, "Shaders/VoxTraceDeferredLerp.comp")
 	, computeVoxTraceDeferred(ShaderType::COMPUTE, "Shaders/VoxTraceDeferred.comp")
@@ -47,8 +45,8 @@ GISparseVoxelOctree::GISparseVoxelOctree()
 	, gaussTex(0)
 	, edgeTex(0)
 	, svoDenseMat(0)
-	, sSVODenseMat(DenseLevelCount, 0)
-	, dSVODenseMatArray(DenseLevelCount, nullptr)
+	, sSVODenseMat(octreeParams.DenseLevelCount, 0)
+	, dSVODenseMatArray(octreeParams.DenseLevelCount, nullptr)
 	, nodeSampler(0)
 	, materialSampler(0)
 	, gaussSampler(0)
@@ -121,7 +119,7 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 	if(svoMaterialResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoMaterialResource));
 	if(svoLevelOffsetResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoLevelOffsetResource));
 	if(svoDenseTexResource) CUDA_CHECK(cudaGraphicsUnregisterResource(svoDenseTexResource));
-	for(unsigned int i = 0; i < DenseLevelCount; i++)
+	for(unsigned int i = 0; i < octreeParams.DenseLevelCount; i++)
 	{
 		if(sSVODenseMat[i]) CUDA_CHECK(cudaDestroySurfaceObject(sSVODenseMat[i]));
 	}
@@ -283,11 +281,11 @@ void GISparseVoxelOctree::CopyFromBufferToTex(cudaArray_t& arr, unsigned int* de
 	params.srcPtr =
 	{
 		devPtr,
-		DenseSize * sizeof(unsigned int),
-		DenseSize,
-		DenseSize
+		octreeParams.DenseSize * sizeof(unsigned int),
+		octreeParams.DenseSize,
+		octreeParams.DenseSize
 	};
-	params.extent = {DenseSize, DenseSize, DenseSize};
+	params.extent = {octreeParams.DenseSize, octreeParams.DenseSize, octreeParams.DenseSize};
 	params.kind = cudaMemcpyDeviceToDevice;
 	CUDA_CHECK(cudaMemcpy3D(&params));
 }
@@ -348,7 +346,7 @@ void GISparseVoxelOctree::ConstructLevel(unsigned int currentLevel,
 										 unsigned int allocatorOffset)
 {
 	// Early Bail check 
-	unsigned int currentLevelIndex = currentLevel - DenseLevel;
+	unsigned int currentLevelIndex = currentLevel - octreeParams.DenseLevel;
 	CUDA_CHECK(cudaMemcpy(hSVOLevelSizes.data() + currentLevelIndex,
 						  dSVOLevelSizes.Data() + currentLevelIndex,
 						  sizeof(unsigned int),

@@ -3,44 +3,38 @@
 
 ThesisBar::ThesisBar(const SceneLights& lights, 
 					 RenderScheme& scheme,
+					 double& frameTime,
+					 double& directTime,
+					 double& ioTime,
+					 double& transTime,
+					 double& svoReconTime,
+					 double& svoAverageTime,
+					 double& coneTraceTime,
+					 double& miscTime,
 					 int totalCascades,
 					 int minSVO, int maxSVO)
 	: AntBar(ThesisBarName)
 	, renderSelect(bar, lights, scheme, totalCascades, minSVO, maxSVO)
-	//, totalCascades(totalCascades)
-	//, minSVO(minSVO)
-	//, maxSVO(maxSVO)
 {	
-	//// Timings
-	//TwAddVarRO(bar, "frameTime", TW_TYPE_DOUBLE, &frameTime,
-	//		   " label='Direct' precision=2 help='Total Frame Time.' ");
-	//TwAddSeparator(bar, NULL, NULL);
-	//TwAddVarRO(bar, "directTime", TW_TYPE_DOUBLE, &directTime,
-	//		   " label='Direct' group='Timings (ms)' precision=2 help='Direct Lighting Timing per frame.' ");
-	//TwAddVarRO(bar, "ioTime", TW_TYPE_DOUBLE, &ioTime,
-	//		   " label='I-O' group='Timings (ms)' precision=2 help='Voxel Include-Exclude Timing per frame.' ");
-	//TwAddVarRO(bar, "updateTime", TW_TYPE_DOUBLE, &transTime,
-	//		   " label='Transform' group='Timings (ms)' precision=2 help='Voxel Grid Update Timing per frame.' ");
-	//TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoReconTime,
-	//		   " label='SVO Reconstruct' group='Timings (ms)' precision=2 help='SVO Reconstruction Timing per frame.' ");
-	//TwAddVarRO(bar, "svoAvgTime", TW_TYPE_DOUBLE, &svoAverageTime,
-	//		   " label='SVO Avgerage' group='Timings (ms)' precision=2 help='SVO Average Timing per frame.' ");
-	//TwAddVarRO(bar, "coneTraceTime", TW_TYPE_DOUBLE, &coneTraceTime,
-	//		   " label='Cone Trace' group='Timings (ms)' precision=2 help='Cone Trace Timing per frame.' ");
-	//TwAddVarRO(bar, "miscTime", TW_TYPE_DOUBLE, &coneTraceTime,
-	//		   " label='Misc.' group='Timings (ms)' precision=2 help='Misc. Timing per frame.' ");
+	// Timings
+	TwAddVarRO(bar, "frameTime", TW_TYPE_DOUBLE, &frameTime,
+			   " label='Frame' precision=2 help='Total Frame Time.' ");
+	TwAddSeparator(bar, NULL, NULL);
+	TwAddVarRO(bar, "directTime", TW_TYPE_DOUBLE, &directTime,
+			   " label='Direct' group='Timings (ms)' precision=2 help='Direct Lighting Timing per frame.' ");
+	TwAddVarRO(bar, "ioTime", TW_TYPE_DOUBLE, &ioTime,
+			   " label='I-O' group='Timings (ms)' precision=2 help='Voxel Include-Exclude Timing per frame.' ");
+	TwAddVarRO(bar, "updateTime", TW_TYPE_DOUBLE, &transTime,
+			   " label='Transform' group='Timings (ms)' precision=2 help='Voxel Grid Update Timing per frame.' ");
+	TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoReconTime,
+			   " label='SVO Reconstruct' group='Timings (ms)' precision=2 help='SVO Reconstruction Timing per frame.' ");
+	TwAddVarRO(bar, "svoAvgTime", TW_TYPE_DOUBLE, &svoAverageTime,
+			   " label='SVO Avgerage' group='Timings (ms)' precision=2 help='SVO Average Timing per frame.' ");
+	TwAddVarRO(bar, "coneTraceTime", TW_TYPE_DOUBLE, &coneTraceTime,
+			   " label='Cone Trace' group='Timings (ms)' precision=2 help='Cone Trace Timing per frame.' ");
+	TwAddVarRO(bar, "miscTime", TW_TYPE_DOUBLE, &miscTime,
+			   " label='Misc.' group='Timings (ms)' precision=2 help='Misc. Timing per frame.' ");
 
-	//// On off
-	//TwAddSeparator(bar, NULL, NULL);	
-	//TwAddVarRW(bar, "giOn", TW_TYPE_BOOLCPP,
-	//		   &giOn,
-	//		   " label='GI On' help='Cone Tracing GI On off' ");
-	//TwAddVarRW(bar, "aoOn", TW_TYPE_BOOLCPP,
-	//		   &aoOn,
-	//		   " label='AO On' help='Cone Tracing AO On off' ");
-	//TwAddVarRW(bar, "inject", TW_TYPE_BOOLCPP,
-	//		   &injectOn,
-	//		   " label='Inject' help='Light Inject On Off' ");
 
 	//// Voxel Counts
 	//TwAddSeparator(bar, NULL, NULL);
@@ -77,8 +71,84 @@ ThesisBar::ThesisBar(const SceneLights& lights,
 	//	TwAddVarRO(bar, (std::string("voxUsedSize") + std::to_string(i)).c_str(), TW_TYPE_STDSTRING, &pageCascadeSize[i],
 	//			   sizeDef.c_str());
 	//}
+
+
+
 	//TwDefine((std::string(ThesisBarName) + " refresh=0.01 ").c_str());
 	//TwDefine((std::string(ThesisBarName) + " size='250 400' ").c_str());
 	//TwDefine((std::string(ThesisBarName) + " valueswidth=fit ").c_str());
 	//TwDefine((std::string(ThesisBarName) + " position='5 278' ").c_str());
+
+	TwDefine((std::string(ThesisBarName) + " refresh=0.01 ").c_str());
+	TwDefine((std::string(ThesisBarName) + " size='220 180' ").c_str());
+	TwDefine((std::string(ThesisBarName) + " valueswidth=fit ").c_str());
+	TwDefine((std::string(ThesisBarName) + " position='5 278' ").c_str());
+}
+
+bool ThesisBar::DoTiming() const
+{
+	int opened;
+	TwGetParam(bar, "Timings (ms)",
+			   "opened", TW_PARAM_INT32, 1, &opened);
+	return opened != 0;
+}
+
+int ThesisBar::Light() const
+{
+	return renderSelect.Light();
+}
+
+int ThesisBar::LightLevel() const
+{
+	return renderSelect.LightLevel();
+}
+
+int	ThesisBar::SVOLevel() const
+{
+	return renderSelect.SVOLevel();
+}
+
+int	ThesisBar::CacheCascade() const
+{
+	return renderSelect.CacheCascade();
+}
+
+int	ThesisBar::PageCascade() const
+{
+	return renderSelect.PageCascade();
+}
+
+void ThesisBar::Next()
+{
+	renderSelect.Next();
+}
+
+void ThesisBar::Previous()
+{
+	renderSelect.Previous();
+}
+
+void ThesisBar::Up()
+{
+	renderSelect.Up();
+}
+
+void ThesisBar::Down()
+{
+	renderSelect.Down();
+}
+
+SVORender ThesisBar::SVORenderType() const
+{
+	return renderSelect.SVORenderType();
+}
+
+VoxelRender ThesisBar::CacheRenderType() const
+{
+	return renderSelect.CacheRenderType();
+}
+
+VoxelRender ThesisBar::PageRenderType() const
+{
+	return renderSelect.PageRenderType();
 }

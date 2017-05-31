@@ -3,55 +3,71 @@
 #include <assert.h>
 
 #include "PageKernels.cuh"
-#include "CVoxel.cuh"
-#include "CAxisAlignedBB.cuh"
-#include "COpenGLTypes.cuh"
+#include "CVoxelFunctions.cuh"
+#include "CMatrixFunctions.cuh"
+#include "CAABBFunctions.cuh"
+#include "COpenGLTypes.h"
 #include "CAtomicAlloc.cuh"
 #include "GIVoxelPages.h"
 
 #define GI_MAX_JOINT_COUNT 64
 
-__global__ void InitializePage(unsigned char* emptySegments,
-							   const ptrdiff_t stride,
-							   size_t pageCount)
+__global__ void InitializePage(unsigned char* emptySegments, const size_t pageCount)
 {
+	size_t sizePerPage = GIVoxelPages::PageSize *
+						 (sizeof(CVoxelPos) +
+						  sizeof(CVoxelNorm) +
+						  sizeof(CVoxelOccupancy))
+						 +
+						 GIVoxelPages::SegmentSize *
+						 (sizeof(unsigned char) +
+						  sizeof(CSegmentInfo));
 
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageLocalSegmentId = globalId % GIVoxelPages::SegmentPerPage;
+	unsigned int pageId = globalId / GIVoxelPages::SegmentPerPage;
+
+	// Cull if out of bounds
+	if(globalId >= pageCount * GIVoxelPages::SegmentPerPage) return;
+	emptySegments[pageId * sizePerPage + pageLocalSegmentId] = GIVoxelPages::SegmentSize - pageLocalSegmentId - 1;
 }
 
 __global__ void VoxelObjectDealloc(// Voxel System
 								   CVoxelPage* gVoxelData,
-								   const CVoxelGrid& gGridInfo,
-
-								   // Per Object Segment Related
-								   ushort2* gObjectAllocLocations,
-								   const SegmentObjData* gSegmentObjectData,
-								   const uint32_t totalSegments,
-
+								   const CVoxelGrid* gGridInfos,
+								   // Helper Structures								  
+								   ushort2* gSegmentAllocInfo,
+								   const CSegmentInfo* gSegmentInfo,
 								   // Per Object Related
-								   const CObjectAABB* gObjectAABB,
-								   const CObjectTransform* gObjTransforms,
-								   const uint32_t* gObjTransformIds)
+								   const BatchOGLData* gBatchOGLData,
+								   // Limits
+								   const uint32_t totalSegments)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 
 	// Now Thread Scheme changes per objectSegment
 	if(globalId >= totalSegments) return;
 
-	// Determine Obj Id
-	SegmentObjData segObjData = gSegmentObjectData[globalId];
-	if(segObjData.objId == 0xFFFF) return;
+	// Determine Obj Id (-1 Id means this object is too small for this grid)
+	const CSegmentInfo segInfo = gSegmentInfo[globalId];
+	if(segInfo.objId == 0xFFFF) return;
 
-	const uint32_t transformId = gObjTransformIds[segObjData.objId];
-	const CMatrix4x4 transform = gObjTransforms[transformId].transform;
-	CObjectAABB objAABB = gObjectAABB[segObjData.objId];
-	bool intersects = CheckGridVoxIntersect(gGridInfo, objAABB, transform);
+	// Unpack segmentInfo
+	uint8_t cascadeNo = ExpandOnlyCascadeNo(segInfo.packed);
+	const CVoxelGrid cascadeGrid = gGridInfos[cascadeNo];
+
+	// Intersection Check
+	const uint32_t transformId = gBatchOGLData[segInfo.batchId].dModelTransformIndices[segInfo.objId];
+	const CMatrix4x4 transform = gBatchOGLData[segInfo.batchId].dModelTransforms[transformId].transform;
+	const CAABB objAABB = gBatchOGLData[segInfo.batchId].dAABBs[segInfo.objId];
+	bool intersects = CheckGridVoxIntersect(cascadeGrid, objAABB, transform);
 
 	// Check if this object is not allocated
-	ushort2 objAlloc = gObjectAllocLocations[globalId];
+	ushort2 objAlloc = gSegmentAllocInfo[globalId];
 	if(!intersects && objAlloc.x != 0xFFFF)
 	{
 		// "Dealocate"
-		assert(ExpandOnlyOccupation(gVoxelData[objAlloc.x].dSegmentObjData[objAlloc.y].packed) == SegmentOccupation::OCCUPIED);
+		assert(ExpandOnlyOccupation(gVoxelData[objAlloc.x].dSegmentInfo[objAlloc.y].packed) == CSegmentOccupation::OCCUPIED);
 		unsigned int size = AtomicDealloc(&(gVoxelData[objAlloc.x].dEmptySegmentStackSize), GIVoxelPages::SegmentPerPage);
 		assert(size != GIVoxelPages::SegmentPerPage);
 		if(size != GIVoxelPages::SegmentPerPage)
@@ -59,97 +75,64 @@ __global__ void VoxelObjectDealloc(// Voxel System
 			unsigned int location = size;
 			gVoxelData[objAlloc.x].dEmptySegmentPos[location] = objAlloc.y;
 
-			SegmentObjData segObjId = {0};
-			segObjId.packed = PackSegmentObj(CVoxelObjectType::STATIC,
-											 SegmentOccupation::MARKED_FOR_CLEAR, 0);
-			gVoxelData[objAlloc.x].dSegmentObjData[objAlloc.y] = segObjId;
-			gObjectAllocLocations[globalId] = ushort2{0xFFFF, 0xFFFF};
+			CSegmentInfo segObjId = {0};
+			gVoxelData[objAlloc.x].dSegmentInfo[objAlloc.y] = segObjId;
+			gSegmentAllocInfo[globalId] = ushort2{0xFFFF, 0xFFFF};
 		}
 	}
 }
 
 __global__ void VoxelObjectAlloc(// Voxel System
 								 CVoxelPage* gVoxelData,
-								 const unsigned int gPageAmount,
-								 const CVoxelGrid& gGridInfo,
-
-								 // Per Object Segment Related
-								 ushort2* gObjectAllocLocations,
-								 const SegmentObjData* gSegmentObjectData,
-								 const uint32_t totalSegments,
-
+								 const CVoxelGrid* gGridInfos,
+								 // Helper Structures
+								 ushort2* gSegmentAllocInfo,
+								 const CSegmentInfo* gSegmentInfo,
 								 // Per Object Related
-								 const CObjectAABB* gObjectAABB,
-								 const CObjectTransform* gObjTransforms,
-								 const unsigned int* gObjTransformIds)
+								 const BatchOGLData* gBatchOGLData,
+								 // Limits
+								 const uint32_t totalSegments,
+								 const uint32_t pageAmount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= totalSegments) return;
 
 	// Determine Obj Id (-1 Id means this object is too small for this grid)
-	SegmentObjData segObjData = gSegmentObjectData[globalId];
-	if(segObjData.objId == 0xFFFF) return;
+	const CSegmentInfo segInfo = gSegmentInfo[globalId];
+	if(segInfo.objId == 0xFFFF) return;
 
+	// Unpack segmentInfo
+	uint8_t cascadeNo = ExpandOnlyCascadeNo(segInfo.packed);
+	const CVoxelGrid cascadeGrid = gGridInfos[cascadeNo];
+	
 	// Intersection Check
-	const uint32_t transformId = gObjTransformIds[segObjData.objId];
-	const CMatrix4x4 transform = gObjTransforms[transformId].transform;
-	const CObjectAABB objAABB = gObjectAABB[segObjData.objId];
-	bool intersects = CheckGridVoxIntersect(gGridInfo, objAABB, transform);
+	const uint32_t transformId = gBatchOGLData[segInfo.batchId].dModelTransformIndices[segInfo.objId];
+	const CMatrix4x4 transform = gBatchOGLData[segInfo.batchId].dModelTransforms[transformId].transform;
+	const CAABB objAABB = gBatchOGLData[segInfo.batchId].dAABBs[segInfo.objId];
+	bool intersects = CheckGridVoxIntersect(cascadeGrid, objAABB, transform);
 
 	// Check if this object already allocated
-	ushort2 objAlloc = gObjectAllocLocations[globalId];
+	ushort2 objAlloc = gSegmentAllocInfo[globalId];
 	if(intersects && objAlloc.x == 0xFFFF)
 	{
 		// "Allocate"
 		// Check page by page
-		for(unsigned int i = 0; i < gPageAmount; i++)
+		for(unsigned int i = 0; i < pageAmount; i++)
 		{
 			unsigned int size = AtomicAlloc(&(gVoxelData[i].dEmptySegmentStackSize));
 			if(size != 0)
 			{
 				unsigned int location = gVoxelData[i].dEmptySegmentPos[size - 1];
-				assert(ExpandOnlyOccupation(gVoxelData[i].dSegmentObjData[location].packed) == SegmentOccupation::EMPTY);
-				gObjectAllocLocations[globalId] = ushort2
+				assert(ExpandOnlyOccupation(gVoxelData[i].dSegmentInfo[location].packed) == CSegmentOccupation::EMPTY);
+				gSegmentAllocInfo[globalId] = ushort2
 				{
 					static_cast<unsigned short>(i),
 					static_cast<unsigned short>(location)
 				};
-				gVoxelData[i].dSegmentObjData[location] = segObjData;
+				gVoxelData[i].dSegmentInfo[location] = segInfo;
 				return;
 			}
 		}
-	}
-}
-
-__global__ void VoxelClearMarked(CVoxelPage* gVoxelData)
-{
-	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GIVoxelPages::PageSize;
-	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
-	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
-
-	// Check if segment is marked for clear
-	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::MARKED_FOR_CLEAR)
-	{
-		// Segment is marked for clear, clear it
-		gVoxelData[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
-		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
-		gVoxelData[pageId].dGridVoxOccupancy[pageLocalId] = 0xFFFFFFFF;
-	}
-}
-
-__global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
-								 const uint32_t numPages)
-{
-	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GIVoxelPages::SegmentPerPage;
-	unsigned int pageLocalSegmentId = globalId % GIVoxelPages::SegmentPerPage;
-
-	// Check if segment is marked for clear
-	if(globalId >= numPages * GIVoxelPages::SegmentPerPage) return;
-	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId].packed) == SegmentOccupation::MARKED_FOR_CLEAR)
-	{
-		gVoxelData[pageId].dSegmentObjData[pageLocalSegmentId] = {0};
 	}
 }
 
@@ -159,48 +142,43 @@ inline __device__ void LoadTransformData(// Shared Mem
 										 uint8_t* sMatrixLookup,
 
 										 // Object Transform Matrix
-										 CObjectTransform** gObjTransforms,
-										 CObjectTransform** gJointTransforms,
-										 uint32_t** gObjTransformIds,
+										 const BatchOGLData& gBatchOGLData,
 
 										 // Current Voxel Weight
 										 const uchar4& voxelWeightIndex,
 
 										 // Object Type that will be broadcasted
-										 const CVoxelObjectType& objType,
+										 const CObjectType& objType,
 										 const uint16_t& objId,
-										 const uint16_t& batchId)
+										 const uint16_t& transformId)
 {
 	unsigned int blockLocalId = threadIdx.x;
-
-	// transform Id Fetched only by first warp
-	unsigned int transformId = 0;
-	if(blockLocalId < warpSize)
-		transformId = gObjTransformIds[batchId][objId];
 
 	// Here we will load transform and rotation matrices
 	// Each thread will load 1 float. There is two 4x4 matrix
 	// 32 floats will be loaded
 	// Just enough for a warp to do the work
 	// Load matrices (4 byte load by each thread sequential no bank conflict)
+	const CModelTransform& objectMT = gBatchOGLData.dModelTransforms[transformId];
+	float* sTrans = reinterpret_cast<float*>(&sTransformMatrices[0]);
+	float* sRot = reinterpret_cast<float*>(&sRotationMatrices[0]);
 	if(blockLocalId < 16)
 	{
-		unsigned int columnId = blockLocalId / 4;
-		unsigned int rowId = blockLocalId % 4;
-		reinterpret_cast<float*>(&sTransformMatrices[0].column[columnId])[rowId] =
-			reinterpret_cast<float*>(&gObjTransforms[batchId][transformId].transform.column[columnId])[rowId];
+		const float* objectTransform = reinterpret_cast<const float*>(&objectMT.transform);
+		sTrans[blockLocalId] = objectTransform[blockLocalId];
 	}
-	else if(blockLocalId < 28)
+	else if(blockLocalId < 25)
 	{
 		unsigned int rotationId = blockLocalId - 16;
 		unsigned int columnId = rotationId / 3;
 		unsigned int rowId = rotationId % 3;
-		reinterpret_cast<float*>(&sRotationMatrices[0].column[columnId])[rowId] =
-			reinterpret_cast<float*>(&gObjTransforms[batchId][transformId].rotation.column[columnId])[rowId];
+
+		const float* objectRotation = reinterpret_cast<const float*>(&objectMT.rotation);
+		sRot[columnId * 3 + rowId] = objectRotation[columnId * 4 + rowId];
 	}
 
 	// Load Joint Transforms if Skeletal Object
-	if(objType == CVoxelObjectType::SKEL_DYNAMIC)
+	if(objType == CObjectType::SKEL_DYNAMIC)
 	{
 		// All valid objects will request matrix load
 		// then entire block will try to load it
@@ -235,14 +213,14 @@ inline __device__ void LoadTransformData(// Shared Mem
 			if(floatId < floatCount)
 			{
 				unsigned int matrixId = (floatId / 16);
-				unsigned int matrixLocalFloatId = floatId % 16;
+				unsigned int matrixLocalFloatId = floatId % 16;				
 				if(sMatrixLookup[matrixId] == 1)
 				{
-					unsigned int column = (matrixLocalFloatId / 4) % 4;
-					unsigned int row = matrixLocalFloatId % 4;
+					const CMatrix4x4& jointT = gBatchOGLData.dJointTransforms[matrixId].transform;
+					const float* jointTFloat = reinterpret_cast<const float*>(&jointT);
+					float* sTrans = reinterpret_cast<float*>(&sTransformMatrices[matrixId + 1]);
 
-					reinterpret_cast<float*>(&sTransformMatrices[matrixId + 1].column[column])[row] =
-						reinterpret_cast<float*>(&gJointTransforms[batchId][matrixId].transform.column[column])[row];
+					sTrans[matrixLocalFloatId] = jointTFloat[matrixLocalFloatId];
 				}
 			}
 			// Rotation
@@ -253,16 +231,17 @@ inline __device__ void LoadTransformData(// Shared Mem
 				unsigned int matrixLocalFloatId = floatId % 9;
 				if(sMatrixLookup[matrixId] == 1)
 				{
-					unsigned int column = (matrixLocalFloatId / 3) % 3;
-					unsigned int row = matrixLocalFloatId % 3;
+					const CMatrix4x4& jointRot = gBatchOGLData.dJointTransforms[matrixId].rotation;
+					const float* jointRotFloat = reinterpret_cast<const float*>(&jointRot);
+					float* sRot = reinterpret_cast<float*>(&sRotationMatrices[matrixId + 1]);
 
-					reinterpret_cast<float*>(&sRotationMatrices[matrixId + 1].column[column])[row] =
-						reinterpret_cast<float*>(&gJointTransforms[batchId][matrixId].rotation.column[column])[row];
+					unsigned int column = matrixLocalFloatId / 3;
+					unsigned int row = matrixLocalFloatId % 3;
+					sRot[column * 3 + row] = jointRotFloat[column * 4 + row];		
 				}
 			}
 		}
 	}
-
 	// We write to shared mem sync between warps
 	__syncthreads();
 }
@@ -271,96 +250,111 @@ __global__ void VoxelTransform(// Voxel Pages
 							   CVoxelPage* gVoxelPages,
 							   const CVoxelGrid& gGridInfo,
 							   const float3 hNewGridPosition,
-
-							   // Object Related
-							   CObjectTransform** gObjTransforms,
-							   CObjectTransform** gJointTransforms,
-							   CObjectAABB** gObjectAABB,
-							   uint32_t** gObjTransformIds,
-
-							   // Cache
-							   CVoxelPos** gVoxPosCache,
-							   CVoxelNorm** gVoxNormCache,
-							   CVoxelAlbedo** gVoxAlbedoCache,
-							   CVoxelWeights** gVoxWeightCache,
-							   CObjectVoxelInfo** gObjInfoCache)
+							   // OGL Related
+							   const BatchOGLData* gBatchOGLData,
+							   // Voxel Cache Related
+							   const BatchVoxelCache* gBatchVoxelCache,
+							   
+							   const float baseSpan,
+							   const uint32_t batchCount)
 {
 	// Cache Loading
 	// Shared Memory which used for transform rendering
 	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_JOINT_COUNT + 1];	// First index holds model matrix
 	__shared__ CMatrix3x3 sRotationMatrices[GI_MAX_JOINT_COUNT + 1];
-	__shared__ uint8_t sMatrixLookup[GI_MAX_JOINT_COUNT];
-
+	__shared__ uint8_t sMatrixLookup[GI_MAX_JOINT_COUNT];	
+	// Shared Memory which is used by
+	__shared__ CMeshVoxelInfo sMeshVoxelInfo;
+	__shared__ CSegmentInfo sSegInfo;
+	__shared__ uint16_t	sObjTransformId;
+	
+	unsigned int blockLocalId = threadIdx.x;
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GIVoxelPages::PageSize;
 	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
 	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
 	unsigned int segmentLocalVoxId = pageLocalId % GIVoxelPages::SegmentSize;
-
+	
 	// Get Segments Obj Information Struct
-	SegmentObjData segObj = gVoxelPages[pageId].dSegmentObjData[pageLocalSegmentId];
-	CVoxelObjectType objType;
-	uint16_t segLoad;
-	SegmentOccupation segOccup;
-	ExpandSegmentObj(objType, segOccup, segLoad, segObj.packed);
+	CObjectType objType;
+	CSegmentOccupation occupation;
+	uint8_t cascadeId;
+	if(blockLocalId == 0)
+	{
+		// Load to smem
+		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
+		ExpandSegmentInfo(cascadeId, objType, occupation, sSegInfo.packed);
+		sObjTransformId = gBatchOGLData[sSegInfo.batchId].dModelTransformIndices[sSegInfo.objId];
+		sMeshVoxelInfo = gBatchVoxelCache[cascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId];
+	}
+	__syncthreads();
+	if(blockLocalId != 0)
+	{
+		ExpandSegmentInfo(cascadeId, objType, occupation, sSegInfo.packed);
+	}
+	// Full Block Cull
+	if(occupation == CSegmentOccupation::EMPTY) return;
+	assert(occupation != CSegmentOccupation::MARKED_FOR_CLEAR);
 
-	if(segOccup == SegmentOccupation::EMPTY) return;
-	assert(segOccup != SegmentOccupation::MARKED_FOR_CLEAR);
+	// Find your opengl data and voxel cache
+	const uint16_t& batchId = sSegInfo.batchId;
+	const uint16_t& objectId = sSegInfo.objId;
+	const BatchOGLData& batchOGLData = gBatchOGLData[batchId];
+	const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
+	float cascadeSpan = baseSpan * static_cast<float>(1 << cascadeId);
 
-	// Calculate your Object VoxelId
-	unsigned int cacheVoxelId = segObj.voxStride + segmentLocalVoxId;
+	// Voxel Ids
+	const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
+	const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
 
+	// Load weights if necessary
 	CVoxelWeights weights = {{0x00, 0x00, 0x00, 0x00},{0xFF, 0xFF, 0xFF, 0xFF}};
-	if(segmentLocalVoxId < segLoad &&
-	   objType == CVoxelObjectType::SKEL_DYNAMIC)
-		weights = gVoxWeightCache[segObj.batchId][cacheVoxelId];
+	if(objectLocalVoxelId < sMeshVoxelInfo.voxCount && objType == CObjectType::SKEL_DYNAMIC)
+	{
+		weights = batchCache.dVoxelWeight[batchLocalVoxelId];
+	}
 
 	// Segment is occupied so load matrices before culling unused warps
 	LoadTransformData(// Shared Mem
 					  sTransformMatrices,
 					  sRotationMatrices,
 					  sMatrixLookup,
-
-					  // Object Transform Matrix
-					  gObjTransforms,
-					  gJointTransforms,
-					  gObjTransformIds,
-
+					  // OGL
+					  batchOGLData,
 					  // Weight Index
 					  weights.weightIndex,
-
 					  // Object Type that will be broadcasted
 					  objType,
-					  segObj.objId,
-					  segObj.batchId);
+					  objectId,
+					  sObjTransformId);
 
-	// Now we can cull unused threads
-	if(segmentLocalVoxId >= segLoad) return;
+	// Cull threads
+	// Edge case where last segment do not always full
+	if(objectLocalVoxelId >= sMeshVoxelInfo.voxCount)
+	{
+		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
+		gVoxelPages[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
+		return;
+	}
 
 	// Fetch NormalPos from cache
-	uint3 voxPos;
+	uint4 voxPos;
 	float3 normal;
-	bool isMip;
-	voxPos = ExpandVoxPos(isMip, gVoxPosCache[segObj.batchId][cacheVoxelId]);
-	normal = ExpandVoxNormal(gVoxNormCache[segObj.batchId][cacheVoxelId]);
+	voxPos = ExpandVoxPos(batchCache.dVoxelPos[batchLocalVoxelId]);
+	normal = ExpandVoxNormal(batchCache.dVoxelNorm[batchLocalVoxelId]);
 
 	// Fetch AABB min, transform and span
-	float4 objAABBMin = gObjectAABB[segObj.batchId][segObj.objId].min;
-
-	// TODO FIXXX
-	// ..............
-	float objSpan = 0.0f;// gObjInfoCache[segObj.batchId][segObj.objId].span;
+	float4 objAABBMin = batchOGLData.dAABBs[objectId].min;
 
 	// Generate World Position
 	// start with object space position
 	float3 worldPos;
-	worldPos.x = objAABBMin.x + voxPos.x * objSpan;
-	worldPos.y = objAABBMin.y + voxPos.y * objSpan;
-	worldPos.z = objAABBMin.z + voxPos.z * objSpan;
+	worldPos.x = objAABBMin.x + voxPos.x * cascadeSpan;
+	worldPos.y = objAABBMin.y + voxPos.y * cascadeSpan;
+	worldPos.z = objAABBMin.z + voxPos.z * cascadeSpan;
 
-	// Transformations
-	// Joint
-	if(objType == CVoxelObjectType::SKEL_DYNAMIC)
+	// Joint Transformations
+	if(objType == CObjectType::SKEL_DYNAMIC)
 	{
 		float4 weightUnorm;
 		weightUnorm.x = static_cast<float>(weights.weight.x) / 255.0f;
@@ -433,7 +427,7 @@ __global__ void VoxelTransform(// Voxel Pages
 		normal = norm;
 	}
 
-	// Model multiplication
+	// Model Transformations
 	MultMatrixSelf(worldPos, sTransformMatrices[0]);
 	MultMatrixSelf(normal, sRotationMatrices[0]);
 	//// Unoptimized Matrix Load
@@ -454,7 +448,7 @@ __global__ void VoxelTransform(// Voxel Pages
 
 	// If its mip dont update inner cascade
 	bool inInnerCascade = false;
-	if(isMip)
+	if(cascadeId > 0)
 	{
 		inInnerCascade = (worldPos.x > gGridInfo.dimension.x * gGridInfo.span * 0.25f) &&
 			(worldPos.x < gGridInfo.dimension.x * gGridInfo.span * 0.75f);
@@ -501,7 +495,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	if(!outOfBounds)
 	{
 		// Write to page
-		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = PackVoxPos(voxPos, isMip);
+		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = PackVoxPos({voxPos.x, voxPos.y, voxPos.z}, cascadeId);
 		gVoxelPages[pageId].dGridVoxNorm[pageLocalId] = PackVoxNormal(normal);
 		gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId] = PackOccupancy(neigbourBits, volumeWeight);
 	}
@@ -509,5 +503,37 @@ __global__ void VoxelTransform(// Voxel Pages
 	{
 		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
 		gVoxelPages[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
+	}
+}
+
+__global__ void VoxelClearMarked(CVoxelPage* gVoxelData)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = globalId / GIVoxelPages::PageSize;
+	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
+	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
+
+	// Check if segment is marked for clear
+	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentInfo[pageLocalSegmentId].packed) == CSegmentOccupation::MARKED_FOR_CLEAR)
+	{
+		// Segment is marked for clear, clear it
+		gVoxelData[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
+		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
+		gVoxelData[pageId].dGridVoxOccupancy[pageLocalId] = 0xFFFFFFFF;
+	}
+}
+
+__global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
+								 const uint32_t numPages)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = globalId / GIVoxelPages::SegmentPerPage;
+	unsigned int pageLocalSegmentId = globalId % GIVoxelPages::SegmentPerPage;
+
+	// Check if segment is marked for clear
+	if(globalId >= numPages * GIVoxelPages::SegmentPerPage) return;
+	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentInfo[pageLocalSegmentId].packed) == CSegmentOccupation::MARKED_FOR_CLEAR)
+	{
+		gVoxelData[pageId].dSegmentInfo[pageLocalSegmentId] = {0};
 	}
 }

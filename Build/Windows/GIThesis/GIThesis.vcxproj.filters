@@ -44,12 +44,6 @@
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp">
       <Filter>GI\Thesis</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Source\VoxelDebugVAO.cpp">
-      <Filter>GI\Thesis\OGL</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Source\VoxelRenderTexture.cpp">
-      <Filter>GI\Thesis\OGL</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\Source\GBuffer.cpp">
       <Filter>Render</Filter>
     </ClCompile>
@@ -123,6 +117,9 @@
     <ClCompile Include="..\..\..\Source\ThesisScenes.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\VoxelVAO.cpp">
+      <Filter>GI\Thesis\OGL</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -194,12 +191,6 @@
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp">
       <Filter>Render</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\VoxelRenderTexture.h">
-      <Filter>GI\Thesis\OGL</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\VoxelDebugVAO.h">
-      <Filter>GI\Thesis\OGL</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\GBuffer.h">
       <Filter>Render</Filter>
     </ClInclude>
@@ -244,9 +235,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\MeshBatch.h">
       <Filter>MeshBatch</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\VoxelCacheData.h">
-      <Filter>GI\Thesis</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\OGLTimer.h">
       <Filter>Utility</Filter>
@@ -318,13 +306,7 @@
     <ClInclude Include="..\..\..\Source\GIVoxelPages.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CMatrix.cuh">
-      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\CHash.cuh">
-      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CVoxel.cuh">
       <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CVoxelTypes.h">
@@ -332,9 +314,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh">
       <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CAxisAlignedBB.cuh">
-      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\PageKernels.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
@@ -348,16 +327,31 @@
     <ClInclude Include="..\..\..\Source\GLSLBindPoints.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\COpenGLTypes.cuh">
-      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CSVO.cuh">
-      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\CSVOLightInject.cuh">
       <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\VoxelCacheBatches.h">
+    <ClInclude Include="..\..\..\Source\VoxelVAO.h">
+      <Filter>GI\Thesis\OGL</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\VoxelizerTypes.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CMatrixFunctions.cuh">
+      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CAABBFunctions.cuh">
+      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\COpenGLTypes.h">
+      <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CVoxelFunctions.cuh">
+      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVOFunctions.cuh">
+      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\GIVoxelCache.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
   </ItemGroup>
@@ -436,7 +430,7 @@
     <CudaCompile Include="..\..\..\Source\GIVoxelPages.cu">
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\VoxelCacheBatches.cu">
+    <CudaCompile Include="..\..\..\Source\GIVoxelCache.cu">
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
   </ItemGroup>

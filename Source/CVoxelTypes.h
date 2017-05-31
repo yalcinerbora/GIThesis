@@ -1,17 +1,15 @@
+#pragma once
 /**
 
 
 
 */
-
-#ifndef __CVOXELTYPES_H__
-#define __CVOXELTYPES_H__
-
-#include "VoxelCacheData.h"
+#include "COpenGLTypes.h"
+#include "VoxelizerTypes.h"
 #include <vector_types.h>
 #include <cstdint>
 
-enum class CVoxelObjectType
+enum class CObjectType
 {
 	STATIC,			// Object does not move
 	DYNAMIC,		// Object does move (with transform matrices)
@@ -47,29 +45,59 @@ struct CVoxelWeights
 static_assert(sizeof(CVoxelAlbedo) == sizeof(VoxelAlbedo), "Voxel albedo size mismatch.");
 static_assert(sizeof(CVoxelWeights) == sizeof(VoxelWeights), "Voxel weþght size mismatch.");
 
-enum class SegmentOccupation : unsigned char
+enum class CSegmentOccupation : unsigned char
 {
 	EMPTY = 0,
 	OCCUPIED = 1,
 	MARKED_FOR_CLEAR = 2,
 };
 
-struct SegmentObjData
+struct CSegmentInfo
 {
-	uint16_t			batchId;
-	uint16_t			objId;
-	uint16_t			objectSegmentId;
-//	uint16_t			packed;	// Containts 2 bit Obj Type 3 bit Occupation 11 bit segment occupancy
-//	uint32_t			voxStride;
+	uint16_t				batchId;
+	uint16_t				objId;
+	uint16_t				objectSegmentId;
+	uint16_t				packed;	// MSB to LSB
+									// 2 bit cascadeNo
+									// 2 bit objectType
+									// 2 bit occupation
+									// 10 bit unused
 };
 
 struct CVoxelPage
 {
-	CVoxelPos*			dGridVoxPos;
-	CVoxelNorm*			dGridVoxNorm;
-	CVoxelOccupancy*	dGridVoxOccupancy;
-	unsigned char*		dEmptySegmentPos;
-	SegmentObjData*		dSegmentObjData;
-	unsigned int		dEmptySegmentStackSize;
+	CVoxelPos*				dGridVoxPos;
+	CVoxelNorm*				dGridVoxNorm;
+	CVoxelOccupancy*		dGridVoxOccupancy;
+	unsigned char*			dEmptySegmentPos;
+	CSegmentInfo*			dSegmentInfo;
+	unsigned int			dEmptySegmentStackSize;
 };
-#endif //__CVOXELTYPES_H__
+
+struct CVoxelPageConst
+{
+	const CVoxelPos*		dGridVoxPos;
+	const CVoxelNorm*		dGridVoxNorm;
+	const CVoxelOccupancy*	dGridVoxOccupancy;
+	const unsigned char*	dEmptySegmentPos;
+	const CSegmentInfo*		dSegmentInfo;
+	const unsigned int		dEmptySegmentStackSize;
+};
+
+struct BatchVoxelCache
+{
+	const CMeshVoxelInfo*	dMeshVoxelInfo;
+	const CVoxelPos*		dVoxelPos;
+	const CVoxelNorm*		dVoxelNorm;
+	const CVoxelAlbedo*		dVoxelAlbedo;
+	const CVoxelWeights*	dVoxelWeight;
+};
+
+// Mapped Batch Pointers
+struct BatchOGLData
+{	
+	const CAABB*			dAABBs;
+	const uint32_t*			dModelTransformIndices;
+	const CModelTransform*	dModelTransforms;
+	const CJointTransform*	dJointTransforms;
+};

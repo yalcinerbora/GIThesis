@@ -14,61 +14,39 @@ class ThesisBar : public AntBar
 
 		VoxelRenderSelect			renderSelect;
 
-		//double						frameTime;
-
-		//double						directTime;
-		//double						ioTime;
-		//double						transTime;
-		//double						svoReconTime;
-		//double						svoAverageTime;
-		//double						coneTraceTime;
-
-		//int							totalCascades;
-		//int							minSVO;
-		//int							maxSVO;
-		//
-		//std::vector<int>			svoVoxelCounts;
-		//std::string					svoTotalSize;
-		//std::vector<int>			pageCascadeCounts;
-		//std::vector<std::string>	pageCascadeSize;
-		//std::vector<int>			cacheCascadeCounts;
-		//std::vector<std::string>	cacheCascadeSize;
-		//
-		//bool						giOn;
-		//bool						aoOn;
-		//bool						injectOn;
-
 	protected:
 	public:
 		// Constructors & Destructor
 									ThesisBar() = default;
-									ThesisBar(const SceneLights& lights, 
+									ThesisBar(const SceneLights& lights,
 											  RenderScheme& scheme,
+											  double& frameTime,
+											  double& directTime,
+											  double& ioTime,
+											  double& transTime,
+											  double& svoReconTime,
+											  double& svoAverageTime,
+											  double& coneTraceTime,
+											  double& miscTime,
 											  int totalCascades,
 											  int minSVO, int maxSVO);
+		ThesisBar&					operator=(ThesisBar&&) = default;
 									~ThesisBar() = default;
 
 		// Timing Related
-		int							CurrentLight() const;
-		int							CurrentLevel() const;
-		int							CurrentSVOLevel() const;
-		int							CurrentCacheCascade() const;
-		int							CurrentPageLevel() const;
+		bool						DoTiming() const;
+		int							Light() const;
+		int							LightLevel() const;
+		int							SVOLevel() const;
+		int							CacheCascade() const;
+		int							PageCascade() const;
+
+		SVORender					SVORenderType() const;
+		VoxelRender					CacheRenderType() const;
+		VoxelRender					PageRenderType() const;
 
 		void						Next();
 		void						Previous();
 		void						Up();
 		void						Down();
-
-		//// Timing Related
-		//void						SetTotalTime();
-		//void						SetDirectTime();
-		//void						SetVoxelIOTime();
-		//void						SetVoxelTransformTime();
-		//void						SetSVOReconTime();
-		//void						SetSVOAverageTime();
-		//void						SetMiscTime();
-
-
-	
 };

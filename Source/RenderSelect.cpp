@@ -35,8 +35,8 @@ RenderSelect::RenderSelect(TwBar* bar,
 						   RenderScheme& scheme,
 						   TwType enumType)
 	: totalLight(static_cast<int>(lights.getLightCount()))
-	, currentLight(0)
-	, currentLightLevel(0)
+	, light(0)
+	, lightLevel(0)
 	, scheme(&scheme)
 {
 	TwAddVarRW(bar, "renderType", enumType,
@@ -61,8 +61,8 @@ void RenderSelect::Next()
 {
 	if(*scheme == RenderScheme::SHADOW_MAP)
 	{
-		currentLight = std::min(totalLight - 1, currentLight + 1);
-		currentLightLevel = std::min(lightMaxLevel[currentLight], currentLightLevel);
+		light = std::min(totalLight - 1, light + 1);
+		lightLevel = std::min(lightMaxLevel[light], lightLevel);
 	}
 }
 
@@ -70,31 +70,31 @@ void RenderSelect::Previous()
 {
 	if(*scheme == RenderScheme::SHADOW_MAP)
 	{
-		currentLight = std::max(0, currentLight - 1);
-		currentLightLevel = std::min(lightMaxLevel[currentLight], currentLightLevel);
+		light = std::max(0, light - 1);
+		lightLevel = std::min(lightMaxLevel[light], lightLevel);
 	}
 }
 
 void RenderSelect::Up()
 {
 	if(*scheme == RenderScheme::SHADOW_MAP)
-		currentLightLevel = std::min(lightMaxLevel[currentLight] - 1, currentLightLevel + 1);
+		lightLevel = std::min(lightMaxLevel[light] - 1, lightLevel + 1);
 }
 
 void RenderSelect::Down()
 {
 	if(*scheme == RenderScheme::SHADOW_MAP)
-		currentLightLevel = std::max(0, currentLightLevel - 1);
+		lightLevel = std::max(0, lightLevel - 1);
 }
 
-int RenderSelect::CurrentLight() const
+int RenderSelect::Light() const
 {
-	return currentLight;
+	return light;
 }
 
-int RenderSelect::CurrentLightLevel() const
+int RenderSelect::LightLevel() const
 {
-	return currentLightLevel;
+	return lightLevel;
 }
 
 TwType VoxelRenderSelect::twThesisRenderType = TwType::TW_TYPE_UNDEF;
@@ -113,27 +113,133 @@ VoxelRenderSelect::VoxelRenderSelect(TwBar* bar, const SceneLights& lights,
 	, totalCascades(totalCascades)
 	, minSVOLevel(minSVOLevel)
 	, maxSVOLevel(maxSVOLevel)
-	, currentSVOLevel(0)
-	, currentCacheCascade(0)
-	, currentPageLevel(0)
+	, svoLevel(maxSVOLevel)
+	, cacheCascade(0)
+	, pageCascade(0)
+	, svoRenderType(SVORender::IRRADIANCE)
+	, cacheRenderType(VoxelRender::DIFFUSE_ALBEDO)
+	, pageRenderType(VoxelRender::DIFFUSE_ALBEDO)
 {}
 
 void VoxelRenderSelect::Next()
 {
-
+	if(*scheme == RenderScheme::SHADOW_MAP)
+	{
+		RenderSelect::Next();
+	}
+	else if(*scheme == RenderScheme::VOXEL_CACHE)
+	{
+		int renderType = static_cast<int>(cacheRenderType);
+		int vTypeMax = static_cast<int>(VoxelRender::END) - 1;
+		cacheRenderType = static_cast<VoxelRender>(std::min(vTypeMax, renderType + 1));
+	}
+	else if(*scheme == RenderScheme::VOXEL_PAGE)
+	{
+		int renderType = static_cast<int>(pageRenderType);
+		int vTypeMax = static_cast<int>(VoxelRender::END) - 1;
+		pageRenderType = static_cast<VoxelRender>(std::min(vTypeMax, renderType + 1));
+	}
+	else if(*scheme == RenderScheme::SVO_VOXELS ||
+			*scheme == RenderScheme::SVO_SAMPLE)
+	{
+		int renderType = static_cast<int>(svoRenderType);
+		int sTypeMax = static_cast<int>(VoxelRender::END) - 1;
+		svoRenderType = static_cast<SVORender>(std::min(sTypeMax, renderType + 1));
+	}
 }
 
 void VoxelRenderSelect::Previous()
 {
-
+	if(*scheme == RenderScheme::SHADOW_MAP)
+	{
+		RenderSelect::Previous();
+	}
+	else if(*scheme == RenderScheme::VOXEL_CACHE)
+	{
+		int renderType = static_cast<int>(cacheRenderType);
+		cacheRenderType = static_cast<VoxelRender>(std::max(0, renderType - 1));
+	}
+	else if(*scheme == RenderScheme::VOXEL_PAGE)
+	{
+		int renderType = static_cast<int>(pageRenderType);
+		pageRenderType = static_cast<VoxelRender>(std::max(0, renderType - 1));
+	}
+	else if(*scheme == RenderScheme::SVO_VOXELS ||
+			*scheme == RenderScheme::SVO_SAMPLE)
+	{
+		int renderType = static_cast<int>(svoRenderType);
+		svoRenderType = static_cast<SVORender>(std::max(0, renderType - 1));
+	}
 }
 
 void VoxelRenderSelect::Up()
 {
-
+	if(*scheme == RenderScheme::SHADOW_MAP)
+	{
+		RenderSelect::Up();
+	}
+	else if(*scheme == RenderScheme::VOXEL_CACHE)
+	{
+		cacheCascade = std::min(totalCascades - 1, cacheCascade + 1);
+	}
+	else if(*scheme == RenderScheme::VOXEL_PAGE)
+	{
+		pageCascade = std::min(totalCascades - 1, pageCascade + 1);
+	}
+	else if(*scheme == RenderScheme::SVO_VOXELS ||
+			*scheme == RenderScheme::SVO_SAMPLE)
+	{
+		svoLevel = std::min(maxSVOLevel, svoLevel + 1);
+	}
 }
 
 void VoxelRenderSelect::Down()
 {
+	if(*scheme == RenderScheme::SHADOW_MAP)
+	{
+		RenderSelect::Down();
+	}
+	else if(*scheme == RenderScheme::VOXEL_CACHE)
+	{
+		cacheCascade = std::max(0, cacheCascade - 1);
+	}
+	else if(*scheme == RenderScheme::VOXEL_PAGE)
+	{
+		pageCascade = std::max(0, pageCascade - 1);
+	}
+	else if(*scheme == RenderScheme::SVO_VOXELS ||
+			*scheme == RenderScheme::SVO_SAMPLE)
+	{
+		svoLevel = std::max(minSVOLevel, svoLevel - 1);
+	}
+}
 
+int VoxelRenderSelect::SVOLevel() const
+{
+	return svoLevel;
+}
+
+SVORender VoxelRenderSelect::SVORenderType() const
+{
+	return svoRenderType;
+}
+
+int VoxelRenderSelect::CacheCascade() const
+{
+	return cacheCascade;
+}
+
+VoxelRender VoxelRenderSelect::CacheRenderType() const
+{
+	return cacheRenderType;
+}
+
+int VoxelRenderSelect::PageCascade() const
+{
+	return pageCascade;
+}
+
+VoxelRender VoxelRenderSelect::PageRenderType() const
+{
+	return pageRenderType;
 }

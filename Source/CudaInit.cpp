@@ -63,7 +63,7 @@ unsigned int CudaInit::SMCount()
 
 int CudaInit::GenBlockSize(int totalThread)
 {
-
+	return (totalThread + TBP - 1) / TBP;
 }
 
 int CudaInit::GenBlockSizeSmall(int totalThread)
@@ -75,7 +75,7 @@ int2 CudaInit::GenBlockSize2D(int2 totalThread)
 {
 	return
 	{
-		(totalThread.x + TBPSmall - 1) / TBPSmall,
-		(totalThread.y + TBPSmall - 1) / TBPSmall
+		(totalThread.x + TBP_XY - 1) / TBP_XY,
+		(totalThread.y + TBP_XY - 1) / TBP_XY
 	};
 }

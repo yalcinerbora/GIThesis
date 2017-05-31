@@ -1,21 +1,36 @@
 #include "ThesisSolution.h"
 #include "DeferredRenderer.h"
 #include "SceneI.h"
+#include "WindowInput.h"
+#include <GLFW\glfw3.h>
 
 // Constructors & Destructor
-ThesisSolution::ThesisSolution(uint32_t cascadeCount,
-							   WindowInput&,
+ThesisSolution::ThesisSolution(uint32_t denseLevel,
+							   uint32_t denseLevelCount,
+							   uint32_t cascadeCount,
+							   uint32_t cascadeBaseLevel,
+							   float baseSpan,
+							   WindowInput& inputManager,
 							   DeferredRenderer& deferredDenderer,
 							   const std::string& name)
-	: name(name)
+	: octreeParams(denseLevel, denseLevelCount,
+				   cascadeCount, cascadeBaseLevel,
+				   baseSpan)
+	, name(name)
 	, currentScene(nullptr)
 	, dRenderer(deferredDenderer)
 	, giOn(false)
 	, aoOn(false)
 	, injectOn(false)
 	, directLighting(true)
-	, cascadeCount(cascadeCount)
-{}
+	, ambientLighting(true)
+	, ambientColor(0.1f, 0.1f, 0.1f)
+{
+	inputManager.AddKeyCallback(GLFW_KEY_KP_ADD, GLFW_RELEASE, &ThesisSolution::Up, this);
+	inputManager.AddKeyCallback(GLFW_KEY_KP_SUBTRACT, GLFW_RELEASE, &ThesisSolution::Down, this);
+	inputManager.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::Next, this);
+	inputManager.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::Previous, this);
+}
 
 bool ThesisSolution::IsCurrentScene(SceneI& scene)
 {
@@ -31,42 +46,127 @@ void ThesisSolution::Load(SceneI& s)
 	dRenderer.AttachSceneLightIndices(s);
 
 	// Load Voxel Caches
-	//currentScene->
+	const auto& batches = currentScene->getBatches();
+	std::vector<std::vector<std::string>> batchNames;
+	for(int i = 0; i < batches.size(); i++)
+	{
+		batchNames.push_back(currentScene->getBatchFileNames(i));
+	}
+	voxelCaches = GIVoxelCache(octreeParams.BaseSpan,
+							   octreeParams.CascadeCount,
+							   &currentScene->getBatches(),
+							   batchNames);
+
+	// Initialize Voxel Page System
+	//voxelPages = GIVoxelPages(*currentScene,
+	//						  );
+		
+	// Initialize SVO System
+	// TODO
+	
+
+	// Initialize GUI
+	// Init GUI
+	lightBar = std::move(LightBar(currentScene->getSceneLights(),
+								  directLighting,
+								  ambientLighting,
+								  ambientColor));
+	thesisBar = std::move(ThesisBar(currentScene->getSceneLights(),
+									scheme,
+									frameTime,
+									directTime,
+									ioTime,
+									transTime,
+									svoReconTime,
+									svoAverageTime,
+									coneTraceTime,
+									miscTime,
+									octreeParams.CascadeCount,
+									octreeParams.MinSVOLevel,
+									octreeParams.MaxSVOLevel));
+
+	// Indirect Bar
+	// TODO:
+
 }
 
 void ThesisSolution::Release()
 {
-
+	voxelCaches = GIVoxelCache();
+	lightBar = std::move(LightBar());
+	thesisBar = std::move(ThesisBar());
+	currentScene = nullptr;
 }
 
-void ThesisSolution::Frame(const Camera&)
+void ThesisSolution::Frame(const Camera& mainCam)
 {
+	// Do Deferred Rendering
+	bool doTiming = thesisBar.DoTiming();
+	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
+	dRenderer.Render(*currentScene, mainCam, directLighting, aColor, false);
 
+	if(scheme >= RenderScheme::G_DIFF_ALBEDO &&
+	   scheme <= RenderScheme::G_DEPTH)
+	{
+		dRenderer.ShowGBufferTexture(mainCam, scheme);
+	}
+	else if(scheme == RenderScheme::LIGHT_INTENSITY)
+	{
+		dRenderer.ShowLightIntensity(mainCam);
+	}
+	else if(scheme == RenderScheme::SHADOW_MAP)
+	{
+		dRenderer.ShowShadowMap(mainCam, *currentScene,
+								thesisBar.Light(),
+								thesisBar.LightLevel());
+	}
+	else if(scheme == RenderScheme::VOXEL_CACHE)
+	{
+		voxelCaches.AllocateGL(thesisBar.CacheCascade());
+		voxelCaches.Draw(mainCam, thesisBar.CacheRenderType());
+	}
+	else
+	{
+		voxelCaches.DeallocateGL();
+		if(scheme == RenderScheme::VOXEL_PAGE)
+		{
+
+		}
+		else if(scheme == RenderScheme::SVO_VOXELS)
+		{
+
+		}
+	}	
 }
 
 void ThesisSolution::SetFPS(double fpsMS)
 {
+	frameTime = fpsMS;
+}
 
+const std::string& ThesisSolution::Name() const
+{
+	return name;
 }
 
 void ThesisSolution::Next()
 {
-
+	if(currentScene) thesisBar.Next();
 }
 
 void ThesisSolution::Previous()
 {
-
+	if(currentScene) thesisBar.Previous();
 }
 
 void ThesisSolution::Up()
 {
-
+	if(currentScene) thesisBar.Up();
 }
 
 void ThesisSolution::Down()
 {
-
+	if(currentScene) thesisBar.Down();
 }
 
 

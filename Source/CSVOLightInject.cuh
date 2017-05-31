@@ -1,8 +1,9 @@
 #pragma once
 
-#include "CSVO.cuh"
-#include "CVoxel.cuh"
-#include "COpenGLTypes.cuh"
+#include "CSVOFunctions.cuh"
+#include "CVoxelFunctions.cuh"
+#include "COpenGLTypes.h"
+#include "CMatrixFunctions.cuh"
 
 #define GI_LIGHT_POINT 0.0f
 #define GI_LIGHT_DIRECTIONAL 1.0f

@@ -26,6 +26,22 @@ enum class RenderScheme
 	END
 };
 
+enum class VoxelRender
+{
+	DIFFUSE_ALBEDO,
+	SPECULAR_ALBEDO,
+	NORMAL,	
+	END
+};
+
+enum class SVORender
+{
+	IRRADIANCE,		// Irradiance
+	OCCUPANCY,		// Occupancy
+	RADIANCE_DIR,	// Incoming Radiance Direction
+	END
+};
+
 namespace DeviceOGLParameters
 {
 	extern GLint			uboAlignment;

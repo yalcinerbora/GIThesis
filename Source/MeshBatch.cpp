@@ -13,7 +13,6 @@ MeshBatch::MeshBatch(const std::vector<VertexElement>& vertexDefintion,
 					 uint32_t byteStride,
 					 const std::vector<std::string>& sceneFiles,
 					 uint32_t repeatCount)
-
 	: batchVertex(vertexDefintion, byteStride)
 	, batchDrawParams()
 	, batchParams{}
@@ -69,6 +68,7 @@ MeshBatch::MeshBatch(MeshBatch&& other)
 	: batchVertex(std::move(other.batchVertex))
 	, batchDrawParams(std::move(other.batchDrawParams))
 	, batchParams(std::move(other.batchParams))
+	, repeatCount(other.repeatCount)
 {}
 
 MeshBatch& MeshBatch::operator=(MeshBatch&& other)
@@ -77,6 +77,7 @@ MeshBatch& MeshBatch::operator=(MeshBatch&& other)
 	batchVertex = std::move(other.batchVertex);
 	batchDrawParams = std::move(other.batchDrawParams);
 	batchParams = std::move(other.batchParams);
+	repeatCount = other.repeatCount;
 	return *this;
 }
 

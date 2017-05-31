@@ -111,9 +111,9 @@ void main(void)
 				voxelWeight[index] = weight;
 			}
 			// Clear Texture
-			normalDense[coord] = vec4(0.0f);
-			albedoDense[coord] = vec4(0.0f);
-			weightDense[coord] = uvec2(0);
+			//normalDense[coord] = vec4(0.0f);
+			//albedoDense[coord] = vec4(0.0f);
+			//weightDense[coord] = uvec2(0);
 		}
 	}
 }

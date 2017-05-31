@@ -87,7 +87,7 @@ void DrawBuffer::LockAndLoad()
 	aabbOffset = totalSize;
 	totalSize += cpuAABBs.size() * sizeof(AABBData);
 	// Transform Indices
-	//totalSize = DeviceOGLParameters::SSBOAlignOffset(totalSize);
+	totalSize = DeviceOGLParameters::SSBOAlignOffset(totalSize);
 	modelTransformIndexOffset = totalSize;
 	totalSize += cpuModelTransformIndices.size() * sizeof(uint32_t);
 
@@ -235,6 +235,14 @@ void DrawBuffer::BindModelTransform(GLuint bindPoint)
 	gpuData.BindAsShaderStorageBuffer(bindPoint,
 									  static_cast<GLuint>(modelTransformOffset),
 									  static_cast<GLuint>(cpuModelTransforms.size() * sizeof(ModelTransform)));
+}
+
+void DrawBuffer::BindModelTransformIndex(GLuint bindPoint)
+{
+	assert(locked);
+	gpuData.BindAsShaderStorageBuffer(bindPoint,
+									  static_cast<GLuint>(modelTransformIndexOffset),
+									  static_cast<GLuint>(cpuModelTransformIndices.size() * sizeof(uint32_t)));
 }
 
 void DrawBuffer::BindMaterialForDraw(uint32_t meshIndex)

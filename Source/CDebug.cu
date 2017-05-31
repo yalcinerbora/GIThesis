@@ -1,13 +1,13 @@
 #include "CDebug.cuh"
-#include "CMatrix.cuh"
-#include "CAxisAlignedBB.cuh"
-#include "CVoxel.cuh"
+#include "CMatrixFunctions.cuh"
+#include "CAABBFunctions.cuh"
+#include "CVoxelFunctions.cuh"
 #include "CSVOTypes.h"
-#include "CSVO.cuh"
+#include "CSVOFunctions.cuh"
 #include <cassert>
 #include <limits>
 #include <cstdio>
-#include "COpenglTypes.cuh"
+#include "COpenglTypes.h"
 
 __global__ void DebugCheckNodeId(const CSVONode* gSVODense,
 								 const CSVONode* gSVOSparse,
@@ -89,28 +89,28 @@ __global__ void DebugCheckSegmentAlloc(const CVoxelGrid& gGridInfo,
 									   const CObjectAABB* gObjectAABB,
 									   const CObjectTransform* gObjTransforms)
 {
-	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	if(globalId >= segmentCount) return;
+	//unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	//if(globalId >= segmentCount) return;
 
-	unsigned int objectId = gSegmentObjectId[globalId];
-	bool intersects = CheckGridVoxIntersect(gGridInfo, 
-											gObjectAABB[objectId], 
-											gObjTransforms[objectId].transform);
-	ushort2 myAllocLoc = gObjectAllocLocations[globalId];
-	
-	if(intersects &&
-	   (myAllocLoc.x == 0xFFFF ||
-	   myAllocLoc.y == 0xFFFF))
-	{
-		assert(false);
-	}
+	//unsigned int objectId = gSegmentObjectId[globalId];
+	//bool intersects = CheckGridVoxIntersect(gGridInfo, 
+	//										gObjectAABB[objectId], 
+	//										gObjTransforms[objectId].transform);
+	//ushort2 myAllocLoc = gObjectAllocLocations[globalId];
+	//
+	//if(intersects &&
+	//   (myAllocLoc.x == 0xFFFF ||
+	//   myAllocLoc.y == 0xFFFF))
+	//{
+	//	assert(false);
+	//}
 
-	if((!intersects) &&
-	   (myAllocLoc.x != 0xFFFF ||
-	   myAllocLoc.y != 0xFFFF))
-	{
-		assert(false);
-	}
+	//if((!intersects) &&
+	//   (myAllocLoc.x != 0xFFFF ||
+	//   myAllocLoc.y != 0xFFFF))
+	//{
+	//	assert(false);
+	//}
 
 }
 

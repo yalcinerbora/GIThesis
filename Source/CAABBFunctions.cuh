@@ -1,28 +1,19 @@
+#pragma once
 /**
 
 Voxel Sturcutres
 
 */
 
-#ifndef __CAXISALIGNEDBB_H__
-#define __CAXISALIGNEDBB_H__
-
 #include <vector_types.h>
-#include "CMatrix.cuh"
-#include "CAxisAlignedBB.cuh"
+#include "CMatrixFunctions.cuh"
 #include "CVoxelTypes.h"
-#include <limits>
+#include "COpenGLTypes.h"
 
-//struct CVoxelGrid;
-//struct CMatrix4x4;
-
-// Global Voxel Data
-// using float4 because of alignment with ogl
-struct CAABB
-{
-	float4	min;	// World Position of the voxel grid
-	float4	max;	// Voxel Grid Dimentions last component voxel span
-};
+__device__ bool Intersects(const CAABB& boxA, const CAABB& boxB);
+__device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
+									  const CAABB& gObjectAABB,
+									  const CMatrix4x4& gObjectTransform);
 
 // 1.0f means use max, 0.0f means use min
 __device__ static const float3 aabbLookupTable[] =
@@ -37,12 +28,6 @@ __device__ static const float3 aabbLookupTable[] =
 	{ 1.0f, 0.0f, 0.0f },		// V7
 	{ 0.0f, 0.0f, 0.0f }		// V8
 };
-
-__device__ bool Intersects(const CAABB& boxA, const CAABB& boxB);
-
-__device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
-									  const CAABB& gObjectAABB,
-									  const CMatrix4x4& gObjectTransform);
 
 inline __device__ bool Intersects(const CAABB& boxA, const CAABB& boxB)
 {
@@ -92,4 +77,3 @@ inline __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 	}
 	return Intersects(gridAABB, transformedAABB);
 }
-#endif //__CAXISALIGNEDBB_H__

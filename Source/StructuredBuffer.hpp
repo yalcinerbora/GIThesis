@@ -204,12 +204,10 @@ void StructuredBuffer<T>::BindAsDrawIndirectBuffer()
 }
 
 template <class T>
-void StructuredBuffer<T>::Resize(size_t count)
+void StructuredBuffer<T>::Resize(size_t count, bool resizeCPU)
 {
 	assert(count != 0);
 	if(count < bufferCapacity) return;
-
-	dataGPUImage.resize(count);
 
 	GLuint newBuffer;
 	glGenBuffers(1, &newBuffer);
@@ -227,6 +225,8 @@ void StructuredBuffer<T>::Resize(size_t count)
 							0, 0,
 							dataGPUImage.size() * sizeof(T));
 	}
+	glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+	if(resizeCPU) dataGPUImage.resize(count);
 
 	glDeleteBuffers(1, &bufferId);
 	bufferId = newBuffer;

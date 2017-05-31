@@ -178,14 +178,14 @@ int main()
 	// Sponza Atrium
 	std::vector<std::string> sponzaRigid = 
 	{
-		"sponza.gfg",
-		"sponzaDynamic.gfg"
+		//"sponza.gfg",
+		//"sponzaDynamic.gfg"
 	};
 	std::vector<std::string> sponzaSkeletal =
 	{
 		"nyra.gfg"
 	};
-	SponzaScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
+	ConstantScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
 	scenes.push_back(&sponza);
 	// Cornell
 	std::vector<std::string> cornellRigid =
@@ -218,9 +218,14 @@ int main()
 
 	// Solutions
 	EmptyGISolution emptySolution(inputManager, deferredRenderer, "No GI");
-	//ThesisSolution thesisSolution("Thesis GI", inputManager, deferredRenderer, mainRenderCamera.pos);
+	ThesisSolution thesisSolution(6,		// Dense Level
+								  4,		// Dense Count
+								  8,		// Cascade Count
+								  9,		// Base Level
+								  0.0375f,	// Base Span
+								  inputManager, deferredRenderer, "Thesis GI");
 	solutions.push_back(&emptySolution);
-	//solutions.push_back(&thesisSolution);
+	solutions.push_back(&thesisSolution);
 	// All Done
 	// Initialize First Scene and Solution
 	inputManager.Initialize();

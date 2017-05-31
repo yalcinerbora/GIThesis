@@ -14,7 +14,7 @@
 
 static const VoxelizerOptions defaults =
 {
-	1.0f,		// 1 pixel per voxel
+	1.0f,		// base voxel size is 1 unit
 	1,			// 1 cascade
 };
 
@@ -237,7 +237,8 @@ int main(int argc, char* argv[])
 							   fragVoxelizeCount,
 							   true);
 
-		std::string fileNameOnly = fileName.substr(fileName.find_last_of("\\/") + 1);
+		std::string fileNameOnly = fileName.substr(fileName.find_last_of("\\/") + 1,
+												   fileName.find_last_of("."));
 		voxelizer.Execute(fileNameOnly);
 	}
 	OGLVoxelizer::DestroyGLSystem();

@@ -1,6 +1,6 @@
 #include "SVOKernels.cuh"
-#include "CSVO.cuh"
-#include "CVoxel.cuh"
+#include "CSVOFunctions.cuh"
+#include "CVoxelFunctions.cuh"
 #include "CSVOLightInject.cuh"
 #include <cuda.h>
 #include <cuda_fp16.h>

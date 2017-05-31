@@ -59,8 +59,11 @@ class CudaVector
 		size_t			Size() const;
 
 		// Debug
+		template<class O>
 		void			DumpToFile(const char* fName) const;
-		void			DumpToFile(const char* fName, 
+
+		template<class O>
+		void			DumpToFile(const char* fName,
 								   size_t offset,
 								   size_t count) const;
 };

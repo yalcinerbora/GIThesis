@@ -42,7 +42,6 @@ extern __global__ void VoxelObjectIO(// Voxel System
 extern  __global__ void VoxelTransform(// Voxel Pages
 									   CVoxelPage* gVoxelPages,
 									   const CVoxelGrid* gGridInfos,
-									   const float3* gNewGridPositions,
 									   // OGL Related
 									   const BatchOGLData* gBatchOGLData,
 									   // Voxel Cache Related

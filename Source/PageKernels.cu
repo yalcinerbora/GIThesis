@@ -268,7 +268,6 @@ inline __device__ void LoadTransformData(// Shared Mem
 __global__ void VoxelTransform(// Voxel Pages
 							   CVoxelPage* gVoxelPages,
 							   const CVoxelGrid* gGridInfos,
-							   const float3* gNewGridPositions,
 							   // OGL Related
 							   const BatchOGLData* gBatchOGLData,
 							   // Voxel Cache Related
@@ -308,7 +307,6 @@ __global__ void VoxelTransform(// Voxel Pages
 		sObjTransformId = gBatchOGLData[sSegInfo.batchId].dModelTransformIndices[sSegInfo.objId];
 		sMeshVoxelInfo = gBatchVoxelCache[cascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId];
 		sGridInfo = gGridInfos[cascadeId];
-		sNewGridPos = gNewGridPositions[cascadeId];
 	}
 	__syncthreads();
 	if(blockLocalId != 0)
@@ -459,9 +457,9 @@ __global__ void VoxelTransform(// Voxel Pages
 	//MultMatrixSelf(normal, rotation);
 
 	// Reconstruct Voxel Indices relative to the new pos of the grid
-	worldPos.x -= sNewGridPos.x;
-	worldPos.y -= sNewGridPos.y;
-	worldPos.z -= sNewGridPos.z;
+	worldPos.x -= sGridInfo.position.x;
+	worldPos.y -= sGridInfo.position.y;
+	worldPos.z -= sGridInfo.position.z;
 
 	bool outOfBounds;
 	outOfBounds = (worldPos.x < 0.0f) || (worldPos.x >= sGridInfo.dimension.x * sGridInfo.span);

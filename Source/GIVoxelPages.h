@@ -11,6 +11,8 @@
 #include "CVoxelTypes.h"
 #include "COpenGLTypes.h"
 #include "MeshBatchI.h"
+#include "VoxelVAO.h"
+#include "Shader.h"
 
 typedef uint2 CVoxelIds;
 
@@ -18,6 +20,7 @@ class SceneI;
 class GIVoxelCache;
 
 struct CModelTransform;
+class OctreeParameters;
 
 class GIVoxelPages
 {
@@ -53,15 +56,14 @@ class GIVoxelPages
 	private:
 		// Batch
 		const std::vector<MeshBatchI*>*			batches;
-
-		uint32_t								segmentSize;
+		const OctreeParameters*					svoParams;
+		uint32_t								segmentAmount;
 
 		// Static GPU Data
 		CudaVector<uint8_t>						gpuData;
 		// All these pointers are offseted on the gpuData
 		// Grid Related
 		CVoxelGrid*								dVoxelGrids;
-		float3*									dNewGridPositions;
 		// OGL Pointer Data
 		BatchOGLData*							dBatchOGLData;
 		// Helper Data
@@ -74,10 +76,17 @@ class GIVoxelPages
 		
 		// OGL Related
 		std::vector<cudaGraphicsResource_t>		batchOGLResources;
+		// Debug Related
+		StructuredBuffer<uint8_t>				debugDrawBuffer;
+		VoxelVAO								debugDrawVao;
+		Shader									vRenderWorldVoxel;
+		Shader									fRenderWorldVoxel;
 		
-
+		uint16_t								PackSegmentInfo(const uint8_t cascadeId,
+																const CObjectType type,
+																const CSegmentOccupation occupation);
+		void									GenerateGPUData(const GIVoxelCache& cache);
 		void									AllocatePages(size_t voxelCapacity);
-		void									UpdateGridPositions(const IEVector3& cameraPos);
 		void									MapOGLResources();
 		void									UnmapOGLResources();
 
@@ -85,17 +94,23 @@ class GIVoxelPages
 	public:
 		// Constrcutors & Destructor
 												GIVoxelPages();
-												GIVoxelPages(const std::vector<MeshBatchI*>* batches,
+												GIVoxelPages(const GIVoxelCache& cache,
+															 const std::vector<MeshBatchI*>* batches,
+															 const OctreeParameters& octreeParams,
 															 size_t initalVoxelCapacity);
 												GIVoxelPages(const GIVoxelPages&) = delete;
 												GIVoxelPages(GIVoxelPages&&);
 		GIVoxelPages&							operator=(const GIVoxelPages&) = delete;
 		GIVoxelPages&							operator=(GIVoxelPages&&);
-												~GIVoxelPages() = default;
+												~GIVoxelPages();
 
-		double									VoxelIO();
+		// Update Functions; should be called in this order
+		void									UpdateGridPositions(const IEVector3& cameraPos);
+		double									VoxelIO(bool doTiming);
 		double									Transform(const GIVoxelCache& cache,
-														  const IEVector3 cameraPos);
+														  bool doTiming);
+
+		uint64_t								MemoryUsage() const;
 	
 		// Debug Draw
 		void									AllocateDraw();

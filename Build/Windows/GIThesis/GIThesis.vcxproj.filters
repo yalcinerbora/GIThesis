@@ -434,7 +434,4 @@
       <Filter>GI\Thesis</Filter>
     </CudaCompile>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\Common\shaders.ninja" />
-  </ItemGroup>
 </Project>

@@ -41,7 +41,6 @@ class GIVoxelCache
 		int32_t									currentCascade;
 
 		// Loaded only when Drawing (Debug)
-		//
 		StructuredBuffer<uint8_t>				debugDrawBuffer;
 		std::vector<std::vector<MeshVoxelInfo>>	meshData;
 		std::vector<VoxelVAO>					debugVAO;
@@ -74,12 +73,14 @@ class GIVoxelCache
 		GIVoxelCache&							operator=(const GIVoxelCache&) = delete;
 												~GIVoxelCache() = default;
 												
+		// Debug Related
 		void									AllocateGL(uint32_t cascade);
 		void									DeallocateGL();
 		double									Draw(const Camera& camera,
 													 VoxelRender renderType);
 
-	
+		// Utility	
+		const std::vector<CMeshVoxelInfo>		CopyMeshObjectInfo(uint32_t cascadeId, uint32_t batchId) const;
 		const std::vector<BatchVoxelCache>&		getDeviceCascadePointersHost() const;
 		const CudaVector<BatchVoxelCache>&		getDeviceCascadePointersDevice() const;
 };

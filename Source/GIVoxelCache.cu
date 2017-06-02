@@ -399,7 +399,7 @@ void GIVoxelCache::AllocateGL(uint32_t cascade)
 			else
 			{
 
-			// Generate VAO
+				// Generate VAO
 				const BatchVoxelCache& cc = hDeviceCascadePtrs[cascade * batches->size() + i];
 				const uint32_t voxelCount = cascadeVoxelCount[cascade * batches->size() + i];
 
@@ -425,11 +425,7 @@ void GIVoxelCache::AllocateGL(uint32_t cascade)
 									  vWeightOffset);
 
 				// Memcopy cascade voxel sizes to CPU (in order to launch draw calls)
-				meshData.emplace_back((*batches)[i]->DrawCount());
-				CUDA_CHECK(cudaMemcpy(meshData.back().data(),
-									  cc.dMeshVoxelInfo,
-									  (*batches)[i]->DrawCount() * sizeof(MeshVoxelInfo),
-									  cudaMemcpyDeviceToHost));
+				meshData.emplace_back(CopyMeshObjectInfo(cascade, static_cast<uint32_t>(i)));
 			}
 		}
 		assert(offset == debugDrawBuffer.Capacity());
@@ -520,6 +516,17 @@ double GIVoxelCache::Draw(const Camera& camera,
 	// Timer
 	t.Stop();
 	return t.ElapsedMS();
+}
+
+const std::vector<CMeshVoxelInfo> GIVoxelCache::CopyMeshObjectInfo(uint32_t cascadeId, uint32_t batchId) const
+{
+	std::vector<CMeshVoxelInfo> mesh((*batches)[batchId]->DrawCount());
+	const BatchVoxelCache& cc = hDeviceCascadePtrs[cascadeId * batches->size() + batchId];
+	CUDA_CHECK(cudaMemcpy(mesh.data(),
+						  cc.dMeshVoxelInfo,
+						  (*batches)[batchId]->DrawCount() * sizeof(MeshVoxelInfo),
+						  cudaMemcpyDeviceToHost));
+	return mesh;
 }
 
 const std::vector<BatchVoxelCache>& GIVoxelCache::getDeviceCascadePointersHost() const

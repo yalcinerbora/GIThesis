@@ -58,9 +58,10 @@ void ThesisSolution::Load(SceneI& s)
 							   batchNames);
 
 	// Initialize Voxel Page System
-	//voxelPages = GIVoxelPages(*currentScene,
-	//						  );
-		
+	voxelPages = GIVoxelPages(voxelCaches,
+							  &currentScene->getBatches(), 
+							  octreeParams);
+
 	// Initialize SVO System
 	// TODO
 	
@@ -105,6 +106,14 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
 	dRenderer.Render(*currentScene, mainCam, directLighting, aColor, false);
 
+	// Do Page update
+	voxelPages.UpdateGridPositions(mainCam.pos);
+	voxelPages.MapOGLResources();
+	ioTime = voxelPages.VoxelIO(doTiming);
+	transTime = voxelPages.Transform(voxelCaches, doTiming);
+	voxelPages.UnmapOGLResources();
+	
+	// Rendering Choice
 	if(scheme >= RenderScheme::G_DIFF_ALBEDO &&
 	   scheme <= RenderScheme::G_DEPTH)
 	{
@@ -123,18 +132,28 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	else if(scheme == RenderScheme::VOXEL_CACHE)
 	{
 		voxelCaches.AllocateGL(thesisBar.CacheCascade());
-		voxelCaches.Draw(mainCam, thesisBar.CacheRenderType());
+		miscTime = voxelCaches.Draw(doTiming, mainCam, 
+									thesisBar.CacheRenderType());
 	}
 	else
 	{
 		voxelCaches.DeallocateGL();
 		if(scheme == RenderScheme::VOXEL_PAGE)
 		{
-
+			voxelPages.AllocateDraw();
+			miscTime = voxelPages.Draw(doTiming,
+									   thesisBar.PageCascade(),
+									   thesisBar.PageRenderType(),
+									   mainCam,
+									   voxelCaches);
 		}
-		else if(scheme == RenderScheme::SVO_VOXELS)
+		else 
 		{
+			voxelPages.DeallocateDraw();
+			if(scheme == RenderScheme::SVO_VOXELS)
+			{
 
+			}
 		}
 	}	
 }

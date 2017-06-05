@@ -1,4 +1,6 @@
 #include "VoxelVAO.h"
+#include "DrawPoint.h"
+#include <GFG/GFGFileLoader.h>
 
 VoxelVAO::VoxelVAO()
 	: vao(0)
@@ -43,6 +45,7 @@ VoxelVAO::VoxelVAO(StructuredBuffer<uint8_t>& buffer,
 
 	// Everything is on that single buffer
 	GLsizei attributeCount = (voxWeightOffset == 0) ? 4 : 5;
+	attributeCount = (voxAlbedoOffset == 0) ? 3 : attributeCount;
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferId);
 	glBindVertexBuffers(0, attributeCount, buffers, offsets, strides);
 	// Cube Pos
@@ -73,15 +76,18 @@ VoxelVAO::VoxelVAO(StructuredBuffer<uint8_t>& buffer,
 	glVertexAttribBinding(IN_VOXEL_NORM, 2);
 	
 	// Vox Albedo
-	glEnableVertexAttribArray(IN_VOXEL_ALBEDO);
-	glVertexAttribFormat(IN_VOXEL_ALBEDO,
-						 4,
-						 GL_UNSIGNED_BYTE,
-						 GL_TRUE,
-						 0);
-	glVertexAttribDivisor(IN_VOXEL_ALBEDO, 1);
-	glVertexAttribBinding(IN_VOXEL_ALBEDO, 3);
-	
+	if(voxAlbedoOffset != 0)
+	{
+		glEnableVertexAttribArray(IN_VOXEL_ALBEDO);
+		glVertexAttribFormat(IN_VOXEL_ALBEDO,
+							 4,
+							 GL_UNSIGNED_BYTE,
+							 GL_TRUE,
+							 0);
+		glVertexAttribDivisor(IN_VOXEL_ALBEDO, 1);
+		glVertexAttribBinding(IN_VOXEL_ALBEDO, 3);
+	}
+
 	if(voxWeightOffset != 0)
 	{
 		glEnableVertexAttribArray(IN_VOXEL_WEIGHT);
@@ -128,6 +134,35 @@ void VoxelVAO::Draw(uint32_t cubeIndexSize,
 										nullptr,
 										voxelCount,
 										offset);
+}
+
+void VoxelVAO::Draw(uint32_t drawPointOffset)
+{
+	static_assert(sizeof(GLintptr) == sizeof(void*), "Unappropirate GL Offset Parameter");
+	GLintptr offset = static_cast<GLintptr>(drawPointOffset);
+	glDrawElementsIndirect(GL_TRIANGLES,
+						   GL_UNSIGNED_INT,
+						   (void *)(offset));
+}
+
+VoxelVAO::CubeOGL VoxelVAO::LoadCubeDataFromGFG()
+{
+	// Loading Cube (For rendering voxels)
+	std::ifstream stream(CubeGFGFileName, std::ios_base::in | std::ios_base::binary);
+	GFGFileReaderSTL stlFileReader(stream);
+	GFGFileLoader loader(&stlFileReader);
+
+	GFGFileError e = loader.ValidateAndOpen();
+	assert(e == GFGFileError::OK);
+	assert(loader.Header().meshes.size() == 1);
+
+	CubeOGL cubeData;
+	cubeData.data.resize(loader.MeshIndexDataSize(0) +
+						 loader.MeshVertexDataSize(0));
+	loader.MeshIndexData(cubeData.data.data(), 0);
+	loader.MeshVertexData(cubeData.data.data() + loader.MeshIndexDataSize(0), 0);
+	cubeData.drawCount = static_cast<GLuint>(loader.Header().meshes.front().headerCore.indexCount);
+	return cubeData;
 }
 
 

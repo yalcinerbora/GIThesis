@@ -75,5 +75,6 @@ inline __device__ bool CheckGridVoxIntersect(const CVoxelGrid& gGridInfo,
 		transformedAABB.min.y = fmin(transformedAABB.min.y, data.y);
 		transformedAABB.min.z = fmin(transformedAABB.min.z, data.z);
 	}
-	return Intersects(gridAABB, transformedAABB);
+	bool intersects = Intersects(gridAABB, transformedAABB);
+	return  intersects;
 }

@@ -108,7 +108,7 @@ vec3 UnpackNormal(in uint voxNorm)
 	return unpackSnorm4x8(voxNorm).xyz;
 }
 
-uvec4 UnpackVoxelIndices(uint wIPacked)
+uvec4 UnpackVoxelWeightIndices(uint wIPacked)
 {
 	uvec4 result;
 	result.x = (wIPacked >> 0) & 0x000000FF;
@@ -128,7 +128,7 @@ void main(void)
 	uvec3 voxIndex = UnpackPos(voxPos);
 	uint transformId = modelTransformIds[drawId];
 
-	uvec4 vWIndex = UnpackVoxelIndices(voxWeights.y);
+	uvec4 vWIndex = UnpackVoxelWeightIndices(voxWeights.y);
 	vec4 vWeight = UnpackVoxelWeights(voxWeights.x);
 
 	vec3 deltaPos = objectAABBInfo[drawId].aabbMin.xyz + (span * vec3(voxIndex));

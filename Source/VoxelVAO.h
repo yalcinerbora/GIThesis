@@ -21,26 +21,37 @@ Vao for rendering voxel debug
 
 class VoxelVAO
 {
+	public:
+		static constexpr char*			CubeGFGFileName = "cube.gfg";		
+		struct CubeOGL
+		{
+			uint32_t					drawCount;
+			std::vector<uint8_t>		data;
+		};
+
 	private:
-		GLuint					vao;
+		GLuint							vao;
 
 	public:
 		// Cosntructors & Destructor
-								VoxelVAO();
-								VoxelVAO(StructuredBuffer<uint8_t>& buffer,
-										 size_t cubePosOffset,
-										 size_t voxPosOffset,
-										 size_t voxNormOffset,
-										 size_t voxAlbedoOffset,
-										 size_t voxWeightOffset = 0);
-								VoxelVAO(const VoxelVAO&) = delete;
-								VoxelVAO(VoxelVAO&&);
-		VoxelVAO&				operator=(const VoxelVAO&) = delete;
-		VoxelVAO&				operator=(VoxelVAO&&);
-								~VoxelVAO();
+										VoxelVAO();
+										VoxelVAO(StructuredBuffer<uint8_t>& buffer,
+												 size_t cubePosOffset,
+												 size_t voxPosOffset,
+												 size_t voxNormOffset,
+												 size_t voxAlbedoOffset = 0,
+												 size_t voxWeightOffset = 0);
+										VoxelVAO(const VoxelVAO&) = delete;
+										VoxelVAO(VoxelVAO&&);
+		VoxelVAO&						operator=(const VoxelVAO&) = delete;
+		VoxelVAO&						operator=(VoxelVAO&&);
+										~VoxelVAO();
 
-		void					Bind();
-		void					Draw(uint32_t cubeIndexSize,
-									 uint32_t voxelCount, 
-									 uint32_t offset);
+		void							Bind();
+		void							Draw(uint32_t cubeIndexSize,
+											 uint32_t voxelCount, 
+											 uint32_t offset);
+		void							Draw(uint32_t parameterOffset);
+
+		static CubeOGL					LoadCubeDataFromGFG();
 };

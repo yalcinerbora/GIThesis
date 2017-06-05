@@ -25,6 +25,47 @@ class OctreeParameters;
 class GIVoxelPages
 {
 	private:
+		class PageRenderer
+		{
+			private:
+				Shader							vRenderWorldVoxel;
+				Shader							fRenderWorldVoxel;
+
+				// Buffer and its resource
+				cudaGraphicsResource_t			debugBufferResource;		
+				StructuredBuffer<uint8_t>		debugDrawBuffer;
+				uint8_t*						debugBufferCUDA;
+
+				// VAO
+				VoxelVAO						debugDrawVao;
+		
+				// Offset
+				size_t							drawParameterOffset;
+				size_t							atomicIndexOffset;
+				size_t							gridInfoOffset;
+				size_t							voxelPositionOffset;
+				size_t							voxelRenderOffset;
+
+			protected:
+			public:
+				// Constructors & Destructor
+												PageRenderer();
+												PageRenderer(const GIVoxelPages&);
+												PageRenderer(const PageRenderer&) = delete;
+												PageRenderer(PageRenderer&&);
+				PageRenderer&					operator=(const PageRenderer&) = delete;
+				PageRenderer&					operator=(PageRenderer&&);
+												~PageRenderer();
+
+				double							Draw(bool doTiming,
+													 uint32_t cascade,
+													 VoxelRender renderType,
+													 const Camera& camera,
+													 const GIVoxelCache& cache,
+													 const GIVoxelPages& pages);
+				bool							Allocated() const;
+		};
+
 		// Multi Page Holding Class
 		class MultiPage
 		{
@@ -52,7 +93,7 @@ class GIVoxelPages
 		static constexpr uint32_t				BlockPerPage = PageSize / CudaInit::TBP;
 		static constexpr uint32_t				SegmentPerPage = PageSize / SegmentSize;
 		static constexpr uint32_t				SegmentPerBlock = SegmentSize / CudaInit::TBP;
-	
+
 	private:
 		// Batch
 		const std::vector<MeshBatchI*>*			batches;
@@ -73,22 +114,19 @@ class GIVoxelPages
 		//Page System (Theoretically Dynamic Data)
 		std::vector<MultiPage>					hPages;
 		CudaVector<CVoxelPage>					dPages;
-		
-		// OGL Related
+
+		// OGL Buffer Resources (Model, Transform Index, AABB)
 		std::vector<cudaGraphicsResource_t>		batchOGLResources;
-		// Debug Related
-		StructuredBuffer<uint8_t>				debugDrawBuffer;
-		VoxelVAO								debugDrawVao;
-		Shader									vRenderWorldVoxel;
-		Shader									fRenderWorldVoxel;
+
+		// Debug Rednering Related
+		PageRenderer							pageRenderer;
 		
+
 		uint16_t								PackSegmentInfo(const uint8_t cascadeId,
 																const CObjectType type,
 																const CSegmentOccupation occupation);
 		void									GenerateGPUData(const GIVoxelCache& cache);
 		void									AllocatePages(size_t voxelCapacity);
-		void									MapOGLResources();
-		void									UnmapOGLResources();
 
 	protected:
 	public:
@@ -96,25 +134,36 @@ class GIVoxelPages
 												GIVoxelPages();
 												GIVoxelPages(const GIVoxelCache& cache,
 															 const std::vector<MeshBatchI*>* batches,
-															 const OctreeParameters& octreeParams,
-															 size_t initalVoxelCapacity);
+															 const OctreeParameters& octreeParams);
 												GIVoxelPages(const GIVoxelPages&) = delete;
 												GIVoxelPages(GIVoxelPages&&);
 		GIVoxelPages&							operator=(const GIVoxelPages&) = delete;
 		GIVoxelPages&							operator=(GIVoxelPages&&);
 												~GIVoxelPages();
 
-		// Update Functions; should be called in this order
+		// Update Functions; should be called in this order		
 		void									UpdateGridPositions(const IEVector3& cameraPos);
+		void									MapOGLResources();
 		double									VoxelIO(bool doTiming);
 		double									Transform(const GIVoxelCache& cache,
 														  bool doTiming);
+		void									UnmapOGLResources();
 
 		uint64_t								MemoryUsage() const;
 	
+		// Debug File
+		void									DumpPageSegments(const char*, size_t offset = 0, size_t pageCount = 0) const;
+		void									DumpPageEmptyPositions(const char*, size_t offset = 0, size_t pageCount = 0) const;
+		void									DumpSegmentAllocation(const char*, size_t offset = 0, size_t segmentCount =  0) const;
+		void									DumpSegmentInfo(const char*, size_t offset = 0, size_t segmentCount = 0) const;
+
 		// Debug Draw
 		void									AllocateDraw();
-		void									Draw(size_t cascadeCount);
+		double									Draw(bool doTiming, 
+													 uint32_t cascade,
+													 VoxelRender renderType,
+													 const Camera& camera,
+													 const GIVoxelCache& cache);
 		void									DeallocateDraw();
 
 		const CVoxelPageConst*					getVoxelPages() const;

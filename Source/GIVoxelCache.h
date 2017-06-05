@@ -18,12 +18,6 @@ class GIVoxelCache
 		static constexpr char*					CubeGFGFileName = "cube.gfg";
 		
 	private:
-		struct CubeOGL
-		{
-			uint32_t							drawCount;
-			std::vector<uint8_t>				data;
-		};
-
 		// Mesh Batch
 		const std::vector<MeshBatchI*>*			batches;
 		float									baseSpan;
@@ -33,17 +27,17 @@ class GIVoxelCache
 		CudaVector<BatchVoxelCache>				dDeviceCascadePtrs;
 		std::vector<BatchVoxelCache>			hDeviceCascadePtrs;
 
-		// Rendering Related		
-		CubeOGL									cubeData;
+		// Shaders
 		Shader									vRenderVoxelSkel;
 		Shader									vRenderVoxel;
 		Shader									fRenderVoxel;
-		int32_t									currentCascade;
 
 		// Loaded only when Drawing (Debug)
 		StructuredBuffer<uint8_t>				debugDrawBuffer;
 		std::vector<std::vector<MeshVoxelInfo>>	meshData;
 		std::vector<VoxelVAO>					debugVAO;
+		int32_t									currentCascade;
+		uint32_t								cubeIndexCount;
 
 		// Size Storage
 		std::vector<uint32_t>					cascadeVoxelCount;
@@ -55,7 +49,6 @@ class GIVoxelCache
 		size_t									LoadBatchVoxels(size_t gpuBufferOffset, float currentSpan,
 																const MeshBatchI* batch,
 																const std::vector<std::string>& gfgFiles);
-		void									LoadGFGRenderCube();
 		static size_t							CaclulateCascadeMemoryUsage(uint32_t voxelCount, 
 																			uint32_t meshCount, 
 																			bool isSkeletal);
@@ -76,7 +69,8 @@ class GIVoxelCache
 		// Debug Related
 		void									AllocateGL(uint32_t cascade);
 		void									DeallocateGL();
-		double									Draw(const Camera& camera,
+		double									Draw(bool doTiming,
+													 const Camera& camera,
 													 VoxelRender renderType);
 
 		// Utility	

@@ -47,6 +47,12 @@ namespace IEMathFunctions
 		return static_cast<float>((1.0f - ::std::pow(a, n + 1)) / (1.0f - a));
 	}
 
+	inline float GeomSubSeries(unsigned int n0, unsigned int n1, float a)
+	{
+		assert(n0 <= n1);
+		return GeomSeries(n1, a) - GeomSeries(n0, a);
+	}
+
 	template<class T>
 	inline T SumLinear(T n)
 	{

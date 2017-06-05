@@ -205,24 +205,6 @@ size_t GIVoxelCache::LoadBatchVoxels(size_t gpuBufferOffset, float currentSpan,
 	return newOffset;
 }
 
-void GIVoxelCache::LoadGFGRenderCube()
-{
-	// Loading Cube (For rendering voxels)
-	std::ifstream stream(CubeGFGFileName, std::ios_base::in | std::ios_base::binary);
-	GFGFileReaderSTL stlFileReader(stream);
-	GFGFileLoader loader(&stlFileReader);
-
-	GFGFileError e = loader.ValidateAndOpen();
-	assert(e == GFGFileError::OK);
-	assert(loader.Header().meshes.size() == 1);
-
-	cubeData.data.resize(loader.MeshIndexDataSize(0) +
-						 loader.MeshVertexDataSize(0));
-	loader.MeshIndexData(cubeData.data.data(), 0);
-	loader.MeshVertexData(cubeData.data.data() + loader.MeshIndexDataSize(0), 0);
-	cubeData.drawCount = static_cast<GLuint>(loader.Header().meshes.front().headerCore.indexCount);
-}
-
 size_t GIVoxelCache::CaclulateCascadeMemoryUsage(uint32_t voxelCount,
 												 uint32_t meshCount,
 												 bool isSkeletal)
@@ -238,7 +220,6 @@ size_t GIVoxelCache::CaclulateCascadeMemoryUsage(uint32_t voxelCount,
 GIVoxelCache::GIVoxelCache()
 	: batches(nullptr)
 	, baseSpan(0.0f)
-	, cubeData{}
 	, currentCascade(-1)
 {}
 
@@ -247,14 +228,11 @@ GIVoxelCache::GIVoxelCache(float baseSpan, uint32_t levelCount,
 						   const std::vector<std::vector<std::string>>& batchFileNames)
 	: batches(batches)
 	, baseSpan(baseSpan)
-	, cubeData{}
 	, vRenderVoxelSkel(ShaderType::VERTEX, "Shaders/VoxRenderSkeletal.vert")
 	, vRenderVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
 	, fRenderVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 	, currentCascade(-1)
-{
-	LoadGFGRenderCube();
-		
+{		
 	GI_LOG("Loading Voxel Caches...");
 	IETimer t;
 	t.Start();
@@ -312,7 +290,6 @@ GIVoxelCache::GIVoxelCache(GIVoxelCache&& other)
 	, gpuData(std::move(other.gpuData))
 	, dDeviceCascadePtrs(std::move(other.dDeviceCascadePtrs))
 	, hDeviceCascadePtrs(std::move(other.hDeviceCascadePtrs))
-	, cubeData(std::move(other.cubeData))
 	, vRenderVoxelSkel(std::move(other.vRenderVoxelSkel))
 	, vRenderVoxel(std::move(other.vRenderVoxel))
 	, fRenderVoxel(std::move(other.fRenderVoxel))
@@ -332,7 +309,6 @@ GIVoxelCache& GIVoxelCache::operator=(GIVoxelCache&& other)
 	gpuData = std::move(other.gpuData);
 	dDeviceCascadePtrs = std::move(other.dDeviceCascadePtrs);
 	hDeviceCascadePtrs = std::move(other.hDeviceCascadePtrs);
-	cubeData = std::move(other.cubeData);
 	vRenderVoxelSkel = std::move(other.vRenderVoxelSkel);
 	vRenderVoxel = std::move(other.vRenderVoxel);
 	fRenderVoxel = std::move(other.fRenderVoxel);
@@ -350,11 +326,13 @@ void GIVoxelCache::AllocateGL(uint32_t cascade)
 	if(currentCascade != static_cast<int32_t>(cascade))
 	{
 		DeallocateGL();
+		VoxelVAO::CubeOGL cube = VoxelVAO::LoadCubeDataFromGFG();
+		cubeIndexCount = cube.drawCount;
+
 		size_t totalSize = std::accumulate(cascadeVoxelSizes.begin() + cascade * batches->size(),
 										   cascadeVoxelSizes.begin() + (cascade + 1) * batches->size(),
 										   size_t(0u));
-
-		debugDrawBuffer.Resize(cubeData.data.size() + totalSize, false);
+		debugDrawBuffer.Resize(cube.data.size() + totalSize, false);
 
 		cudaGraphicsResource_t glResource = nullptr;
 		uint8_t* glCudaPointer = nullptr;
@@ -375,19 +353,19 @@ void GIVoxelCache::AllocateGL(uint32_t cascade)
 											size_t(0u));
 		const uint8_t* readPointer = gpuData.Data() + readOffset;
 		CUDA_CHECK(cudaMemcpy(glCudaPointer, 
-							  cubeData.data.data(), 
-							  cubeData.data.size(), 
+							  cube.data.data(),
+							  cube.data.size(),
 							  cudaMemcpyHostToDevice));
-		CUDA_CHECK(cudaMemcpy(glCudaPointer + cubeData.data.size(),
+		CUDA_CHECK(cudaMemcpy(glCudaPointer + cube.data.size(),
 							  readPointer, 
-							  bufferSize - cubeData.data.size(),
+							  bufferSize - cube.data.size(),
 							  cudaMemcpyDeviceToDevice));
 		// Unmap and unregister we are done
 		CUDA_CHECK(cudaGraphicsUnmapResources(1, &glResource));
 		CUDA_CHECK(cudaGraphicsUnregisterResource(glResource));
 
-		size_t cubeOffset = cubeData.data.size();
-		size_t cubeVertexOffset = cubeData.drawCount * sizeof(uint32_t);
+		size_t cubeOffset = cube.data.size();
+		size_t cubeVertexOffset = cube.drawCount * sizeof(uint32_t);
 		size_t offset = cubeOffset;
 		for(size_t i = 0; i < batches->size(); i++)
 		{
@@ -444,12 +422,13 @@ void GIVoxelCache::DeallocateGL()
 	}
 }
 
-double GIVoxelCache::Draw(const Camera& camera,
+double GIVoxelCache::Draw(bool doTiming, 
+						  const Camera& camera,
 						  VoxelRender renderType)
 {
 	// Timing
 	OGLTimer t;
-	t.Start();
+	if(doTiming) t.Start();
 	
 	// Framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -507,14 +486,18 @@ double GIVoxelCache::Draw(const Camera& camera,
 			const auto& meshInfo = batchMeshInfo[drawId];
 			if(meshInfo.voxCount == 0) continue;
 			glUniform1ui(U_DRAW_ID, drawId);
-			debugVAO[i].Draw(cubeData.drawCount,
+			debugVAO[i].Draw(cubeIndexCount,
 							 meshInfo.voxCount,
 							 meshInfo.voxOffset);
 		}
 	}
 
 	// Timer
-	t.Stop();
+	if(doTiming)
+	{
+		t.Stop();
+		return t.ElapsedMS();
+	}
 	return t.ElapsedMS();
 }
 

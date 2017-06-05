@@ -6,19 +6,11 @@
 #include "GIVoxelCache.h"
 #include "GISparseVoxelOctree.h"
 #include "MeshBatchSkeletal.h"
+#include "OGLTimer.h"
 #include "IEUtility/IEMath.h"
+#include "GLSLBindPoints.h"
+#include "Camera.h"
 #include <cuda_gl_interop.h>
-inline static std::ostream& operator<<(std::ostream& ostr, const uint2& int2)
-{
-	ostr << "{" << int2.x << ", " << int2.y << "}";
-	return ostr;
-}
-
-inline static std::ostream& operator<<(std::ostream& ostr, const CSegmentOccupation& seg)
-{
-	ostr << static_cast<int>(seg);
-	return ostr;
-}
 
 inline static std::ostream& operator<<(std::ostream& ostr, const CSegmentInfo& segObj)
 {
@@ -34,6 +26,257 @@ inline static std::ostream& operator<<(std::ostream& ostr, const CSegmentInfo& s
 	ostr << objType << " | ";
 	ostr << occupation << " | ";
 	return ostr;
+}
+
+GIVoxelPages::PageRenderer::PageRenderer()
+	: debugBufferResource(nullptr)
+	, debugBufferCUDA(nullptr)
+	, drawParameterOffset(0)
+	, atomicIndexOffset(0)
+	, gridInfoOffset(0)
+	, voxelPositionOffset(0)
+	, voxelRenderOffset(0)
+{}
+
+GIVoxelPages::PageRenderer::PageRenderer(const GIVoxelPages& pages)
+	: vRenderWorldVoxel(ShaderType::VERTEX, "Shaders/VoxRenderWorld.vert")
+	, fRenderWorldVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
+	, debugBufferResource(nullptr)
+	, debugBufferCUDA(nullptr)
+	, drawParameterOffset(0)
+	, atomicIndexOffset(0)
+	, gridInfoOffset(0)
+	, voxelPositionOffset(0)
+	, voxelRenderOffset(0)
+{
+	VoxelVAO::CubeOGL cube = VoxelVAO::LoadCubeDataFromGFG();
+	size_t maxVoxelCount = pages.dPages.Size() * PageSize;
+
+	// Since Grid info will be bound as SSBO it inneds to be properly aligned
+	size_t cubeOffset = cube.data.size();
+	size_t cubeVertexOffset = cube.drawCount * sizeof(uint32_t);
+
+	// Grid Info
+	size_t offset = cubeOffset;
+	offset = DeviceOGLParameters::SSBOAlignOffset(offset);
+	gridInfoOffset = offset;
+	offset += pages.svoParams->CascadeCount * sizeof(CVoxelGrid);
+	
+	// Atomic Index
+	drawParameterOffset = offset;
+	atomicIndexOffset = offset + offsetof(DrawPointIndexed, instanceCount);
+	offset += sizeof(DrawPointIndexed);
+	// Voxel Positions
+	voxelPositionOffset = offset;
+	offset += maxVoxelCount * sizeof(VoxelPosition);
+	// Voxel Albedo or Normal
+	voxelRenderOffset = offset;
+	offset += maxVoxelCount * sizeof(VoxelNormal);
+	static_assert(sizeof(VoxelNormal) == sizeof(VoxelAlbedo), "Implementation assumes all debug render types has the same size");
+
+	// Allocate
+	debugDrawBuffer.Resize(offset, false);
+
+	// Now Register
+	size_t bufferSize = 0;
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&debugBufferResource, debugDrawBuffer.getGLBuffer(),
+											cudaGraphicsMapFlagsWriteDiscard));
+	CUDA_CHECK(cudaGraphicsMapResources(1, &debugBufferResource));
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&debugBufferCUDA),
+													&bufferSize,
+													debugBufferResource));
+	assert(bufferSize == debugDrawBuffer.Capacity());
+
+	// Copy Cube Vertex and Indices
+	CUDA_CHECK(cudaMemcpy(debugBufferCUDA,
+						  cube.data.data(),
+						  cube.data.size(),
+						  cudaMemcpyHostToDevice));
+
+	// Copy Grid Info
+	CUDA_CHECK(cudaMemcpy(debugBufferCUDA + gridInfoOffset,
+						  pages.dVoxelGrids,
+						  pages.svoParams->CascadeCount * sizeof(CVoxelGrid),
+						  cudaMemcpyDeviceToDevice));
+
+	// Copy Draw Point
+	DrawPointIndexed dp =
+	{
+		cube.drawCount,
+		0,	// Instance count will be filled each frame
+		0,
+		0,
+		0
+	};
+	CUDA_CHECK(cudaMemcpy(debugBufferCUDA + drawParameterOffset,
+						  &dp, sizeof(DrawPointIndexed),
+						  cudaMemcpyHostToDevice));
+
+	// All Done! (Unmap and continue)
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &debugBufferResource));
+	debugBufferCUDA = nullptr;
+
+	// Finally Generate VAO
+	debugDrawVao = VoxelVAO(debugDrawBuffer,
+							cubeVertexOffset,
+							voxelPositionOffset,
+							voxelRenderOffset);
+}
+
+GIVoxelPages::PageRenderer::PageRenderer(PageRenderer&& other)
+	: vRenderWorldVoxel(std::move(other.vRenderWorldVoxel))
+	, fRenderWorldVoxel(std::move(other.fRenderWorldVoxel))
+	, debugBufferResource(other.debugBufferResource)
+	, debugDrawBuffer(std::move(other.debugDrawBuffer))
+	, debugBufferCUDA(other.debugBufferCUDA)
+	, debugDrawVao(std::move(other.debugDrawVao))
+	, drawParameterOffset(other.drawParameterOffset)
+	, atomicIndexOffset(other.atomicIndexOffset)
+	, gridInfoOffset(other.gridInfoOffset)
+	, voxelPositionOffset(other.voxelPositionOffset)
+	, voxelRenderOffset(other.voxelRenderOffset)
+{
+	other.debugBufferResource = nullptr;
+	other.debugBufferCUDA = nullptr;
+}
+
+GIVoxelPages::PageRenderer& GIVoxelPages::PageRenderer::operator=(PageRenderer&& other)
+{
+	vRenderWorldVoxel = std::move(other.vRenderWorldVoxel);
+	fRenderWorldVoxel = std::move(other.fRenderWorldVoxel);
+	debugBufferResource = other.debugBufferResource;
+	debugDrawBuffer = std::move(other.debugDrawBuffer);
+	debugBufferCUDA = other.debugBufferCUDA;
+	debugDrawVao = std::move(other.debugDrawVao);
+	drawParameterOffset = other.drawParameterOffset;
+	atomicIndexOffset = other.atomicIndexOffset;
+	gridInfoOffset = other.gridInfoOffset;
+	voxelPositionOffset = other.voxelPositionOffset;
+	voxelRenderOffset = other.voxelRenderOffset;
+
+	other.debugBufferResource = nullptr;
+	other.debugBufferCUDA = nullptr;
+	return *this;
+}
+
+GIVoxelPages::PageRenderer::~PageRenderer()
+{
+	if(debugBufferResource)
+		CUDA_CHECK(cudaGraphicsUnregisterResource(debugBufferResource));
+}
+
+double GIVoxelPages::PageRenderer::Draw(bool doTiming,
+										uint32_t cascade,
+										VoxelRender renderType,
+										const Camera& camera,
+										const GIVoxelCache& cache,
+										const GIVoxelPages& pages)
+{
+	// Skip if not allocated
+	if(!Allocated()) return 0.0;
+
+	CudaTimer cT;
+	if(doTiming) cT.Start();
+
+	// Map Buffer
+	size_t bufferSize = 0;
+	CUDA_CHECK(cudaGraphicsMapResources(1, &debugBufferResource));
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&debugBufferCUDA),
+													&bufferSize,
+													debugBufferResource));
+	assert(bufferSize == debugDrawBuffer.Capacity());
+
+	// Copy Requested Data
+	// Gen pointers
+	VoxelPosition* voxelPosition = reinterpret_cast<VoxelPosition*>(debugBufferCUDA + voxelPositionOffset);
+	unsigned int* voxelRender = reinterpret_cast<unsigned int*>(debugBufferCUDA + voxelRenderOffset);
+	unsigned int* atomicIndex = reinterpret_cast<unsigned int*>(debugBufferCUDA + atomicIndexOffset);
+
+	// Clear atomic counter
+	CUDA_CHECK(cudaMemset(atomicIndex, 0x00, sizeof(unsigned int)));
+
+	// Load new Grid Positions
+	// Copy Grid Info
+	CUDA_CHECK(cudaMemcpy2D(debugBufferCUDA + gridInfoOffset, sizeof(CVoxelGrid),
+						  pages.dVoxelGrids, sizeof(CVoxelGrid),
+						  sizeof(float3), pages.svoParams->CascadeCount,
+						  cudaMemcpyDeviceToDevice));
+
+	// KC
+	int blockSize = CudaInit::GenBlockSize(static_cast<int>(pages.dPages.Size() * PageSize));
+	int threadSize = CudaInit::TBP;
+	CopyPage<<<blockSize,threadSize>>>(// OGL Buffer
+									   voxelPosition,
+									   voxelRender,
+									   *atomicIndex,
+									   // Voxel Cache
+									   cache.getDeviceCascadePointersDevice().Data(),
+									   // Voxel Pages
+									   reinterpret_cast<const CVoxelPageConst*>(pages.dPages.Data()),
+									   //
+									   static_cast<uint32_t>(pages.batches->size()),
+									   cascade,
+									   renderType);
+	CUDA_KERNEL_CHECK();
+
+	// Unmap buffer and continue
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &debugBufferResource));
+	debugBufferCUDA = nullptr;
+
+	// Timing
+	OGLTimer t;
+	if(doTiming)
+	{
+		cT.Stop();
+		t.Start();
+	}
+	
+	// Now render
+	// Framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0,
+			   static_cast<GLsizei>(camera.width),
+			   static_cast<GLsizei>(camera.height));
+
+	// State
+	glDisable(GL_MULTISAMPLE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDepthFunc(GL_LEQUAL);
+	glDepthMask(true);
+	glColorMask(true, true, true, true);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// Shaders
+	Shader::Unbind(ShaderType::GEOMETRY);
+	vRenderWorldVoxel.Bind();
+	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(renderType));
+	fRenderWorldVoxel.Bind();
+
+	// Uniforms
+	debugDrawBuffer.BindAsShaderStorageBuffer(LU_VOXEL_GRID_INFO, 
+											  static_cast<GLuint>(gridInfoOffset), 
+											  static_cast<GLuint>(pages.svoParams->CascadeCount * sizeof(CVoxelGrid)));
+
+	// Draw Indirect Buffer
+	debugDrawBuffer.BindAsDrawIndirectBuffer();
+
+	// VAO
+	debugDrawVao.Bind();
+	debugDrawVao.Draw(static_cast<GLuint>(drawParameterOffset));
+
+	// Timer
+	if(doTiming)
+	{
+		t.Stop();
+		return t.ElapsedMS() + cT.ElapsedMilliS();
+	}
+	return 0.0;
+}
+
+bool GIVoxelPages::PageRenderer::Allocated() const
+{
+	return vRenderWorldVoxel.IsValid();
 }
 
 GIVoxelPages::MultiPage::MultiPage(size_t pageCount)
@@ -65,13 +308,13 @@ GIVoxelPages::MultiPage::MultiPage(size_t pageCount)
 		offset += GIVoxelPages::PageSize * sizeof(CVoxelNorm);
 
 		page.dGridVoxOccupancy = reinterpret_cast<CVoxelOccupancy*>(dPtr + offset);
-		offset += GIVoxelPages::PageSize * sizeof(CVoxelNorm);
+		offset += GIVoxelPages::PageSize * sizeof(CVoxelOccupancy);
 
 		page.dEmptySegmentPos = reinterpret_cast<unsigned char*>(dPtr + offset);
-		offset += GIVoxelPages::SegmentPerPage * sizeof(unsigned char);
+		offset += GIVoxelPages::SegmentSize * sizeof(unsigned char);
 
 		page.dSegmentInfo = reinterpret_cast<CSegmentInfo*>(dPtr + offset);
-		offset += GIVoxelPages::SegmentPerPage * sizeof(CSegmentInfo);
+		offset += GIVoxelPages::SegmentSize * sizeof(CSegmentInfo);
 
 		page.dEmptySegmentStackSize = GIVoxelPages::SegmentPerPage;
 		pages.push_back(page);
@@ -82,6 +325,7 @@ GIVoxelPages::MultiPage::MultiPage(size_t pageCount)
 	int blockSize = CudaInit::GenBlockSizeSmall(static_cast<uint32_t>(pageCount * GIVoxelPages::SegmentPerPage));
 	int tbb = CudaInit::TBP;
 	InitializePage<<<blockSize, tbb>>>(pages.front().dEmptySegmentPos, pageCount);
+	CUDA_KERNEL_CHECK();
 }
 
 GIVoxelPages::MultiPage::MultiPage(MultiPage&& other)
@@ -117,59 +361,84 @@ uint16_t GIVoxelPages::PackSegmentInfo(const uint8_t cascadeId,
 void GIVoxelPages::GenerateGPUData(const GIVoxelCache& cache)
 {
 	// Generate SegInfos
+	std::vector<CVoxelGrid> grids;
 	std::vector<CSegmentInfo> segInfos;
-	uint32_t mapOGLBufferCount = 0;
-
 	for(uint32_t cascadeId = 0; cascadeId < svoParams->CascadeCount; cascadeId++)
-	for(uint32_t batchId = 0; batchId < batches->size(); batchId++)
 	{
-		bool nonRigid = (*batches)[batchId]->MeshType() == MeshBatchType::SKELETAL;
-		const std::vector<CMeshVoxelInfo> voxInfo = cache.CopyMeshObjectInfo(cascadeId, batchId);
-		for(uint32_t objId = 0; objId <  voxInfo.size(); objId++)
+		CVoxelGrid grid = {};
+		grid.depth = svoParams->CascadeBaseLevel + cascadeId;
+		grid.dimension = 
 		{
-			const CMeshVoxelInfo& info = voxInfo[objId];
-
-			uint32_t segmentCount = (info.voxCount + SegmentSize - 1) / SegmentSize;
-			for(uint32_t segId = 0; segId < segmentCount; segId++)
+			svoParams->CascadeBaseLevelSize,
+			svoParams->CascadeBaseLevelSize,
+			svoParams->CascadeBaseLevelSize
+		};
+		grid.position = {0.0f, 0.0f, 0.0f};
+		grid.span = svoParams->BaseSpan * static_cast<float>(1 << cascadeId);
+		grids.push_back(grid);
+		
+		for(uint32_t batchId = 0; batchId < batches->size(); batchId++)
+		{
+			if((*batches)[batchId]->DrawCount() == 0) continue;
+			bool nonRigid = (*batches)[batchId]->MeshType() == MeshBatchType::SKELETAL;
+			const std::vector<CMeshVoxelInfo> voxInfo = cache.CopyMeshObjectInfo(cascadeId, batchId);
+			for(uint32_t objId = 0; objId < voxInfo.size(); objId++)
 			{
-				
-				CObjectType objType = (nonRigid) ? CObjectType::SKEL_DYNAMIC : CObjectType::DYNAMIC;
-				
-				CSegmentInfo segInfo;
-				segInfo.batchId = static_cast<uint16_t>(batchId);
-				segInfo.objectSegmentId = static_cast<uint16_t>(segId);
-				segInfo.objId = static_cast<uint16_t>(objId);
-				segInfo.packed = PackSegmentInfo(static_cast<uint8_t>(cascadeId), objType, 
-												 CSegmentOccupation::OCCUPIED);
+				const CMeshVoxelInfo& info = voxInfo[objId];
 
-				segInfos.push_back(segInfo);
+				uint32_t segmentCount = (info.voxCount + SegmentSize - 1) / SegmentSize;
+				for(uint32_t segId = 0; segId < segmentCount; segId++)
+				{
+					CObjectType objType = (nonRigid) ? CObjectType::SKEL_DYNAMIC : CObjectType::DYNAMIC;
+
+					CSegmentInfo segInfo;
+					segInfo.batchId = static_cast<uint16_t>(batchId);
+					segInfo.objectSegmentId = static_cast<uint16_t>(segId);
+					segInfo.objId = static_cast<uint16_t>(objId);
+					segInfo.packed = PackSegmentInfo(static_cast<uint8_t>(cascadeId), objType,
+													 CSegmentOccupation::OCCUPIED);
+
+					segInfos.push_back(segInfo);
+				}
 			}
 		}
-
-		if(cascadeId == 0)
-		{
-			if(nonRigid)
-			{
-				mapOGLBufferCount += 2;
-			}
-			else mapOGLBufferCount += 1;
-		}		
 	}
 
+	// Determine Buffer Size
 	size_t bufferSize = segInfos.size() * (sizeof(CSegmentInfo) +
 										   sizeof(ushort2));
-	bufferSize += mapOGLBufferCount * sizeof(BatchOGLData);
+	bufferSize += batches->size() * sizeof(BatchOGLData);
 	bufferSize += svoParams->CascadeCount * sizeof(CVoxelGrid);
 
+	// Send Data to Buffer
 	gpuData.Resize(bufferSize);
-
-	//...
-
-	// Segment Info generated
-	// allocate for segment alloc info
-	// allocate for batch oglData
-	// gen Voxel grids
-
+	size_t bufferOffset = 0;
+	// Grids
+	CUDA_CHECK(cudaMemcpy(gpuData.Data() + bufferOffset,
+						  reinterpret_cast<void*>(grids.data()),
+						  grids.size() * sizeof(CVoxelGrid),
+						  cudaMemcpyHostToDevice));
+	dVoxelGrids = reinterpret_cast<CVoxelGrid*>(gpuData.Data() + bufferOffset);
+	bufferOffset += grids.size() * sizeof(CVoxelGrid);
+	// OGL Data
+	CUDA_CHECK(cudaMemset(gpuData.Data() + bufferOffset, 0,
+						  batches->size() * sizeof(BatchOGLData)));
+	dBatchOGLData = reinterpret_cast<BatchOGLData*>(gpuData.Data() + bufferOffset);
+	bufferOffset += batches->size() * sizeof(BatchOGLData);
+	// Segments Alloc
+	CUDA_CHECK(cudaMemset(gpuData.Data() + bufferOffset, 0xFFFFFFFF,
+						  segInfos.size() * sizeof(ushort2)));
+	dSegmentAllocInfo = reinterpret_cast<ushort2*>(gpuData.Data() + bufferOffset);
+	bufferOffset += segInfos.size() * sizeof(ushort2);
+	// Segments
+	CUDA_CHECK(cudaMemcpy(gpuData.Data() + bufferOffset,
+						  reinterpret_cast<void*>(segInfos.data()),
+						  segInfos.size() * sizeof(CSegmentInfo),
+						  cudaMemcpyHostToDevice));
+	dSegmentInfo = reinterpret_cast<CSegmentInfo*>(gpuData.Data() + bufferOffset);
+	bufferOffset += segInfos.size() * sizeof(CSegmentInfo);
+	assert(bufferOffset == gpuData.Size());
+	segmentAmount = static_cast<uint32_t>(segInfos.size());
 }
 
 void GIVoxelPages::AllocatePages(size_t voxelCapacity)
@@ -190,6 +459,13 @@ void GIVoxelPages::MapOGLResources()
 	size_t batchIndex = 0;
 	for(size_t i = 0; i < batches->size(); i++)
 	{
+		MeshBatchI& currentBatch = *(*batches)[i];
+		if(currentBatch.DrawCount() == 0)
+		{
+			newOGLData.push_back({});
+			continue;
+		}
+
 		size_t size;
 		uint8_t* glPointer = nullptr;
 		CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&glPointer),
@@ -203,7 +479,8 @@ void GIVoxelPages::MapOGLResources()
 		batchGL.dAABBs = reinterpret_cast<CAABB*>(glPointer + aabbByteOffset);
 		batchGL.dModelTransforms = reinterpret_cast<CModelTransform*>(glPointer + modelTransformByteOffset);
 		batchGL.dModelTransformIndices = reinterpret_cast<uint32_t*>(glPointer + modelTransformIndexByteOffset);
-
+		
+		batchIndex++;
 		if((*batches)[i]->MeshType() == MeshBatchType::SKELETAL)
 		{
 			CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&glPointer),
@@ -211,7 +488,6 @@ void GIVoxelPages::MapOGLResources()
 			batchGL.dJointTransforms = reinterpret_cast<CJointTransform*>(glPointer);
 			batchIndex++;
 		}
-		batchIndex++;
 		newOGLData.push_back(batchGL);
 	}
 
@@ -235,27 +511,25 @@ GIVoxelPages::GIVoxelPages()
 	, dBatchOGLData(nullptr)
 	, dSegmentInfo(nullptr)
 	, dSegmentAllocInfo(nullptr)
+
 {}
 
 GIVoxelPages::GIVoxelPages(const GIVoxelCache& cache, 
 						   const std::vector<MeshBatchI*>* batches,
-						   const OctreeParameters& octreeParams,
-						   size_t initalVoxelCapacity)
+						   const OctreeParameters& octreeParams)
 	: batches(batches)
-	, svoParams(svoParams)
+	, svoParams(&octreeParams)
 	, segmentAmount(0)
 	, dVoxelGrids(nullptr)
 	, dBatchOGLData(nullptr)
 	, dSegmentInfo(nullptr)
 	, dSegmentAllocInfo(nullptr)
-	, vRenderWorldVoxel(ShaderType::VERTEX, "Shaders/VoxRenderWorld.vert")
-	, fRenderWorldVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 {
-	AllocatePages(initalVoxelCapacity);
-
 	for(uint32_t i = 0; i < batches->size(); i++)
-	{
+	{	
 		MeshBatchI& batch = *(*batches)[i];
+		if(batch.DrawCount() == 0) continue;
+
 		GLuint bufferId = batch.getDrawBuffer().getGLBuffer();
 		cudaGraphicsResource_t glResource;
 		CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&glResource, 
@@ -273,11 +547,13 @@ GIVoxelPages::GIVoxelPages(const GIVoxelCache& cache,
 		}
 	}
 	GenerateGPUData(cache);
+	AllocatePages(segmentAmount * SegmentSize);
 }
 
 GIVoxelPages::GIVoxelPages(GIVoxelPages&& other)
 	: batches(other.batches)
 	, svoParams(other.svoParams)
+	, segmentAmount(other.segmentAmount)
 	, gpuData(std::move(other.gpuData))
 	, dVoxelGrids(other.dVoxelGrids)
 	, dBatchOGLData(other.dBatchOGLData)
@@ -286,10 +562,7 @@ GIVoxelPages::GIVoxelPages(GIVoxelPages&& other)
 	, hPages(std::move(other.hPages))
 	, dPages(std::move(other.dPages))
 	, batchOGLResources(std::move(other.batchOGLResources))
-	, debugDrawBuffer(std::move(other.debugDrawBuffer))
-	, debugDrawVao(std::move(other.debugDrawVao))
-	, vRenderWorldVoxel(std::move(other.vRenderWorldVoxel))
-	, fRenderWorldVoxel(std::move(other.fRenderWorldVoxel))
+	, pageRenderer(std::move(other.pageRenderer))
 {
 	assert(other.batchOGLResources.empty());
 }
@@ -298,6 +571,7 @@ GIVoxelPages& GIVoxelPages::operator=(GIVoxelPages&& other)
 {
 	batches = other.batches;
 	svoParams = other.svoParams;
+	segmentAmount = other.segmentAmount;
 	gpuData = std::move(other.gpuData);
 	dVoxelGrids = other.dVoxelGrids;
 	dBatchOGLData = other.dBatchOGLData;
@@ -306,10 +580,7 @@ GIVoxelPages& GIVoxelPages::operator=(GIVoxelPages&& other)
 	hPages = std::move(other.hPages);
 	dPages = std::move(other.dPages);
 	batchOGLResources = std::move(other.batchOGLResources);
-	debugDrawBuffer = std::move(other.debugDrawBuffer);
-	debugDrawVao = std::move(other.debugDrawVao);
-	vRenderWorldVoxel = std::move(other.vRenderWorldVoxel);
-	fRenderWorldVoxel = std::move(other.fRenderWorldVoxel);
+	pageRenderer = std::move(other.pageRenderer);
 	return *this;
 }
 
@@ -323,35 +594,34 @@ GIVoxelPages::~GIVoxelPages()
 
 void GIVoxelPages::UpdateGridPositions(const IEVector3& cameraPos)
 {
+	// Calculate outermost span position
+	float outerSpan = svoParams->BaseSpan * static_cast<float>(1 << (svoParams->CascadeCount - 1));
+	IEVector3 voxelCornerPos = cameraPos - outerSpan * svoParams->CascadeBaseLevelSize * 0.5f;
+
+	// Align outermost cascade
+	// TODO: Better solution for higher level voxel jittering
+	//float rootSnapLevelMultiplier = 64.0f;
+	//float rootSnapLevelMultiplier = 16.0f;
+	//float rootSnapLevelMultiplier = 4.0f;
+	//float rootSnapLevelMultiplier = 2.0f;
+    float rootSnapLevelMultiplier = 1.0f;
+	outerSpan *= rootSnapLevelMultiplier;
+	voxelCornerPos[0] -= std::fmod(voxelCornerPos[0] + outerSpan * 0.5f, outerSpan);
+	voxelCornerPos[1] -= std::fmod(voxelCornerPos[1] + outerSpan * 0.5f, outerSpan);
+	voxelCornerPos[2] -= std::fmod(voxelCornerPos[2] + outerSpan * 0.5f, outerSpan);
+
+	// Now align inner cascades according to outermost
+	// In all system cacades and its data lied from inner to outer
+	float baseHalf = svoParams->BaseSpan * 0.5f * svoParams->CascadeBaseLevelSize;
+	float seriesTotal = IEMathFunctions::GeomSeries(svoParams->CascadeCount - 2, 2.0f);
 	std::vector<IEVector3> positions(svoParams->CascadeCount);
 	for(uint32_t i = 0; i < svoParams->CascadeCount; i++)
 	{
-		// only grid span increments are allowed
-		float span = svoParams->BaseSpan * static_cast<float>(1 << i);
-
-		// TODO: Better solution for higher level voxel jittering
-		//float rootSnapLevelMultiplier = 64.0f;
-		float rootSnapLevelMultiplier = 16.0f;
-		//float rootSnapLevelMultiplier = 4.0f;
-		//float rootSnapLevelMultiplier = 1.0f;
-
-		IEVector3 voxelCornerPos;
-		voxelCornerPos = cameraPos - span * svoParams->CascadeBaseLevelSize * 0.5f;
-
-		span *= rootSnapLevelMultiplier;
-		voxelCornerPos[0] -= std::fmod(voxelCornerPos[0] + span * 0.5f, span);
-		voxelCornerPos[1] -= std::fmod(voxelCornerPos[1] + span * 0.5f, span);
-		voxelCornerPos[2] -= std::fmod(voxelCornerPos[2] + span * 0.5f, span);
-
-		// VoxCornerPos is at root cascade's position
-		// Translate it to cascade corner
-		if(i != 0)
-		{
-			float factor = static_cast<float>(IEMathFunctions::SumLinear(i));
-			span = svoParams->BaseSpan * static_cast<float>(1 << i);
-			voxelCornerPos += (factor * span * svoParams->CascadeBaseLevelSize) / 2.0f;
-		}
-		positions.push_back(voxelCornerPos);
+		int32_t termLast = i - 1;
+		float lastTermSum = (termLast >= 0) ?  IEMathFunctions::GeomSeries(termLast, 2.0f) : 0;
+		float subSeries = seriesTotal - lastTermSum;
+		float displacement = subSeries * baseHalf;
+		positions[i] = voxelCornerPos + displacement;
 	}
 
 	// Copy new positions
@@ -367,9 +637,22 @@ double GIVoxelPages::VoxelIO(bool doTiming)
 	if(doTiming) t.Start();
 	
 	// KC
-	int blockSize = CudaInit::GenBlockSize(static_cast<int>(segmentAmount));
-	int threadSize = CudaInit::TBP;
-	VoxelObjectIO<<<blockSize, threadSize>>>(// Voxel System
+	int blockSize = CudaInit::GenBlockSizeSmall(static_cast<int>(segmentAmount));
+	int threadSize = CudaInit::TBPSmall;
+
+	// Voxel I-O (Deallocate first then allocate)
+	VoxelDeallocate<<<blockSize, threadSize>>>(// Voxel System
+											   dPages.Data(),
+											   dVoxelGrids,
+											   // Helper Structures		
+											   dSegmentAllocInfo,
+											   dSegmentInfo,
+											   // Per Object Related
+											   dBatchOGLData,
+											   // Limits
+											   segmentAmount);
+
+	VoxelAllocate<<<blockSize, threadSize>>>(// Voxel System
 											 dPages.Data(),
 											 dVoxelGrids,
 											 // Helper Structures		
@@ -378,8 +661,9 @@ double GIVoxelPages::VoxelIO(bool doTiming)
 											 // Per Object Related
 											 dBatchOGLData,
 											 // Limits
-											 static_cast<uint32_t>(dPages.Size()),
+											 segmentAmount,
 											 static_cast<uint32_t>(dPages.Size()));
+	CUDA_KERNEL_CHECK();
 	if(doTiming)
 	{
 		t.Stop();
@@ -406,6 +690,7 @@ double GIVoxelPages::Transform(const GIVoxelCache& cache,
 											 cache.getDeviceCascadePointersDevice().Data(),
 										     // Limits
 										     static_cast<uint32_t>(batches->size()));
+	CUDA_KERNEL_CHECK();
 	if(doTiming)
 	{
 		t.Stop();
@@ -426,21 +711,133 @@ uint64_t GIVoxelPages::MemoryUsage() const
 	return totalSize;
 }
 
-// Debug Draw
-void  GIVoxelPages::AllocateDraw()
+void GIVoxelPages::DumpPageSegments(const char* fileName, size_t offset, size_t pageCount) const
 {
+	if(pageCount == 0) pageCount = dPages.Size() - offset;
+	assert(offset + pageCount <= dPages.Size());
 
+	std::vector<CVoxelPage> pages(pageCount);
+	CUDA_CHECK(cudaMemcpy(pages.data(), dPages.Data() + offset, 
+						  pageCount * sizeof(CVoxelPage),
+						  cudaMemcpyDeviceToHost));
+
+	std::vector<CSegmentInfo> infos(pageCount * SegmentPerPage);
+	for(size_t i = 0; i < pageCount; i++)
+	{
+		const CVoxelPage& p = pages[i];
+		CUDA_CHECK(cudaMemcpy(infos.data() + i * SegmentPerPage,
+							  p.dSegmentInfo,
+							  SegmentPerPage * sizeof(CSegmentInfo),
+							  cudaMemcpyDeviceToHost));
+	}
+
+
+	std::ofstream fOut;
+	fOut.open(fileName);
+	for(const CSegmentInfo& data : infos)
+	{
+		fOut << std::uppercase << std::hex << data;
+		fOut << "\t\t\t" << std::nouppercase << std::dec << data;
+		fOut << std::endl;
+	}
 }
 
-void  GIVoxelPages::Draw(size_t cascadeCount)
+void GIVoxelPages::DumpPageEmptyPositions(const char* fileName, size_t offset, size_t pageCount) const
 {
+	if(pageCount == 0) pageCount = dPages.Size() - offset;
+	assert(offset + pageCount <= dPages.Size());
 
+	std::vector<CVoxelPage> pages(pageCount);
+	CUDA_CHECK(cudaMemcpy(pages.data(), dPages.Data() + offset,
+						  pageCount * sizeof(CVoxelPage),
+						  cudaMemcpyDeviceToHost));
+
+	std::vector<unsigned char> emptySpots(pageCount * SegmentPerPage);
+	for(size_t i = 0; i < pageCount; i++)
+	{
+		const CVoxelPage& p = pages[i];
+		CUDA_CHECK(cudaMemcpy(emptySpots.data() + i * SegmentPerPage,
+							  p.dEmptySegmentPos,
+							  SegmentPerPage * sizeof(unsigned char),
+							  cudaMemcpyDeviceToHost));
+	}
+
+	std::ofstream fOut;
+	fOut.open(fileName);
+	for(const unsigned char& data : emptySpots)
+	{
+		fOut << std::uppercase << std::hex << static_cast<int>(data);
+		fOut << "\t\t\t" << std::nouppercase << std::dec << static_cast<int>(data);
+		fOut << std::endl;
+	}
+}
+
+void GIVoxelPages::DumpSegmentAllocation(const char* fileName, size_t offset, size_t segmentCount) const
+{
+	if(segmentCount == 0) segmentCount = segmentAmount - offset;
+	assert(offset + segmentCount <= segmentAmount);
+
+	std::vector<ushort2> segments(segmentCount);
+	CUDA_CHECK(cudaMemcpy(segments.data(), dSegmentInfo + offset,
+						  segmentCount * sizeof(ushort2),
+						  cudaMemcpyDeviceToHost));
+
+	std::ofstream fOut;
+	fOut.open(fileName);
+	for(const ushort2& data : segments)
+	{
+		fOut << std::uppercase << std::hex << data;
+		fOut << "\t\t\t" << std::nouppercase << std::dec << data;
+		fOut << std::endl;
+	}
+}
+
+void GIVoxelPages::DumpSegmentInfo(const char* fileName, size_t offset, size_t segmentCount) const
+{
+	if(segmentCount == 0) segmentCount = segmentAmount - offset;
+	assert(offset + segmentCount <= segmentAmount);
+
+	std::vector<CSegmentInfo> segments(segmentCount);
+	CUDA_CHECK(cudaMemcpy(segments.data(), dSegmentInfo + offset,
+						  segmentCount * sizeof(CSegmentInfo),
+						  cudaMemcpyDeviceToHost));
+
+	std::ofstream fOut;
+	fOut.open(fileName);
+	for(const CSegmentInfo& data : segments)
+	{
+		fOut << std::uppercase << std::hex << data;
+		fOut << "\t\t\t" << std::nouppercase << std::dec << data;
+		fOut << std::endl;
+	}
+}
+
+void GIVoxelPages::AllocateDraw()
+{
+	if(!pageRenderer.Allocated())
+	{
+		pageRenderer = PageRenderer(*this);
+	}
+}
+
+double GIVoxelPages::Draw(bool doTiming,
+						  uint32_t cascadeCount,
+						  VoxelRender renderType,
+						  const Camera& camera,
+						  const GIVoxelCache& cache)
+{
+	return pageRenderer.Draw(doTiming, cascadeCount, renderType, camera, cache, *this);
 }
 
 void  GIVoxelPages::DeallocateDraw()
 {
-
+	if(pageRenderer.Allocated())
+	{
+		pageRenderer = PageRenderer();
+	}
 }
+
+
 
 const CVoxelPageConst* GIVoxelPages::getVoxelPages() const
 {

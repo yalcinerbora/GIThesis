@@ -17,15 +17,6 @@ enum class CObjectType
 	MORPH_DYNAMIC,	// Object moves with morph targets (each voxel has their adjacent vertex morphs weighted)
 };
 
-// Global Voxel Data
-struct CVoxelGrid
-{
-	float3			position;	// World Position of the voxel grid
-	float			span;
-	uint3			dimension;	// Voxel Grid Dimentions
-	unsigned int	depth;
-};
-
 // Further Seperated Voxel Data
 typedef VoxelPosition CVoxelPos;
 typedef VoxelNormal CVoxelNorm;
@@ -35,6 +26,15 @@ typedef MeshVoxelInfo CMeshVoxelInfo;
 
 // Voxel Rendering Data
 #pragma pack(push, 1)
+// Global Voxel Data
+struct CVoxelGrid
+{
+	float3			position;	// World Position of the voxel grid
+	float			span;
+	uint3			dimension;	// Voxel Grid Dimentions
+	unsigned int	depth;
+};
+
 struct CVoxelWeights
 {
 	uchar4 weight;
@@ -83,6 +83,14 @@ struct CVoxelPageConst
 	const CSegmentInfo*		dSegmentInfo;
 	const unsigned int		dEmptySegmentStackSize;
 };
+
+static_assert(sizeof(CVoxelPage) == sizeof(CVoxelPageConst), "VoxPage types has to be same size");
+static_assert(offsetof(CVoxelPage, dGridVoxPos) == offsetof(CVoxelPageConst, dGridVoxPos), "type offset check");
+static_assert(offsetof(CVoxelPage, dGridVoxNorm) == offsetof(CVoxelPageConst, dGridVoxNorm), "type offset check");
+static_assert(offsetof(CVoxelPage, dGridVoxOccupancy) == offsetof(CVoxelPageConst, dGridVoxOccupancy), "type offset check");
+static_assert(offsetof(CVoxelPage, dEmptySegmentPos) == offsetof(CVoxelPageConst, dEmptySegmentPos), "type offset check");
+static_assert(offsetof(CVoxelPage, dSegmentInfo) == offsetof(CVoxelPageConst, dSegmentInfo), "type offset check");
+static_assert(offsetof(CVoxelPage, dEmptySegmentStackSize) == offsetof(CVoxelPageConst, dEmptySegmentStackSize), "type offset check");
 
 struct BatchVoxelCache
 {

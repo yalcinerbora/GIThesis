@@ -190,9 +190,8 @@ size_t CudaVector<T>::Size() const
 	return size;
 }
 
-
 #include <fstream>
-static std::ostream& operator<< (std::ostream& ostr, const ushort2& shrt2)
+static std::ostream& operator<<(std::ostream& ostr, const ushort2& shrt2)
 {
 	ostr << "{" << shrt2.x << ", " << shrt2.y << "}";
 	return ostr;

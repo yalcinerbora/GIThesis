@@ -60,20 +60,21 @@ __global__ void CopyPage(// OGL Buffer
 	CObjectType objType;
 	CSegmentOccupation occupation;
 	uint8_t cascadeId;
+	bool firstOccurance;
 	if(blockLocalId == 0)
 	{
 		// Load to shred memory
 		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
-		ExpandSegmentInfo(cascadeId, objType, occupation, sSegInfo.packed);
+		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
 	}
 	__syncthreads();	
 	if(blockLocalId != 0)
 	{
-		ExpandSegmentInfo(cascadeId, objType, occupation, sSegInfo.packed);
+		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
 	}
 
 	// Full Block Cull
-	if(cascadeId != selectedCascade) return;
+	if(cascadeId < selectedCascade) return;
 	if(occupation == CSegmentOccupation::EMPTY) return;
 	assert(occupation != CSegmentOccupation::MARKED_FOR_CLEAR);
 
@@ -351,17 +352,18 @@ __global__ void VoxelTransform(// Voxel Pages
 	CObjectType objType;
 	CSegmentOccupation occupation;
 	uint8_t cascadeId;
+	bool firstOccurance;
 	if(blockLocalId == 0)
 	{
 		// Load to smem
 		// Todo split this into the threadss
 		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
-		ExpandSegmentInfo(cascadeId, objType, occupation, sSegInfo.packed);
+		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
 	}
 	__syncthreads();
 	if(blockLocalId != 0)
 	{
-		ExpandSegmentInfo(cascadeId, objType, occupation, sSegInfo.packed);
+		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
 	}
 	// Full Block Cull
 	if(occupation == CSegmentOccupation::EMPTY) return;
@@ -530,7 +532,7 @@ __global__ void VoxelTransform(// Voxel Pages
 
 	// If its mip dont update inner cascade
 	bool inInnerCascade = false;
-	if(cascadeId > 0)
+	if(!firstOccurance) // Only do inner culling if object is not first occurance in hierarchy (base level voxel data of the object
 	{
 		inInnerCascade = (worldPos.x > sGridInfo.dimension.x * sGridInfo.span * 0.25f) &&
 						 (worldPos.x < sGridInfo.dimension.x * sGridInfo.span * 0.75f);
@@ -587,37 +589,5 @@ __global__ void VoxelTransform(// Voxel Pages
 	{
 		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
 		gVoxelPages[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
-	}
-}
-
-__global__ void VoxelClearMarked(CVoxelPage* gVoxelData)
-{
-	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GIVoxelPages::PageSize;
-	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
-	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
-
-	// Check if segment is marked for clear
-	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentInfo[pageLocalSegmentId].packed) == CSegmentOccupation::MARKED_FOR_CLEAR)
-	{
-		// Segment is marked for clear, clear it
-		gVoxelData[pageId].dGridVoxPos[pageLocalId] = 0xFFFFFFFF;
-		gVoxelData[pageId].dGridVoxNorm[pageLocalId] = 0xFFFFFFFF;
-		gVoxelData[pageId].dGridVoxOccupancy[pageLocalId] = 0xFFFFFFFF;
-	}
-}
-
-__global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
-								 const uint32_t numPages)
-{
-	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GIVoxelPages::SegmentPerPage;
-	unsigned int pageLocalSegmentId = globalId % GIVoxelPages::SegmentPerPage;
-
-	// Check if segment is marked for clear
-	if(globalId >= numPages * GIVoxelPages::SegmentPerPage) return;
-	if(ExpandOnlyOccupation(gVoxelData[pageId].dSegmentInfo[pageLocalSegmentId].packed) == CSegmentOccupation::MARKED_FOR_CLEAR)
-	{
-		gVoxelData[pageId].dSegmentInfo[pageLocalSegmentId] = {0};
 	}
 }

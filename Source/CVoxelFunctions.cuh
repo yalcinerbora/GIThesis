@@ -21,6 +21,7 @@ inline __device__ uint8_t  ExpandOnlyCascadeNo(const uint16_t packed)
 inline __device__ void ExpandSegmentInfo(uint8_t& cascadId,
 										 CObjectType& objType,
 										 CSegmentOccupation& occupation,
+										 bool& firstOccurance,
 										 const uint16_t packed)
 {
 	// MSB to LSB 
@@ -30,6 +31,7 @@ inline __device__ void ExpandSegmentInfo(uint8_t& cascadId,
 	cascadId = ExpandOnlyCascadeNo(packed);
 	objType = static_cast<CObjectType>((packed >> 12) & 0x0003);	
 	occupation = ExpandOnlyOccupation(packed);
+	firstOccurance = ((packed >> 9) & 0x0001) != 0;
 }
 
 inline __device__ uint4 ExpandVoxPos(const CVoxelPos packedVoxPos)
@@ -105,7 +107,8 @@ inline __device__ CVoxelOccupancy PackOccupancy(const uint3& neigbourBits, const
 
 inline __device__ uint16_t PackSegmentInfo(const uint8_t cascadeId,
 										   const CObjectType type,
-										   const CSegmentOccupation occupation)
+										   const CSegmentOccupation occupation,
+										   const bool firstOccurance)
 {
 	// MSB to LSB 
 	// 2 bit cascadeId
@@ -115,5 +118,6 @@ inline __device__ uint16_t PackSegmentInfo(const uint8_t cascadeId,
 	packed |= (static_cast<uint16_t>(cascadeId) & 0x0003) << 14;
 	packed |= (static_cast<uint16_t>(type) & 0x0003) << 12;
 	packed |= (static_cast<uint16_t>(occupation) & 0x0003) << 10;
+	packed |= (static_cast<uint16_t>(firstOccurance) & 0x0001) << 9;
 	return packed;
 }

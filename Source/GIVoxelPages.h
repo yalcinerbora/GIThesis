@@ -124,7 +124,8 @@ class GIVoxelPages
 
 		uint16_t								PackSegmentInfo(const uint8_t cascadeId,
 																const CObjectType type,
-																const CSegmentOccupation occupation);
+																const CSegmentOccupation occupation,
+																const bool firstOccurance);
 		void									GenerateGPUData(const GIVoxelCache& cache);
 		void									AllocatePages(size_t voxelCapacity);
 

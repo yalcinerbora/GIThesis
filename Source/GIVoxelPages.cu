@@ -345,7 +345,8 @@ const std::vector<CVoxelPage>& GIVoxelPages::MultiPage::Pages() const
 
 uint16_t GIVoxelPages::PackSegmentInfo(const uint8_t cascadeId,
 									   const CObjectType type,
-									   const CSegmentOccupation occupation)
+									   const CSegmentOccupation occupation,
+									   const bool firstOccurance)
 {
 	// MSB to LSB 
 	// 2 bit cascadeId
@@ -355,6 +356,7 @@ uint16_t GIVoxelPages::PackSegmentInfo(const uint8_t cascadeId,
 	packed |= (static_cast<uint16_t>(cascadeId) & 0x0003) << 14;
 	packed |= (static_cast<uint16_t>(type) & 0x0003) << 12;
 	packed |= (static_cast<uint16_t>(occupation) & 0x0003) << 10;
+	packed |= (static_cast<uint16_t>(firstOccurance) & 0x0001) << 9;
 	return packed;
 }
 
@@ -363,6 +365,8 @@ void GIVoxelPages::GenerateGPUData(const GIVoxelCache& cache)
 	// Generate SegInfos
 	std::vector<CVoxelGrid> grids;
 	std::vector<CSegmentInfo> segInfos;
+	std::vector<std::vector<bool>> checkBase(batches->size());
+
 	for(uint32_t cascadeId = 0; cascadeId < svoParams->CascadeCount; cascadeId++)
 	{
 		CVoxelGrid grid = {};
@@ -380,11 +384,20 @@ void GIVoxelPages::GenerateGPUData(const GIVoxelCache& cache)
 		for(uint32_t batchId = 0; batchId < batches->size(); batchId++)
 		{
 			if((*batches)[batchId]->DrawCount() == 0) continue;
+			if(cascadeId == 0) checkBase[batchId].resize((*batches)[batchId]->DrawCount(), true);
+			
 			bool nonRigid = (*batches)[batchId]->MeshType() == MeshBatchType::SKELETAL;
 			const std::vector<CMeshVoxelInfo> voxInfo = cache.CopyMeshObjectInfo(cascadeId, batchId);
+
 			for(uint32_t objId = 0; objId < voxInfo.size(); objId++)
 			{
 				const CMeshVoxelInfo& info = voxInfo[objId];
+				bool firstOccurance = false;
+				if(info.voxCount != 0 && checkBase[batchId][objId] == true)
+				{
+					checkBase[batchId][objId] = false;
+					firstOccurance = true;
+				}
 
 				uint32_t segmentCount = (info.voxCount + SegmentSize - 1) / SegmentSize;
 				for(uint32_t segId = 0; segId < segmentCount; segId++)
@@ -396,7 +409,8 @@ void GIVoxelPages::GenerateGPUData(const GIVoxelCache& cache)
 					segInfo.objectSegmentId = static_cast<uint16_t>(segId);
 					segInfo.objId = static_cast<uint16_t>(objId);
 					segInfo.packed = PackSegmentInfo(static_cast<uint8_t>(cascadeId), objType,
-													 CSegmentOccupation::OCCUPIED);
+													 CSegmentOccupation::OCCUPIED, 
+													 firstOccurance);
 
 					segInfos.push_back(segInfo);
 				}

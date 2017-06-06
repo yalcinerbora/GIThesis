@@ -63,14 +63,3 @@ extern  __global__ void VoxelTransform(// Voxel Pages
 									   const BatchVoxelCache* gBatchVoxelCache,
 									   // Limits
 									   const uint32_t batchCount);
-
-// Voxel Clear Marked
-// Clears the deallocated voxels marked by "VxoelObjecDealloc" function
-// Logic per voxel in page system
-__global__ void VoxelClearMarked(CVoxelPage* gVoxelData);
-
-// Voxel Clear Signal
-// Stops Clear Signal 
-// Logic per segment in page system
-__global__ void VoxelClearSignal(CVoxelPage* gVoxelData,
-								 const uint32_t numPages);

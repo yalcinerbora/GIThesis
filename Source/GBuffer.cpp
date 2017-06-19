@@ -59,7 +59,7 @@ GBuffer::~GBuffer()
 }
 
 void GBuffer::BindAsTexture(GLuint texTarget,
-							RenderTargetLocation loc)
+							RenderTargetLocation loc) const
 {
 	glActiveTexture(GL_TEXTURE0 + texTarget);
 	glBindSampler(texTarget, fboTexSampler);
@@ -96,7 +96,3 @@ void GBuffer::BindDefaultFBO()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
-
-//void GBuffer::CopyDepthToCudaMapped()
-//{
-//}

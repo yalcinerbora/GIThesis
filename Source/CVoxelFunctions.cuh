@@ -53,15 +53,16 @@ inline __device__ float3 ExpandVoxNormal(const CVoxelNorm packedVoxY)
 	return result;
 }
 
-inline __device__ void ExpandOccupancy(uint3& neigbourBits, float3& weights,
-									   const CVoxelOccupancy packedOccup)
+inline __device__ float3 ExpandOccupancy(const CVoxelOccupancy packedOccup)
 {
+	float3 weights;
 	weights.x = static_cast<float>((packedOccup & 0x000000FF) >> 0) / 255.0f;
 	weights.y = static_cast<float>((packedOccup & 0x0000FF00) >> 8) / 255.0f;
 	weights.z = static_cast<float>((packedOccup & 0x00FF0000) >> 16) / 255.0f;
-	neigbourBits.x = (packedOccup & 0x01000000) >> 24;
-	neigbourBits.y = (packedOccup & 0x02000000) >> 25;
-	neigbourBits.z = (packedOccup & 0x04000000) >> 26;
+	return weights;
+	//neigbourBits.x = (packedOccup & 0x01000000) >> 24;
+	//neigbourBits.y = (packedOccup & 0x02000000) >> 25;
+	//neigbourBits.z = (packedOccup & 0x04000000) >> 26;
 }
 
 inline __device__ ushort2 ExpandOnlyObjId(const unsigned int packVoxIdX)
@@ -93,13 +94,10 @@ inline __device__ CVoxelNorm PackVoxNormal(const float3& normal)
 	return value;
 }
 
-inline __device__ CVoxelOccupancy PackOccupancy(const uint3& neigbourBits, const float3 weights)
+inline __device__ CVoxelOccupancy PackOccupancy(const float3 weights)
 {
 	unsigned int result;
-	result = neigbourBits.z << 26;
-	result |= neigbourBits.y << 25;
-	result |= neigbourBits.x << 24;
-	result |= static_cast<unsigned int>(weights.z * 255.0f) << 16;
+	result = static_cast<unsigned int>(weights.z * 255.0f) << 16;
 	result |= static_cast<unsigned int>(weights.y * 255.0f) << 8;
 	result |= static_cast<unsigned int>(weights.x * 255.0f) << 0;
 	return result;

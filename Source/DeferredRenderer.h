@@ -158,7 +158,6 @@ class DeferredRenderer
 		GLuint						linearSampler;
 		GLuint						shadowMapSampler;
 				
-		void						BindInvFrameTransform(GLuint bindingPoint);
 		void						BindFrameTransform(GLuint bindingPoint);
 		void						UpdateFTransformBuffer();
 		void						UpdateInvFTransformBuffer();
@@ -173,14 +172,14 @@ class DeferredRenderer
 									~DeferredRenderer();
 
 		GBuffer&					getGBuffer();
+		const GBuffer&				getGBuffer() const;
 		GLuint						getLightIntensityBufferGL();
-//		InvFrameTransformBuffer&	GetInvFTransfrom();
-//		FrameTransformBuffer&		GetFTransform();
 
 		void						RefreshInvFTransform(SceneI&,
 														 const Camera&,
 														 GLsizei width,
 														 GLsizei height);
+		void						BindInvFrameTransform(GLuint bindingPoint) const;
 
 		void						Render(SceneI&, const Camera&, bool directLight, 
 										   const IEVector3& ambientColor,
@@ -202,6 +201,9 @@ class DeferredRenderer
 												  SceneI& scene, int lightId, int layer);
 		void						ShowTexture(const Camera& camera, GLuint tex);
 		
+		// Gauss Pass
+		void						GaussianBlurPass(GLuint texture);
+
 		void						BindShadowMaps(SceneI&);
 		void						BindLightBuffers(SceneI&);
 		void						AttachSceneLightIndices(SceneI&);

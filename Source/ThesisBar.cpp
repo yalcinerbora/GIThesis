@@ -138,17 +138,17 @@ void ThesisBar::Down()
 	renderSelect.Down();
 }
 
-SVORender ThesisBar::SVORenderType() const
+OctreeRenderType ThesisBar::SVORenderType() const
 {
 	return renderSelect.SVORenderType();
 }
 
-VoxelRender ThesisBar::CacheRenderType() const
+VoxelRenderType ThesisBar::CacheRenderType() const
 {
 	return renderSelect.CacheRenderType();
 }
 
-VoxelRender ThesisBar::PageRenderType() const
+VoxelRenderType ThesisBar::PageRenderType() const
 {
 	return renderSelect.PageRenderType();
 }

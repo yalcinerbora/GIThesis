@@ -133,9 +133,9 @@ class SceneLights
 		GLuint								getGLBuffer();
 		GLuint								getShadowTextureCubemapArray();
 		GLuint								getShadowTextureArrayView();
-		size_t								getLightOffset();
-		size_t								getLightIndexOffset();
-		size_t								getMatrixOffset();
+		size_t								getLightOffset() const;
+		size_t								getLightIndexOffset() const;
+		size_t								getMatrixOffset() const;
 		
 		void								SendVPMatricesToGPU();
 		void								SendLightDataToGPU();

@@ -142,12 +142,14 @@
     <ClInclude Include="..\..\..\Source\Animation.h" />
     <ClInclude Include="..\..\..\Source\AntBar.h" />
     <ClInclude Include="..\..\..\Source\CMatrixFunctions.cuh" />
+    <ClInclude Include="..\..\..\Source\CSVONodeReduction.cuh" />
     <ClInclude Include="..\..\..\Source\GLSLBindPoints.h" />
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CDebug.cuh" />
-    <ClInclude Include="..\..\..\Source\CHash.cuh" />
+    <ClInclude Include="..\..\..\Source\CSVOHash.cuh" />
     <ClInclude Include="..\..\..\Source\GIVoxelPages.h" />
     <ClInclude Include="..\..\..\Source\PageKernels.cuh" />
+    <ClInclude Include="..\..\..\Source\CSVOMaterialAverage.cuh" />
     <ClInclude Include="..\..\..\Source\ThesisScenes.h" />
     <ClInclude Include="..\..\..\Source\CSVOTypes.h" />
     <ClInclude Include="..\..\..\Source\CudaInit.h" />

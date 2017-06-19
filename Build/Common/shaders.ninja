@@ -15,10 +15,8 @@ build $outFolder/Gauss32.comp.spirv : glsl $srcFolder/Gauss32.comp
 build $outFolder/HierZ.comp.spirv : glsl $srcFolder/HierZ.comp
 build $outFolder/PackObjectVoxels.comp.spirv : glsl $srcFolder/PackObjectVoxels.comp
 build $outFolder/PackObjectVoxelsSkel.comp.spirv : glsl $srcFolder/PackObjectVoxelsSkel.comp
-build $outFolder/VoxAO.comp.spirv : glsl $srcFolder/VoxAO.comp
 build $outFolder/VoxGI.comp.spirv : glsl $srcFolder/VoxGI.comp
 build $outFolder/VoxTraceDeferred.comp.spirv : glsl $srcFolder/VoxTraceDeferred.comp
-build $outFolder/VoxTraceDeferredLerp.comp.spirv : glsl $srcFolder/VoxTraceDeferredLerp.comp
 build $outFolder/VoxTraceWorld.comp.spirv : glsl $srcFolder/VoxTraceWorld.comp
 
 build $outFolder/DPass.frag.spirv : glsl $srcFolder/DPass.frag
@@ -63,10 +61,8 @@ build all : phony $
   $outFolder/HierZ.comp.spirv $
   $outFolder/PackObjectVoxels.comp.spirv $
   $outFolder/PackObjectVoxelsSkel.comp.spirv $
-  $outFolder/VoxAO.comp.spirv $
   $outFolder/VoxGI.comp.spirv $
   $outFolder/VoxTraceDeferred.comp.spirv $
-  $outFolder/VoxTraceDeferredLerp.comp.spirv $
   $outFolder/VoxTraceWorld.comp.spirv $
   $outFolder/DPass.frag.spirv $
   $outFolder/GWriteGeneric.frag.spirv $

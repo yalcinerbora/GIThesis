@@ -26,7 +26,7 @@ enum class RenderScheme
 	END
 };
 
-enum class VoxelRender
+enum class VoxelRenderType
 {
 	DIFFUSE_ALBEDO,
 	SPECULAR_ALBEDO,
@@ -34,7 +34,7 @@ enum class VoxelRender
 	END
 };
 
-enum class SVORender
+enum class OctreeRenderType
 {
 	IRRADIANCE,		// Irradiance
 	OCCUPANCY,		// Occupancy

@@ -41,9 +41,9 @@ class ThesisBar : public AntBar
 		int							CacheCascade() const;
 		int							PageCascade() const;
 
-		SVORender					SVORenderType() const;
-		VoxelRender					CacheRenderType() const;
-		VoxelRender					PageRenderType() const;
+		OctreeRenderType			SVORenderType() const;
+		VoxelRenderType				CacheRenderType() const;
+		VoxelRenderType				PageRenderType() const;
 
 		void						Next();
 		void						Previous();

@@ -30,6 +30,7 @@ template <class T>
 StructuredBuffer<T>& StructuredBuffer<T>::operator=(StructuredBuffer&& other)
 {
 	assert(this != &other);
+	glDeleteBuffers(1, &bufferId);
 	bufferId = other.bufferId;
 	bufferCapacity = other.bufferCapacity;
 	dataGPUImage = std::move(other.dataGPUImage);
@@ -166,7 +167,7 @@ void StructuredBuffer<T>::Memset(uint32_t word)
 template <class T>
 void StructuredBuffer<T>::BindAsUniformBuffer(GLuint location,
 											  GLuint countOffset,
-											  GLuint countSize)
+											  GLuint countSize) const
 {
 	glBindBufferRange(GL_UNIFORM_BUFFER, location, bufferId,
 					  countOffset * sizeof(T),
@@ -174,7 +175,7 @@ void StructuredBuffer<T>::BindAsUniformBuffer(GLuint location,
 }
 
 template <class T>
-void StructuredBuffer<T>::BindAsUniformBuffer(GLuint location)
+void StructuredBuffer<T>::BindAsUniformBuffer(GLuint location) const
 {
 	glBindBufferBase(GL_UNIFORM_BUFFER, location, bufferId);
 }

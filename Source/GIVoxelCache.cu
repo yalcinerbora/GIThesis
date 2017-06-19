@@ -424,7 +424,7 @@ void GIVoxelCache::DeallocateGL()
 
 double GIVoxelCache::Draw(bool doTiming, 
 						  const Camera& camera,
-						  VoxelRender renderType)
+						  VoxelRenderType renderType)
 {
 	// Timing
 	OGLTimer t;

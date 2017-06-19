@@ -13,104 +13,106 @@ Designed for fast reconstruction from its bottom
 #include <cassert>
 #include <cstdio>
 
-//inline __device__ void UnpackNode(unsigned int& childrenIndex,
-//								  unsigned char& childrenBit,
-//								  const CSVONode& node)
-//{
-//	childrenIndex = node & 0x00FFFFFF;
-//	childrenBit = node >> 24;
-//}
-//
-//inline __device__ CSVONode PackNode(const unsigned int& childrenIndex,
-//									const unsigned char& childrenBit)
-//{
-//	CSVONode node;
-//	node = childrenBit << 24;
-//	node |= childrenIndex;
-//	return node;
-//}
-
-inline __device__ float4 UnpackSVOColor(const CSVOColor& node)
+// Small Tidy Functions
+inline __device__ unsigned int DenseIndex(const uint3& voxelPos, const unsigned int levelSize)
 {
-	float4 color;
-	color.x = static_cast<float>((node & 0x000000FF) >> 0) / 255.0f;
-	color.y = static_cast<float>((node & 0x0000FF00) >> 8) / 255.0f;
-	color.z = static_cast<float>((node & 0x00FF0000) >> 16) / 255.0f;
-	color.w = static_cast<float>((node & 0xFF000000) >> 24) / 255.0f;
-	return color;
+	return  voxelPos.z * levelSize * levelSize +
+			voxelPos.y * levelSize +
+			voxelPos.x;
 }
 
-inline __device__ float2 UnpackSVOWeight(half& weight, const CSVOWeight& weightPacked)
+// Illumination Storage
+inline __device__ float4 UnpackSVOIrradiance(const CSVOIrradiance& irrad)
 {
-	float2 illum;
-	illum.x = static_cast<float>(static_cast<char>((weightPacked >> 16) & 0xFF)) / 0x7F;
-	illum.y = static_cast<float>(static_cast<char>((weightPacked >> 24) & 0xFF)) / 0x7F;
-	weight = __ushort_as_half(static_cast<unsigned short>(weightPacked & 0x0000FFFF));
-	return illum;
-	//weight = __uint_as_float(weightPacked);
+	float4 irradiance;
+	irradiance.x = static_cast<float>((irrad & 0x000000FF) >> 0) / 255.0f;
+	irradiance.y = static_cast<float>((irrad & 0x0000FF00) >> 8) / 255.0f;
+	irradiance.z = static_cast<float>((irrad & 0x00FF0000) >> 16) / 255.0f;
+	irradiance.w = static_cast<float>((irrad & 0xFF000000) >> 24) / 255.0f;
+	return irradiance;
 }
 
-inline __device__ float4 UnpackSVONormal(const CVoxelNorm& normal)
+inline __device__ float4 UnpackSVOOccupancy(const CSVOWeight& weight)
+{
+	return UnpackSVOIrradiance(weight);
+}
+
+inline __device__ float4 UnpackSVONormal(const CSVONormal& normal)
 {
 	float4 result;
 	result.x = static_cast<float>(static_cast<char>((normal >> 0) & 0xFF)) / 0x7F;
 	result.y = static_cast<float>(static_cast<char>((normal >> 8) & 0xFF)) / 0x7F;
 	result.z = static_cast<float>(static_cast<char>((normal >> 16) & 0xFF)) / 0x7F;
-	result.w = static_cast<float>(static_cast<unsigned char>((normal >> 24) & 0xFF)) / 0xFF;
+	result.w = static_cast<float>(static_cast<unsigned char>((normal >> 24) & 0xFF));
 	return result;
 }
 
-inline __device__ CSVOColor PackSVOColor(const float4& color)
+inline __device__ float4 UnpackSVOLightDir(const CSVOLightDir& lightDir)
 {
-	CSVOColor colorPacked;
-	colorPacked = static_cast<unsigned int>(color.w * 255.0f) << 24;
-	colorPacked |= static_cast<unsigned int>(color.z * 255.0f) << 16;
-	colorPacked |= static_cast<unsigned int>(color.y * 255.0f) << 8;
-	colorPacked |= static_cast<unsigned int>(color.x * 255.0f) << 0;
-	return colorPacked;
+	return UnpackSVONormal(lightDir);
 }
 
-inline __device__ CSVOWeight PackSVOWeight(const float2& illum, const half& weight)
+// Illumination Unpack
+inline __device__ CSVOIrradiance PackSVOIrradiance(const float4& irradiance)
 {
-	unsigned int value = 0;
-	value = (static_cast<int>(illum.y * 0x7F) & 0xFF) << 24;
-	value |= (static_cast<int>(illum.x * 0x7F) & 0xFF) << 16;
-	value |= static_cast<unsigned int>(__half_as_ushort(weight));
-	return value;
-	//return static_cast<unsigned int>(weight);
-	//return __float_as_uint(weight);
+	CSVOIrradiance packed;
+	packed = static_cast<unsigned int>(color.w * 255.0f) << 24;
+	packed |= static_cast<unsigned int>(color.z * 255.0f) << 16;
+	packed |= static_cast<unsigned int>(color.y * 255.0f) << 8;
+	packed |= static_cast<unsigned int>(color.x * 255.0f) << 0;
+	return packed;
 }
 
-inline __device__ CVoxelNorm PackSVONormal(const float4& normal)
+inline __device__ CSVOWeight PackSVOOccupancy(const float4& weight)
+{
+	return PackSVOIrradiance(weight);
+}
+
+inline __device__ CSVONormal PackSVONormal(const float4& normal)
 {
 	unsigned int value = 0;
-	value |= (static_cast<unsigned int>(normal.w * 0xFF) & 0xFF) << 24;
+	value |= (static_cast<unsigned int>(normal.w) & 0xFF) << 24;
 	value |= (static_cast<int>(normal.z * 0x7F) & 0xFF) << 16;
 	value |= (static_cast<int>(normal.y * 0x7F) & 0xFF) << 8;
 	value |= (static_cast<int>(normal.x * 0x7F) & 0xFF) << 0;
 	return value;
 }
 
+inline __device__ CSVOLightDir PackSVOLightDir(const float4& lightDir)
+{
+	return PackSVONormal(lightDir);
+}
 
-inline __device__ uint64_t PackSVOMaterialPortion(const unsigned int & colorOrNormalPortion,
-												  const CSVOWeight& weight)
+// 64-bit to 32-bit conversions
+inline __device__ uint64_t PackWords(const uint32_t& upper,
+									 const uint32_t& lower)
 {
 	uint64_t mat = 0;
-	mat |= static_cast<uint64_t>(weight) << 32;
-	mat |= static_cast<uint64_t>(colorOrNormalPortion);
+	mat |= static_cast<uint64_t>(upper) << 32;
+	mat |= static_cast<uint64_t>(lower);
 	return mat;
 }
 
-inline __device__ unsigned int UnpackSVOMaterialColorOrNormal(const uint64_t& matPortion)
+inline __device__ uint2 UnpackWords(const uint64_t& portion)
 {
-	return static_cast<unsigned int>(matPortion & 0x00000000FFFFFFFF);
+	return
+	{
+		UnpackLowerWord(portion),
+		UnpackUpperWord(portion)
+	};
 }
 
-inline __device__ unsigned int UnpackSVOMaterialWeight(const uint64_t& matPortion)
+inline __device__ unsigned int UnpackLowerWord(const uint64_t& portion)
 {
-	return static_cast<unsigned int>((matPortion & 0xFFFFFFFF00000000) >> 32);
+	return static_cast<unsigned int>(portion & 0x00000000FFFFFFFF);
 }
 
+inline __device__ unsigned int UnpackUpperWord(const uint64_t& portion)
+{
+	return static_cast<unsigned int>((portion & 0xFFFFFFFF00000000) >> 32);
+}
+
+// Node Manipulation
 inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
 													 const unsigned int levelDepth,
 													 const unsigned int totalDepth)
@@ -122,12 +124,12 @@ inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
 	return bitSet;
 }
 
-inline __device__ unsigned char CalculateLevelChildBit(const uint3& voxelPos,
-													   const unsigned int levelDepth,
-													   const unsigned int totalDepth)
-{
-	return 0x01 << CalculateLevelChildId(voxelPos, levelDepth, totalDepth);
-}
+//inline __device__ unsigned char CalculateLevelChildBit(const uint3& voxelPos,
+//													   const unsigned int levelDepth,
+//													   const unsigned int totalDepth)
+//{
+//	return 0x01 << CalculateLevelChildId(voxelPos, levelDepth, totalDepth);
+//}
 
 inline __device__ uint3 CalculateLevelVoxId(const uint3& voxelPos,
 											const unsigned int levelDepth,
@@ -179,10 +181,10 @@ inline __device__ uint3 ExpandToSVODepth(const uint4& voxelPos,
 	return expandedVoxId;
 }
 
-inline __device__ unsigned int PackNodeId(const uint3& localVoxelPos,
-										  const unsigned int level,
-										  const unsigned int numCascades,
-										  const unsigned int totalLevel)
+inline __device__ CSVONode PackNodeId(const uint3& localVoxelPos,
+									  const unsigned int level,
+									  const unsigned int numCascades,
+									  const unsigned int totalLevel)
 {
 	// Pack Level
 	unsigned int packLevel = totalLevel - numCascades + 1;
@@ -213,10 +215,10 @@ inline __device__ unsigned int PackNodeId(const uint3& localVoxelPos,
 	assert(voxId.x < (0x1u << min(level, packLevel)));
 	assert(voxId.y < (0x1u << min(level, packLevel)));
 	assert(voxId.z < (0x1u << min(level, packLevel)));
-	return PackVoxPos(voxId, false);
+	return PackVoxPos(voxId, 0);
 }
 
-inline __device__ uint3 UnpackNodeId(const unsigned int nodePacked,
+inline __device__ uint3 UnpackNodeId(const CSVONode nodePacked,
 									 const unsigned int level,
 									 const unsigned int numCascades,
 									 const unsigned int totalLevel)
@@ -258,9 +260,9 @@ inline __device__ uint3 UnpackNodeId(const unsigned int nodePacked,
 	return result;
 }
 
-inline __device__ unsigned int CalculateChildIndex(const unsigned char childrenBits,
-												   const unsigned char childBit)
-{
-	assert((childrenBits & childBit) != 0);	
-	return __popc(childrenBits & (childBit - 1));
-}
+//inline __device__ unsigned int CalculateChildIndex(const unsigned char childrenBits,
+//												   const unsigned char childBit)
+//{
+//	assert((childrenBits & childBit) != 0);	
+//	return __popc(childrenBits & (childBit - 1));
+//}

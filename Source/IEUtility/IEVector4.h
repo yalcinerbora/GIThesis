@@ -9,13 +9,12 @@ Column Major Vector (4x1 Matrix) (NOT 1x4)
 #include <immintrin.h>
 
 class IEVector3;
-class IEVector4
+class IEVector4 
 {
 	private:
 		static constexpr int	VectorW = 4;
 		union
 		{
-			__m128				avx;
 			struct				{float x, y, z, w;};
 			float				v[VectorW];
 		};

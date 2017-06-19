@@ -142,6 +142,9 @@ GIVoxelPages::PageRenderer::PageRenderer(PageRenderer&& other)
 
 GIVoxelPages::PageRenderer& GIVoxelPages::PageRenderer::operator=(PageRenderer&& other)
 {
+	if(debugBufferResource)
+		CUDA_CHECK(cudaGraphicsUnregisterResource(debugBufferResource));
+
 	vRenderWorldVoxel = std::move(other.vRenderWorldVoxel);
 	fRenderWorldVoxel = std::move(other.fRenderWorldVoxel);
 	debugBufferResource = other.debugBufferResource;
@@ -167,7 +170,7 @@ GIVoxelPages::PageRenderer::~PageRenderer()
 
 double GIVoxelPages::PageRenderer::Draw(bool doTiming,
 										uint32_t cascade,
-										VoxelRender renderType,
+										VoxelRenderType renderType,
 										const Camera& camera,
 										const GIVoxelCache& cache,
 										const GIVoxelPages& pages)
@@ -583,6 +586,12 @@ GIVoxelPages::GIVoxelPages(GIVoxelPages&& other)
 
 GIVoxelPages& GIVoxelPages::operator=(GIVoxelPages&& other)
 {
+	assert(&other != this);
+	for(cudaGraphicsResource_t resc : batchOGLResources)
+	{
+		CUDA_CHECK(cudaGraphicsUnregisterResource(resc));
+	}
+
 	batches = other.batches;
 	svoParams = other.svoParams;
 	segmentAmount = other.segmentAmount;
@@ -610,7 +619,7 @@ void GIVoxelPages::UpdateGridPositions(const IEVector3& cameraPos)
 {
 	// Calculate outermost span position
 	float outerSpan = svoParams->BaseSpan * static_cast<float>(1 << (svoParams->CascadeCount - 1));
-	IEVector3 voxelCornerPos = cameraPos - outerSpan * svoParams->CascadeBaseLevelSize * 0.5f;
+	IEVector3 voxelCornerPos = cameraPos - outerSpan * (svoParams->CascadeBaseLevelSize - 1) * 0.5f;
 
 	// Align outermost cascade
 	// TODO: Better solution for higher level voxel jittering
@@ -836,7 +845,7 @@ void GIVoxelPages::AllocateDraw()
 
 double GIVoxelPages::Draw(bool doTiming,
 						  uint32_t cascadeCount,
-						  VoxelRender renderType,
+						  VoxelRenderType renderType,
 						  const Camera& camera,
 						  const GIVoxelCache& cache)
 {

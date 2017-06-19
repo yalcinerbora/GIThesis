@@ -32,6 +32,8 @@ VertexBuffer::VertexBuffer(VertexBuffer&& other)
 
 VertexBuffer& VertexBuffer::operator=(VertexBuffer&& other)
 {
+	assert(&other != this);
+	glDeleteVertexArrays(1, &vao);
 	vertexBuffer = std::move(other.vertexBuffer);
 	indexBuffer = std::move(other.indexBuffer);
 	vao = other.vao;

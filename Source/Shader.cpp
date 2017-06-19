@@ -124,7 +124,8 @@ Shader::Shader(Shader&& other)
 
 Shader& Shader::operator=(Shader&& other)
 {
-	assert(this != &other);
+	assert(&other != this);
+	glDeleteProgram(shaderID);
 	shaderID = other.shaderID;
 	shaderType = other.shaderType;
 	valid = other.valid;

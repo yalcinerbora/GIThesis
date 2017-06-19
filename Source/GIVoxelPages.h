@@ -59,7 +59,7 @@ class GIVoxelPages
 
 				double							Draw(bool doTiming,
 													 uint32_t cascade,
-													 VoxelRender renderType,
+													 VoxelRenderType renderType,
 													 const Camera& camera,
 													 const GIVoxelCache& cache,
 													 const GIVoxelPages& pages);
@@ -162,7 +162,7 @@ class GIVoxelPages
 		void									AllocateDraw();
 		double									Draw(bool doTiming, 
 													 uint32_t cascade,
-													 VoxelRender renderType,
+													 VoxelRenderType renderType,
 													 const Camera& camera,
 													 const GIVoxelCache& cache);
 		void									DeallocateDraw();

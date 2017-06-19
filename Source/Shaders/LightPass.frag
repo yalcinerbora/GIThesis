@@ -351,12 +351,13 @@ vec3 PhongBDRF(in vec3 worldPos)
 	lightIntensity = vec3(lambertFactor);
 
 	// Specular
-	float specPower = 32.0f + (texture(gBuffColor, gBuffUV).a) * 2048.0f;
+	float specPower = 16.0f + (texture(gBuffColor, gBuffUV).a) * 4096.0f;
 
 	// Phong
 	//lightIntensity += vec3(pow(max(dot(worldReflect, worldEye), 0.0f), specPower));
 	// Blinn-Phong
-	lightIntensity += vec3(pow(max(dot(worldHalf, worldNormal), 0.0f), specPower));
+	lightIntensity += GI_ONE_OVER_PI * 0.125f * (specPower + 6.0f) * 
+					  vec3(pow(max(dot(worldHalf, worldNormal), 0.0f), specPower));
 
 	// Falloff
 	lightIntensity *= falloff;

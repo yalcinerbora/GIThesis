@@ -10,6 +10,10 @@ class IndirectBar : public AntBar
 	private:
 		static constexpr char*		IndirectBarName = "IndirectParams";
 
+		float		specularAngleMin;
+		float		specularAngleMax;
+		float		diffuseAngle;
+
 		float		angleDegree;
 		float		sampleFactor;
 		float		maxDistance;

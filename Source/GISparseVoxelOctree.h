@@ -6,16 +6,68 @@
 */
 
 #include <cuda.h>
+#include <cassert>
+#include "COpenGLTypes.h"
 #include "CudaVector.cuh"
-#include "SceneLights.h"
-
 #include "CSVOTypes.h"
 #include "Shader.h"
-#include "SceneI.h"
 
-class GICudaAllocator;
+class SceneI;
+class GIVoxelPages;
 class DeferredRenderer;
-struct Camera;
+
+#pragma pack(push, 1)
+struct OctreeUniforms
+{
+	IEVector3	worldPos;
+	float		baseSpan;
+
+	uint32_t	gridSize;
+	uint32_t	minSVOLevel;
+	uint32_t	maxSVOLevel;
+	uint32_t	denseLevel;
+
+	uint32_t	cascadeCount;
+	uint32_t	nodeOffsetDifference;
+	uint32_t	pad0;
+	uint32_t	pad1;
+};
+
+struct IndirectUniforms
+{
+	float specularAngleMin;
+	float specularAngleMax;
+	float diffAngleTanHalf;
+	float sampleRatio;
+	
+	float startOffsetBias;
+	float totalDistance;
+	float aoIntensity;
+	float giIntensity;
+
+	float aoFalloff;
+	float pading0;
+	float pading1;
+	float pading2;
+};
+#pragma pack(pop)
+
+static constexpr size_t BigSizes[] =
+{
+	1,              // Root
+	8,              // 1 Dense
+	64,             // 2 Dense
+	512,            // 3 Dense
+	4096,           // 4 Dense
+	32768,          // 5 Dense
+	262144,		    // 6 Dense
+	2048 * 1024,	// 7 Dense
+	4096 * 1024,	// 8
+	8192 * 1024,	// 9
+	8192 * 1024,	// 10
+	8192 * 1024,	// 11
+	8192 * 1024,	// 12
+};
 
 class OctreeParameters
 {
@@ -58,232 +110,144 @@ class OctreeParameters
 		}
 };
 
-enum class SVOTraceType : uint32_t
+struct LightInjectParameters
 {
-	COLOR,
-	OCCULUSION,
-	NORMAL
+	const float4 camPos;
+	const float3 camDir;
+
+	const float depthNear;
+	const float depthFar;
 };
-
-struct SVOTree
-{
-	CSVONode** gLevelNodes;
-	CSVOMaterial** gLevelMaterials;
-	CSVONode* gLevelNodeCount;
-
-	CSVOMaterial* gDenseMaterial;	
-};
-
-struct SVOTraceData
-{
-	// xyz gridWorldPosition
-	// w is gridSpan
-	float4 worldPosSpan;
-
-	// x is grid dimension
-	// y is grid depth
-	// z is dense dimension
-	// w is dense depth
-	uint4 dimDepth;
-
-	// x is cascade count
-	// y is node sparse offet
-	// z is material sparse offset
-	uint4 offsetCascade;
-};
-
-struct SVOConeParams
-{
-	// x max traverse distance
-	// y tangent(ConeAngle)
-	// z tangent(ConeAngle / 2)
-	// w sample ratio
-	float4 coneParams1;
-
-	// x is intensity factor
-	// y sqrt2 (to determine surface lengths)
-	// z sqrt3 (worst case diagonal factor)
-	// w empty
-	float4 coneParams2;
-};
-
-struct InjectParams
-{
-	bool inject;
-	float span;
-	float3 outerCascadePos;
-
-	float4 camPos;
-	float3 camDir;
-	
-	float depthNear;
-	float depthFar;
-
-
-	
-	unsigned int lightCount;
-};
-
-struct InvFrameTransform;
 
 class GISparseVoxelOctree
 {
 	public:
-		const OctreeParameters&					octreeParams;
+		static constexpr GLsizei		TraceWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1600;*//*1920;*//*2560;*///3840;
+		static constexpr GLsizei		TraceHeight = /*90;*//*180;*//*360;*//*450;*/720;/*900;*//*1080;*//*1440;*///2160;
+
+		class ShadowMapsCUDA
+		{
+			private:
+				uint32_t				lightCount;
+				size_t					matrixOffset;
+				size_t					lightOffset;
+
+				cudaGraphicsResource_t	shadowMapResource;
+				cudaGraphicsResource_t	lightBufferResource;
+
+				cudaMipmappedArray_t	shadowMapArray;
+				cudaTextureObject_t		tShadowMapArray;
+
+				const CLight*			dLightParamArray;
+				const CMatrix4x4* 		dLightVPMatrixArray;
+				
+			public:
+				// Constructors & Destructor
+										ShadowMapsCUDA();
+										ShadowMapsCUDA(const SceneLights& sLights);
+										ShadowMapsCUDA(const ShadowMapsCUDA&) = delete;
+										ShadowMapsCUDA(ShadowMapsCUDA&&);
+				ShadowMapsCUDA&			operator=(const ShadowMapsCUDA&) = delete;
+				ShadowMapsCUDA&			operator=(ShadowMapsCUDA&&);
+										~ShadowMapsCUDA();
+
+				void					Map();
+				void					Unmap();
+
+				uint32_t				LightCount() const;
+				const CLight*			LightParamArray() const;
+				const CMatrix4x4*		LightVPMatrices() const;
+				cudaTextureObject_t		ShadowMapArray() const;				
+		};
 
 	private:
+		const OctreeParameters*			octreeParams;
+		const SceneI*					scene;
 
-		CSVOConstants							hSVOConstants;
-		CudaVector<CSVOConstants>				dSVOConstants;
-
-		//// SVO Data (Sparse)
-		//StructuredBuffer<CSVONode>				svoNodeBuffer;
-		//StructuredBuffer<CSVOMaterial>			svoMaterialBuffer;
-		//StructuredBuffer<uint32_t>				svoLevelOffsets;
+		// Actual SVO Tree
+		StructuredBuffer<uint8_t>		oglData;
+		size_t							octreeUniformsOffset;
+		size_t							indirectUniformsOffset;
+		size_t							illumOffsetsOffset;
+		size_t							nodeOffset;
+		size_t							illumOffset;
 		
-        // SVO Data (Dense)
-		GLuint									svoDenseNode;
-		GLuint									svoDenseMat;
-		GLuint									nodeSampler;
-		GLuint									materialSampler;
-		GLuint									gaussSampler;
+		// Cuda Image of SVO Tree (Generated from OGL Data)
+		// Valid only when
+		cudaGraphicsResource_t			gpuResource;
+		CudaVector<uint8_t>				cudaData;
+		const uint32_t*					dLevelCapacities;
+		uint32_t*						dLevelSizes;
+		CSVOLevel*						dOctreeLevels;
 
-		// Light Intensity Texture (for SVO GI)
-		GLuint									traceTexture;
-		GLuint									gaussTex;
-		GLuint									edgeTex;
-
-		// Rendering Helpers
-		StructuredBuffer<SVOTraceData>			svoTraceData;
-		StructuredBuffer<SVOConeParams>			svoConeParams;
-
-		// SVO Ptrs Cuda
-		CSVOMaterial*							dSVOMaterial;
-		CSVONode*								dSVOSparse;
-		CSVONode*								dSVODense;
-		uint32_t*								dSVOOffsets;
-		cudaArray_t								dSVODenseNodeArray;
-		std::vector<cudaArray_t>				dSVODenseMatArray;
-		cudaTextureObject_t						tSVODenseNode;
-		cudaSurfaceObject_t						sSVODenseNode;
-		std::vector<cudaSurfaceObject_t>		sSVODenseMat;
 		
-		// Atomic counter and svo level start locations
-		CudaVector<uint32_t>					dSVOLevelTotalSizes;
-		std::vector<uint32_t>					hSVOLevelTotalSizes;
-		CudaVector<uint32_t>					dSVOLevelSizes;
-		std::vector<uint32_t>					hSVOLevelSizes;
-				
-		// Interop Data
-		cudaGraphicsResource_t					svoNodeResource;
-		cudaGraphicsResource_t					svoLevelOffsetResource;
-		cudaGraphicsResource_t					svoMaterialResource;
-		cudaGraphicsResource_t					svoDenseNodeResource;
-		cudaGraphicsResource_t					svoDenseTexResource;
-		
-		cudaGraphicsResource_t					sceneShadowMapResource;
-		cudaGraphicsResource_t					sceneLightParamResource;
-		cudaGraphicsResource_t					sceneVPMatrixResource;
 
-		// Shadows
-		cudaMipmappedArray_t					shadowMapArray;
-		cudaTextureObject_t						tShadowMapArray;
-		//CLight*								dLightParamArray;
-		//CMatrix4x4* 							dLightVPArray;
-		
+		// Difference between offsets (since node do not hold dense info except last dense level)
+		std::vector<uint32_t>			hIllumOffsets;
+		size_t							nodeIllumDifference;
+
+		// Shadowmap interop for light injection
+		ShadowMapsCUDA					shadowMaps;
+
 		// Trace Shaders
-		Shader									computeVoxTraceWorld;
-		Shader									computeVoxTraceDeferred;
-		Shader									computeVoxTraceDeferredLerp;
-		Shader									computeAO;
-		Shader									computeGI;
-		Shader									computeGauss32;
-		Shader									computeEdge;
-		Shader									computeAOSurf;
-		Shader									computeLIApply;
-
-		void									CreateSurfFromArray(cudaArray_t&,
-																	cudaSurfaceObject_t&);
-		void									CreateTexFromArray(cudaArray_t&,
-																   cudaTextureObject_t&);
-		void									CopyFromBufferToTex(cudaArray_t&,
-																	unsigned int* dPtr);
-		void									CreateTexLayeredFromArray(cudaMipmappedArray_t&,
-																		  cudaTextureObject_t&);
+		Shader							compVoxTraceWorld;
+		Shader							compVoxSampleWorld;
+		Shader							compGI;
 
 		//
-		void									ConstructDense();
-		void									ConstructLevel(unsigned int levelIndex,
-															   unsigned int allocatorIndex);
-		double									ConstructFullAtomic(const IEVector3& ambientColor, const InjectParams& p);
-		double									ConstructLevelByLevel(const IEVector3& ambientColor, const InjectParams& p);
-		double									LightInject(InjectParams,
-															const std::vector<IEMatrix4x4>& projMatrices,
-															const std::vector<IEMatrix4x4>& invViewProj);
-		double									AverageNodes();
-
-		static const GLsizei					TraceWidth;
-		static const GLsizei					TraceHeight;
+		void							MapOGLData();
+		void							UnmapOGLData();
+		double							GenerateHierarchy(const GIVoxelPages& pages,
+														  const LightInjectParameters& injectParams,
+														  bool injectOn);
+		double							AverageNodes();
 
 	protected:
 
 	public:
 		// Constructors & Destructor
-												GISparseVoxelOctree(const OctreeParameters& octreeParams);
-												GISparseVoxelOctree(const GISparseVoxelOctree&) = delete;
-		GISparseVoxelOctree&					operator=(const GISparseVoxelOctree&) = delete;
-												~GISparseVoxelOctree();
-
-		// Link Allocators and Adjust Size of the System
-		void									LinkAllocators(std::vector<GICudaAllocator*> allocators,
-															   const uint32_t levelCounts[]);
-
-		// Link
-		void									LinkSceneShadowMaps(SceneI* scene);
+										GISparseVoxelOctree();
+										GISparseVoxelOctree(const OctreeParameters& octreeParams,
+															const SceneI* currentScene,
+															const size_t sizes[]);
+										GISparseVoxelOctree(const GISparseVoxelOctree&) = delete;
+										GISparseVoxelOctree(GISparseVoxelOctree&&);
+		GISparseVoxelOctree&			operator=(const GISparseVoxelOctree&) = delete;
+		GISparseVoxelOctree&			operator=(GISparseVoxelOctree&&);
+										~GISparseVoxelOctree();
 
 		// Updates SVO Tree depending on the changes of the allocators
-		void									UpdateSVO(double& reconstTime,
-														  double& injectTime,
-														  double& averageTime,
-														  const IEVector3& ambientColor,
-														  const InjectParams&,
-														  const std::vector<IEMatrix4x4>& lightProjMatrices,
-														  const std::vector<IEMatrix4x4>& lightInvViewProjMatrices);
+		void							UpdateSVO(double& reconstructTime,
+												  double& averageTime,
+												  const GIVoxelPages& pages,
+												  const LightInjectParameters& injectParams,
+												  bool injectOn);
 		
+		void							UpdateOctreeUniforms(const IEVector3& outerCascadePos);
+		void							UpdateIndirectUniforms(const IndirectUniforms& indirectUniforms);
+
 		// Traces entire scene with the given ray params
-		// Writes results to intensity texture
+		// Writes results to outputTexture
 		// Uses GBuffer to create inital rays (free camera to first bounce)
-		double									AmbientOcclusion(DeferredRenderer& dRenderer,
-																 const Camera& camera,
-																 float coneAngle,
-																 float maxDistance,
-																 float falloffFactor,
-																 float sampleDistanceRatio,
-																 float intensityFactor);
-		double									GlobalIllumination(DeferredRenderer& dRenderer,
-																   const Camera& camera,
-																   SceneI& scene,
-																   float coneAngle,
-																   float maxDistance,
-																   float falloffFactor,
-																   float sampleDistanceRatio,
-																   float intensityFactorAO,
-																   float intensityFactorGI,
-																   bool giOn,
-																   bool aoOn,
-																   bool specular);
+		double							GlobalIllumination(GLuint outputTexture,
+														   const DeferredRenderer&,
+														   const Camera& camera,
+														   const IndirectUniforms&,
+														   bool giOn,
+														   bool aoOn,
+														   bool specularOn);
+		// Debug Tracing
+		double							DebugTraceSVO(GLuint outputTexture,
+													  const DeferredRenderer&,
+													  const Camera& camera,
+													  uint32_t renderLevel,
+													  OctreeRenderType);
+		double							DebugSampleSVO(GLuint& outputTexture,
+													   const DeferredRenderer&,
+													   const Camera& camera,
+													   uint32_t renderLevel,
+													   OctreeRenderType);
 
-		double									DebugTraceSVO(DeferredRenderer&,
-															  const Camera& camera,
-															  uint32_t renderLevel,
-															  SVOTraceType);
-		double									DebugDeferredSVO(DeferredRenderer& dRenderer,
-																 const Camera& camera,
-																 uint32_t renderLevel,
-																 SVOTraceType type);
-
-		uint64_t								MemoryUsage() const;
-		const CSVOConstants&					SVOConsts() const;
-		uint32_t								MinLevel() const;
-		uint32_t								MaxLevel() const;
+		// Misc
+		size_t							MemoryUsage() const;
 };

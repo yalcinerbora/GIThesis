@@ -332,6 +332,14 @@ SceneLights::SceneLights(SceneLights&& other)
 SceneLights& SceneLights::operator=(SceneLights&& other)
 {
 	assert(this != &other);
+	if(shadowMapFBOs.size() > 0) glDeleteFramebuffers(static_cast<GLsizei>(shadowMapFBOs.size()),
+													  shadowMapFBOs.data());
+	if(shadowMapViews.size() > 0) glDeleteFramebuffers(static_cast<GLsizei>(shadowMapViews.size()),
+													   shadowMapViews.data());
+	glDeleteTextures(1, &shadowMapCubeDepth);
+	glDeleteTextures(1, &lightShadowMaps);
+	glDeleteTextures(1, &shadowMapArrayView);
+	
 	gpuData = std::move(other.gpuData);
 	lightOffset = other.lightOffset;
 	matrixOffset = other.matrixOffset;
@@ -496,17 +504,17 @@ GLuint SceneLights::getShadowTextureArrayView()
 	return shadowMapArrayView;
 }
 
-size_t SceneLights::getLightOffset()
+size_t SceneLights::getLightOffset() const
 {
 	return lightOffset;
 }
 
-size_t SceneLights::getLightIndexOffset()
+size_t SceneLights::getLightIndexOffset() const
 {
 	return lightIndexOffset;
 }
 
-size_t SceneLights::getMatrixOffset()
+size_t SceneLights::getMatrixOffset() const
 {
 	return matrixOffset;
 }

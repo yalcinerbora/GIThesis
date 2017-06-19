@@ -31,11 +31,11 @@ void CudaInit::InitCuda()
 		GI_LOG("");
 	}
 
+	// This is only for kepler/fermi i dropped supports on those since i do not have any of those cards
 	// Shared Memory Prep
 	// 16 Kb memory is enough for our needs most of the time
 	// or 8kb (for %100 occupancy)
 	CUDA_CHECK(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
-
 	// Kernel Specifics
 	CUDA_CHECK(cudaFuncSetCacheConfig(VoxelTransform, cudaFuncCachePreferEqual));
 

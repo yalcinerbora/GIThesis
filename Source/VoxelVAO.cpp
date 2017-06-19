@@ -109,6 +109,7 @@ VoxelVAO::VoxelVAO(VoxelVAO&& other)
 VoxelVAO& VoxelVAO::operator=(VoxelVAO&& other)
 {
 	assert(&other != this);
+	glDeleteVertexArrays(1, &vao);
 	vao = other.vao;
 	other.vao = 0;
 	return *this;

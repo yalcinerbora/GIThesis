@@ -12,20 +12,34 @@ Sparse voxel octree types that used in cuda funcs
 
 #include <cstdint>
 
-// first int has
-// first 32 bit is children index
+// Last 2 bit is unused (only slight difference then voxel pos)
 typedef unsigned int CSVONode;
-typedef unsigned int CSVOColor;
-typedef unsigned int CSVOLight;
-typedef unsigned int CSVOWeight;
+
+typedef unsigned int CSVOIrradiance; // (rgb irradiance, a component specularity)
+typedef unsigned int CSVOLightDir;   // (xyz direction, w component used in average)
+
+typedef unsigned int CSVOWeight;	 //	(xyz directional occupancy bias, w occupancy)
+typedef unsigned int CSVONormal;	 // (xyz normal, w component used in average)
 
 #pragma pack(push, 1)
-struct CSVOMaterial
+struct CSVOIllumination
 {
-	uint64_t colorPortion;
+	uint64_t irradiancePortion;
 	uint64_t normalPortion;
 };
 #pragma pack(pop)
+
+struct CSVOLevel
+{
+	CSVONode *gLevelNodes;
+	CSVOIllumination *gLevelIllum;
+};
+
+struct CSVOLevelConst
+{
+	const CSVONode *gLevelNodes;
+	const CSVOIllumination *gLevelIllum;
+};
 
 //struct CSVOMaterial
 //{
@@ -59,11 +73,22 @@ struct CSVOMaterial
 //{
 //};
 
-struct CSVOConstants
-{
-	unsigned int denseDim;
-	unsigned int denseDepth;
-	unsigned int totalDepth;
-	unsigned int numCascades;
-};
+//bool inject;
+//const float3 ambientColor;
+
+// Light Inject Related
+//struct LightInjectParameters
+//{
+//	const float4 camPos;
+//	const float3 camDir;
+//
+//	const CMatrix4x4* gLightVP;
+//	const CLight* gLightStruct;
+//
+//	const float depthNear;
+//	const float depthFar;
+//
+//	cudaTextureObject_t shadowMaps;
+//	const unsigned int lightCount;
+//};
 #endif //__CSVOTYPES_H__

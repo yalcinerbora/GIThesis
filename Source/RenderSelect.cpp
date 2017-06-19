@@ -116,9 +116,9 @@ VoxelRenderSelect::VoxelRenderSelect(TwBar* bar, const SceneLights& lights,
 	, svoLevel(maxSVOLevel)
 	, cacheCascade(0)
 	, pageCascade(0)
-	, svoRenderType(SVORender::IRRADIANCE)
-	, cacheRenderType(VoxelRender::DIFFUSE_ALBEDO)
-	, pageRenderType(VoxelRender::DIFFUSE_ALBEDO)
+	, svoRenderType(OctreeRenderType::IRRADIANCE)
+	, cacheRenderType(VoxelRenderType::DIFFUSE_ALBEDO)
+	, pageRenderType(VoxelRenderType::DIFFUSE_ALBEDO)
 {}
 
 void VoxelRenderSelect::Next()
@@ -130,21 +130,21 @@ void VoxelRenderSelect::Next()
 	else if(*scheme == RenderScheme::VOXEL_CACHE)
 	{
 		int renderType = static_cast<int>(cacheRenderType);
-		int vTypeMax = static_cast<int>(VoxelRender::END) - 1;
-		cacheRenderType = static_cast<VoxelRender>(std::min(vTypeMax, renderType + 1));
+		int vTypeMax = static_cast<int>(VoxelRenderType::END) - 1;
+		cacheRenderType = static_cast<VoxelRenderType>(std::min(vTypeMax, renderType + 1));
 	}
 	else if(*scheme == RenderScheme::VOXEL_PAGE)
 	{
 		int renderType = static_cast<int>(pageRenderType);
-		int vTypeMax = static_cast<int>(VoxelRender::END) - 1;
-		pageRenderType = static_cast<VoxelRender>(std::min(vTypeMax, renderType + 1));
+		int vTypeMax = static_cast<int>(VoxelRenderType::END) - 1;
+		pageRenderType = static_cast<VoxelRenderType>(std::min(vTypeMax, renderType + 1));
 	}
 	else if(*scheme == RenderScheme::SVO_VOXELS ||
 			*scheme == RenderScheme::SVO_SAMPLE)
 	{
 		int renderType = static_cast<int>(svoRenderType);
-		int sTypeMax = static_cast<int>(VoxelRender::END) - 1;
-		svoRenderType = static_cast<SVORender>(std::min(sTypeMax, renderType + 1));
+		int sTypeMax = static_cast<int>(VoxelRenderType::END) - 1;
+		svoRenderType = static_cast<OctreeRenderType>(std::min(sTypeMax, renderType + 1));
 	}
 }
 
@@ -157,18 +157,18 @@ void VoxelRenderSelect::Previous()
 	else if(*scheme == RenderScheme::VOXEL_CACHE)
 	{
 		int renderType = static_cast<int>(cacheRenderType);
-		cacheRenderType = static_cast<VoxelRender>(std::max(0, renderType - 1));
+		cacheRenderType = static_cast<VoxelRenderType>(std::max(0, renderType - 1));
 	}
 	else if(*scheme == RenderScheme::VOXEL_PAGE)
 	{
 		int renderType = static_cast<int>(pageRenderType);
-		pageRenderType = static_cast<VoxelRender>(std::max(0, renderType - 1));
+		pageRenderType = static_cast<VoxelRenderType>(std::max(0, renderType - 1));
 	}
 	else if(*scheme == RenderScheme::SVO_VOXELS ||
 			*scheme == RenderScheme::SVO_SAMPLE)
 	{
 		int renderType = static_cast<int>(svoRenderType);
-		svoRenderType = static_cast<SVORender>(std::max(0, renderType - 1));
+		svoRenderType = static_cast<OctreeRenderType>(std::max(0, renderType - 1));
 	}
 }
 
@@ -219,7 +219,7 @@ int VoxelRenderSelect::SVOLevel() const
 	return svoLevel;
 }
 
-SVORender VoxelRenderSelect::SVORenderType() const
+OctreeRenderType VoxelRenderSelect::SVORenderType() const
 {
 	return svoRenderType;
 }
@@ -229,7 +229,7 @@ int VoxelRenderSelect::CacheCascade() const
 	return cacheCascade;
 }
 
-VoxelRender VoxelRenderSelect::CacheRenderType() const
+VoxelRenderType VoxelRenderSelect::CacheRenderType() const
 {
 	return cacheRenderType;
 }
@@ -239,7 +239,7 @@ int VoxelRenderSelect::PageCascade() const
 	return pageCascade;
 }
 
-VoxelRender VoxelRenderSelect::PageRenderType() const
+VoxelRenderType VoxelRenderSelect::PageRenderType() const
 {
 	return pageRenderType;
 }

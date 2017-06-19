@@ -28,7 +28,7 @@ class ThesisSolution : public SolutionI
 		// Entire Voxel Cache one Per Batch
 		GIVoxelCache				voxelCaches;
 		GIVoxelPages				voxelPages;
-		//GISparseVoxelOctree		voxelOctree;
+		GISparseVoxelOctree			voxelOctree;
 
 		// Timings
 		double						frameTime;

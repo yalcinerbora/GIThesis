@@ -47,8 +47,8 @@ class StructuredBuffer
 		void					Memset(uint32_t);
 		void					BindAsUniformBuffer(GLuint location, 
 													GLuint countOffset,
-													GLuint countSize);
-		void					BindAsUniformBuffer(GLuint location);
+													GLuint countSize) const;
+		void					BindAsUniformBuffer(GLuint location) const;
 		void					BindAsShaderStorageBuffer(GLuint location, 
 														  GLuint countOffset, 
 														  GLuint countSize);

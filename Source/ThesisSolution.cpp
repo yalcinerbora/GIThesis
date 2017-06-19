@@ -63,11 +63,11 @@ void ThesisSolution::Load(SceneI& s)
 							  octreeParams);
 
 	// Initialize SVO System
-	// TODO
+	voxelOctree = GISparseVoxelOctree(octreeParams,
+									  currentScene,
+									  BigSizes);
 	
-
 	// Initialize GUI
-	// Init GUI
 	lightBar = std::move(LightBar(currentScene->getSceneLights(),
 								  directLighting,
 								  ambientLighting,
@@ -88,14 +88,14 @@ void ThesisSolution::Load(SceneI& s)
 
 	// Indirect Bar
 	// TODO:
-
 }
 
 void ThesisSolution::Release()
 {
 	voxelCaches = GIVoxelCache();
-	lightBar = std::move(LightBar());
-	thesisBar = std::move(ThesisBar());
+	lightBar = LightBar();
+	thesisBar = ThesisBar();
+	voxelOctree = GISparseVoxelOctree();
 	currentScene = nullptr;
 }
 
@@ -113,6 +113,16 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	transTime = voxelPages.Transform(voxelCaches, doTiming);
 	voxelPages.UnmapOGLResources();
 	
+	// Do SVO update
+	//voxelOctree.UpdateSVO(svoReconTime, svoAverageTime, voxelPages,
+	//					  , );
+	//// Update FrameTransform Matrices 
+	//// And its inverse realted buffer
+	////assert(TraceWidth == DeferredRenderer::gBuffWidth);
+	////assert(TraceHeight == DeferredRenderer::gBuffHeight);
+	//dRenderer.RefreshInvFTransform(camera, TraceWidth, TraceHeight);
+
+
 	// Rendering Choice
 	if(scheme >= RenderScheme::G_DIFF_ALBEDO &&
 	   scheme <= RenderScheme::G_DEPTH)

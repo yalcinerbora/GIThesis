@@ -11,10 +11,10 @@
 */
 
 // Definitions
-#define I_COLOR_FB layout(rgba8, binding = 2) restrict writeonly
+#define I_OUT_TEXTURE layout(rgba8, binding = 0) restrict
 
 #define LU_SVO_NODE layout(std430, binding = 2) readonly
-#define LU_SVO_MATERIAL layout(std430, binding = 3) readonly
+#define LU_SVO_ILLUM layout(std430, binding = 3) readonly
 #define LU_SVO_LEVEL_OFFSET layout(std430, binding = 4) readonly
 
 #define U_RENDER_TYPE layout(location = 0)
@@ -22,19 +22,17 @@
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
-#define U_SVO_CONSTANTS layout(std140, binding = 3)
-
-#define T_DENSE_NODE layout(binding = 5)
-#define T_DENSE_MAT layout(binding = 6)
+#define U_OCTREE_UNIFORMS layout(std140, binding = 3)
 
 #define FLT_MAX 3.402823466e+38F
 #define EPSILON 0.00001f
-#define SQRT_3 1.73205f
+//#define SQRT_3 1.73205f
 
-#define RENDER_TYPE_COLOR 0
-#define RENDER_TYPE_OCCLUSION 1
-#define RENDER_TYPE_NORMAL 2
-#define RENDER_TYPE_SPECULAR 3
+#define IRRADIANCE 0
+#define SPECULAR_ALBEDO 1
+#define NORMAL 2
+#define OCCLUSION 3
+#define LIGHT_DIR 4
 
 // Uniforms
 U_RENDER_TYPE uniform uint renderType;
@@ -45,33 +43,14 @@ LU_SVO_NODE buffer SVONode
 	uint svoNode[];
 };
 
-LU_SVO_MATERIAL buffer SVOMaterial
+LU_SVO_ILLUM buffer SVOIllumination
 { 
-	uvec4 svoMaterial[];
+	uvec4 svoIllum[];
 };
 
 LU_SVO_LEVEL_OFFSET buffer SVOLevelOffsets
 {
-	uint svoLevelOffset[];
-};
-
-U_SVO_CONSTANTS uniform SVOConstants
-{
-	// xyz gridWorldPosition
-	// w is gridSpan
-	vec4 worldPosSpan;
-
-	// x is grid dimension
-	// y is grid depth
-	// z is dense dimension
-	// w is dense depth
-	uvec4 dimDepth;
-
-	// x is cascade count
-	// y is node sparse offet
-	// z is material sparse offset
-	// w is dense mat tex min level
-	uvec4 offsetCascade;
+	uint svoLevelOffsets[];
 };
 
 U_FTRANSFORM uniform FrameTransform
@@ -90,21 +69,48 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 	vec4 depthNearFar;	// depth range params (last two unused)
 };
 
+U_OCTREE_UNIFORMS uniform OctreeUniforms
+{
+	vec3 worldPos;
+	float baseSpan;
+
+	uint minSVOLevel;
+	uint denseLevel;
+	uint minCascadeLevel;
+	uint maxSVOLevel;
+	
+	uint cascadeCount;
+	uint nodeOffsetDifference;
+	uint gridSize;
+	uint pad1;
+};
+
 // Textures
-uniform I_COLOR_FB image2D fbo;
-uniform T_DENSE_NODE usampler3D tSVODense;
-uniform T_DENSE_MAT usampler3D tSVOMat;
+uniform I_OUT_TEXTURE image2D fbo;
 
 // Functions
-ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
+uint DenseIndexToLinear(in ivec3 denseIndex, in uint level)
 {
-	ivec3 result = ivec3(floor((worldPoint - worldPosSpan.xyz) / worldPosSpan.w));
-	return result >> (dimDepth.y - depth);
+	// TODO: Change to Morton (Z-order curve)
+	uint size = 1 << level;
+	return  denseIndex.z * size * size +
+			denseIndex.y * size +
+			denseIndex.x;
+}
+
+ivec3 LevelVoxId(out vec3 offset, in vec3 worldPoint, in uint depth)
+{
+	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
+	vec3 voxId = (worldPoint - worldPos.xyz) / levelSpan;
+	vec3 voxIdBase = floor(voxId);
+	offset = voxId - voxIdBase;
+	return ivec3(voxIdBase);
 }
 
 vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
 {
-	return (worldPoint - worldPosSpan.xyz) / (worldPosSpan.w * float((0x1 << (dimDepth.y - depth))));
+	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
+	return (worldPoint - worldPos.xyz) / levelSpan;
 }
 
 vec3 PixelToWorld()
@@ -128,34 +134,52 @@ vec3 PixelToWorld()
 uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
 {
 	uint bitSet = 0;
-	bitSet |= ((voxPos.z >> (dimDepth.y - levelDepth)) & 0x000000001) << 2;
-	bitSet |= ((voxPos.y >> (dimDepth.y - levelDepth)) & 0x000000001) << 1;
-	bitSet |= ((voxPos.x >> (dimDepth.y - levelDepth)) & 0x000000001) << 0;
+	bitSet |= ((voxPos.z >> (maxSVOLevel - levelDepth)) & 0x000000001) << 2;
+	bitSet |= ((voxPos.y >> (maxSVOLevel - levelDepth)) & 0x000000001) << 1;
+	bitSet |= ((voxPos.x >> (maxSVOLevel - levelDepth)) & 0x000000001) << 0;
 	return bitSet;
 }
 
-vec4 UnpackColor(in uint colorPacked)
+vec4 UnpackIrradianceSVO(in uint irradiancePacked)
 {
-	return unpackUnorm4x8(colorPacked);
+	return unpackUnorm4x8(irradiancePacked);
 }
 
-vec4 UnpackNormal(in uint voxNormPosY)
+vec4 UnpackOccupancySVO(in uint occupancyPacked)
 {
-	return vec4(unpackSnorm4x8(voxNormPosY).xyz,
-				unpackUnorm4x8(voxNormPosY).w);
+	return unpackUnorm4x8(occupancyPacked);
 }
 
-float IntersectDistance(in vec3 marchPos, 
-						in vec3 dir,
+vec3 UnpackNormalSVO(in uint normalPacked)
+{
+	return unpackSnorm4x8(normalPacked).xyz;
+}
+
+vec3 UnpackLightDirSVO(in uint lightDirPacked)
+{
+	return unpackSnorm4x8(lightDirPacked).xyz;
+}
+
+float AnisotropicOcclusion(in vec4 occlusion,
+						   in vec3 direction)
+{
+	// TODO:
+	return occlusion.x;
+}
+
+float IntersectDistance(in vec3 position, 
+						in vec3 marchDir,
 						in uint traverseLevel)
 {
 	// Voxel Corners are now (0,0,0) and (span, span, span)
-	// span is current level grid span (leaf span * (2^ totalLevel - currentLevel)		
-	float gridDim = worldPosSpan.w * float(0x1 << (dimDepth.y - traverseLevel));
+	// span is current level grid span (leaf span * (2^ totalLevel - currentLevel)
+	vec3 offset;
+	float gridSpan = baseSpan * float(0x1 << (maxSVOLevel - traverseLevel));
+	vec3 worldOffset = vec3(LevelVoxId(offset, position, traverseLevel)) * gridSpan;
 		
 	// Convert march position to voxel space
-	vec3 voxWorld = worldPosSpan.xyz + (vec3(LevelVoxId(marchPos, traverseLevel)) * gridDim);
-	vec3 relativePos = marchPos - voxWorld;
+	vec3 voxWorld = worldPos + worldOffset;
+	vec3 relativePos = position - voxWorld;
 	// 6 Plane intersection on cube normalized coordinates
 	// Since planes axis aligned writing code is optimized 
 	// (instead of dot products)
@@ -167,19 +191,19 @@ float IntersectDistance(in vec3 marchPos,
 
 	// d - (P dot N) (P dot N returns Px Py Pz for each plane)
 	vec3 tClose = vec3(0.0f) - relativePos;	
-	vec3 tFar = vec3(gridDim) - relativePos;
+	vec3 tFar = vec3(gridSpan) - relativePos;
 	
 	// Negate zeroes from direction
 	// (D dot N) returns Dx Dy Dz for each plane
 	// IF perpendicaular make it intersect super far
-	bvec3 dirMask = greaterThan(abs(dir), vec3(EPSILON));
-	dir.x = (dirMask.x) ? dir.x : EPSILON;
-	dir.y = (dirMask.y) ? dir.y : EPSILON;
-	dir.z = (dirMask.z) ? dir.z : EPSILON;
+	bvec3 dirMask = greaterThan(abs(marchDir), vec3(EPSILON));
+	marchDir.x = (dirMask.x) ? marchDir.x : EPSILON;
+	marchDir.y = (dirMask.y) ? marchDir.y : EPSILON;
+	marchDir.z = (dirMask.z) ? marchDir.z : EPSILON;
 
 	// acutal T value
 	// d - (P dot N) / (N dot D)
-	vec3 dirInv = vec3(1.0f) / dir;
+	vec3 dirInv = vec3(1.0f) / marchDir;
 	tClose *= dirInv;
 	tFar *= dirInv;
 
@@ -200,85 +224,129 @@ float IntersectDistance(in vec3 marchPos,
 	return min(minClose, minFar) + 0.01f;
 }
 
-float FindMarchLength(inout vec4 outData,						
-					  in vec3 marchPos,
-					  in vec3 dir)
+vec3 FetchFromIllum(out float occlusion, in uvec4 illum, in vec3 marchDir)
 {
-	ivec3 voxPos = LevelVoxId(marchPos, dimDepth.y);
+	// Occlusion
+	vec4 occupancy = UnpackOccupancySVO(illum.z);
+	occlusion = AnisotropicOcclusion(occupancy, marchDir);
+
+	if(renderType == IRRADIANCE) return UnpackIrradianceSVO(illum.x).xyz;
+	else if(renderType == SPECULAR_ALBEDO) return UnpackIrradianceSVO(illum.x).www;
+	else if(renderType == NORMAL) return UnpackNormalSVO(illum.y);
+	else if(renderType == OCCLUSION)
+	{
+		return vec3(1.0f - occlusion);
+	}
+	else if(renderType == LIGHT_DIR) return UnpackLightDirSVO(illum.w);
+	return vec3(0.0f);
+}
+
+bool FindMarchLength(inout vec3 outData,
+					 inout float occlusion,
+					 inout vec3 position,
+					 in vec3 marchDir)
+{
+	vec3 offset;
+	ivec3 voxPos = LevelVoxId(offset, position, maxSVOLevel);
+	ivec3 maxLevelSize = ivec3((0x1 << (cascadeCount - 1)) * gridSize);
+	
 	// Cull if out of bounds
 	if(any(lessThan(voxPos, ivec3(0))) ||
-	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
+	   any(greaterThanEqual(voxPos, maxLevelSize)))
 	{
 		// Node is out of bounds
 		// Since cam is centered towards grid
 		// Out of bounds means its cannot come towards the grid
 		// directly cull
-		outData += vec4(1.0f) * (1.0f - outData.w);
-		return FLT_MAX;
+
+		// Alpha out the background color
+		outData += vec3(1.0f) * (1.0f - occlusion);
+		return false;
 	}
 
-	//	 Check Dense
-	if(fetchLevel <= dimDepth.w && 
-	   fetchLevel >= offsetCascade.w)
+	// Check Dense
+	if(fetchLevel >= minSVOLevel && 
+	   fetchLevel <= denseLevel)
 	{
 		// Dense Fetch
-		uint mipId = dimDepth.w - fetchLevel;
-		uint levelDim = dimDepth.z >> mipId;
-		vec3 levelUV = LevelVoxIdF(marchPos, fetchLevel) / float(levelDim);
-				
-		uvec4 mat = textureLod(tSVOMat, levelUV, float(mipId));
-		vec4 normal = UnpackNormal(mat.z);
-		vec4 inData = vec4(0.0f, 0.0f, 0.0f, normal.w);
-		if(renderType == RENDER_TYPE_COLOR) inData.xyz = UnpackColor(mat.x).xyz;
-		else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = vec3(1.0f - normal.w);
-		else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = normal.xyz;
-		else if(renderType == RENDER_TYPE_SPECULAR) inData.xyz = UnpackColor(mat.x).www;
-		inData.xyz *= inData.w;
-		outData += inData * (1.0f - outData.w);
-		if((1.0f - outData.w) <= 0.0f) return 0.0f;
-		else return IntersectDistance(marchPos, dir, fetchLevel);
+		vec3 interp;
+		uint offset = svoLevelOffsets[fetchLevel];
+		ivec3 index = LevelVoxId(interp, worldPos, fetchLevel);
+		uvec4 illum = svoIllum[offset + DenseIndexToLinear(index, fetchLevel)];
+
+		// Blend using occlusion values
+		float dataOcclusion;
+		vec3 data = FetchFromIllum(dataOcclusion, illum, marchDir);
+		outData += data * dataOcclusion * (1.0f - occlusion);
+		occlusion += dataOcclusion * (1.0f - occlusion);
+		if((1.0f - occlusion) <= 0.0f) 
+		{
+			return false;
+		}
+		else
+		{
+			position += marchDir * IntersectDistance(position, marchDir, fetchLevel);
+			return true;
+		}
 	}
 	else
 	{
 		// Start tracing (stateless start from root (dense))
 		// Initialize Traverse
 		uint nodeIndex = 0;
-		ivec3 denseVox = LevelVoxId(marchPos, dimDepth.w);
 	
-		// Dense Node Index Fetch	
-		vec3 texCoord = vec3(denseVox) / dimDepth.z;
-		nodeIndex = texture(tSVODense, texCoord).x;
-		if(nodeIndex == 0xFFFFFFFF) return IntersectDistance(marchPos, dir, dimDepth.w);
-		nodeIndex += CalculateLevelChildId(voxPos, dimDepth.w + 1);
+		// Dense Node Index Fetch
+		vec3 interp;
+		uint offset = svoLevelOffsets[fetchLevel] - nodeOffsetDifference;
+		ivec3 index = LevelVoxId(interp, worldPos, denseLevel);
+		nodeIndex = svoNode[offset + DenseIndexToLinear(index, denseLevel)];
+		if(nodeIndex == 0xFFFFFFFF) 
+		{
+			position += marchDir * IntersectDistance(position, marchDir, denseLevel);
+			return true;
+		}
+		nodeIndex += CalculateLevelChildId(voxPos, denseLevel + 1);
 
 		uint traversedLevel;
-		for(traversedLevel = dimDepth.w + 1; 
+		for(traversedLevel = denseLevel + 1; 
 			traversedLevel < fetchLevel;
 			traversedLevel++)
 		{
-			uint currentNode = svoNode[offsetCascade.y + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex];
-			if(currentNode == 0xFFFFFFFF && traversedLevel > (dimDepth.y - offsetCascade.x)) break;
-			else if(currentNode == 0xFFFFFFFF) return IntersectDistance(marchPos, dir, traversedLevel);
+			uint offset = svoLevelOffsets[fetchLevel] - nodeOffsetDifference;
+			uint currentNode = svoNode[offset + nodeIndex];
+			if(currentNode == 0xFFFFFFFF && traversedLevel >= minCascadeLevel) break;
+			else if(currentNode == 0xFFFFFFFF) 
+			{
+				position += marchDir * IntersectDistance(position, marchDir, traversedLevel);
+			}
 			nodeIndex = currentNode + CalculateLevelChildId(voxPos, traversedLevel + 1);
 		}
-		if(traversedLevel > (dimDepth.y - offsetCascade.x) || 
+
+		//
+		if(traversedLevel >= minCascadeLevel || 
 		   traversedLevel == fetchLevel)
 		{
-			uint loc = offsetCascade.z + svoLevelOffset[traversedLevel - dimDepth.w] + nodeIndex;
-			uvec4 mat = svoMaterial[loc];			
-			vec4 normal = UnpackNormal(mat.z);
-			vec4 inData = vec4(0.0f, 0.0f, 0.0f, normal.w);	
-			if(renderType == RENDER_TYPE_COLOR) inData.xyz = UnpackColor(mat.x).xyz;
-			else if(renderType == RENDER_TYPE_OCCLUSION) inData.xyz = vec3(1.0f - normal.w);
-			else if(renderType == RENDER_TYPE_NORMAL) inData.xyz = normal.xyz;
-			else if(renderType == RENDER_TYPE_SPECULAR) inData.xyz = UnpackColor(mat.x).www;
-			inData.xyz *= inData.w;
-			outData += inData * (1.0f - outData.w);
-			if((1.0f - outData.w) <= 0.0f) return 0.0f;
-			else return IntersectDistance(marchPos, dir, traversedLevel);
+			uint offset = svoLevelOffsets[traversedLevel];
+			uvec4 illum = svoIllum[offset + nodeIndex];
+
+			// Blend using occlusion values
+			float dataOcclusion;
+			vec3 data = FetchFromIllum(dataOcclusion, illum, marchDir);
+			outData += data * dataOcclusion * (1.0f - occlusion);
+			occlusion += dataOcclusion * (1.0f - occlusion);
+			if((1.0f - occlusion) <= 0.0f) 
+			{
+				return false;
+			}
+			else
+			{
+				position += marchDir * IntersectDistance(position, marchDir, fetchLevel);
+				return true;
+			}
 		}
 	}
-	return -1.0f;
+	// Code Should not Return from here ever
+	return false;
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
@@ -287,32 +355,21 @@ void main(void)
 	uvec2 globalId = gl_GlobalInvocationID.xy;
 	if(any(greaterThanEqual(globalId, viewport.zw))) return;
 
-	uint linearID = gl_GlobalInvocationID.y * viewport.z +
-					gl_GlobalInvocationID.x;
-
 	// Generate Ray
+	vec3 rayDir = normalize(PixelToWorld() - camPos.xyz);
 	vec3 rayPos = camPos.xyz;
-	vec3 rayDir = normalize(PixelToWorld() - rayPos);
-	vec3 marchPos = rayPos;
 
-	// Trace until ray is out of cascade
-	// Worst case march is edge of the voxel cascade
-	vec4 colorOut = vec4(0.0f);
-	float maxMarch = worldPosSpan.w * float(0x1 << (dimDepth.y)) * SQRT_3 * 1.05f;
-	float marchLength = 0;
-	for(float totalMarch = 0.0f;
-		totalMarch < maxMarch;
-		totalMarch += marchLength)
-	{
-		marchLength = FindMarchLength(colorOut, marchPos, rayDir);
-		// March Length zero, we hit a point
-		if(marchLength == 0.0f) break;
-		// March Ray and Continue
-		totalMarch += marchLength;
-		marchPos += marchLength * rayDir;
-	}
-	//if(renderType == RENDER_TYPE_OCCLUSION) colorOut = 1.0f - colorOut;
-	if(renderType == RENDER_TYPE_NORMAL) colorOut = (1.0f + colorOut) * 0.5f;
-	colorOut.w = 1.0f;
-	imageStore(fbo, ivec2(globalId), colorOut); 
+	// Do Ray Marching until
+	// Either ray is fully occluded
+	// Or ray is out of bounds
+	vec3 marchPos = rayPos;
+	vec3 outData = vec3(0.0f); float occlusion = 0.0f;	
+	while(FindMarchLength(outData, occlusion, marchPos, rayDir));
+	
+	// If directional type fit it into color space
+	if(renderType == NORMAL ||
+	   renderType == LIGHT_DIR) 
+		outData = (1.0f + outData) * 0.5f;
+	
+	imageStore(fbo, ivec2(globalId), vec4(outData, 1.0f)); 
 }

@@ -151,9 +151,6 @@ xcopy $(SolutionDir)..\..\Source\Shaders\*.comp $(SolutionDir)..\..\WorkingDir\S
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\Source\Shaders\GLSLBindPoints.h" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="..\..\..\Source\Shaders\ApplyVoxLI.comp" />
     <None Include="..\..\..\Source\Shaders\DetermineSplitCount.comp" />
     <None Include="..\..\..\Source\Shaders\DPass.frag" />
@@ -180,7 +177,6 @@ xcopy $(SolutionDir)..\..\Source\Shaders\*.comp $(SolutionDir)..\..\WorkingDir\S
     <None Include="..\..\..\Source\Shaders\ShadowMapD.geom" />
     <None Include="..\..\..\Source\Shaders\ShadowMapP.geom" />
     <None Include="..\..\..\Source\Shaders\ShadowMapSkeletal.vert" />
-    <None Include="..\..\..\Source\Shaders\VoxAO.comp" />
     <None Include="..\..\..\Source\Shaders\VoxelizeGeom.frag" />
     <None Include="..\..\..\Source\Shaders\VoxelizeGeom.geom" />
     <None Include="..\..\..\Source\Shaders\VoxelizeGeom.vert" />
@@ -194,8 +190,8 @@ xcopy $(SolutionDir)..\..\Source\Shaders\*.comp $(SolutionDir)..\..\WorkingDir\S
     <None Include="..\..\..\Source\Shaders\VoxRenderSkeletal.vert" />
     <None Include="..\..\..\Source\Shaders\VoxRenderWorld.vert" />
     <None Include="..\..\..\Source\Shaders\VoxTraceDeferred.comp" />
-    <None Include="..\..\..\Source\Shaders\VoxTraceDeferredLerp.comp" />
     <None Include="..\..\..\Source\Shaders\VoxTraceWorld.comp" />
+    <None Include="..\..\Common\shaders.ninja" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

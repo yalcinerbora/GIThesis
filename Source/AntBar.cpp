@@ -84,6 +84,7 @@ AntBar::AntBar(AntBar&& other)
 
 AntBar& AntBar::operator=(AntBar&& other)
 {
+	if(bar) TwDeleteBar(bar);
 	assert(this != &other);
 	const_cast<std::string&>(barName) = std::move(other.barName);
 	if(bar) TwDeleteBar(bar);

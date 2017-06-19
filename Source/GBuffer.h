@@ -44,7 +44,7 @@ class GBuffer
 					~GBuffer();
 
 		void		BindAsTexture(GLuint texTarget, 
-								  RenderTargetLocation);
+								  RenderTargetLocation) const;
 		void		BindAsFBO();
 		void		AlignViewport();
 

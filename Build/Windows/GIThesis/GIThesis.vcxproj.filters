@@ -306,9 +306,6 @@
     <ClInclude Include="..\..\..\Source\GIVoxelPages.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CHash.cuh">
-      <Filter>GI\Thesis\Kernels\CudaTypes</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\CVoxelTypes.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
@@ -326,9 +323,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\GLSLBindPoints.h">
       <Filter>Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\Source\CSVOLightInject.cuh">
-      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\Source\VoxelVAO.h">
       <Filter>GI\Thesis\OGL</Filter>
@@ -353,6 +347,18 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\GIVoxelCache.h">
       <Filter>GI\Thesis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVOLightInject.cuh">
+      <Filter>GI\Thesis\Kernels\SVOHelpers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVOHash.cuh">
+      <Filter>GI\Thesis\Kernels\SVOHelpers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVONodeReduction.cuh">
+      <Filter>GI\Thesis\Kernels\SVOHelpers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVOMaterialAverage.cuh">
+      <Filter>GI\Thesis\Kernels\SVOHelpers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -404,11 +410,11 @@
     <Filter Include="Scene\Base">
       <UniqueIdentifier>{21f253f4-8054-4ce4-9115-21353b6d6a1e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GI\Thesis\Kernels\CudaTypes">
-      <UniqueIdentifier>{c8570d00-c4e0-4f00-af3e-fd6625875e3d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="GI\Thesis\Kernels\HelperFunctions">
       <UniqueIdentifier>{3b92bc4c-d339-48e3-8366-84dcf40d1b91}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GI\Thesis\Kernels\SVOHelpers">
+      <UniqueIdentifier>{c8570d00-c4e0-4f00-af3e-fd6625875e3d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

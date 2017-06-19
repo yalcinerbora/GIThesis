@@ -58,9 +58,9 @@ class VoxelRenderSelect : public RenderSelect
 		int								cacheCascade;
 		int								pageCascade;
 
-		SVORender						svoRenderType;
-		VoxelRender						cacheRenderType;
-		VoxelRender						pageRenderType;
+		OctreeRenderType				svoRenderType;
+		VoxelRenderType					cacheRenderType;
+		VoxelRenderType					pageRenderType;
 
 	protected:
 	public:
@@ -81,13 +81,13 @@ class VoxelRenderSelect : public RenderSelect
 		void							Down();
 
 		int								SVOLevel() const;
-		SVORender						SVORenderType() const;
+		OctreeRenderType				SVORenderType() const;
 
 		int								CacheCascade() const;
-		VoxelRender						CacheRenderType() const;
+		VoxelRenderType					CacheRenderType() const;
 
 		int								PageCascade() const;
-		VoxelRender						PageRenderType() const;
+		VoxelRenderType					PageRenderType() const;
 		
 
 };

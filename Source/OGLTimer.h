@@ -48,6 +48,7 @@ inline OGLTimer::OGLTimer(OGLTimer&& other)
 
 inline OGLTimer& OGLTimer::operator=(OGLTimer&& other)
 {
+	glDeleteQueries(1, &queryObj);
 	assert(this != &other);
 	queryObj = other.queryObj;
 	timeStamp = other.timeStamp;

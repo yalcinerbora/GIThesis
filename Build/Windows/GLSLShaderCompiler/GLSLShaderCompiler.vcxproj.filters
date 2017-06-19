@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClInclude Include="..\..\..\Source\Shaders\GLSLBindPoints.h" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="..\..\..\Source\Shaders\DPass.frag">
       <Filter>Deferred</Filter>
     </None>
@@ -55,16 +52,10 @@
     <None Include="..\..\..\Source\Shaders\VoxTraceDeferred.comp">
       <Filter>ConeTracing</Filter>
     </None>
-    <None Include="..\..\..\Source\Shaders\VoxTraceDeferredLerp.comp">
-      <Filter>ConeTracing</Filter>
-    </None>
     <None Include="..\..\..\Source\Shaders\VoxTraceWorld.comp">
       <Filter>ConeTracing</Filter>
     </None>
     <None Include="..\..\..\Source\Shaders\VoxGI.comp">
-      <Filter>ConeTracing</Filter>
-    </None>
-    <None Include="..\..\..\Source\Shaders\VoxAO.comp">
       <Filter>ConeTracing</Filter>
     </None>
     <None Include="..\..\..\Source\Shaders\ApplyVoxLI.comp">
@@ -130,6 +121,7 @@
     <None Include="..\..\..\Source\Shaders\DetermineSplitCount.comp">
       <Filter>Voxelization</Filter>
     </None>
+    <None Include="..\..\Common\shaders.ninja" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Deferred">

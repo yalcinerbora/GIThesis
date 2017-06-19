@@ -71,7 +71,7 @@ class GIVoxelCache
 		void									DeallocateGL();
 		double									Draw(bool doTiming,
 													 const Camera& camera,
-													 VoxelRender renderType);
+													 VoxelRenderType renderType);
 
 		// Utility	
 		const std::vector<CMeshVoxelInfo>		CopyMeshObjectInfo(uint32_t cascadeId, uint32_t batchId) const;

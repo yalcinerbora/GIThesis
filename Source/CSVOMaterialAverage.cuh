@@ -2,119 +2,119 @@
 
 #include "CSVOFunctions.cuh"
 #include "CVoxelFunctions.cuh"
-#include "CSVOLightInject.cuh"
+//#include "CSVOLightInject.cuh"
 
-inline __device__ uint64_t AverageColor(const uint64_t& matPortion,
-										const float4& colorUnpack,
-										const float2& illumXY,
-										float occupancy)
+inline __device__ uint64_t AvgIrradianceAndNormal(const uint64_t& illumPortion,
+												  const float4& irradiance,
+												  const float3& normal,
+												  const float occupancy)
 {
-	// Unpack Material	
-	CSVOColor avgColorPacked = UnpackSVOMaterialColorOrNormal(matPortion);
-	CSVOWeight avgWeightPacked = UnpackSVOMaterialWeight(matPortion);
+	// Unpack Illumination
+	uint2 illumSplit = UnpackWords(illumPortion);
+	float4 avgIrrad = UnpackSVOIrradiance(illumSplit.x);
+	float4 avgNormal = UnpackSVONormal(illumSplit.y);
+	
+	// Divisors
+	float invCount = 1.0f / (avgNormal.w + 1.0f);
 
-	half weight;
-	float4 avgColor = UnpackSVOColor(avgColorPacked);
-	float2 avgIllum = UnpackSVOWeight(weight, avgWeightPacked);
+	// Irradiance Average
+	avgIrrad.x = (avgNormal.w * avgIrrad.x + irradiance.x * occupancy) * invCount;
+	avgIrrad.y = (avgNormal.w * avgIrrad.y + irradiance.y * occupancy) * invCount;
+	avgIrrad.z = (avgNormal.w * avgIrrad.z + irradiance.z * occupancy) * invCount;
+	avgIrrad.w = (avgNormal.w * avgIrrad.w + irradiance.w * occupancy) * invCount;
+	
+	// Normal Average
+	avgNormal.x = (avgNormal.w * avgNormal.x + normal.x * occupancy) * invCount;
+	avgNormal.y = (avgNormal.w * avgNormal.y + normal.y * occupancy) * invCount;
+	avgNormal.z = (avgNormal.w * avgNormal.z + normal.z * occupancy) * invCount;
 
-	float ratio = __half2float(weight) / (__half2float(weight) + occupancy);
-	//float ratio = weight / (weight + occupancy);
+	avgNormal.w += 1.0f;
 
-	// Color Avg
-	avgColor.x = (ratio * avgColor.x) + (colorUnpack.x * occupancy / (__half2float(weight) + occupancy));
-	avgColor.y = (ratio * avgColor.y) + (colorUnpack.y * occupancy / (__half2float(weight) + occupancy));
-	avgColor.z = (ratio * avgColor.z) + (colorUnpack.z * occupancy / (__half2float(weight) + occupancy));
-	avgColor.w = (ratio * avgColor.w) + (colorUnpack.w * occupancy / (__half2float(weight) + occupancy));
-	weight = __float2half(__half2float(weight) + occupancy);
-	//weight += occupancy;
-
-	// Illum Avg
-	// TODO lazy simple overwrite since there is single light
-	avgIllum.x = illumXY.x;
-	avgIllum.y = illumXY.y;
-
-	avgColorPacked = PackSVOColor(avgColor);
-	avgWeightPacked = PackSVOWeight(avgIllum, weight);
-	return PackSVOMaterialPortion(avgColorPacked, avgWeightPacked);
+	illumSplit.x = PackSVOIrradiance(avgIrrad);
+	illumSplit.y = PackSVONormal(avgNormal);
+	return PackWords(illumSplit.x, illumSplit.y);
 }
 
-inline __device__ uint64_t AverageNormal(const uint64_t& matPortion,
-										 const float4& normalUnpack,
-										 const float2& illumZW,
-										 float occupancy)
+inline __device__ uint64_t AvgOccupancyAndLightDir(const uint64_t& occupancyPortion,
+												   const float3& lightDir,
+												   const float occupancy)
 {
-	// Unpack Material	
-	CVoxelNorm avgNormalPacked = UnpackSVOMaterialColorOrNormal(matPortion);
-	CSVOWeight avgWeightPacked = UnpackSVOMaterialWeight(matPortion);
+	// Unpack Illumination
+	uint2 illumSplit = UnpackWords(occupancyPortion);
+	float4 avgOccupancy = UnpackSVOOccupancy(illumSplit.x);
+	float4 avgLightDir = UnpackSVOLightDir(illumSplit.y);
 
-	half weight;
-	float4 avgNormal = UnpackSVONormal(avgNormalPacked);
-	float2 avgIllum = UnpackSVOWeight(weight, avgWeightPacked);
+	// Divisors
+	float invCount = 1.0f / (avgLightDir.w + 1.0f);
+	
+	// Irradiance Average
+	avgOccupancy.x = (avgLightDir.w * avgOccupancy.x + occupancy) * invCount;
+	avgOccupancy.y = (avgLightDir.w * avgOccupancy.y + occupancy) * invCount;
+	avgOccupancy.z = (avgLightDir.w * avgOccupancy.z + occupancy) * invCount;
+	avgOccupancy.w = (avgLightDir.w * avgOccupancy.w + occupancy) * invCount;
 
-	float ratio = __half2float(weight) / (__half2float(weight) + occupancy);
-	//float ratio = weight / (weight + occupancy);
+	// Normal Average
+	avgLightDir.x = (avgLightDir.w * avgLightDir.x + lightDir.x * occupancy) * invCount;
+	avgLightDir.y = (avgLightDir.w * avgLightDir.y + lightDir.y * occupancy) * invCount;
+	avgLightDir.z = (avgLightDir.w * avgLightDir.z + lightDir.z * occupancy) * invCount;
 
-	// Normal Avg
-	avgNormal.x = (ratio * avgNormal.x) + (normalUnpack.x * occupancy / (__half2float(weight) + occupancy));
-	avgNormal.y = (ratio * avgNormal.y) + (normalUnpack.y * occupancy / (__half2float(weight) + occupancy));
-	avgNormal.z = (ratio * avgNormal.z) + (normalUnpack.z * occupancy / (__half2float(weight) + occupancy));
-	avgNormal.w = fminf((avgNormal.w + occupancy), 1.0f);
-	weight = __float2half(__half2float(weight) + occupancy);
-	//weight += occupancy;
+	avgLightDir.w += 1.0f;
 
-	// Illum Avg
-	// TODO lazy simple overwrite since there is single light
-	avgIllum.x = illumZW.x;
-	avgIllum.y = illumZW.y;
-
-	avgNormalPacked = PackSVONormal(avgNormal);
-	avgWeightPacked = PackSVOWeight(avgIllum, weight);
-	return PackSVOMaterialPortion(avgNormalPacked, avgWeightPacked);
+	illumSplit.x = PackSVOOccupancy(avgOccupancy);
+	illumSplit.y = PackSVOLightDir(avgLightDir);
+	return PackWords(illumSplit.x, illumSplit.y);
 }
 
-inline __device__ uint64_t AtomicColorAvg(uint64_t* gMaterialColorPortion,
-										  const CSVOColor& color,
-										  const float2& illumXY,
-										  float occupancy)
+
+inline __device__ uint64_t AtomicIllumNormalAvg(uint64_t* gIllumLower,
+												const float4& nodeIrradiance,
+												const float3& nodeNormal,
+												float nodeOccupancy)
 {
-	float4 colorUnpack = UnpackSVOColor(color);
-	uint64_t assumed, old = *gMaterialColorPortion;
+	// CAS Atomic
+	uint64_t assumed, old = *gIllumLower;
 	do
 	{
 		assumed = old;
-		old = atomicCAS(gMaterialColorPortion, assumed,
-						AverageColor(assumed, colorUnpack, illumXY, occupancy));
+		old = atomicCAS(gIllumLower, assumed,
+						AvgIrradianceAndNormal(assumed, 
+											   nodeIrradiance, 
+											   nodeNormal, 
+											   nodeOccupancy));
 	} while(assumed != old);
 	return old;
 }
 
-inline __device__ uint64_t AtomicNormalAvg(uint64_t* gMaterialNormalPortion,
-										   const CVoxelNorm& voxelNormal,
-										   const float2& illumZW,
-										   float occupancy)
+inline __device__ uint64_t AtomicOccupLightDirAvg(uint64_t* gIllumUpper,
+												  const float3& nodeLightDir,
+												  float nodeOccupancy)
 {
-	float4 normalUnpack = UnpackSVONormal(voxelNormal);
-	uint64_t assumed, old = *gMaterialNormalPortion;
-
+	uint64_t assumed, old = *gIllumUpper;
 	do
 	{
 		assumed = old;
-		old = atomicCAS(gMaterialNormalPortion, assumed,
-						AverageNormal(assumed, normalUnpack, illumZW, occupancy));
+		old = atomicCAS(gIllumUpper, assumed,
+						AvgOccupancyAndLightDir(assumed, 
+												nodeLightDir,
+												nodeOccupancy));
 	} while(assumed != old);
 	return old;
 }
 
-inline __device__ CSVOMaterial AtomicAvg(CSVOMaterial* gMaterial,
-										 const CSVOColor& color,
-										 const CVoxelNorm& voxelNormal,
-										 const float4& illumDir,
-										 const float& occupancy)
+inline __device__ CSVOIllumination AtomicAvg(CSVOIllumination* gIllum,
+											 const float4& nodeIrradiance,
+											 const float3& nodeNormal,
+											 const float3& nodeLightDir,
+											 const float nodeOccupancy)
 {
 
-	uint64_t avgC = AtomicColorAvg(&(gMaterial->colorPortion), color,
-	{illumDir.x, illumDir.y}, occupancy);
-	uint64_t avgN = AtomicNormalAvg(&(gMaterial->normalPortion), voxelNormal,
-	{illumDir.z, illumDir.w}, occupancy);
-	return CSVOMaterial{avgC, avgN};
+	uint64_t lower = AtomicIllumNormalAvg(&(gIllum->irradiancePortion),
+										  nodeIrradiance,
+										  nodeNormal,
+										  nodeOccupancy);
+	uint64_t upper = AtomicOccupLightDirAvg(&(gIllum->occupancyPortion),
+											nodeLightDir,
+											nodeOccupancy);
+
+	return CSVOIllumination{lower, upper};
 }

@@ -351,7 +351,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 	lightIntensity = vec3(lambertFactor);
 
 	// Specular
-	float specPower = 16.0f + (texture(gBuffColor, gBuffUV).a) * 4096.0f;
+	float specPower = 16.0f + (texture(gBuffColor, gBuffUV).a) * 2048.0f;
 
 	// Phong
 	//lightIntensity += vec3(pow(max(dot(worldReflect, worldEye), 0.0f), specPower));

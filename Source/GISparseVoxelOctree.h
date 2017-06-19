@@ -14,6 +14,7 @@
 
 class SceneI;
 class GIVoxelPages;
+class GIVoxelCache;
 class DeferredRenderer;
 
 #pragma pack(push, 1)
@@ -195,9 +196,11 @@ class GISparseVoxelOctree
 		Shader							compGI;
 
 		//
-		void							MapOGLData();
+		uint8_t*						MapOGLData();
 		void							UnmapOGLData();
 		double							GenerateHierarchy(const GIVoxelPages& pages,
+														  const GIVoxelCache& caches,
+														  uint32_t batchCount,
 														  const LightInjectParameters& injectParams,
 														  bool injectOn);
 		double							AverageNodes();
@@ -220,6 +223,8 @@ class GISparseVoxelOctree
 		void							UpdateSVO(double& reconstructTime,
 												  double& averageTime,
 												  const GIVoxelPages& pages,
+												  const GIVoxelCache& caches,
+												  uint32_t batchCount,
 												  const LightInjectParameters& injectParams,
 												  bool injectOn);
 		

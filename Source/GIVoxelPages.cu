@@ -734,6 +734,11 @@ uint64_t GIVoxelPages::MemoryUsage() const
 	return totalSize;
 }
 
+uint32_t GIVoxelPages::PageCount() const
+{
+	return static_cast<uint32_t>(dPages.Size());
+}
+
 void GIVoxelPages::DumpPageSegments(const char* fileName, size_t offset, size_t pageCount) const
 {
 	if(pageCount == 0) pageCount = dPages.Size() - offset;
@@ -860,14 +865,12 @@ void  GIVoxelPages::DeallocateDraw()
 	}
 }
 
-
-
 const CVoxelPageConst* GIVoxelPages::getVoxelPages() const
 {
 	return reinterpret_cast<const CVoxelPageConst*>(dPages.Data());
 }
 
-const CVoxelPage* GIVoxelPages::getVoxelPages()
+const CVoxelGrid* GIVoxelPages::getVoxelGrids() const
 {
-	return dPages.Data();
+	return dVoxelGrids;
 }

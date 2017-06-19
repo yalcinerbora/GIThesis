@@ -4,6 +4,9 @@
 #include "SceneLights.h"
 #include "DeferredRenderer.h"
 #include "GLSLBindPoints.h"
+#include "GIVoxelPages.h"
+#include "GIVoxelCache.h"
+#include "SVOKernels.cuh"
 #include <numeric>
 #include <cuda_gl_interop.h>
 
@@ -205,9 +208,8 @@ GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams,
 	, shadowMaps(currentScene->getSceneLights())
 	, compVoxTraceWorld(ShaderType::COMPUTE, "Shaders/VoxTraceWorld.comp")
 	, compVoxSampleWorld(ShaderType::COMPUTE, "Shaders/VoxTraceDeferred.comp")
-	, compGI(ShaderType::COMPUTE, "Shaders/VoxAO.comp")
+	, compGI(ShaderType::COMPUTE, "Shaders/VoxGI.comp")
 {	
-
 	// Generate Initial Sizes for each level
 	std::vector<uint32_t> levelCapacities(octreeParams.MaxSVOLevel + 1, 0);
 	std::vector<uint32_t> internalOffsets(octreeParams.MaxSVOLevel + 1, 0);
@@ -338,7 +340,7 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 	if(gpuResource) CUDA_CHECK(cudaGraphicsUnregisterResource(gpuResource));
 }
 
-void GISparseVoxelOctree::MapOGLData()
+uint8_t* GISparseVoxelOctree::MapOGLData()
 {
 	CUDA_CHECK(cudaGraphicsMapResources(1, &gpuResource));
 
@@ -364,6 +366,7 @@ void GISparseVoxelOctree::MapOGLData()
 	CUDA_CHECK(cudaMemcpy(dOctreeLevels, svoLevels.data(),
 						  (octreeParams->MaxSVOLevel + 1) * sizeof(CSVOLevel),
 						  cudaMemcpyHostToDevice));
+	return oglCudaPtr;
 }
 
 void GISparseVoxelOctree::UnmapOGLData()
@@ -372,9 +375,45 @@ void GISparseVoxelOctree::UnmapOGLData()
 }
 
 double GISparseVoxelOctree::GenerateHierarchy(const GIVoxelPages& pages,
+											  const GIVoxelCache& caches,
+											  uint32_t batchCount,
 											  const LightInjectParameters& injectParams,
 											  bool injectOn)
 {
+	// Gen LI Params
+	CLightInjectParameters liParams = 
+	{
+		injectOn,
+		injectParams.camPos,
+		injectParams.camDir,
+
+		shadowMaps.LightVPMatrices(),
+		shadowMaps.LightParamArray(),
+
+		injectParams.depthNear,
+		injectParams.depthFar,
+		shadowMaps.ShadowMapArray(),
+		shadowMaps.LightCount()
+	};
+	
+	// KC
+	int blockSize = CudaInit::GenBlockSize(static_cast<int>(pages.PageCount() * GIVoxelPages::PageSize));
+	int threadSize = CudaInit::TBP;
+	SVOReconstruct<<<blockSize, threadSize>>>(// SVO
+											  dOctreeLevels,
+											  reinterpret_cast<const CSVOLevelConst*>(dOctreeLevels),
+											  dLevelSizes,
+											  dLevelCapacities,
+											  // Voxel Pages
+											  pages.getVoxelPages(),
+											  pages.getVoxelGrids(),
+											  // Cache Data (for Voxel Albedo)
+											  caches.getDeviceCascadePointersDevice().Data(),
+											  // Light Injection Related
+											  liParams,
+											  // Limits
+											  *octreeParams,
+											  batchCount);
 	return 0.0f;
 }
 
@@ -386,13 +425,22 @@ double GISparseVoxelOctree::AverageNodes()
 void GISparseVoxelOctree::UpdateSVO(double& reconstructTime,
 									double& averageTime,
 									const GIVoxelPages& pages,
+									const GIVoxelCache& caches,
+									uint32_t batchCount,
 									const LightInjectParameters& injectParams,
 									bool injectOn)
 {
-	MapOGLData();
+	uint8_t* oglCudaPtr = MapOGLData();
 	shadowMaps.Map();
 
-	reconstructTime = GenerateHierarchy(pages, injectParams, injectOn);
+	// Clear Node Counts
+	// Clear Nodes and Illum
+	CUDA_CHECK(cudaMemset(dLevelSizes, 0x00, octreeParams->MaxSVOLevel + 1));
+	CUDA_CHECK(cudaMemset(oglCudaPtr + nodeOffset, 0xFF, illumOffset - nodeOffset));
+	CUDA_CHECK(cudaMemset(oglCudaPtr + illumOffset, 0x00, oglData.Count() - illumOffset));
+
+	reconstructTime = GenerateHierarchy(pages, caches, batchCount,
+										injectParams, injectOn);
 	averageTime = AverageNodes();
 
 	shadowMaps.Unmap();

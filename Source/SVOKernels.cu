@@ -1,81 +1,188 @@
-//#include "GIVoxelPages.h"
-//#include "SVOKernels.cuh"
+#include "SVOKernels.cuh"
+#include "GISparseVoxelOctree.h"
+#include "GIVoxelPages.h"
 //#include "CSVOFunctions.cuh"
 //#include "CSVOMaterialAverage.cuh"
-//#include "CVoxelFunctions.cuh"
-//#include "CSVOLightInject.cuh"
-//#include <cuda.h>
-//#include <cuda_fp16.h>
-//#include "GISparseVoxelOctree.h"
-//
-//// Lookup table for determining neigbour nodes
-//// just splitted first 8 values
-//__device__ static const char3 voxLookup[] =
-//{
-//	{0, 0, 0},
-//	{1, 0, 0},
-//	{0, 1, 0},
-//	{1, 1, 0},
-//
-//	{0, 0, 1},
-//	{1, 0, 1},
-//	{0, 1, 1},
-//	{1, 1, 1}
-//};
-//
-//inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int& gLevelAllocator)
-//{
-//    // Release Configuration Optimization fucks up the code
-//    // Prob changes some memory i-o ordering
-//    // Its fixed but comment is here for future
-//    // Problem here was cople threads on the same warp waits eachother and
-//    // after some memory ordering changes by compiler responsible thread waits
-//    // other threads execution to be done
-//    // Code becomes something like this after compiler changes some memory orderings
-//    //
-//    //	while(old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE) == 0xFFFFFFFE); <-- notice semicolon
-//    //	 if(old == 0xFFFFFF)
-//    //		location = allocate();
-//    //	location = old;
-//    //	return location;
-//    //
-//    // first allocating thread will never return from that loop since 
-//    // its warp threads are on infinite loop (so deadlock)
-//
-//    // much cooler version can be warp level exchange intrinsics
-//    // which slightly reduces atomic pressure on the single node (on lower tree levels atleast)
-//
-//	// 0xFFFFFFFF means empty (non-allocated) node
-//	// 0xFFFFFFFE means allocation in progress
-//	// all other numbers are valid nodes (unless of course those are out of bounds)
-//    if(*gNode < 0xFFFFFFFE) return *gNode;
-//
-//    CSVONode old = 0xFFFFFFFE;
-//    while(old == 0xFFFFFFFE)
-//    {
-//        old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE);
-//        if(old == 0xFFFFFFFF)
-//        {
-//            // Allocate
-//            unsigned int location = atomicAdd(&gLevelAllocator, 8);
-//            *reinterpret_cast<volatile CSVONode*>(gNode) = location;
-//            old = location;
-//        }
-//        __threadfence();	// This is important somehow compiler changes this and makes infinite loop on same warp threads
-//    }
-//    return old;
-//}
-//
-//inline __device__ unsigned int TraverseAndAllocate(CSVONode* gNodes,
-//
-//
-//												   unsigned int& gLevelAllocator,
-//												   const unsigned int* gLevelOffsets,
-//												   const uint3& voxelPos, 
-//												   const OctreeParameters& octreeParams,
-//												   const unsigned int level,
-//												   const unsigned int levelMax)
-//{
+#include "CVoxelFunctions.cuh"
+#include "CSVOLightInject.cuh"
+#include <cuda.h>
+
+// No Negative Dimension Expansion (Best case)
+__device__ static const char3 voxLookup8[8] =
+{
+	{0, 0, 0},
+	{1, 0, 0},
+	{0, 1, 0},
+	{1, 1, 0},
+
+	{0, 0, 1},
+	{1, 0, 1},
+	{0, 1, 1},
+	{1, 1, 1}
+};
+
+// Single Negative Dimension Expansion
+__device__ static const char3 voxLookup12[12] =
+{
+	{-1, 0, 0},
+	{ 0, 0, 0},
+	{ 1, 0, 0},
+
+	{-1, 1, 0},
+	{ 0, 1, 0},
+	{ 1, 1, 0},
+
+	{-1, 0, 1},
+	{ 0, 0, 1},
+	{ 1, 0, 1},
+
+	{-1, 1, 1},
+	{ 0, 1, 1},
+	{ 1, 1, 1}
+};
+
+// Two Negative Dimension Expansion
+__device__ static const char3 voxLookup18[18] =
+{
+	{-1, -1, 0},
+	{ 0, -1, 0},
+	{ 1, -1, 0},
+
+	{-1,  0, 0},
+	{ 0,  0, 0},
+	{ 1,  0, 0},
+		  
+	{-1,  1, 0},
+	{ 0,  1, 0},
+	{ 1,  1, 0},
+
+	{-1, -1, 1},
+	{ 0, -1, 1},
+	{ 1, -1, 1},
+
+	{-1,  0, 1},
+	{ 0,  0, 1},
+	{ 1,  0, 1},
+		 
+	{-1,  1, 1},
+	{ 0,  1, 1},
+	{ 1,  1, 1}
+};
+
+
+// All Parent Neigbour Expansion (Worst Case)
+__device__ static const char3 voxLookup27[27] =
+{
+	{-1, -1, -1},
+	{ 0, -1, -1},
+	{ 1, -1, -1},
+
+	{-1,  0, -1},
+	{ 0,  0, -1},
+	{ 1,  0, -1},
+		  
+	{-1,  1, -1},
+	{ 0,  1, -1},
+	{ 1,  1, -1},
+
+	{-1, -1,  0},
+	{ 0, -1,  0},
+	{ 1, -1,  0},
+			  
+	{-1,  0,  0},
+	{ 0,  0,  0},
+	{ 1,  0,  0},
+		 	  
+	{-1,  1,  0},
+	{ 0,  1,  0},
+	{ 1,  1,  0},
+			  
+	{-1, -1,  1},
+	{ 0, -1,  1},
+	{ 1, -1,  1},
+			  
+	{-1,  0,  1},
+	{ 0,  0,  1},
+	{ 1,  0,  1},
+		  	  
+	{-1,  1,  1},
+	{ 0,  1,  1},
+	{ 1,  1,  1}
+};
+
+// VoxLookup Tables
+__device__ static const int8_t voxLookupSizes[4] = {8, 12, 18, 27};
+__device__ static const char3* voxLookupTables[4] = {voxLookup8, voxLookup12, voxLookup18, voxLookup27};
+
+inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int& gLevelAllocator)
+{
+    // Release Configuration Optimization fucks up the code
+    // Prob changes some memory i-o ordering
+    // Its fixed but comment is here for future
+    // Problem here was cople threads on the same warp waits eachother and
+    // after some memory ordering changes by compiler responsible thread waits
+    // other threads execution to be done
+    // Code becomes something like this after compiler changes some memory orderings
+    //
+    //	while(old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE) == 0xFFFFFFFE); <-- notice semicolon
+    //	 if(old == 0xFFFFFF)
+    //		location = allocate();
+    //	location = old;
+    //	return location;
+    //
+    // first allocating thread will never return from that loop since 
+    // its warp threads are on infinite loop (so deadlock)
+	//
+    // much cooler version can be warp level exchange intrinsics
+    // which slightly reduces atomic pressure on the single node (on lower tree levels atleast)
+	//
+	// 0xFFFFFFFF means empty (non-allocated) node
+	// 0xFFFFFFFE means allocation in progress
+	// All other numbers are valid nodes (unless of course those are out of bounds)
+
+	// Just take node if already allocated
+    if(*gNode < 0xFFFFFFFE) return *gNode;
+
+	// Try to lock the node and allocate for that node
+    CSVONode old = 0xFFFFFFFE;
+    while(old == 0xFFFFFFFE)
+    {
+        old = atomicCAS(gNode, 0xFFFFFFFF, 0xFFFFFFFE);
+        if(old == 0xFFFFFFFF)
+        {
+            // Allocate
+            unsigned int location = atomicAdd(&gLevelAllocator, 8);
+            *reinterpret_cast<volatile CSVONode*>(gNode) = location;
+            old = location;
+        }
+        __threadfence();	// This is important somehow compiler changes this and makes infinite loop on same warp threads
+    }
+    return old;
+}
+
+
+inline __device__ unsigned int TraverseAndAllocate(// SVO
+												   CSVOLevel& allocateLevel,
+												   const CSVOLevelConst* svoLevelsConst,
+												   uint32_t& gLevelAllocator,
+												   const uint32_t gLevelCapacity,
+												   // Node Related
+												   const uint3& levelVoxelId,
+												   // Constants
+												   const OctreeParameters& octreeParams,
+												   const unsigned int level)
+{
+	////
+
+	//// Construct Level By Level
+	//const CSVONode* node = ....;
+	//for(uint32_t i = octreeParams.DenseLevel; i < level; i++)
+	//{
+
+	//}
+	// Actual Allocation is done here;
+	return atomicAdd(&gLevelAllocator, 1);
+}
 //
 //
 //
@@ -368,194 +475,294 @@
 //    }
 //}
 //
-//__global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
-//							   CSVONode* gSVOSparse,
-//							   CSVONode* gSVODense,
-//							   unsigned int* gLevelAllocators,
-//
-//							   const unsigned int* gLevelOffsets,
-//							   const unsigned int* gLevelTotalSizes,
-//
-//							   // Voxel Pages
-//							   const CVoxelPageConst* gVoxelPages,
-//							   const CVoxelGrid* gGridInfos,
-//							   // Cache Data (for Voxel Albedo)
-//							   const BatchVoxelCache* gBatchVoxelCache,
-//							   // Limits
-//							   const uint32_t batchCount
-//
-//							   //const unsigned int matSparseOffset,
-//							   //const CSVOConstants& svoConstants,
-//
-//
-//)
-//{
-//	// Shared Memory for generic data
-//	__shared__ CSegmentInfo sSegInfo;
-//	__shared__ CVoxelGrid sGridInfo;
-//	__shared__ uint32_t	sObjTransformId;
-//	__shared__ CMeshVoxelInfo sMeshVoxelInfo;
-//
-//	unsigned int blockLocalId = threadIdx.x;
-//	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-//	unsigned int pageId = globalId / GIVoxelPages::PageSize;
-//	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
-//	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
-//	unsigned int segmentLocalVoxId = pageLocalId % GIVoxelPages::SegmentSize;
-//
-//	// Get Segments Obj Information Struct
-//	CObjectType objType;
-//	CSegmentOccupation occupation;
-//	uint8_t cascadeId;
-//	bool firstOccurance;
-//	if(blockLocalId == 0)
-//	{
-//		// Load to smem
-//		// Todo split this into the threadss
-//		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
-//		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
-//	}
-//	__syncthreads();
-//	if(blockLocalId != 0)
-//	{
-//		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
-//	}
-//	// Full Block Cull
-//	if(occupation == CSegmentOccupation::EMPTY) return;
-//	assert(occupation != CSegmentOccupation::MARKED_FOR_CLEAR);
-//
-//	// If segment is not empty
-//	// Load Block Constants
-//	if(blockLocalId == 0)
-//	{
-//		sMeshVoxelInfo = gBatchVoxelCache[cascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId];
-//		sGridInfo = gGridInfos[cascadeId];
-//	}
-//	__syncthreads();
-//
-//	// Find your opengl data and voxel cache
-//	const uint16_t& batchId = sSegInfo.batchId;
-//	const uint16_t& objectId = sSegInfo.objId;
-//	const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
-//	
-//	// Voxel Ids
-//	const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
-//	const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
-//
-//	CVoxelNorm voxelNormPacked = gVoxelPages[pageId].dGridVoxPos[pageLocalId];
-//	CVoxelPos voxelPosPacked = gVoxelPages[pageId].dGridVoxNorm[pageLocalId];
-//	CVoxelOccupancy voxOccupPacked = gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId];
-//	CVoxelAlbedo voxAlbedoPacked = batchCache.dVoxelAlbedo[batchLocalVoxelId];
-//
-//	// Unpack Occupancy
-//	float3 weights = ExpandOccupancy(voxOccupPacked);
-//
-//	// Light Injection
-//	if(inject)
-//	{
-//		float4 colorSVO = UnpackSVOColor(voxelColorPacked);
-//		float4 normalSVO = UnpackSVONormal(voxelNormPacked);
-//
-//		float3 worldPos =
-//		{
-//			outerCascadePos.x + voxelPos.x * span,
-//			outerCascadePos.y + voxelPos.y * span,
-//			outerCascadePos.z + voxelPos.z * span
-//		};
-//
-//		// First Averager find and inject light
-//		float3 = ambientColor;
-//		float3 illum = LightInject(worldPos,
-//
-//								   colorSVO,
-//								   normalSVO,
-//
-//								   camPos,
-//								   camDir,
-//
-//								   lightVP,
-//								   lightStruct,
-//
-//								   depthNear,
-//								   depthFar,
-//
-//								   shadowMaps,
-//								   lightCount);
-//
-//		colorSVO.x = illum.x;
-//		colorSVO.y = illum.y;
-//		colorSVO.z = illum.z;
-//		voxelColorPacked = PackSVOColor(colorSVO);
-//	}
-//
-//
-//	//printf("cascadeNo %d weights %f, %f, %f\n", cascadeNo, weights.x, weights.y, weights.z);
-//
-//	float totalOccupancy = 0.0f;
-//	for(unsigned int i = 0; i < GI_SVO_WORKER_PER_NODE; i++)
-//	{
-//		// Create NeigNode
-//		uint3 currentVoxPos = voxelPos;
-//		unsigned int cascadeOffset = svoConstants.numCascades - cascadeNo - 1;
-//		currentVoxPos.x += voxLookup[i].x * (voxOffset.x << cascadeOffset);
-//		currentVoxPos.y += voxLookup[i].y * (voxOffset.y << cascadeOffset);
-//		currentVoxPos.z += voxLookup[i].z * (voxOffset.z << cascadeOffset);
-//		
-//		// Calculte this nodes occupancy
-//		float occupancy = 1.0f;
-//		float3 volume;
-//		volume.x = (voxLookup[i].x == 1) ? weights.x : (1.0f - weights.x);
-//		volume.y = (voxLookup[i].y == 1) ? weights.y : (1.0f - weights.y);
-//		volume.z = (voxLookup[i].z == 1) ? weights.z : (1.0f - weights.z);
-//		occupancy = volume.x * volume.y * volume.z;
-//		totalOccupancy += occupancy;
-//
-//		//printf("(%d, %d, %d) occupancy %f\n",
-//		//	   voxLookup[i].z, voxLookup[i].y, voxLookup[i].x,
-//		//	   occupancy);
-//
-//		unsigned int location;
-//		unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
-//		for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
-//		{
-//			unsigned int levelIndex = i - svoConstants.denseDepth;
-//			CSVONode* node = nullptr;
-//			if(i == svoConstants.denseDepth)
-//			{
-//				uint3 levelVoxId = CalculateLevelVoxId(currentVoxPos, i, svoConstants.totalDepth);
-//				node = gSVODense +
-//					svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
-//					svoConstants.denseDim * levelVoxId.y +
-//					levelVoxId.x;
-//			}
-//			else
-//			{
-//				node = gSVOSparse + gLevelOffsets[levelIndex] + location;
-//			}
-//
-//			// Allocate (or acquire) next location
-//			location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
-//			assert(location < gLevelTotalSizes[levelIndex + 1]);
-//
-//			// Offset child
-//			unsigned int childId = CalculateLevelChildId(currentVoxPos, i + 1, svoConstants.totalDepth);
-//			location += childId;
-//		}
-//
-//		AtomicAvg(gSVOMat + matSparseOffset +
-//				  gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location,
-//				  voxelColorPacked,
-//				  voxelNormPacked,
-//				  {0.0f, 0.0f, 0.0f, 0.0f},
-//				  occupancy);
-//
-//		//// Non atmoic overwrite
-//		//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
-//		//		svoConstants.denseDepth] + location].colorPortion = PackSVOMaterialPortion(voxelColorPacked, 0x0);
-//		//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
-//		//		svoConstants.denseDepth] + location].normalPortion = PackSVOMaterialPortion(voxelNormPacked, 0x0);
-//			
-//	}
-//
-//	//printf("total occupancy %f\n", totalOccupancy);
-//}
+__global__ void SVOReconstruct(// SVO
+							   CSVOLevel* gSVOLevels,
+							   const CSVOLevelConst* gSVOLevelsConst,
+							   uint32_t* gLevelAllocators,
+							   const uint32_t* gLevelCapacities,
+							   // Voxel Pages
+							   const CVoxelPageConst* gVoxelPages,
+							   const CVoxelGrid* gGridInfos,
+							   // Cache Data (for Voxel Albedo)
+							   const BatchVoxelCache* gBatchVoxelCache,
+							   // Light Injection Related
+							   const CLightInjectParameters liParams,
+							   // Limits
+							   const OctreeParameters octreeParams,
+							   const uint32_t batchCount)
+{
+	// Shared Memory for generic data
+	__shared__ CSegmentInfo sSegInfo;
+	__shared__ CMeshVoxelInfo sMeshVoxelInfo;
+
+	// Meta Nodes
+	// and their expansion policy (LSB 3 bits 1 means do not expand in negative direction)	
+	__shared__ uint32_t sHashSpotAllocator;
+	__shared__ CVoxelPos sMetaNodes[/*CudaInit::TBP*/521];
+	__shared__ uint8_t sMetaNodeBitmap[/*CudaInit::TBP*/521];
+	__shared__ uint32_t sOccupiedHashSpots[/*CudaInit::TBP*/521];
+
+	unsigned int blockLocalId = threadIdx.x;
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int pageId = globalId / GIVoxelPages::PageSize;
+	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
+	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
+	unsigned int segmentLocalVoxId = pageLocalId % GIVoxelPages::SegmentSize;
+
+	// Get Segments Obj Information Struct
+	CObjectType objType;
+	CSegmentOccupation occupation;
+	uint8_t cascadeId;
+	bool firstOccurance;
+	if(blockLocalId == 0)
+	{
+		// Load to smem
+		// Todo split this into the threadss
+		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
+		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
+		sMeshVoxelInfo = gBatchVoxelCache[cascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId];
+	}
+	__syncthreads();
+	if(blockLocalId != 0)
+	{
+		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
+	}
+	// Full Block Cull
+	if(occupation == CSegmentOccupation::EMPTY) return;
+	assert(occupation != CSegmentOccupation::MARKED_FOR_CLEAR);
+
+	// Find your opengl data and voxel cache
+	const uint16_t& batchId = sSegInfo.batchId;
+	const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
+	
+	// Voxel Ids
+	const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
+	const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
+
+	CVoxelNorm voxelNormPacked = gVoxelPages[pageId].dGridVoxPos[pageLocalId];
+	CVoxelPos voxelPosPacked = gVoxelPages[pageId].dGridVoxNorm[pageLocalId];
+	CVoxelOccupancy voxOccupPacked = gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId];
+	CVoxelAlbedo voxAlbedoPacked = batchCache.dVoxelAlbedo[batchLocalVoxelId];
+
+	// Unpack Occupancy
+	float3 weights = ExpandOccupancy(voxOccupPacked);
+	uint4 voxelPos = ExpandVoxPos(voxelPosPacked);
+
+	// From now on there is extremely heavy work per thread (or multi-thread)
+	// Each thread will create 8 neigburing sample voxels
+	// All of those voxels may require additional nodes (up to 8)
+	// Which means worst case (64 nodes will be required to be generated per pageVoxel)
+
+	// Some sort of filtering/reduction is mandatory performance-wise and reduction
+	// should generate improvements since many page voxels are adjacent to each other
+	// (they represent same object thus should spatially be closer))
+	uint3 nodePos = ExpandToSVODepth(voxelPos,
+									 octreeParams.CascadeCount,
+									 octreeParams.CascadeBaseLevel);
+	
+	// Construct Level By Level
+	for(uint32_t i = octreeParams.DenseLevel; i <= (octreeParams.MaxSVOLevel - voxelPos.w); i++)
+	{
+		// Before Hash Resolve Initialize Hash Tables
+		if(blockLocalId == 0) sHashSpotAllocator = 0;
+		sMetaNodes[blockLocalId] = 0xFFFFFFF;
+		sMetaNodeBitmap[blockLocalId] = 0xFF;
+		__syncthreads();
+
+		// Determine Meta Node of this level and
+		// Determine Bitmap
+		uint3 levelNodePos = CalculateLevelVoxId(nodePos, i, octreeParams.MaxSVOLevel);
+		uint3 metaNode;
+		metaNode.x = levelNodePos.x & 0xFFFFFFFE;
+		metaNode.y = levelNodePos.x & 0xFFFFFFFE;
+		metaNode.z = levelNodePos.x & 0xFFFFFFFE;
+		uint8_t bitmap = 0x00;
+		bitmap |= (levelNodePos.z & 0x1) << 2;
+		bitmap |= (levelNodePos.y & 0x1) << 1;
+		bitmap |= (levelNodePos.x & 0x1) << 0;
+
+		// Hash this Bitmap (reduction)
+		// TODO:
+		__syncthreads();
+
+
+		// We reduced nodes to some degree
+		// Now each 8 thread will be responsible 
+		// for allocating a Meta node
+		uint32_t hashId = blockLocalId / 8;
+		uint32_t hashLocalId = blockLocalId % 8;
+		if(hashId <= sHashSpotAllocator)
+		{
+			// Meta Node
+			uint32_t metaNode = sMetaNodes[sOccupiedHashSpots[hashId]];
+			uint8_t metaNodeBits = sMetaNodeBitmap[sOccupiedHashSpots[hashId]];
+
+			// Find out generation size and lookup tables
+			int8_t loopCount = static_cast<int8_t>(__popc(~metaNodeBits) + 1);
+			const char3* lookupTable = voxLookupTables[loopCount - 1];
+			const int8_t lookupCount = voxLookupSizes[loopCount - 1];			
+			for(int8_t j = 0; j < loopCount; j++)
+			{
+				uint32_t hasNodeId = j * hashLocalId;
+				if(hasNodeId > lookupCount) continue;
+				
+				uint4 expandedNode = ExpandVoxPos(metaNode);
+				uint3 currentVoxPos;
+				currentVoxPos.x = expandedNode.x + lookupTable[hasNodeId].x;
+				currentVoxPos.y = expandedNode.y + lookupTable[hasNodeId].y;
+				currentVoxPos.z = expandedNode.z + lookupTable[hasNodeId].z;
+
+				uint32_t node = TraverseAndAllocate(// SVO
+													gSVOLevels[i],
+													gSVOLevelsConst,
+													gLevelAllocators[i],
+													gLevelCapacities[i],
+													//
+													currentVoxPos,
+													octreeParams,
+													i);
+			}
+
+		}
+
+		// This level's nodes are allocated now to the next level
+		__syncthreads();
+	}
+
+	__threadfence();
+	// All Levels are Allocated (for this block at least)
+
+
+
+
+	//CSVONode* node = nullptr;
+	//if(i == octreeParams.DenseLevel)
+	//{
+	//	uint3 levelVoxId = CalculateLevelVoxId(currentVoxPos, i, svoConstants.totalDepth);
+	//	node = gSVODense +
+	//		svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+	//		svoConstants.denseDim * levelVoxId.y +
+	//		levelVoxId.x;
+	//}
+	//else
+	//{
+	//	node = gSVOSparse + gLevelOffsets[levelIndex] + location;
+	//}
+
+	//// Allocate (or acquire) next location
+	//location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
+	//assert(location < gLevelTotalSizes[levelIndex + 1]);
+
+
+
+
+
+
+	//// Light Injection
+	//if(inject)
+	//{
+	//	float4 colorSVO = UnpackSVOColor(voxelColorPacked);
+	//	float4 normalSVO = UnpackSVONormal(voxelNormPacked);
+
+	//	float3 worldPos =
+	//	{
+	//		outerCascadePos.x + voxelPos.x * span,
+	//		outerCascadePos.y + voxelPos.y * span,
+	//		outerCascadePos.z + voxelPos.z * span
+	//	};
+
+	//	// First Averager find and inject light
+	//	float3 = ambientColor;
+	//	float3 illum = LightInject(worldPos,
+
+	//							   colorSVO,
+	//							   normalSVO,
+
+	//							   camPos,
+	//							   camDir,
+
+	//							   lightVP,
+	//							   lightStruct,
+
+	//							   depthNear,
+	//							   depthFar,
+
+	//							   shadowMaps,
+	//							   lightCount);
+
+	//	colorSVO.x = illum.x;
+	//	colorSVO.y = illum.y;
+	//	colorSVO.z = illum.z;
+	//	voxelColorPacked = PackSVOColor(colorSVO);
+	//}
+
+	////printf("cascadeNo %d weights %f, %f, %f\n", cascadeNo, weights.x, weights.y, weights.z);
+
+	//float totalOccupancy = 0.0f;
+	//for(unsigned int i = 0; i < GI_SVO_WORKER_PER_NODE; i++)
+	//{
+	//	// Create NeigNode
+	//	uint3 currentVoxPos = voxelPos;
+	//	unsigned int cascadeOffset = svoConstants.numCascades - cascadeNo - 1;
+	//	currentVoxPos.x += voxLookup[i].x * (voxOffset.x << cascadeOffset);
+	//	currentVoxPos.y += voxLookup[i].y * (voxOffset.y << cascadeOffset);
+	//	currentVoxPos.z += voxLookup[i].z * (voxOffset.z << cascadeOffset);
+	//	
+	//	// Calculte this nodes occupancy
+	//	float occupancy = 1.0f;
+	//	float3 volume;
+	//	volume.x = (voxLookup[i].x == 1) ? weights.x : (1.0f - weights.x);
+	//	volume.y = (voxLookup[i].y == 1) ? weights.y : (1.0f - weights.y);
+	//	volume.z = (voxLookup[i].z == 1) ? weights.z : (1.0f - weights.z);
+	//	occupancy = volume.x * volume.y * volume.z;
+	//	totalOccupancy += occupancy;
+
+	//	//printf("(%d, %d, %d) occupancy %f\n",
+	//	//	   voxLookup[i].z, voxLookup[i].y, voxLookup[i].x,
+	//	//	   occupancy);
+
+	//	unsigned int location;
+	//	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
+	//	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
+	//	{
+	//		unsigned int levelIndex = i - svoConstants.denseDepth;
+	//		CSVONode* node = nullptr;
+	//		if(i == svoConstants.denseDepth)
+	//		{
+	//			uint3 levelVoxId = CalculateLevelVoxId(currentVoxPos, i, svoConstants.totalDepth);
+	//			node = gSVODense +
+	//				svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+	//				svoConstants.denseDim * levelVoxId.y +
+	//				levelVoxId.x;
+	//		}
+	//		else
+	//		{
+	//			node = gSVOSparse + gLevelOffsets[levelIndex] + location;
+	//		}
+
+	//		// Allocate (or acquire) next location
+	//		location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
+	//		assert(location < gLevelTotalSizes[levelIndex + 1]);
+
+	//		// Offset child
+	//		unsigned int childId = CalculateLevelChildId(currentVoxPos, i + 1, svoConstants.totalDepth);
+	//		location += childId;
+	//	}
+
+	//	AtomicAvg(gSVOMat + matSparseOffset +
+	//			  gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location,
+	//			  voxelColorPacked,
+	//			  voxelNormPacked,
+	//			  {0.0f, 0.0f, 0.0f, 0.0f},
+	//			  occupancy);
+
+	//	//// Non atmoic overwrite
+	//	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
+	//	//		svoConstants.denseDepth] + location].colorPortion = PackSVOMaterialPortion(voxelColorPacked, 0x0);
+	//	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
+	//	//		svoConstants.denseDepth] + location].normalPortion = PackSVOMaterialPortion(voxelNormPacked, 0x0);
+	//		
+	//}
+
+	////printf("total occupancy %f\n", totalOccupancy);
+}

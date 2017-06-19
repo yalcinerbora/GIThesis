@@ -56,10 +56,10 @@ inline __device__ float4 UnpackSVOLightDir(const CSVOLightDir& lightDir)
 inline __device__ CSVOIrradiance PackSVOIrradiance(const float4& irradiance)
 {
 	CSVOIrradiance packed;
-	packed = static_cast<unsigned int>(color.w * 255.0f) << 24;
-	packed |= static_cast<unsigned int>(color.z * 255.0f) << 16;
-	packed |= static_cast<unsigned int>(color.y * 255.0f) << 8;
-	packed |= static_cast<unsigned int>(color.x * 255.0f) << 0;
+	packed = static_cast<unsigned int>(irradiance.w * 255.0f) << 24;
+	packed |= static_cast<unsigned int>(irradiance.z * 255.0f) << 16;
+	packed |= static_cast<unsigned int>(irradiance.y * 255.0f) << 8;
+	packed |= static_cast<unsigned int>(irradiance.x * 255.0f) << 0;
 	return packed;
 }
 
@@ -93,15 +93,6 @@ inline __device__ uint64_t PackWords(const uint32_t& upper,
 	return mat;
 }
 
-inline __device__ uint2 UnpackWords(const uint64_t& portion)
-{
-	return
-	{
-		UnpackLowerWord(portion),
-		UnpackUpperWord(portion)
-	};
-}
-
 inline __device__ unsigned int UnpackLowerWord(const uint64_t& portion)
 {
 	return static_cast<unsigned int>(portion & 0x00000000FFFFFFFF);
@@ -112,15 +103,24 @@ inline __device__ unsigned int UnpackUpperWord(const uint64_t& portion)
 	return static_cast<unsigned int>((portion & 0xFFFFFFFF00000000) >> 32);
 }
 
+inline __device__ uint2 UnpackWords(const uint64_t& portion)
+{
+	return
+	{
+		UnpackLowerWord(portion),
+		UnpackUpperWord(portion)
+	};
+}
+
 // Node Manipulation
 inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
 													 const unsigned int levelDepth,
-													 const unsigned int totalDepth)
+													 const unsigned int maxSVODepth)
 {
 	unsigned int bitSet = 0;
-	bitSet |= ((voxelPos.z >> (totalDepth - levelDepth)) & 0x000000001) << 2;
-	bitSet |= ((voxelPos.y >> (totalDepth - levelDepth)) & 0x000000001) << 1;
-	bitSet |= ((voxelPos.x >> (totalDepth - levelDepth)) & 0x000000001) << 0;
+	bitSet |= ((voxelPos.z >> (maxSVODepth - levelDepth)) & 0x000000001) << 2;
+	bitSet |= ((voxelPos.y >> (maxSVODepth - levelDepth)) & 0x000000001) << 1;
+	bitSet |= ((voxelPos.x >> (maxSVODepth - levelDepth)) & 0x000000001) << 0;
 	return bitSet;
 }
 
@@ -133,32 +133,33 @@ inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
 
 inline __device__ uint3 CalculateLevelVoxId(const uint3& voxelPos,
 											const unsigned int levelDepth,
-											const unsigned int totalDepth)
+											const unsigned int maxSVODepth)
 {
 	uint3 levelVoxelId;
-	levelVoxelId.x = voxelPos.x >> (totalDepth - levelDepth);
-	levelVoxelId.y = voxelPos.y >> (totalDepth - levelDepth);
-	levelVoxelId.z = voxelPos.z >> (totalDepth - levelDepth);
+	levelVoxelId.x = voxelPos.x >> (maxSVODepth - levelDepth);
+	levelVoxelId.y = voxelPos.y >> (maxSVODepth - levelDepth);
+	levelVoxelId.z = voxelPos.z >> (maxSVODepth - levelDepth);
 	return levelVoxelId;
 }
 
 inline __device__ uint3 ExpandToSVODepth(const uint4& voxelPos,
 										 const unsigned int numCascades,
-										 const unsigned int totalLevel)
+										 const unsigned int baseLevel)
 {
 	unsigned int cascadeNo = voxelPos.w;
+	unsigned int invCascadeNo = (numCascades - cascadeNo - 1);
 
-	uint3 expandedVoxId = {voxelPos.x, voxelPos.y, voxelPos.z};
-	expandedVoxId.x = expandedVoxId.x << (numCascades - cascadeNo - 1);
-	expandedVoxId.y = expandedVoxId.y << (numCascades - cascadeNo - 1);
-	expandedVoxId.z = expandedVoxId.z << (numCascades - cascadeNo - 1);
+	uint3 expandedVoxId;
+	expandedVoxId.x = voxelPos.x << cascadeNo;
+	expandedVoxId.y = voxelPos.y << cascadeNo;
+	expandedVoxId.z = voxelPos.z << cascadeNo;
 
-	for(unsigned int i = 0; i < cascadeNo; i++)
+	for(unsigned int i = 0; i < invCascadeNo; i++)
 	{
 		// Bit expansion of inner cascades
 		// if MSB is 1 it becomes 10
 		// if MSB is 0 it becomes 01
-		unsigned int bitLoc = totalLevel - cascadeNo + i;
+		unsigned int bitLoc = baseLevel + cascadeNo + i;
 		unsigned int rightBitMask = (0x01 << (bitLoc - 1)) - 1;
 		unsigned int componentBit;
 		unsigned int component;

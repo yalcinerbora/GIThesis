@@ -1,14 +1,16 @@
-//#pragma once
-///**
-//
-//Global Illumination Kernels
-//
-//*/
-//
-//#include "CSVOTypes.h"
-//#include "CVoxelTypes.h"
-//
-//
+#pragma once
+/*
+
+Global Illumination Kernels
+
+*/
+
+#include "CSVOTypes.h"
+#include "CVoxelTypes.h"
+#include <cuda.h>
+
+class OctreeParameters;
+
 //// Reconstruct SVO
 //// Creates SVO tree top down manner
 //// For Each Level of the tree
@@ -55,36 +57,18 @@
 //
 //												 const unsigned int parentSize);
 //
-//extern __global__ void SVOReconstruct(CSVOMaterial* gSVOMat,
-//                                      CSVONode* gSVOSparse,
-//                                      CSVONode* gSVODense,
-//                                      unsigned int* gLevelAllocators,
-//
-//                                      const unsigned int* gLevelOffsets,
-//                                      const unsigned int* gLevelTotalSizes,
-//
-//                                      // For Color Lookup
-//                                      const CVoxelPage* gVoxelData,
-//                                      CVoxelAlbedo** gVoxelRenderData,
-//
-//                                      const unsigned int matSparseOffset,
-//                                      const unsigned int cascadeNo,
-//                                      const CSVOConstants& svoConstants,
-//
-//                                      // Light Inject Related
-//                                      bool inject,
-//                                      float span,
-//                                      const float3 outerCascadePos,
-//                                      const float3 ambientColor,
-//
-//                                      const float4 camPos,
-//                                      const float3 camDir,
-//
-//                                      //const CMatrix4x4* lightVP,
-//                                      //const CLight* lightStruct,
-//
-//                                      const float depthNear,
-//                                      const float depthFar,
-//
-//                                      cudaTextureObject_t shadowMaps,
-//                                      const unsigned int lightCount);
+extern __global__ void SVOReconstruct(// SVO
+									  CSVOLevel* gSVOLevels,
+									  const CSVOLevelConst* gSVOLevelsConst,
+									  uint32_t* gLevelAllocators,
+									  const uint32_t* gLevelCapacities,
+									  // Voxel Pages
+									  const CVoxelPageConst* gVoxelPages,
+									  const CVoxelGrid* gGridInfos,
+									  // Cache Data (for Voxel Albedo)
+									  const BatchVoxelCache* gBatchVoxelCache,
+									  // Light Injection Related
+									  const CLightInjectParameters liParams,
+									  // Limits
+									  const OctreeParameters octreeParams,
+									  const uint32_t batchCount);

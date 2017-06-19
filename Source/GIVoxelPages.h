@@ -151,6 +151,7 @@ class GIVoxelPages
 		void									UnmapOGLResources();
 
 		uint64_t								MemoryUsage() const;
+		uint32_t								PageCount() const;
 	
 		// Debug File
 		void									DumpPageSegments(const char*, size_t offset = 0, size_t pageCount = 0) const;
@@ -168,7 +169,7 @@ class GIVoxelPages
 		void									DeallocateDraw();
 
 		const CVoxelPageConst*					getVoxelPages() const;
-		const CVoxelPage*						getVoxelPages();
+		const CVoxelGrid*						getVoxelGrids() const;
 };
 
 static_assert(GIVoxelPages::PageSize % CudaInit::TBP == 0, "Page size must be divisible by thread per block");

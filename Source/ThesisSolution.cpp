@@ -114,8 +114,22 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	voxelPages.UnmapOGLResources();
 	
 	// Do SVO update
-	//voxelOctree.UpdateSVO(svoReconTime, svoAverageTime, voxelPages,
-	//					  , );
+	float depthRange[2];
+	glGetFloatv(GL_DEPTH_RANGE, depthRange);
+	IEVector3 camDir = (mainCam.centerOfInterest - mainCam.pos).Normalize();
+	LightInjectParameters liParams = 
+	{
+		{mainCam.pos[0], mainCam.pos[1], mainCam.pos[2]},
+		{camDir[0], camDir[1], camDir[2]},
+		depthRange[0],
+		depthRange[1]
+	};
+	voxelOctree.UpdateSVO(svoReconTime, svoAverageTime,
+						  voxelPages, voxelCaches,
+						  static_cast<uint32_t>(currentScene->getBatches().size()),
+						  liParams,
+						  injectOn);
+	
 	//// Update FrameTransform Matrices 
 	//// And its inverse realted buffer
 	////assert(TraceWidth == DeferredRenderer::gBuffWidth);

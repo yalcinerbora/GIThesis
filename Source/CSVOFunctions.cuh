@@ -114,13 +114,13 @@ inline __device__ uint2 UnpackWords(const uint64_t& portion)
 
 // Node Manipulation
 inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
-													 const unsigned int levelDepth,
-													 const unsigned int maxSVODepth)
+													 const unsigned int parentLevel,
+													 const unsigned int currentLevel)
 {
 	unsigned int bitSet = 0;
-	bitSet |= ((voxelPos.z >> (maxSVODepth - levelDepth)) & 0x000000001) << 2;
-	bitSet |= ((voxelPos.y >> (maxSVODepth - levelDepth)) & 0x000000001) << 1;
-	bitSet |= ((voxelPos.x >> (maxSVODepth - levelDepth)) & 0x000000001) << 0;
+	bitSet |= ((voxelPos.z >> (currentLevel - parentLevel)) & 0x000000001) << 2;
+	bitSet |= ((voxelPos.y >> (currentLevel - parentLevel)) & 0x000000001) << 1;
+	bitSet |= ((voxelPos.x >> (currentLevel - parentLevel)) & 0x000000001) << 0;
 	return bitSet;
 }
 
@@ -194,23 +194,23 @@ inline __device__ CVoxelPos PackNodeId(const uint3& localVoxelPos,
 	uint3 result = localVoxelPos;
 
 	// Pack it if it does not fit into baseLevel
-	if(cascadeNo < numCascades)
+	if(cascadeNo < numCascades - 1)
 	{
 		unsigned int bitLoc = baseLevel;
 		unsigned int baseBitMask = (0x1 << (bitLoc - 1));
 		unsigned int rightBitMask = baseBitMask - 1;
 		
 		// X
-		result.x = (~result.x) & baseBitMask;
-		result.x |= (result.x) & rightBitMask;
+		result.x = (~localVoxelPos.x) & baseBitMask;
+		result.x |= (localVoxelPos.x) & rightBitMask;
 
 		// Y
-		result.y = (~result.y) & baseBitMask;
-		result.y |= (result.y) & rightBitMask;
+		result.y = (~localVoxelPos.y) & baseBitMask;
+		result.y |= (localVoxelPos.y) & rightBitMask;
 
 		// Z
-		result.z = (~result.z) & baseBitMask;
-		result.z |= (result.z) & rightBitMask;
+		result.z = (~localVoxelPos.z) & baseBitMask;
+		result.z |= (localVoxelPos.z) & rightBitMask;
 	}
 	return PackVoxPos(result);
 }

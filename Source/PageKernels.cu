@@ -119,7 +119,10 @@ __global__ void CopyPage(// OGL Buffer
 			uchar4 voxAlbedo = batchCache.dVoxelAlbedo[batchLocalVoxelId];
 			voxNorm = *reinterpret_cast<uint32_t*>(&voxAlbedo);
 		}
+
+		// Inject Voxel Pos
 		CVoxelPos voxPos = gVoxelPages[pageId].dGridVoxPos[pageLocalId];
+		voxPos |= (cascadeId & 0x00000003) << 30;
 
 		gVoxelPosition[index] = voxPos;
 		gVoxelRender[index] = voxNorm;
@@ -537,22 +540,22 @@ __global__ void VoxelTransform(// Voxel Pages
 	worldPos.z -= sGridInfo.position.z;
 
 	bool outOfBounds;
-	outOfBounds = (worldPos.x < 0.0f) || (worldPos.x >= (sGridInfo.dimension.x - 1) * sGridInfo.span);
-	outOfBounds |= (worldPos.y < 0.0f) || (worldPos.y >= (sGridInfo.dimension.y - 1) * sGridInfo.span);
-	outOfBounds |= (worldPos.z < 0.0f) || (worldPos.z >= (sGridInfo.dimension.z - 1) * sGridInfo.span);
+	outOfBounds = (worldPos.x < 0.0f) || (worldPos.x >= (sGridInfo.dimension.x) * sGridInfo.span);
+	outOfBounds |= (worldPos.y < 0.0f) || (worldPos.y >= (sGridInfo.dimension.y) * sGridInfo.span);
+	outOfBounds |= (worldPos.z < 0.0f) || (worldPos.z >= (sGridInfo.dimension.z) * sGridInfo.span);
 
 	// If its mip dont update inner cascade
 	bool inInnerCascade = false;
 	if(!firstOccurance) // Only do inner culling if object is not first occurance in hierarchy (base level voxel data of the object
 	{
-		inInnerCascade = (worldPos.x >(sGridInfo.dimension.x - 1) * sGridInfo.span * 0.25f) &&
-						 (worldPos.x < (sGridInfo.dimension.x - 1) * sGridInfo.span * 0.75f);
+		inInnerCascade = (worldPos.x > (sGridInfo.dimension.x) * sGridInfo.span * 0.25f) &&
+						 (worldPos.x < (sGridInfo.dimension.x) * sGridInfo.span * 0.75f);
 
-		inInnerCascade &= (worldPos.y >(sGridInfo.dimension.y - 1) * sGridInfo.span * 0.25f) &&
-						  (worldPos.y < (sGridInfo.dimension.y - 1) * sGridInfo.span * 0.75f);
+		inInnerCascade &= (worldPos.y > (sGridInfo.dimension.y) * sGridInfo.span * 0.25f) &&
+						  (worldPos.y < (sGridInfo.dimension.y) * sGridInfo.span * 0.75f);
 
-		inInnerCascade &= (worldPos.z >(sGridInfo.dimension.z - 1) * sGridInfo.span * 0.25f) &&
-						  (worldPos.z < (sGridInfo.dimension.z - 1) * sGridInfo.span * 0.75f);
+		inInnerCascade &= (worldPos.z > (sGridInfo.dimension.z) * sGridInfo.span * 0.25f) &&
+						  (worldPos.z < (sGridInfo.dimension.z) * sGridInfo.span * 0.75f);
 	}
 	outOfBounds |= inInnerCascade;
 
@@ -590,7 +593,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	// Discard the out of bound voxels
 	//outOfBounds = false;
 	if(!outOfBounds)
-	{
+	{	
 		// Write to page
 		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = PackVoxPos(voxPos);
 		gVoxelPages[pageId].dGridVoxNorm[pageLocalId] = PackVoxNormal(normal);

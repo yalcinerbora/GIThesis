@@ -220,7 +220,7 @@ int main()
 	EmptyGISolution emptySolution(inputManager, deferredRenderer, "No GI");
 	ThesisSolution thesisSolution(6,		// Dense Level
 								  4,		// Dense Count
-								  2,		// Cascade Count
+								  3,		// Cascade Count
 								  9,		// Base Level
 								  0.6f,		// Base Span
 								  inputManager, deferredRenderer, "Thesis GI");

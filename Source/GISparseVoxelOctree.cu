@@ -362,7 +362,7 @@ void GISparseVoxelOctree::MapOGLData()
 		CSVONode* nodePtr = nullptr;
 		CSVOIllumination* illumPtr = reinterpret_cast<CSVOIllumination*>(oglCudaPtr + illumOffset)
 																		 + hIllumOffsets[i];
-		if(i < octreeParams->DenseLevel)
+		if(i >= octreeParams->DenseLevel)
 		{
 			nodePtr = reinterpret_cast<CSVONode*>(oglCudaPtr + nodeOffset) 
 												  + (hIllumOffsets[i] - nodeIllumDifference);
@@ -421,27 +421,27 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 		shadowMaps.LightCount()
 	};
 	
-	//// KC
-	//int gridSize = 1;// CudaInit::GenBlockSize(static_cast<int>(pages.PageCount() * GIVoxelPages::PageSize));
-	//int blockSize = CudaInit::TBP;
-	//SVOReconstruct<<<gridSize, blockSize>>>(// SVO
-	//									    dOctreeLevels,
-	//									    reinterpret_cast<const CSVOLevelConst*>(dOctreeLevels),
-	//									    dLevelSizes,
-	//									    dLevelCapacities,
-	//									    // Voxel Pages
-	//									    pages.getVoxelPages(),
-	//									    pages.getVoxelGrids(),
-	//									    // Cache Data (for Voxel Albedo)
-	//									    caches.getDeviceCascadePointersDevice().Data(),
-	//									    // Light Injection Related
-	//									    liParams,
-	//									    // Limits
-	//									    *octreeParams,
-	//									    batchCount);
-	//CUDA_KERNEL_CHECK();
-	//cudaDeviceSynchronize();
-	//GI_LOG("-----");
+	// KC
+	int gridSize = CudaInit::GenBlockSize(static_cast<int>(pages.PageCount() * GIVoxelPages::PageSize));
+	int blockSize = CudaInit::TBP;
+	SVOReconstruct<<<gridSize, blockSize>>>(// SVO
+										    dOctreeLevels,
+										    reinterpret_cast<const CSVOLevelConst*>(dOctreeLevels),
+										    dLevelSizes,
+										    dLevelCapacities,
+										    // Voxel Pages
+										    pages.getVoxelPages(),
+										    pages.getVoxelGrids(),
+										    // Cache Data (for Voxel Albedo)
+										    caches.getDeviceCascadePointersDevice().Data(),
+										    // Light Injection Related
+										    liParams,
+										    // Limits
+										    *octreeParams,
+										    batchCount);
+	CUDA_KERNEL_CHECK();
+	cudaDeviceSynchronize();
+	GI_LOG("-----");
 
 	if(doTiming)
 	{

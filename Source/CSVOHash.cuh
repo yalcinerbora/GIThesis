@@ -72,10 +72,10 @@ inline __device__ void HashMap(// Hash table
 			return;
 		}
 		// Quadratic Probing
-		//int32_t offset = (i + 1) * (i + 1) * (((i + 1) % 2 == 0) ? -1 : 1);
-		//index = (HashFunction(key, tableSize) + offset) % tableSize;
+		int32_t offset = (i + 1) * (i + 1) * (((i + 1) % 2 == 0) ? -1 : 1);
+		index = (HashFunction(key, tableSize) + offset) % tableSize;
 		// Linear Probing
-		index = (HashFunction(key, tableSize) + i + 1) % tableSize;
+		//index = (HashFunction(key, tableSize) + i + 1) % tableSize;
 	}
 	// We couldnt be able to add node,
 	// this should never happen hash table is always sufficiently large.
@@ -96,11 +96,15 @@ inline __device__ void HashTableReset(uint32_t& sHashSpotAllocator,
 									  const uint32_t HashSize)
 {
 	if(threadIdx.x == 0) sHashSpotAllocator = 0;
-	sMetaNodes[threadIdx.x] = 0xFFFFFFFF;
-	sMetaNodeBitmap[threadIdx.x] = 0xFFFFFFFF;
-	if(threadIdx.x < (HashSize % blockDim.x))
-	{
-		sMetaNodes[threadIdx.x + blockDim.x] = 0xFFFFFFFF;
-		sMetaNodeBitmap[threadIdx.x + blockDim.x] = 0xFFFFFFFF;
+
+	uint32_t iterationCount = (HashSize + blockDim.x - 1) / blockDim.x;
+	for(uint32_t i = 0; i < iterationCount; i++)
+	{		
+		uint32_t sharedMemId = i * blockDim.x + threadIdx.x;
+		if(sharedMemId < HashSize)
+		{
+			sMetaNodes[sharedMemId] = 0xFFFFFFFF;
+			sMetaNodeBitmap[sharedMemId] = 0xFFFFFFFF;
+		}
 	}
 }

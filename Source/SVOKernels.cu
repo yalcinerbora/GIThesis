@@ -1,8 +1,7 @@
 #include "SVOKernels.cuh"
 #include "GISparseVoxelOctree.h"
 #include "GIVoxelPages.h"
-//#include "CSVOFunctions.cuh"
-//#include "CSVOMaterialAverage.cuh"
+#include "CSVOHash.cuh"
 #include "CVoxelFunctions.cuh"
 #include "CSVOLightInject.cuh"
 #include <cuda.h>
@@ -181,7 +180,8 @@ inline __device__ unsigned int TraverseAndAllocate(// SVO
 
 	//}
 	// Actual Allocation is done here;
-	return atomicAdd(&gLevelAllocator, 1);
+	//return atomicAdd(&gLevelAllocator, 1);
+	return 0;
 }
 //
 //
@@ -491,16 +491,18 @@ __global__ void SVOReconstruct(// SVO
 							   const OctreeParameters octreeParams,
 							   const uint32_t batchCount)
 {
+
 	// Shared Memory for generic data
 	__shared__ CSegmentInfo sSegInfo;
 	__shared__ CMeshVoxelInfo sMeshVoxelInfo;
 
 	// Meta Nodes
-	// and their expansion policy (LSB 3 bits 1 means do not expand in negative direction)	
+	// and their expansion policy (LSB 3 bits 1 means do not expand in negative direction)
+	constexpr int32_t HashSize = /*263;*/523;//1031;
 	__shared__ uint32_t sHashSpotAllocator;
-	__shared__ CVoxelPos sMetaNodes[/*CudaInit::TBP*/521];
-	__shared__ uint8_t sMetaNodeBitmap[/*CudaInit::TBP*/521];
-	__shared__ uint32_t sOccupiedHashSpots[/*CudaInit::TBP*/521];
+	__shared__ CVoxelPos sMetaNodes[HashSize];
+	__shared__ uint32_t sMetaNodeBitmap[HashSize];
+	__shared__ uint32_t sOccupiedHashSpots[HashSize];
 
 	unsigned int blockLocalId = threadIdx.x;
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
@@ -520,7 +522,6 @@ __global__ void SVOReconstruct(// SVO
 		// Todo split this into the threadss
 		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
 		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
-		sMeshVoxelInfo = gBatchVoxelCache[cascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId];
 	}
 	__syncthreads();
 	if(blockLocalId != 0)
@@ -530,101 +531,179 @@ __global__ void SVOReconstruct(// SVO
 	// Full Block Cull
 	if(occupation == CSegmentOccupation::EMPTY) return;
 	assert(occupation != CSegmentOccupation::MARKED_FOR_CLEAR);
+	if(blockLocalId == 0)
+	{
+		sMeshVoxelInfo = gBatchVoxelCache[cascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId];
+	}
+	__syncthreads();
 
-	// Find your opengl data and voxel cache
-	const uint16_t& batchId = sSegInfo.batchId;
-	const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
+	// Fetch Position and Normal
+	const CVoxelNorm voxelNormPacked = gVoxelPages[pageId].dGridVoxPos[pageLocalId];
+	const CVoxelPos voxelPosPacked = gVoxelPages[pageId].dGridVoxNorm[pageLocalId];
+
+	// Unpack Position
+	uint3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxelPosPacked),
+									 cascadeId,
+									 octreeParams.CascadeCount,
+									 octreeParams.CascadeBaseLevel);
 	
-	// Voxel Ids
-	const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
-	const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
-
-	CVoxelNorm voxelNormPacked = gVoxelPages[pageId].dGridVoxPos[pageLocalId];
-	CVoxelPos voxelPosPacked = gVoxelPages[pageId].dGridVoxNorm[pageLocalId];
-	CVoxelOccupancy voxOccupPacked = gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId];
-	CVoxelAlbedo voxAlbedoPacked = batchCache.dVoxelAlbedo[batchLocalVoxelId];
-
-	// Unpack Occupancy
-	float3 weights = ExpandOccupancy(voxOccupPacked);
-	uint4 voxelPos = ExpandVoxPos(voxelPosPacked);
-
 	// From now on there is extremely heavy work per thread (or multi-thread)
 	// Each thread will create 8 neigburing sample voxels
 	// All of those voxels may require additional nodes (up to 8)
-	// Which means worst case (64 nodes will be required to be generated per pageVoxel)
+	// Which means worst case (64 nodes (27 parents) will be required to be generated per pageVoxel)
 
 	// Some sort of filtering/reduction is mandatory performance-wise and reduction
 	// should generate improvements since many page voxels are adjacent to each other
 	// (they represent same object thus should spatially be closer))
-	uint3 nodePos = ExpandToSVODepth(voxelPos,
-									 octreeParams.CascadeCount,
-									 octreeParams.CascadeBaseLevel);
 	
+
+	//if(blockIdx.x == 0 && blockLocalId < 64 &&
+	//   objectLocalVoxelId < sMeshVoxelInfo.voxCount)
+	//{
+	//	printf("My Packed Voxel (%d)\n",
+	//		   voxelPosPacked);
+	//	printf("My Voxel (%d %d %d %d)\n",
+	//		   voxelPos.x, voxelPos.y, voxelPos.z, voxelPos.w);
+	//	printf("My node (%d %d %d)\n",
+	//		   nodePos.x, nodePos.y, nodePos.z);
+	//}
+	
+	//if(globalId == 0)
+	//{
+	//	printf("Dense Level %d\n", octreeParams.DenseLevel);
+	//	printf("Dense Size %d\n", octreeParams.DenseSize);
+	//	printf("Dense Size Cube %d\n", octreeParams.DenseSizeCube);
+	//	printf("Dense Level Count %d\n", octreeParams.DenseLevelCount);
+
+	//	printf("Cascade Count %d\n", octreeParams.CascadeCount);
+	//	printf("Cascade Base Level %d\n", octreeParams.CascadeBaseLevel);
+	//	printf("Cascade Base Level Size %d\n", octreeParams.CascadeBaseLevelSize);
+
+	//	printf("Base Span %f\n", octreeParams.BaseSpan);
+
+	//	printf("Min SVO Level %d\n", octreeParams.MinSVOLevel);
+	//	printf("Max SVO Level %d\n", octreeParams.MaxSVOLevel);
+	//}
+
 	// Construct Level By Level
-	for(uint32_t i = octreeParams.DenseLevel; i <= (octreeParams.MaxSVOLevel - voxelPos.w); i++)
+	uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - cascadeId;
+	for(uint32_t i = octreeParams.DenseLevel + 1; i <= cascadeMaxLevel; i++)
 	{
 		// Before Hash Resolve Initialize Hash Tables
-		if(blockLocalId == 0) sHashSpotAllocator = 0;
-		sMetaNodes[blockLocalId] = 0xFFFFFFF;
-		sMetaNodeBitmap[blockLocalId] = 0xFF;
+		HashTableReset(sHashSpotAllocator,
+					   sMetaNodes,
+					   sMetaNodeBitmap,
+					   HashSize);
 		__syncthreads();
 
-		// Determine Meta Node of this level and
-		// Determine Bitmap
-		uint3 levelNodePos = CalculateLevelVoxId(nodePos, i, octreeParams.MaxSVOLevel);
-		uint3 metaNode;
-		metaNode.x = levelNodePos.x & 0xFFFFFFFE;
-		metaNode.y = levelNodePos.x & 0xFFFFFFFE;
-		metaNode.z = levelNodePos.x & 0xFFFFFFFE;
-		uint8_t bitmap = 0x00;
-		bitmap |= (levelNodePos.z & 0x1) << 2;
-		bitmap |= (levelNodePos.y & 0x1) << 1;
-		bitmap |= (levelNodePos.x & 0x1) << 0;
+		// Hash this Meta node (reduction)
+		// Only hash if your node is valid (which is determined by normal)
+		if(voxelNormPacked != 0xFFFFFFFF)
+		{
+			// Determine Meta Node of this level and
+			// Determine Bitmap
+			uint3 levelNodePos = CalculateParentVoxId(nodePos, i, cascadeMaxLevel);
+			uint3 metaNode;
+			metaNode.x = levelNodePos.x & 0xFFFFFFFE;
+			metaNode.y = levelNodePos.y & 0xFFFFFFFE;
+			metaNode.z = levelNodePos.z & 0xFFFFFFFE;
+			uint8_t bitmap = 0x00;
+			bitmap |= (levelNodePos.z & 0x1) << 2;
+			bitmap |= (levelNodePos.y & 0x1) << 1;
+			bitmap |= (levelNodePos.x & 0x1) << 0;
+			CVoxelPos metaNodePacked = PackNodeId(metaNode, i, 
+												  octreeParams.CascadeCount,
+												  octreeParams.CascadeBaseLevel,
+												  octreeParams.MaxSVOLevel);	
 
-		// Hash this Bitmap (reduction)
-		// TODO:
+			//if(blockIdx.x == 0 && i == 9)
+			//{
+			//	uint3 unpack = ExpandVoxPos(voxelPosPacked);
+			//	printf("My Packed Voxel (%#010X) "
+			//		   "My Voxel Pos (%d %d %d) "
+			//		   "My Node Pos (%d %d %d) "
+			//		   "After Pack (%#010X) "
+			//		   "\n",
+			//		   voxelPosPacked,
+			//		   unpack.x, unpack.y, unpack.z,
+			//		   nodePos.x, nodePos.y, nodePos.z,
+			//		   metaNodePacked);
+			//}
+
+
+			// Hashing
+			HashMap(// Hash table
+					sMetaNodes,
+					sMetaNodeBitmap,
+					// Linear storage of occupied locations of hash table
+					sOccupiedHashSpots,
+					sHashSpotAllocator,
+					// Key value
+					metaNodePacked,
+					bitmap,
+					// Hash table limits
+					HashSize);
+		}
 		__syncthreads();
-
+		
+		if(blockIdx.x == 0 &&
+		   blockLocalId == 0)
+		{			
+			printf("Level #%d Meta Node Count %d\n", i, sHashSpotAllocator);
+		}
 
 		// We reduced nodes to some degree
 		// Now each 8 thread will be responsible 
 		// for allocating a Meta node
-		uint32_t hashId = blockLocalId / 8;
-		uint32_t hashLocalId = blockLocalId % 8;
-		if(hashId <= sHashSpotAllocator)
+		// First entire block will loop around nodes
+		constexpr uint32_t threadPerMetaNode = 8;
+		const uint32_t workerCount = blockDim.x / threadPerMetaNode;
+		const uint32_t iterationCount = (sHashSpotAllocator + workerCount - 1) / workerCount;
+		assert(blockDim.x % threadPerMetaNode == 0);
+		for(int k = 0; k < iterationCount; k++)
 		{
-			// Meta Node
-			uint32_t metaNode = sMetaNodes[sOccupiedHashSpots[hashId]];
-			uint8_t metaNodeBits = sMetaNodeBitmap[sOccupiedHashSpots[hashId]];
-
-			// Find out generation size and lookup tables
-			int8_t loopCount = static_cast<int8_t>(__popc(~metaNodeBits) + 1);
-			const char3* lookupTable = voxLookupTables[loopCount - 1];
-			const int8_t lookupCount = voxLookupSizes[loopCount - 1];			
-			for(int8_t j = 0; j < loopCount; j++)
+			uint32_t hashId = k * workerCount + blockLocalId / threadPerMetaNode;
+			uint32_t hashLocalId = blockLocalId % threadPerMetaNode;
+			if(hashId < sHashSpotAllocator)
 			{
-				uint32_t hasNodeId = j * hashLocalId;
-				if(hasNodeId > lookupCount) continue;
-				
-				uint4 expandedNode = ExpandVoxPos(metaNode);
-				uint3 currentVoxPos;
-				currentVoxPos.x = expandedNode.x + lookupTable[hasNodeId].x;
-				currentVoxPos.y = expandedNode.y + lookupTable[hasNodeId].y;
-				currentVoxPos.z = expandedNode.z + lookupTable[hasNodeId].z;
+				// Meta Node
+				CVoxelPos reducedMetaNode = sMetaNodes[sOccupiedHashSpots[hashId]];
+				uint32_t metaNodeBits = sMetaNodeBitmap[sOccupiedHashSpots[hashId]];
+				metaNodeBits = ~metaNodeBits & 0x00000007;
 
-				uint32_t node = TraverseAndAllocate(// SVO
-													gSVOLevels[i],
-													gSVOLevelsConst,
-													gLevelAllocators[i],
-													gLevelCapacities[i],
-													//
-													currentVoxPos,
-													octreeParams,
-													i);
+				// Expand Node
+				uint3 expandedNode = ExpandToSVODepth(ExpandVoxPos(reducedMetaNode),
+													  octreeParams.MaxSVOLevel - i,
+													  octreeParams.CascadeCount,
+													  octreeParams.CascadeBaseLevel);
+
+				// Find out generation size and lookup tables
+				int8_t lookupIndex = static_cast<int8_t>(__popc(metaNodeBits));
+				const char3* lookupTable = voxLookupTables[lookupIndex];
+				const int8_t lookupCount = voxLookupSizes[lookupIndex];
+				for(int8_t j = 0; j < lookupIndex + 1; j++)
+				{
+					uint32_t hasNodeId = j * hashLocalId;
+					if(hasNodeId > lookupCount) continue;
+
+					uint3 parentNode;
+					parentNode.x = (expandedNode.x >> 1) + lookupTable[hasNodeId].x;
+					parentNode.y = (expandedNode.y >> 1) + lookupTable[hasNodeId].y;
+					parentNode.z = (expandedNode.z >> 1) + lookupTable[hasNodeId].z;
+
+					uint32_t node = TraverseAndAllocate(// SVO
+														gSVOLevels[i],
+														gSVOLevelsConst,
+														gLevelAllocators[i],
+														gLevelCapacities[i],
+														// Node Related
+														parentNode,
+														// Constants
+														octreeParams,
+														i);
+				}
 			}
-
 		}
-
 		// This level's nodes are allocated now to the next level
 		__syncthreads();
 	}
@@ -632,8 +711,23 @@ __global__ void SVOReconstruct(// SVO
 	__threadfence();
 	// All Levels are Allocated (for this block at least)
 
+	// Now load albeo etc and average those on leaf levels
+	// Find your opengl data and voxel cache
+	//const uint16_t& batchId = sSegInfo.batchId;
+	//const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
 
-
+	//// Voxel Ids
+	//const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
+	//const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
+	//
+	//const CVoxelOccupancy voxOccupPacked = gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId];
+	//const CVoxelAlbedo voxAlbedoPacked = batchCache.dVoxelAlbedo[batchLocalVoxelId];
+	//
+	//// Unpack Occupancy
+	//float3 weights = ExpandOccupancy(voxOccupPacked);
+	//float3 normal = ExpandVoxNormal(voxelNormPacked);
+	////float4 voxAlbedo = UnpackSVOIrradiance(voxAlbedoPacked);
+	
 
 	//CSVONode* node = nullptr;
 	//if(i == octreeParams.DenseLevel)

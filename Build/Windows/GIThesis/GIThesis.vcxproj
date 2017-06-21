@@ -145,7 +145,6 @@
     <ClInclude Include="..\..\..\Source\CSVONodeReduction.cuh" />
     <ClInclude Include="..\..\..\Source\GLSLBindPoints.h" />
     <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
-    <ClInclude Include="..\..\..\Source\CDebug.cuh" />
     <ClInclude Include="..\..\..\Source\CSVOHash.cuh" />
     <ClInclude Include="..\..\..\Source\GIVoxelPages.h" />
     <ClInclude Include="..\..\..\Source\PageKernels.cuh" />
@@ -156,7 +155,6 @@
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <FileType>Document</FileType>
     </ClInclude>
-    <CudaCompile Include="..\..\..\Source\CDebug.cu" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEBoundingSphere.cpp" />

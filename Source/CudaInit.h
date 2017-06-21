@@ -11,21 +11,13 @@ Determines shared memory modes etc.
 #define __CUDAINIT_H__
 
 #include <cuda_runtime.h>
+#include "Macros.h"
 
 #ifdef GI_DEBUG
-	#define CUDA_CHECK(func) \
-			{ \
-				cudaError_t err;  \
-				if((err = func) != cudaSuccess) \
-				{ \
-					printf("Error: \"%s\"\n", cudaGetErrorString(err)); \
-					assert(false); \
-				} \
-			}
-#define CUDA_KERNEL_CHECK() \
-			CUDA_CHECK(cudaDeviceSynchronize()); \
-			CUDA_CHECK(cudaPeekAtLastError());
-			
+	#define CUDA_CHECK(func) {CudaInit::GPUAssert((func), __FILE__, __LINE__);}
+	#define CUDA_KERNEL_CHECK() \
+		CUDA_CHECK(cudaGetLastError()); \
+		CUDA_CHECK(cudaDeviceSynchronize());
 #else
 	#define CUDA_CHECK(func) func;
 	#define CUDA_KERNEL_CHECK()
@@ -38,6 +30,8 @@ class CudaInit
 		static constexpr int	TBPSmall = 128;
 		static constexpr int	TBP = 512;
 		static constexpr int	TBP_XY = 16;
+
+		
 
 	private:
 		static cudaDeviceProp	props;
@@ -53,5 +47,18 @@ class CudaInit
 		static int				GenBlockSizeSmall(int totalThread);
 		static int2				GenBlockSize2D(int2 totalThread);
 
+		static void				GPUAssert(cudaError_t code, 
+										  const char *file, 
+										  int line);
+
 };
+
+inline void CudaInit::GPUAssert(cudaError_t code, const char *file, int line)
+{
+	if(code != cudaSuccess)
+	{
+		GI_ERROR_LOG("Cuda Failure: %s %s %d\n", cudaGetErrorString(code), file, line);
+		assert(false);
+	}
+}
 #endif //__CUDAINIT_H__

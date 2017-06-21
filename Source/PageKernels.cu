@@ -106,8 +106,6 @@ __global__ void CopyPage(// OGL Buffer
 		unsigned int index = atomicAdd(&gAtomicIndex, 1);
 		//unsigned int index = WarpAggragateIndex(gAtomicIndex);
 
-		/*printf("Allocated Index :%d\n", index);*/
-
 		// Get Data
 		if(renderType != VoxelRenderType::NORMAL)
 		{
@@ -350,19 +348,19 @@ __global__ void VoxelTransform(// Voxel Pages
 	__shared__ CMatrix4x4 sTransformMatrices[GI_MAX_JOINT_COUNT + 1];	// First index holds model matrix
 	__shared__ CMatrix3x3 sRotationMatrices[GI_MAX_JOINT_COUNT + 1];
 	__shared__ uint8_t sMatrixLookup[GI_MAX_JOINT_COUNT + 1];	// Extra 4 Byte for alignment
-	// Shared Memory for generic data
+															// Shared Memory for generic data
 	__shared__ CSegmentInfo sSegInfo;
 	__shared__ CVoxelGrid sGridInfo;
 	__shared__ uint32_t	sObjTransformId;
 	__shared__ CMeshVoxelInfo sMeshVoxelInfo;
-	
+
 	unsigned int blockLocalId = threadIdx.x;
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GIVoxelPages::PageSize;
 	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
 	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
 	unsigned int segmentLocalVoxId = pageLocalId % GIVoxelPages::SegmentSize;
-	
+
 	// Get Segments Obj Information Struct
 	CObjectType objType;
 	CSegmentOccupation occupation;
@@ -414,17 +412,17 @@ __global__ void VoxelTransform(// Voxel Pages
 
 	// Segment is occupied so load matrices before culling unused warps
 	LoadTransformData(// Shared Mem
-					  sTransformMatrices,
-					  sRotationMatrices,
-					  sMatrixLookup,
-					  // OGL
-					  batchOGLData,
-					  // Weight Index
-					  weights.weightIndex,
-					  // Object Type that will be broadcasted
-					  objType,
-					  objectId,
-					  sObjTransformId);
+					sTransformMatrices,
+					sRotationMatrices,
+					sMatrixLookup,
+					// OGL
+					batchOGLData,
+					// Weight Index
+					weights.weightIndex,
+					// Object Type that will be broadcasted
+					objType,
+					objectId,
+					sObjTransformId);
 
 	// Cull threads
 	// Edge case where last segment do not always full
@@ -436,7 +434,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	}
 
 	// Fetch NormalPos from cache
-	uint4 voxPos;
+	uint3 voxPos;
 	float3 normal;
 	voxPos = ExpandVoxPos(batchCache.dVoxelPos[batchLocalVoxelId]);
 	normal = ExpandVoxNormal(batchCache.dVoxelNorm[batchLocalVoxelId]);
@@ -460,8 +458,6 @@ __global__ void VoxelTransform(// Voxel Pages
 		weightUnorm.z = static_cast<float>(weights.weight.z) / 255.0f;
 		weightUnorm.w = static_cast<float>(weights.weight.w) / 255.0f;
 
-
-		volatile float test = weightUnorm.x + weightUnorm.y + weightUnorm.z + weightUnorm.w;
 		//if(threadIdx.x == 0)
 		//	printf("x %d, y %d, z %d, w %d\n",
 		//	weights.weightIndex.x,
@@ -470,10 +466,10 @@ __global__ void VoxelTransform(// Voxel Pages
 		//	weights.weightIndex.w);
 
 		// Nyra Char Related Assert
-		assert(weights.weightIndex.x <= 24);
-		assert(weights.weightIndex.y <= 24);
-		assert(weights.weightIndex.z <= 24);
-		assert(weights.weightIndex.w <= 24);
+		//assert(weights.weightIndex.x <= 24);
+		//assert(weights.weightIndex.y <= 24);
+		//assert(weights.weightIndex.z <= 24);
+		//assert(weights.weightIndex.w <= 24);
 
 		float3 pos = {0.0f, 0.0f, 0.0f};
 		float3 p = MultMatrix(worldPos, sTransformMatrices[weights.weightIndex.x + 1]);
@@ -541,7 +537,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	worldPos.z -= sGridInfo.position.z;
 
 	bool outOfBounds;
-	outOfBounds  = (worldPos.x < 0.0f) || (worldPos.x >= (sGridInfo.dimension.x - 1) * sGridInfo.span);
+	outOfBounds = (worldPos.x < 0.0f) || (worldPos.x >= (sGridInfo.dimension.x - 1) * sGridInfo.span);
 	outOfBounds |= (worldPos.y < 0.0f) || (worldPos.y >= (sGridInfo.dimension.y - 1) * sGridInfo.span);
 	outOfBounds |= (worldPos.z < 0.0f) || (worldPos.z >= (sGridInfo.dimension.z - 1) * sGridInfo.span);
 
@@ -549,13 +545,13 @@ __global__ void VoxelTransform(// Voxel Pages
 	bool inInnerCascade = false;
 	if(!firstOccurance) // Only do inner culling if object is not first occurance in hierarchy (base level voxel data of the object
 	{
-		inInnerCascade = (worldPos.x > (sGridInfo.dimension.x - 1) * sGridInfo.span * 0.25f) &&
+		inInnerCascade = (worldPos.x >(sGridInfo.dimension.x - 1) * sGridInfo.span * 0.25f) &&
 						 (worldPos.x < (sGridInfo.dimension.x - 1) * sGridInfo.span * 0.75f);
 
-		inInnerCascade &= (worldPos.y > (sGridInfo.dimension.y - 1) * sGridInfo.span * 0.25f) &&
+		inInnerCascade &= (worldPos.y >(sGridInfo.dimension.y - 1) * sGridInfo.span * 0.25f) &&
 						  (worldPos.y < (sGridInfo.dimension.y - 1) * sGridInfo.span * 0.75f);
 
-		inInnerCascade &= (worldPos.z > (sGridInfo.dimension.z - 1) * sGridInfo.span * 0.25f) &&
+		inInnerCascade &= (worldPos.z >(sGridInfo.dimension.z - 1) * sGridInfo.span * 0.25f) &&
 						  (worldPos.z < (sGridInfo.dimension.z - 1) * sGridInfo.span * 0.75f);
 	}
 	outOfBounds |= inInnerCascade;
@@ -596,7 +592,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	if(!outOfBounds)
 	{
 		// Write to page
-		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = PackVoxPos({voxPos.x, voxPos.y, voxPos.z}, cascadeId);
+		gVoxelPages[pageId].dGridVoxPos[pageLocalId] = PackVoxPos(voxPos);
 		gVoxelPages[pageId].dGridVoxNorm[pageLocalId] = PackVoxNormal(normal);
 		gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId] = PackOccupancy(volumeWeight);
 	}

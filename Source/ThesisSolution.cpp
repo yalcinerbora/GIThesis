@@ -3,6 +3,7 @@
 #include "SceneI.h"
 #include "WindowInput.h"
 #include <GLFW\glfw3.h>
+#include "Macros.h"
 
 // Constructors & Destructor
 ThesisSolution::ThesisSolution(uint32_t denseLevel,
@@ -88,6 +89,13 @@ void ThesisSolution::Load(SceneI& s)
 
 	// Indirect Bar
 	// TODO:
+
+
+
+	GI_LOG("Page Memory Usage %.2fMB", 
+		   static_cast<double>(voxelPages.MemoryUsage()) / 1024.0f / 1024.0f);
+	GI_LOG("SVO Memory Usage %.2fMB", 
+		   static_cast<double>(voxelOctree.MemoryUsage()) / 1024.0f / 1024.0f);
 }
 
 void ThesisSolution::Release()
@@ -104,8 +112,11 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	// Do Deferred Rendering
 	bool doTiming = thesisBar.DoTiming();
 	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
-	dRenderer.Render(*currentScene, mainCam, directLighting, aColor, false);
-
+	dRenderer.Render(*currentScene, mainCam, directLighting, aColor, doTiming);
+	directTime = dRenderer.ShadowMapTime() + dRenderer.DPassTime() + 
+				 dRenderer.GPassTime() + dRenderer.LPassTime() +
+				 dRenderer.MergeTime();
+	
 	// Do Page update
 	voxelPages.UpdateGridPositions(mainCam.pos);
 	voxelPages.MapOGLResources();
@@ -113,22 +124,23 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	transTime = voxelPages.Transform(voxelCaches, doTiming);
 	voxelPages.UnmapOGLResources();
 	
-	// Do SVO update
-	float depthRange[2];
-	glGetFloatv(GL_DEPTH_RANGE, depthRange);
-	IEVector3 camDir = (mainCam.centerOfInterest - mainCam.pos).Normalize();
-	LightInjectParameters liParams = 
-	{
-		{mainCam.pos[0], mainCam.pos[1], mainCam.pos[2]},
-		{camDir[0], camDir[1], camDir[2]},
-		depthRange[0],
-		depthRange[1]
-	};
-	voxelOctree.UpdateSVO(svoReconTime, svoAverageTime,
-						  voxelPages, voxelCaches,
-						  static_cast<uint32_t>(currentScene->getBatches().size()),
-						  liParams,
-						  injectOn);
+	//// Do SVO update
+	//float depthRange[2];
+	//glGetFloatv(GL_DEPTH_RANGE, depthRange);
+	//IEVector3 camDir = (mainCam.centerOfInterest - mainCam.pos).Normalize();
+	//LightInjectParameters liParams = 
+	//{
+	//	{mainCam.pos[0], mainCam.pos[1], mainCam.pos[2]},
+	//	{camDir[0], camDir[1], camDir[2]},
+	//	depthRange[0],
+	//	depthRange[1]
+	//};
+
+	//voxelOctree.UpdateSVO(svoReconTime, svoAverageTime, doTiming,
+	//					  voxelPages, voxelCaches,
+	//					  static_cast<uint32_t>(currentScene->getBatches().size()),
+	//					  liParams,
+	//					  injectOn);
 	
 	//// Update FrameTransform Matrices 
 	//// And its inverse realted buffer

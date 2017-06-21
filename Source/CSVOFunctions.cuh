@@ -131,134 +131,88 @@ inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
 //	return 0x01 << CalculateLevelChildId(voxelPos, levelDepth, totalDepth);
 //}
 
-inline __device__ uint3 CalculateLevelVoxId(const uint3& voxelPos,
-											const unsigned int levelDepth,
-											const unsigned int maxSVODepth)
+inline __device__ uint3 CalculateParentVoxId(const uint3& voxelPos,
+											 const unsigned int parentLevel,
+											 const unsigned int currentLevel)
 {
+	assert(currentLevel >= parentLevel);
 	uint3 levelVoxelId;
-	levelVoxelId.x = voxelPos.x >> (maxSVODepth - levelDepth);
-	levelVoxelId.y = voxelPos.y >> (maxSVODepth - levelDepth);
-	levelVoxelId.z = voxelPos.z >> (maxSVODepth - levelDepth);
+	levelVoxelId.x = voxelPos.x >> (currentLevel - parentLevel);
+	levelVoxelId.y = voxelPos.y >> (currentLevel - parentLevel);
+	levelVoxelId.z = voxelPos.z >> (currentLevel - parentLevel);
 	return levelVoxelId;
 }
 
-inline __device__ uint3 ExpandToSVODepth(const uint4& voxelPos,
+inline __device__ uint3 ExpandToSVODepth(const uint3& voxelPos,
+										 const unsigned int cascadeId,
 										 const unsigned int numCascades,
 										 const unsigned int baseLevel)
 {
-	unsigned int cascadeNo = voxelPos.w;
-	unsigned int invCascadeNo = (numCascades - cascadeNo - 1);
+	int cascadeNo = static_cast<int>(cascadeId);
+	int invCascadeNo = static_cast<int>(numCascades) - cascadeNo - 1;
 
 	uint3 expandedVoxId;
-	expandedVoxId.x = voxelPos.x << cascadeNo;
-	expandedVoxId.y = voxelPos.y << cascadeNo;
-	expandedVoxId.z = voxelPos.z << cascadeNo;
-
-	for(unsigned int i = 0; i < invCascadeNo; i++)
+	expandedVoxId.x = voxelPos.x;
+	expandedVoxId.y = voxelPos.y;
+	expandedVoxId.z = voxelPos.z;
+	
+	unsigned int bitLoc = baseLevel;
+	unsigned int rightBitMask = (0x1 << (bitLoc - 1)) - 1;
+	unsigned int expansionBits = 0x1 << invCascadeNo;
+	unsigned int componentBit;
+	
+	if(invCascadeNo > 0)
 	{
-		// Bit expansion of inner cascades
-		// if MSB is 1 it becomes 10
-		// if MSB is 0 it becomes 01
-		unsigned int bitLoc = baseLevel + cascadeNo + i;
-		unsigned int rightBitMask = (0x01 << (bitLoc - 1)) - 1;
-		unsigned int componentBit;
-		unsigned int component;
+		// X
+		componentBit = (expandedVoxId.x >> (bitLoc - 1)) & 0x1;
+		componentBit = (componentBit == 0) ? (expansionBits - 1) : expansionBits;
+		expandedVoxId.x &= rightBitMask;
+		expandedVoxId.x |= componentBit << (bitLoc - 1);
 
-		componentBit = expandedVoxId.x >> (bitLoc - 1);
-		component = (1 - componentBit) * 0x01 + componentBit * 0x02;
-		expandedVoxId.x = (component << (bitLoc - 1)) | 
-							(expandedVoxId.x & rightBitMask);
+		// Y
+		componentBit = (expandedVoxId.y >> (bitLoc - 1)) & 0x1;
+		componentBit = (componentBit == 0) ? (expansionBits - 1) : expansionBits;
+		expandedVoxId.y &= rightBitMask;
+		expandedVoxId.y |= componentBit << (bitLoc - 1);
 
-		componentBit = expandedVoxId.y >> (bitLoc - 1);
-		component = (1 - componentBit) * 0x01 + componentBit * 0x02;
-		expandedVoxId.y = (component << (bitLoc - 1)) | 
-							(expandedVoxId.y & rightBitMask);
-
-		componentBit = expandedVoxId.z >> (bitLoc - 1);
-		component = (1 - componentBit) * 0x01 + componentBit * 0x02;
-		expandedVoxId.z = (component << (bitLoc - 1)) | 
-							(expandedVoxId.z & rightBitMask);
+		// Z
+		componentBit = (expandedVoxId.z >> (bitLoc - 1)) & 0x1;
+		componentBit = (componentBit == 0) ? (expansionBits - 1) : expansionBits;
+		expandedVoxId.z &= rightBitMask;
+		expandedVoxId.z |= componentBit << (bitLoc - 1);
 	}
 	return expandedVoxId;
 }
 
-inline __device__ CSVONode PackNodeId(const uint3& localVoxelPos,
-									  const unsigned int level,
-									  const unsigned int numCascades,
-									  const unsigned int totalLevel)
+inline __device__ CVoxelPos PackNodeId(const uint3& localVoxelPos,
+									   const unsigned int level,
+									   const unsigned int numCascades,
+									   const unsigned int baseLevel,
+									   const unsigned int maxSVOLevel)
 {
-	// Pack Level
-	unsigned int packLevel = totalLevel - numCascades + 1;
-	unsigned int packMaskLow = (0x1 << packLevel - 1) - 1;
+	unsigned int cascadeNo = maxSVOLevel - level;
+	uint3 result = localVoxelPos;
 
-	// Shift to Level
-	uint3 voxId = CalculateLevelVoxId(localVoxelPos, level, totalLevel);
-
-	// We need to pack stuff in order to open it properly
-	unsigned int lastBit;
-	if(level > packLevel)
+	// Pack it if it does not fit into baseLevel
+	if(cascadeNo < numCascades)
 	{
-		// Flip the "packLevel"th bit
-		// Zero out the left of it
-		lastBit = voxId.x >> (packLevel - 1) & 0x1u;
-		lastBit = 1 - lastBit;
-		voxId.x = (lastBit << (packLevel - 1)) | (voxId.x & packMaskLow);
+		unsigned int bitLoc = baseLevel;
+		unsigned int baseBitMask = (0x1 << (bitLoc - 1));
+		unsigned int rightBitMask = baseBitMask - 1;
 		
-		lastBit = voxId.y >> (packLevel - 1) & 0x1u;
-		lastBit = 1 - lastBit;
-		voxId.y = (lastBit << (packLevel - 1)) | (voxId.y & packMaskLow);
+		// X
+		result.x = (~result.x) & baseBitMask;
+		result.x |= (result.x) & rightBitMask;
 
-		lastBit = voxId.z >> (packLevel - 1) & 0x1u;
-		lastBit = 1 - lastBit;
-		voxId.z = (lastBit << (packLevel - 1)) | (voxId.z & packMaskLow);
+		// Y
+		result.y = (~result.y) & baseBitMask;
+		result.y |= (result.y) & rightBitMask;
+
+		// Z
+		result.z = (~result.z) & baseBitMask;
+		result.z |= (result.z) & rightBitMask;
 	}
-	
-	assert(voxId.x < (0x1u << min(level, packLevel)));
-	assert(voxId.y < (0x1u << min(level, packLevel)));
-	assert(voxId.z < (0x1u << min(level, packLevel)));
-	return PackVoxPos(voxId, 0);
-}
-
-inline __device__ uint3 UnpackNodeId(const CSVONode nodePacked,
-									 const unsigned int level,
-									 const unsigned int numCascades,
-									 const unsigned int totalLevel)
-{
-	uint4 nodeId = ExpandVoxPos(nodePacked);
-	unsigned int packLevel = totalLevel - numCascades + 1;
-	unsigned int cascadeNo = fmaxf(level, packLevel) - packLevel;
-
-	assert(nodeId.x < (0x1u << min(level, packLevel)));
-	assert(nodeId.y < (0x1u << min(level, packLevel)));
-	assert(nodeId.z < (0x1u << min(level, packLevel)));
-	nodeId.w = cascadeNo;
-
-	uint3 result = ExpandToSVODepth(nodeId, 
-									numCascades, 
-									totalLevel);
-
-	result.x >>= (numCascades - cascadeNo - 1);
-	result.y >>= (numCascades - cascadeNo - 1);
-	result.z >>= (numCascades - cascadeNo - 1);
-
-	if(result.x >= (0x1 << level) ||
-	   result.y >= (0x1 << level) ||
-	   result.z >= (0x1 << level))
-	{
-		printf("voxelNode : %d, %d, %d\n"
-			   "node : %d\n"
-			   "nodeId : %d, %d, %d\n"
-			   "------------\n",
-			   result.x, result.y, result.z,
-			   nodePacked,
-			   nodeId.x, nodeId.y, nodeId.z
-			   );
-		assert(false);
-	}
-	assert(result.x < (0x1 << level));
-	assert(result.y < (0x1 << level));
-	assert(result.z < (0x1 << level));
-	return result;
+	return PackVoxPos(result);
 }
 
 //inline __device__ unsigned int CalculateChildIndex(const unsigned char childrenBits,

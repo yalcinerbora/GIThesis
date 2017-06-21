@@ -196,14 +196,19 @@ class GISparseVoxelOctree
 		Shader							compGI;
 
 		//
-		uint8_t*						MapOGLData();
+		void							MapOGLData();
 		void							UnmapOGLData();
-		double							GenerateHierarchy(const GIVoxelPages& pages,
+	
+		double							GenerateHierarchy(bool doTiming,
+														  // Page System
+														  const GIVoxelPages& pages,
+														  // Cache System
 														  const GIVoxelCache& caches,
+														  // Constants
 														  uint32_t batchCount,
 														  const LightInjectParameters& injectParams,
 														  bool injectOn);
-		double							AverageNodes();
+		double							AverageNodes(bool doTiming);
 
 	protected:
 
@@ -220,10 +225,15 @@ class GISparseVoxelOctree
 										~GISparseVoxelOctree();
 
 		// Updates SVO Tree depending on the changes of the allocators
-		void							UpdateSVO(double& reconstructTime,
+		void							UpdateSVO(// Timing Related
+												  double& reconstructTime,
 												  double& averageTime,
+												  bool doTiming,
+												  // Page System
 												  const GIVoxelPages& pages,
+												  // Cache System
 												  const GIVoxelCache& caches,
+												  // Constants
 												  uint32_t batchCount,
 												  const LightInjectParameters& injectParams,
 												  bool injectOn);

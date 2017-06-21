@@ -201,25 +201,25 @@ double GIVoxelPages::PageRenderer::Draw(bool doTiming,
 	// Load new Grid Positions
 	// Copy Grid Info
 	CUDA_CHECK(cudaMemcpy2D(debugBufferCUDA + gridInfoOffset, sizeof(CVoxelGrid),
-						  pages.dVoxelGrids, sizeof(CVoxelGrid),
-						  sizeof(float3), pages.svoParams->CascadeCount,
-						  cudaMemcpyDeviceToDevice));
+							pages.dVoxelGrids, sizeof(CVoxelGrid),
+							sizeof(float3), pages.svoParams->CascadeCount,
+							cudaMemcpyDeviceToDevice));
 
 	// KC
-	int blockSize = CudaInit::GenBlockSize(static_cast<int>(pages.dPages.Size() * PageSize));
-	int threadSize = CudaInit::TBP;
-	CopyPage<<<blockSize,threadSize>>>(// OGL Buffer
-									   voxelPosition,
-									   voxelRender,
-									   *atomicIndex,
-									   // Voxel Cache
-									   cache.getDeviceCascadePointersDevice().Data(),
-									   // Voxel Pages
-									   reinterpret_cast<const CVoxelPageConst*>(pages.dPages.Data()),
-									   //
-									   static_cast<uint32_t>(pages.batches->size()),
-									   cascade,
-									   renderType);
+	int gridSize = CudaInit::GenBlockSize(static_cast<int>(pages.dPages.Size() * PageSize));
+	int blockSize = CudaInit::TBP;
+	CopyPage<<<gridSize, blockSize>>>(// OGL Buffer
+								      voxelPosition,
+								      voxelRender,
+								      *atomicIndex,
+								      // Voxel Cache
+								      cache.getDeviceCascadePointersDevice().Data(),
+								      // Voxel Pages
+								      reinterpret_cast<const CVoxelPageConst*>(pages.dPages.Data()),
+								      //
+								      static_cast<uint32_t>(pages.batches->size()),
+								      cascade,
+								      renderType);
 	CUDA_KERNEL_CHECK();
 
 	// Unmap buffer and continue
@@ -296,8 +296,8 @@ GIVoxelPages::MultiPage::MultiPage(size_t pageCount)
 
 	size_t totalSize = sizePerPage * pageCount;
 	pageData.Resize(totalSize);
-	pageData.Memset(0x0, 0, totalSize);
-
+	pageData.Memset(0x00, 0, totalSize);
+	
 	uint8_t* dPtr = pageData.Data();
 	ptrdiff_t offset = 0;
 	for(size_t i = 0; i < pageCount; i++)
@@ -309,7 +309,7 @@ GIVoxelPages::MultiPage::MultiPage(size_t pageCount)
 
 		page.dGridVoxNorm = reinterpret_cast<CVoxelNorm*>(dPtr + offset);
 		offset += GIVoxelPages::PageSize * sizeof(CVoxelNorm);
-
+		
 		page.dGridVoxOccupancy = reinterpret_cast<CVoxelOccupancy*>(dPtr + offset);
 		offset += GIVoxelPages::PageSize * sizeof(CVoxelOccupancy);
 
@@ -325,9 +325,9 @@ GIVoxelPages::MultiPage::MultiPage(size_t pageCount)
 	assert(offset == pageData.Size());
 
 	// KC to Initialize Empty Segment Stack
-	int blockSize = CudaInit::GenBlockSizeSmall(static_cast<uint32_t>(pageCount * GIVoxelPages::SegmentPerPage));
-	int tbb = CudaInit::TBP;
-	InitializePage<<<blockSize, tbb>>>(pages.front().dEmptySegmentPos, pageCount);
+	int gridSize = CudaInit::GenBlockSizeSmall(static_cast<uint32_t>(pageCount * GIVoxelPages::SegmentPerPage));
+	int blockSize = CudaInit::TBP;
+	InitializePage<<<gridSize, blockSize>>>(pages.front().dEmptySegmentPos, pageCount);
 	CUDA_KERNEL_CHECK();
 }
 
@@ -373,7 +373,7 @@ void GIVoxelPages::GenerateGPUData(const GIVoxelCache& cache)
 	for(uint32_t cascadeId = 0; cascadeId < svoParams->CascadeCount; cascadeId++)
 	{
 		CVoxelGrid grid = {};
-		grid.depth = svoParams->CascadeBaseLevel + cascadeId;
+		grid.depth = svoParams->CascadeBaseLevel + svoParams->CascadeCount - cascadeId - 1;
 		grid.dimension = 
 		{
 			svoParams->CascadeBaseLevelSize,
@@ -660,32 +660,31 @@ double GIVoxelPages::VoxelIO(bool doTiming)
 	if(doTiming) t.Start();
 	
 	// KC
-	int blockSize = CudaInit::GenBlockSizeSmall(static_cast<int>(segmentAmount));
-	int threadSize = CudaInit::TBPSmall;
-
+	int gridSize = CudaInit::GenBlockSizeSmall(static_cast<int>(segmentAmount));
+	int blockSize = CudaInit::TBPSmall;
 	// Voxel I-O (Deallocate first then allocate)
-	VoxelDeallocate<<<blockSize, threadSize>>>(// Voxel System
-											   dPages.Data(),
-											   dVoxelGrids,
-											   // Helper Structures		
-											   dSegmentAllocInfo,
-											   dSegmentInfo,
-											   // Per Object Related
-											   dBatchOGLData,
-											   // Limits
-											   segmentAmount);
+	VoxelDeallocate<<<gridSize, blockSize>>>(// Voxel System
+										     dPages.Data(),
+										     dVoxelGrids,
+										     // Helper Structures		
+										     dSegmentAllocInfo,
+										     dSegmentInfo,
+										     // Per Object Related
+										     dBatchOGLData,
+										     // Limits
+										     segmentAmount);
 
-	VoxelAllocate<<<blockSize, threadSize>>>(// Voxel System
-											 dPages.Data(),
-											 dVoxelGrids,
-											 // Helper Structures		
-											 dSegmentAllocInfo,
-											 dSegmentInfo,
-											 // Per Object Related
-											 dBatchOGLData,
-											 // Limits
-											 segmentAmount,
-											 static_cast<uint32_t>(dPages.Size()));
+	VoxelAllocate<<<gridSize, blockSize>>>(// Voxel System
+										   dPages.Data(),
+										   dVoxelGrids,
+										   // Helper Structures		
+										   dSegmentAllocInfo,
+										   dSegmentInfo,
+										   // Per Object Related
+										   dBatchOGLData,
+										   // Limits
+										   segmentAmount,
+										   static_cast<uint32_t>(dPages.Size()));
 	CUDA_KERNEL_CHECK();
 	if(doTiming)
 	{
@@ -702,17 +701,18 @@ double GIVoxelPages::Transform(const GIVoxelCache& cache,
 	if(doTiming) t.Start();
 
 	// KC
-	int blockSize = CudaInit::GenBlockSize(static_cast<int>(dPages.Size() * PageSize));
-	int threadSize = CudaInit::TBP;
-	VoxelTransform<<<blockSize,threadSize>>>(// Voxel Pages
-										     dPages.Data(),
-										     dVoxelGrids,
-										     // OGL Related
-										     dBatchOGLData,
-										     // Voxel Cache Related
-											 cache.getDeviceCascadePointersDevice().Data(),
-										     // Limits
-										     static_cast<uint32_t>(batches->size()));
+	int gridSize = CudaInit::GenBlockSize(static_cast<int>(dPages.Size() * PageSize));
+	int blockSize = CudaInit::TBP;
+	VoxelTransform<<<gridSize, blockSize>>>(// Voxel Pages
+										    dPages.Data(),
+										    dVoxelGrids,
+										    // OGL Related
+										    dBatchOGLData,
+										    // Voxel Cache Related
+										    cache.getDeviceCascadePointersDevice().Data(),
+										    // Limits
+										    static_cast<uint32_t>(batches->size()));
+	cudaDeviceSynchronize();
 	CUDA_KERNEL_CHECK();
 	if(doTiming)
 	{

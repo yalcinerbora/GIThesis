@@ -45,6 +45,7 @@ class StructuredBuffer
 
 		void					Memset(uint8_t);
 		void					Memset(uint32_t);
+		void					Memset(uint32_t word, uint32_t offset, uint32_t size);
 		void					BindAsUniformBuffer(GLuint location, 
 													GLuint countOffset,
 													GLuint countSize) const;

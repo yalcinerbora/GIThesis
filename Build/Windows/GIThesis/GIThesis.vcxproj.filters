@@ -215,9 +215,6 @@
     <ClInclude Include="..\..\..\Source\CudaVector.hpp">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CDebug.cuh">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\GISparseVoxelOctree.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
@@ -419,9 +416,6 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu">
-      <Filter>GI\Thesis\Kernels</Filter>
-    </CudaCompile>
-    <CudaCompile Include="..\..\..\Source\CDebug.cu">
       <Filter>GI\Thesis\Kernels</Filter>
     </CudaCompile>
     <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu">

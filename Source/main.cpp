@@ -185,7 +185,7 @@ int main()
 	{
 		"nyra.gfg"
 	};
-	SponzaScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
+	ConstantScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
 	scenes.push_back(&sponza);
 	// Cornell
 	std::vector<std::string> cornellRigid =
@@ -220,9 +220,9 @@ int main()
 	EmptyGISolution emptySolution(inputManager, deferredRenderer, "No GI");
 	ThesisSolution thesisSolution(6,		// Dense Level
 								  4,		// Dense Count
-								  4,		// Cascade Count
+								  2,		// Cascade Count
 								  9,		// Base Level
-								  0.3f,		// Base Span
+								  0.6f,		// Base Span
 								  inputManager, deferredRenderer, "Thesis GI");
 	solutions.push_back(&emptySolution);
 	solutions.push_back(&thesisSolution);

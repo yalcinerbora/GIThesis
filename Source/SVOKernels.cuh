@@ -57,9 +57,9 @@ class OctreeParameters;
 //
 //												 const unsigned int parentSize);
 //
+
 extern __global__ void SVOReconstruct(// SVO
 									  CSVOLevel* gSVOLevels,
-									  const CSVOLevelConst* gSVOLevelsConst,
 									  uint32_t* gLevelAllocators,
 									  const uint32_t* gLevelCapacities,
 									  // Voxel Pages

@@ -21,6 +21,15 @@ inline __device__ unsigned int DenseIndex(const uint3& voxelPos, const unsigned 
 			voxelPos.x;
 }
 
+inline __device__ void Swap(char3& data, int8_t i0, int8_t i1)
+{
+	assert(0 <= i0 && i0 < 3);
+	assert(0 <= i1 && i1 < 3);
+	char temp = reinterpret_cast<char*>(&data)[i0];
+	reinterpret_cast<char*>(&data)[i0] = reinterpret_cast<char*>(&data)[i1];
+	reinterpret_cast<char*>(&data)[i1] = temp;
+}
+
 // Illumination Storage
 inline __device__ float4 UnpackSVOIrradiance(const CSVOIrradiance& irrad)
 {

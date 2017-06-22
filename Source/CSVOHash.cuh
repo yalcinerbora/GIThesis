@@ -33,8 +33,8 @@ __device__ void HashMap(// Hash table
 						uint32_t* sOccupiedHashSpots,
 						uint32_t& sHashSpotAllocator,
 						// Key value
-						CVoxelPos key,
-						uint8_t keyBits,
+						const CVoxelPos key,
+						const uint32_t keyBits,
 						// Hash table limits
 						int32_t tableSize);
 
@@ -46,7 +46,7 @@ inline __device__ void HashMap(// Hash table
 							   uint32_t& sHashSpotAllocator,
 							   // Key value
 							   const CVoxelPos key,
-							   const uint8_t keyBits,
+							   const uint32_t keyBits,
 							   // Hash table limits
 							   const int32_t tableSize)
 {

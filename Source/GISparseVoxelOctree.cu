@@ -227,8 +227,11 @@ GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams,
 	}
 	size_t totalIllumSize = offset;
 	size_t totalNodeSize = offset - nodeIllumDifference;
-	hIllumOffsets = internalOffsets;
-
+	hIllumOffsetsAndCapacities.insert(hIllumOffsetsAndCapacities.end(),
+									  internalOffsets.begin(), internalOffsets.end());
+	hIllumOffsetsAndCapacities.insert(hIllumOffsetsAndCapacities.end(),
+									  levelCapacities.begin(), levelCapacities.end());
+		
 	// Allocation of OpenGL Side
 	offset = 0;
 	// OctreeUniforms
@@ -281,6 +284,24 @@ GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams,
 	// Register CUDA Resource
 	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&gpuResource, oglData.getGLBuffer(),
 											cudaGraphicsMapFlagsNone));
+
+
+	// Memset
+	CUDA_CHECK(cudaGraphicsMapResources(1, &gpuResource));
+	size_t size; uint8_t* oglCudaPtr;
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&oglCudaPtr),
+													&size, gpuResource));
+	//assert(size == oglData.Capacity());
+	CUDA_CHECK(cudaMemset(oglCudaPtr + illumOffset, 0x00, oglData.Capacity() - illumOffset));
+	CUDA_CHECK(cudaMemset(oglCudaPtr + nodeOffset, 0xFF, illumOffset - nodeOffset));
+	
+	//// Test Nodes
+	//std::vector<uint32_t> nodes((illumOffset - nodeOffset) / sizeof(uint32_t));
+	//CUDA_CHECK(cudaMemcpy(nodes.data(), oglCudaPtr + nodeOffset,
+	//					  illumOffset - nodeOffset,
+	//					  cudaMemcpyDeviceToHost));
+
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &gpuResource));
 }
 
 GISparseVoxelOctree::GISparseVoxelOctree(GISparseVoxelOctree&& other)
@@ -297,7 +318,7 @@ GISparseVoxelOctree::GISparseVoxelOctree(GISparseVoxelOctree&& other)
 	, dLevelCapacities(other.dLevelCapacities)
 	, dLevelSizes(other.dLevelSizes)
 	, dOctreeLevels(other.dOctreeLevels)
-	, hIllumOffsets(std::move(other.hIllumOffsets))
+	, hIllumOffsetsAndCapacities(std::move(other.hIllumOffsetsAndCapacities))
 	, nodeIllumDifference(other.nodeIllumDifference)
 	, shadowMaps(std::move(other.shadowMaps))
 	, compVoxTraceWorld(std::move(other.compVoxTraceWorld))
@@ -325,7 +346,7 @@ GISparseVoxelOctree& GISparseVoxelOctree::operator=(GISparseVoxelOctree&& other)
 	dLevelCapacities = other.dLevelCapacities;
 	dLevelSizes = other.dLevelSizes;
 	dOctreeLevels = other.dOctreeLevels;
-	hIllumOffsets = std::move(other.hIllumOffsets);
+	hIllumOffsetsAndCapacities = std::move(other.hIllumOffsetsAndCapacities);
 	nodeIllumDifference = other.nodeIllumDifference;
 	shadowMaps = std::move(other.shadowMaps);
 	compVoxTraceWorld = std::move(other.compVoxTraceWorld);
@@ -348,7 +369,7 @@ void GISparseVoxelOctree::MapOGLData()
 	size_t size; uint8_t* oglCudaPtr;
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&oglCudaPtr),
 													&size, gpuResource));
-	assert(size == oglData.Capacity());
+	//assert(size == oglData.Capacity());
 	
 	// Recieve Used Pointer Sizes
 	std::vector<uint32_t> levelAllocators(octreeParams->MaxSVOLevel + 1);
@@ -358,28 +379,34 @@ void GISparseVoxelOctree::MapOGLData()
 
 	std::vector<CSVOLevel> svoLevels(octreeParams->MaxSVOLevel + 1, {nullptr, nullptr});
 	for(uint32_t i = octreeParams->MinSVOLevel; i < octreeParams->MaxSVOLevel + 1; i++)
-	{
+	{		
 		CSVONode* nodePtr = nullptr;
 		CSVOIllumination* illumPtr = reinterpret_cast<CSVOIllumination*>(oglCudaPtr + illumOffset)
-																		 + hIllumOffsets[i];
+																		 + hIllumOffsetsAndCapacities[i];
+
+		uint32_t denseSize = hIllumOffsetsAndCapacities[(octreeParams->MaxSVOLevel + 1) + i];
+		uint32_t size = (i <= octreeParams->DenseLevel) ? denseSize : levelAllocators[i];
 		if(i >= octreeParams->DenseLevel)
 		{
 			nodePtr = reinterpret_cast<CSVONode*>(oglCudaPtr + nodeOffset) 
-												  + (hIllumOffsets[i] - nodeIllumDifference);
+												  + (hIllumOffsetsAndCapacities[i] - nodeIllumDifference);
 
-			// Clear used node pointers
-			//CUDA_CHECK(cudaMemset(nodePtr, 0xFF, levelAllocators[i]));
+			// Clear used node pointers			
+			CUDA_CHECK(cudaMemset(nodePtr, 0xFF, size * sizeof(CSVONode)));
 		}
 
 		svoLevels[i].gLevelNodes = nodePtr;
 		svoLevels[i].gLevelIllum = illumPtr;
 
 		// Clear used illum
-		//CUDA_CHECK(cudaMemset(illumPtr, 0x00, levelAllocators[i]));
+		CUDA_CHECK(cudaMemset(illumPtr, 0x00, size * sizeof(CSVOIllumination)));
 	}
 
+	// Print Allocator Usage
+	PrintSVOLevelUsages(levelAllocators);
+
 	// Clear level allocators
-	CUDA_CHECK(cudaMemset(dLevelSizes, 0x00, octreeParams->MaxSVOLevel + 1));
+	CUDA_CHECK(cudaMemset(dLevelSizes, 0x00, (octreeParams->MaxSVOLevel + 1) * sizeof(uint32_t)));
 
 	// Copy Generated Pointers
 	CUDA_CHECK(cudaMemcpy(dOctreeLevels, svoLevels.data(),
@@ -390,6 +417,20 @@ void GISparseVoxelOctree::MapOGLData()
 void GISparseVoxelOctree::UnmapOGLData()
 {
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &gpuResource));
+}
+
+void GISparseVoxelOctree::PrintSVOLevelUsages(const std::vector<uint32_t>& svoSizes) const
+{
+	for(size_t i = octreeParams->DenseLevel + 1; i < svoSizes.size(); i++)
+	{
+		uint32_t size = svoSizes[i];
+		uint32_t capacity = hIllumOffsetsAndCapacities[i + (octreeParams->MaxSVOLevel + 1)];
+
+		printf("Level #%2d    %9d / %9d", static_cast<int>(i), size, capacity);
+		if(size >= capacity) GI_LOG(" OVERFLOW!");
+		else GI_LOG("");
+	}
+	GI_LOG("----------");
 }
 
 double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
@@ -426,7 +467,6 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 	int blockSize = CudaInit::TBP;
 	SVOReconstruct<<<gridSize, blockSize>>>(// SVO
 										    dOctreeLevels,
-										    reinterpret_cast<const CSVOLevelConst*>(dOctreeLevels),
 										    dLevelSizes,
 										    dLevelCapacities,
 										    // Voxel Pages
@@ -440,8 +480,6 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 										    *octreeParams,
 										    batchCount);
 	CUDA_KERNEL_CHECK();
-	cudaDeviceSynchronize();
-	GI_LOG("-----");
 
 	if(doTiming)
 	{

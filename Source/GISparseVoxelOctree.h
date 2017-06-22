@@ -63,11 +63,13 @@ static constexpr size_t BigSizes[] =
 	32768,          // 5 Dense
 	262144,		    // 6 Dense
 	2048 * 1024,	// 7 Dense
-	4096 * 1024,	// 8
-	8192 * 1024,	// 9
-	8192 * 1024,	// 10
-	8192 * 1024,	// 11
-	8192 * 1024,	// 12
+
+	/*16384*/4096 * 1024,	// 9//4096 * 1024,	// 8
+	/*16384*/8192 * 1024,	// 9
+	/*16384*/8192 * 1024,	// 10
+	/*32384*/8192 * 1024,	// 11
+	/*32384*/8192 * 1024,	// 12
+	/*32384*/8192 * 1024	// 13
 };
 
 class OctreeParameters
@@ -184,7 +186,7 @@ class GISparseVoxelOctree
 		
 
 		// Difference between offsets (since node do not hold dense info except last dense level)
-		std::vector<uint32_t>			hIllumOffsets;
+		std::vector<uint32_t>			hIllumOffsetsAndCapacities;
 		size_t							nodeIllumDifference;
 
 		// Shadowmap interop for light injection
@@ -199,6 +201,7 @@ class GISparseVoxelOctree
 		void							MapOGLData();
 		void							UnmapOGLData();
 	
+		void							PrintSVOLevelUsages(const std::vector<uint32_t>& svoSizes) const;
 		double							GenerateHierarchy(bool doTiming,
 														  // Page System
 														  const GIVoxelPages& pages,

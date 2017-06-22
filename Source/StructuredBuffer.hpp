@@ -169,11 +169,11 @@ void StructuredBuffer<T>::Memset(uint32_t word, uint32_t offset, uint32_t size)
 {
 	glInvalidateBufferData(bufferId);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, bufferId);
-	glClearBufferSubData(GL_COPY_WRITE_BUFFER, GL_R32UI,
+	glClearBufferSubData(GL_COPY_WRITE_BUFFER, GL_R8UI,
 						 offset * sizeof(T),
 						 size * sizeof(T),
 						 GL_RED,
-						 GL_UNSIGNED_INT, &word);
+						 GL_UNSIGNED_SHORT, &word);
 }
 
 template <class T>

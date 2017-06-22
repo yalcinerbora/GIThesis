@@ -75,7 +75,8 @@
       <CodeGeneration>compute_52,sm_52</CodeGeneration>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <GenerateLineInfo>true</GenerateLineInfo>
-      <MaxRegCount>32</MaxRegCount>
+      <MaxRegCount>
+      </MaxRegCount>
       <AdditionalOptions>-Xptxas="-dlcm=ca" -Wno-deprecated-gpu-targets %(AdditionalOptions)</AdditionalOptions>
       <AdditionalCompilerOptions>
       </AdditionalCompilerOptions>
@@ -117,7 +118,8 @@
       <FastMath>true</FastMath>
       <GPUDebugInfo>false</GPUDebugInfo>
       <GenerateLineInfo>true</GenerateLineInfo>
-      <MaxRegCount>32</MaxRegCount>
+      <MaxRegCount>
+      </MaxRegCount>
       <AdditionalOptions>-Xptxas="-dlcm=ca" -Wno-deprecated-gpu-targets %(AdditionalOptions)</AdditionalOptions>
       <Defines>_ITERATOR_DEBUG_LEVEL=0;</Defines>
       <KeepDir>$(IntDir)\Cuda</KeepDir>

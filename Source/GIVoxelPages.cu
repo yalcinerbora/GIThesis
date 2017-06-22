@@ -729,8 +729,8 @@ uint64_t GIVoxelPages::MemoryUsage() const
 	totalSize += dPages.Size() * PageSize * (sizeof(CVoxelPos) +
 											 sizeof(CVoxelNorm) +
 											 sizeof(CVoxelOccupancy));
-	totalSize += dPages.Size() * SegmentPerPage* (sizeof(unsigned char) +
-												  sizeof(CSegmentInfo));
+	totalSize += dPages.Size() * SegmentPerPage * (sizeof(unsigned char) +
+												   sizeof(CSegmentInfo));
 	return totalSize;
 }
 

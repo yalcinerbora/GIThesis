@@ -7,7 +7,7 @@
 #include <cuda.h>
 
 // No Negative Dimension Expansion (Best case)
-__device__ static const char3 voxLookup8[8] =
+__constant__ static const char3 voxLookup8[8] =
 {
 	{0, 0, 0},
 	{1, 0, 0},
@@ -21,7 +21,7 @@ __device__ static const char3 voxLookup8[8] =
 };
 
 // Single Negative Dimension Expansion
-__device__ static const char3 voxLookup12[12] =
+__constant__ static const char3 voxLookup12[12] =
 {
 	{-1, 0, 0},
 	{ 0, 0, 0},
@@ -41,7 +41,7 @@ __device__ static const char3 voxLookup12[12] =
 };
 
 // Two Negative Dimension Expansion
-__device__ static const char3 voxLookup18[18] =
+__constant__ static const char3 voxLookup18[18] =
 {
 	{-1, -1, 0},
 	{ 0, -1, 0},
@@ -69,7 +69,7 @@ __device__ static const char3 voxLookup18[18] =
 };
 
 // All Parent Neigbour Expansion (Worst Case)
-__device__ static const char3 voxLookup27[27] =
+__constant__ static const char3 voxLookup27[27] =
 {
 	{-1, -1, -1},
 	{ 0, -1, -1},
@@ -109,8 +109,8 @@ __device__ static const char3 voxLookup27[27] =
 };
 
 // VoxLookup Tables
-__device__ static const int8_t voxLookupSizes[4] = {8, 12, 18, 27};
-__device__ static const char3* voxLookupTables[4] = {voxLookup8, voxLookup12, voxLookup18, voxLookup27};
+__constant__ static const int8_t voxLookupSizes[4] = {8, 12, 18, 27};
+__constant__ static const char3* voxLookupTables[4] = {voxLookup8, voxLookup12, voxLookup18, voxLookup27};
 
 inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int& gLevelAllocator)
 {
@@ -158,27 +158,48 @@ inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int&
     return old;
 }
 
+inline __device__ unsigned int TraverseNode(// SVO
+											const CSVOLevelConst* svoLevels,
+											// Initial Node & Start Level (Optional)
+											const CSVONode* baseNode,
+											const uint32_t startLevel,
+											// Node Related
+											const uint3& voxelId,
+											// Constants
+											const OctreeParameters& octreeParams,
+											const uint32_t level)
+{
+	// Returns Node Location on That Level	
+	uint32_t initialLevel = (baseNode != nullptr) ? startLevel : octreeParams.DenseLevel + 1;
+	const CSVONode* initalNode = baseNode;
+	if(baseNode == nullptr)
+	{
+		uint3 denseLevelId = CalculateParentVoxId(voxelId, octreeParams.DenseLevel, level);
+		const CSVOLevelConst& denseLevel = svoLevels[octreeParams.DenseLevel];
+		initalNode = denseLevel.gLevelNodes + DenseIndex(denseLevelId, octreeParams.DenseSize);
+	}
+}
 
 inline __device__ unsigned int TraverseAndAllocate(// SVO
-												   const CSVOLevel* svoLevelsConst,
 												   uint32_t& gLevelAllocator,
 												   const uint32_t gLevelCapacity,
+												   const CSVOLevel* svoLevels,
 												   // Node Related
 												   const uint3& parentVoxelId,
 												   // Constants
 												   const OctreeParameters& octreeParams,
-												   const unsigned int level)
+												   const uint32_t level)
 {
 	// Initialize Pointer with dense
-	uint3 currentLevelId = CalculateParentVoxId(parentVoxelId, octreeParams.DenseLevel, level - 1);
-	const CSVOLevel& denseLevel = svoLevelsConst[octreeParams.DenseLevel];
-	CSVONode* node = denseLevel.gLevelNodes + DenseIndex(currentLevelId, octreeParams.DenseSize);
+	uint3 denseLevelId = CalculateParentVoxId(parentVoxelId, octreeParams.DenseLevel, level - 1);
+	const CSVOLevel& denseLevel = svoLevels[octreeParams.DenseLevel];
+	CSVONode* node = denseLevel.gLevelNodes + DenseIndex(denseLevelId, octreeParams.DenseSize);
 
 	// Iterate untill level (This portion's nodes should be allocated)
 	for(uint32_t i = octreeParams.DenseLevel + 1; i < level; i++)
 	{
-		unsigned int childId = CalculateLevelChildId(parentVoxelId, i, level);
-		node = svoLevelsConst[i].gLevelNodes + *node + childId;
+		unsigned int childId = CalculateLevelChildId(parentVoxelId, i, level - 1);
+		node = svoLevels[i].gLevelNodes + *node + childId;
 	}
 
 	// Now Node pointer points the required location
@@ -484,7 +505,6 @@ inline __device__ unsigned int TraverseAndAllocate(// SVO
 //
 __global__ void SVOReconstruct(// SVO
 							   CSVOLevel* gSVOLevels,
-							   const CSVOLevelConst* gSVOLevelsConst,
 							   uint32_t* gLevelAllocators,
 							   const uint32_t* gLevelCapacities,
 							   // Voxel Pages
@@ -563,10 +583,14 @@ __global__ void SVOReconstruct(// SVO
 	// should generate improvements since many page voxels are adjacent to each other
 	// (they represent same object thus should spatially be closer))
 	
+	//if(blockLocalId == 0) printf("Object Voxel Count %d\n", sMeshVoxelInfo.voxCount);
+
 	// Construct Level By Level
 	uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - cascadeId;
 	for(uint32_t i = octreeParams.DenseLevel + 1; i <= cascadeMaxLevel; i++)
 	{
+		//if(blockLocalId == 0) printf("Level %d -----\n", i);
+
 		// Before Hash Resolve Initialize Hash Tables
 		HashTableReset(sHashSpotAllocator,
 					   sMetaNodes,
@@ -585,7 +609,7 @@ __global__ void SVOReconstruct(// SVO
 			metaNode.x = levelNodePos.x & 0xFFFFFFFE;
 			metaNode.y = levelNodePos.y & 0xFFFFFFFE;
 			metaNode.z = levelNodePos.z & 0xFFFFFFFE;
-			uint8_t bitmap = 0x00;
+			uint32_t bitmap = 0x00;
 			bitmap |= (levelNodePos.z & 0x1) << 2;
 			bitmap |= (levelNodePos.y & 0x1) << 1;
 			bitmap |= (levelNodePos.x & 0x1) << 0;
@@ -594,18 +618,22 @@ __global__ void SVOReconstruct(// SVO
 												  octreeParams.CascadeBaseLevel,
 												  octreeParams.MaxSVOLevel);	
 
-			//if(blockIdx.x == 0 && i == 9)
+			//if(blockIdx.x == 0)
 			//{
 			//	uint3 unpack = ExpandVoxPos(voxelPosPacked);
-			//	printf("My Packed Voxel (%#010X) "
-			//		   "My Voxel Pos (%d %d %d) "
-			//		   "My Node Pos (%d %d %d) "
+			//	printf("Voxel Pos (%d %d %d) "
+			//		   "Node Pos (%d %d %d) "
+			//		   "Level Pos (%d %d %d) "
+			//		   "Meta Pos (%d %d %d) "
 			//		   "After Pack (%#010X) "
-			//		   "\n",
-			//		   voxelPosPacked,
+			//		   "Bitmap (%#010X)"
+			//		   "\n",					   
 			//		   unpack.x, unpack.y, unpack.z,
 			//		   nodePos.x, nodePos.y, nodePos.z,
-			//		   metaNodePacked);
+			//		   levelNodePos.x, levelNodePos.y, levelNodePos.z,
+			//		   metaNode.x, metaNode.y, metaNode.z,
+			//		   metaNodePacked,
+			//		   bitmap);
 			//}
 			
 			// Hashing
@@ -623,6 +651,7 @@ __global__ void SVOReconstruct(// SVO
 		}
 		__syncthreads();
 		
+		//if(blockLocalId == 0) printf("-----\n");
 		//if(blockIdx.x == 0 &&
 		//   blockLocalId == 0)
 		//{			
@@ -645,9 +674,9 @@ __global__ void SVOReconstruct(// SVO
 			{
 				// Meta Node
 				CVoxelPos reducedMetaNode = sMetaNodes[sOccupiedHashSpots[hashId]];
-				uint32_t metaNodeBits = sMetaNodeBitmap[sOccupiedHashSpots[hashId]];
-				metaNodeBits = ~metaNodeBits & 0x00000007;
-
+				uint32_t metaNodeBits = sMetaNodeBitmap[sOccupiedHashSpots[hashId]] & 0x00000007;
+				uint32_t invMetaNodeBits = (~metaNodeBits) & 0x00000007;
+				
 				// Expand Node
 				uint3 expandedNode = ExpandToSVODepth(ExpandVoxPos(reducedMetaNode),
 													  octreeParams.MaxSVOLevel - i,
@@ -655,31 +684,91 @@ __global__ void SVOReconstruct(// SVO
 													  octreeParams.CascadeBaseLevel);
 
 				// Find out generation size and lookup tables
-				int8_t lookupIndex = static_cast<int8_t>(__popc(metaNodeBits));
+				int8_t lookupIndex = static_cast<int8_t>(__popc(invMetaNodeBits));
 				const char3* lookupTable = voxLookupTables[lookupIndex];
 				const int8_t lookupCount = voxLookupSizes[lookupIndex];
+
+				// Determine Swap Locations
+				// For one or two negative expansions lookup table
+				// needs to be adjusted since it stored as x (or xy) negative
+				// we need to check bits for that
+				int8_t swapFrom = 0, swapTo = 0;
+				if(__popc(metaNodeBits) == 1)
+				{
+					swapFrom = 2;
+					swapTo = __ffs(metaNodeBits) - 1;
+				}
+				else if(__popc(metaNodeBits) == 2)
+				{
+					swapTo = __ffs(invMetaNodeBits) - 1;
+				}
+
+				//if(blockIdx.x == 0 && 
+				//   hashId == 0 &&
+				//   hashLocalId == 0)
+				//{
+				//	printf("Hash Packed Voxel (%#010X) "
+				//		   "My Expanded Node (%d %d %d) "
+				//		   "Bitmap (%#010X) (%#010X) "
+				//		   "Loop Count %d "
+				//		   "Lookup Count %d "
+				//		   "%d - %d "
+				//		   "\n",
+				//		   reducedMetaNode,
+				//		   expandedNode.x, expandedNode.y, expandedNode.z,
+				//		   metaNodeBits, invMetaNodeBits, lookupIndex + 1, lookupCount,
+				//		   swapFrom, swapTo);
+				//}
+				
 				for(int8_t j = 0; j < lookupIndex + 1; j++)
 				{
-					uint32_t hasNodeId = j * hashLocalId;
-					if(hasNodeId > lookupCount) continue;
-
-					uint3 parentNode;
-					parentNode.x = (expandedNode.x >> 1) + lookupTable[hasNodeId].x;
-					parentNode.y = (expandedNode.y >> 1) + lookupTable[hasNodeId].y;
-					parentNode.z = (expandedNode.z >> 1) + lookupTable[hasNodeId].z;
-
+					uint32_t hashNodeId = j * threadPerMetaNode + hashLocalId;
+					if(hashNodeId >= lookupCount) continue;
 					
+					// Swap the neigbour map
+					char3 neigbourMap = lookupTable[hashNodeId];
+					Swap(neigbourMap, swapFrom, swapTo);
+
+					int3 parentNode;
+					parentNode.x = static_cast<int>(expandedNode.x >> 1) + neigbourMap.x;
+					parentNode.y = static_cast<int>(expandedNode.y >> 1) + neigbourMap.y;
+					parentNode.z = static_cast<int>(expandedNode.z >> 1) + neigbourMap.z;
+
+					// Boundary Check
+					int levelSize = (0x1 << i);
+					if(parentNode.x < 0 || parentNode.x >= levelSize ||
+					   parentNode.y < 0 || parentNode.y >= levelSize ||
+					   parentNode.z < 0 || parentNode.z >= levelSize)
+						continue;
+
+					uint3 uParentNode;
+					uParentNode.x = static_cast<uint32_t>(parentNode.x);
+					uParentNode.y = static_cast<uint32_t>(parentNode.y);
+					uParentNode.z = static_cast<uint32_t>(parentNode.z);
+					
+					//if(blockIdx.x == 0 && hashId == 0)
+					//{
+					//	printf("My Parent Node Pos (%d %d %d) "
+					//		   " HashNodeId %d "
+					//		   "\n",
+					//		   parentNode.x, parentNode.y, parentNode.z,
+					//		   hashNodeId);
+					//}
+					
+					//atomicAdd(gLevelAllocators + i, 1);
 					uint32_t node = TraverseAndAllocate(// SVO
-														gSVOLevels,
 														gLevelAllocators[i],
 														gLevelCapacities[i],
+														gSVOLevels,
 														// Node Related
-														parentNode,
+														uParentNode,
 														// Constants
 														octreeParams,
 														i);
-					
 				}
+
+				// Is this required ? (or volatile cast does the trick?)
+				__threadfence_block();
 			}
 		}
 		// This level's nodes are allocated now to the next level
@@ -691,20 +780,20 @@ __global__ void SVOReconstruct(// SVO
 
 	// Now load albeo etc and average those on leaf levels
 	// Find your opengl data and voxel cache
-	//const uint16_t& batchId = sSegInfo.batchId;
-	//const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
+	const uint16_t& batchId = sSegInfo.batchId;
+	const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
 
-	//// Voxel Ids
-	//const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
-	//const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
-	//
-	//const CVoxelOccupancy voxOccupPacked = gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId];
-	//const CVoxelAlbedo voxAlbedoPacked = batchCache.dVoxelAlbedo[batchLocalVoxelId];
-	//
-	//// Unpack Occupancy
-	//float3 weights = ExpandOccupancy(voxOccupPacked);
-	//float3 normal = ExpandVoxNormal(voxelNormPacked);
-	////float4 voxAlbedo = UnpackSVOIrradiance(voxAlbedoPacked);
+	// Voxel Ids
+	const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
+	const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
+	
+	const CVoxelOccupancy voxOccupPacked = gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId];
+	const CVoxelAlbedo voxAlbedoPacked = batchCache.dVoxelAlbedo[batchLocalVoxelId];
+	
+	// Unpack Occupancy
+	float3 weights = ExpandOccupancy(voxOccupPacked);
+	float3 normal = ExpandVoxNormal(voxelNormPacked);
+	//float4 voxAlbedo = UnpackSVOIrradiance(voxAlbedoPacked);
 	
 
 	//CSVONode* node = nullptr;

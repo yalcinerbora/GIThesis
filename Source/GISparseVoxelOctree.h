@@ -64,11 +64,11 @@ static constexpr size_t BigSizes[] =
 	262144,		    // 6 Dense
 	2048 * 1024,	// 7 Dense
 
-	/*16384*/4096 * 1024,	// 9//4096 * 1024,	// 8
-	/*16384*/8192 * 1024,	// 9
-	/*16384*/8192 * 1024,	// 10
-	/*32384*/8192 * 1024,	// 11
-	/*32384*/8192 * 1024,	// 12
+	/*16384*/4096 * 1024,	// 8
+	/*16384*/32192 * 1024,	// 9
+	/*16384*/32192 * 1024,	// 10
+	/*32384*/32192 * 1024,	// 11
+	/*32384*/16192 * 1024,	// 12
 	/*32384*/8192 * 1024	// 13
 };
 
@@ -210,6 +210,7 @@ class GISparseVoxelOctree
 														  // Constants
 														  uint32_t batchCount,
 														  const LightInjectParameters& injectParams,
+														  const IEVector3& ambientColor,
 														  bool injectOn);
 		double							AverageNodes(bool doTiming);
 
@@ -239,6 +240,7 @@ class GISparseVoxelOctree
 												  // Constants
 												  uint32_t batchCount,
 												  const LightInjectParameters& injectParams,
+												  const IEVector3& ambientColor,
 												  bool injectOn);
 		
 		void							UpdateOctreeUniforms(const IEVector3& outerCascadePos);

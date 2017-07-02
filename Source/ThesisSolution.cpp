@@ -140,6 +140,7 @@ void ThesisSolution::Frame(const Camera& mainCam)
 						  voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),
 						  liParams,
+						  ambientColor,
 						  injectOn);
 	
 	//// Update FrameTransform Matrices 
@@ -147,7 +148,6 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	////assert(TraceWidth == DeferredRenderer::gBuffWidth);
 	////assert(TraceHeight == DeferredRenderer::gBuffHeight);
 	//dRenderer.RefreshInvFTransform(camera, TraceWidth, TraceHeight);
-
 
 	// Rendering Choice
 	if(scheme >= RenderScheme::G_DIFF_ALBEDO &&

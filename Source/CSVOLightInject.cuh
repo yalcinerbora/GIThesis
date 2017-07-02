@@ -146,31 +146,42 @@ __device__ inline float4 CalculateShadowUV(const CMatrix4x4* lightVP,
 	return float4{lightVec.x, lightVec.y, lightVec.z, depth};
 }
 
-inline __device__ float3 PhongBRDF(const float3& worldPos,
-								   const float4& camPos,
-								   const float3& camDir,
+//const float4& camPos,
+//const float3& camDir,
 
-								   // Light Related
-								   const CMatrix4x4* lightVP,
+//// Light Related
+//const CMatrix4x4* lightVP,
+//const CLight& lightStruct,
+
+//float depthNear,
+//float depthFar,
+
+//// SVO Surface Voxel
+//
+
+//cudaTextureObject_t shadowTex,
+//uint32_t lightIndex,
+//                        const float3& ambientColor)
+
+inline __device__ float3 PhongBRDF(// Out Light
+								   float3& lightDirection,
+								   // Node Params
+								   const float3& worldPos,
+								   const float4& albedo,
+								   const float3& normal,
+								   // Constants for this light
+								   const CLightInjectParameters& liParams,
 								   const CLight& lightStruct,
+								   const CMatrix4x4* lightVP,
+								   const uint32_t lightIndex)
 
-								   float depthNear,
-								   float depthFar,
-
-								   // SVO Surface Voxel
-								   const float4& colorSVO,
-								   const float4& normalSVO,
-
-								   cudaTextureObject_t shadowTex,
-								   uint32_t lightIndex,
-                                   const float3& ambientColor)
 {
-	float3 lightIntensity = {0.0f, 0.0f, 0.0f};
+	float3 irradiance = {0.0f, 0.0f, 0.0f};
 
 	float3 worldEye;
-	worldEye.x = camPos.x - worldPos.x;
-	worldEye.y = camPos.y - worldPos.y;
-	worldEye.z = camPos.z - worldPos.z;
+	worldEye.x = liParams.camPos.x - worldPos.x;
+	worldEye.y = liParams.camPos.y - worldPos.y;
+	worldEye.z = liParams.camPos.z - worldPos.z;
 
 	float3 worldLight;
 	float falloff = 1.0f;
@@ -200,6 +211,8 @@ inline __device__ float3 PhongBRDF(const float3& worldPos,
 	worldLight = Normalize(worldLight);
 	worldEye = Normalize(worldEye);
 	
+	// Bias the world a little bit since voxel system and world system do not align perfectly
+	// Only for shadow map fetch
 	float3 biasedWorld = worldPos;
 	biasedWorld.x += worldLight.x * 3.0f;
 	biasedWorld.y += worldLight.y * 3.0f;
@@ -208,10 +221,10 @@ inline __device__ float3 PhongBRDF(const float3& worldPos,
 	float4 shadowUV = CalculateShadowUV(lightVP,
 										lightStruct,
 										biasedWorld,
-										camPos,
-										camDir,
-										depthNear,
-										depthFar);
+										liParams.camPos,
+										liParams.camDir,
+										liParams.depthNear,
+										liParams.depthFar);
 
 
 
@@ -221,28 +234,20 @@ inline __device__ float3 PhongBRDF(const float3& worldPos,
 	worldHalf.z = worldLight.z + worldEye.z;
 	worldHalf = Normalize(worldHalf);
 
-	float3 worldNormal = {normalSVO.x, normalSVO.y, normalSVO.z};
-
 	// Lambert Diffuse Model
-	float intensity = fmaxf(Dot(worldNormal, worldLight), 0.0f) * GI_ONE_OVER_PI;
-	lightIntensity = {intensity, intensity, intensity};
+	float intensity = fmaxf(Dot(normal, worldLight), 0.0f) * GI_ONE_OVER_PI;
+	irradiance = {intensity, intensity, intensity};
 
 	// Early Bail From Light Occulusion
 	// This also eliminates some self shadowing artifacts
-	if(intensity == 0.0f)
-        return
-        {
-            ambientColor.x * colorSVO.x,
-            ambientColor.y * colorSVO.y,
-            ambientColor.z * colorSVO.z
-        }; 
+	if(intensity == 0.0f) return irradiance;
 
 	// Check Light Occulusion (ShadowMap)
 	float shadowDepth = 0.0f;
 	if(lightStruct.position.w == GI_LIGHT_DIRECTIONAL)
 	{
 		// Texture Array Fetch
-		shadowDepth = tex2DLayeredLod<float>(shadowTex,
+		shadowDepth = tex2DLayeredLod<float>(liParams.shadowMaps,
 											 shadowUV.x,
 											 shadowUV.y,
 											 static_cast<float>(lightIndex * 6) + shadowUV.z,
@@ -251,7 +256,7 @@ inline __device__ float3 PhongBRDF(const float3& worldPos,
 	else
 	{
 		// Cube Fetch if applicable
-		shadowDepth = texCubemapLayeredLod<float>(shadowTex,
+		shadowDepth = texCubemapLayeredLod<float>(liParams.shadowMaps,
 												  shadowUV.x,
 												  shadowUV.y,
 												  shadowUV.z,
@@ -260,92 +265,86 @@ inline __device__ float3 PhongBRDF(const float3& worldPos,
 	}
 
 	// Cull if occluded
-	if(shadowDepth < shadowUV.w) 
-        return
-        {
-            ambientColor.x * colorSVO.x,
-            ambientColor.y * colorSVO.y,
-            ambientColor.z * colorSVO.z
-        };
+	if(shadowDepth < shadowUV.w) return irradiance;
 
 	// Specular
 	// Blinn-Phong
-    float specPower = 32.0f + colorSVO.w * 2048.0f;
-    float power = (pow(fmaxf(Dot(worldHalf, worldNormal), 0.0f), specPower));	
-	lightIntensity.x += power;
-	lightIntensity.y += power;
-	lightIntensity.z += power;
+    float specPower = 16.0f + albedo.w * 2048.0f;
+    float power = (pow(fmaxf(Dot(worldHalf, normal), 0.0f), specPower));	
+	irradiance.x += power;
+	irradiance.y += power;
+	irradiance.z += power;
 
-	// Falloff
-	lightIntensity.x *= falloff;
-	lightIntensity.y *= falloff;
-	lightIntensity.z *= falloff;
+	// Colorize + Intensity + Falloff
+	irradiance.x *= falloff * lightStruct.color.x * lightStruct.color.w;
+	irradiance.y *= falloff * lightStruct.color.y * lightStruct.color.w;
+	irradiance.z *= falloff * lightStruct.color.z * lightStruct.color.w;
 
-	// Colorize + Intensity
-	lightIntensity.x *= lightStruct.color.x * lightStruct.color.w;
-	lightIntensity.y *= lightStruct.color.y * lightStruct.color.w;
-	lightIntensity.z *= lightStruct.color.z * lightStruct.color.w;
+	// Surface Albedo	
+	irradiance.x *= albedo.x;
+	irradiance.y *= albedo.y;
+	irradiance.z *= albedo.z;
 
-	// Out
-	float3 result =
-	{
-		(lightIntensity.x + ambientColor.x) * colorSVO.x,
-		(lightIntensity.y + ambientColor.y) * colorSVO.y,
-		(lightIntensity.z + ambientColor.z) * colorSVO.z
-	};
-
-	result.x = Clamp(result.x, 0.0f, 1.0f);
-	result.y = Clamp(result.y, 0.0f, 1.0f);
-	result.z = Clamp(result.z, 0.0f, 1.0f);
-	return result;
+	lightDirection = worldLight;
+	return irradiance;
 }
 
-__device__ inline float3 LightInject(const float3& worldPos,
-
-									 // SVO Surface Voxel
-									 const float4& colorSVO,
-									 const float4& normalSVO,
-
-									 // Camera Related
-									 const float4& camPos,
-									 const float3& camDir,
-
-									 // Light View Projection
-									 const CMatrix4x4* lightVP,
-									 const CLight* lightStruct,
-
-									 float depthNear,
-									 float depthFar,
-
-									 // Shadow Tex
-									 cudaTextureObject_t shadowTex,
-
-									 const int lightCount,
-                                     const float3& ambientColor)
+__device__ inline float3 LightInject(float3& lightDir,
+									 // Node Params
+									 const float3& worldPos,
+									 const float4& albedo,
+									 const float3& normal,
+									 // Light Parameters
+									 const CLightInjectParameters& liParams)
 {
-	// For Each Light
-	float3 totalIllum = {0.0f, 0.0f, 0.0f};
-	for(int i = 0; i < lightCount; i++)
-	{
-		const CMatrix4x4* currentLightVP = lightVP + (i * 6);
-		const CLight light = lightStruct[i];
+	// Base Ambient Illumination
+	float3 totalIllum = liParams.ambientLight;
+	totalIllum.x *= albedo.x;
+	totalIllum.y *= albedo.y;
+	totalIllum.z *= albedo.z;
 
-		float3 illum = PhongBRDF(worldPos,
-								 camPos,
-								 camDir,
-								 currentLightVP,
+	// Base Light Direction
+	lightDir = {0.0f, 0.0f, 0.0f};
+
+	// For Each Light
+	for(int i = 0; i < liParams.lightCount; i++)
+	{
+		const CMatrix4x4* currentLightVP = liParams.gLightVP + (i * 6);
+		const CLight light = liParams.gLightStruct[i];
+
+		float3 currentLightDir;
+		float3 illum = PhongBRDF(// Out Light
+								 currentLightDir,
+								 // Node Params
+								 worldPos,
+								 albedo,
+								 normal,
+								 // Constants for this light
+								 liParams,
 								 light,
-								 depthNear,
-								 depthFar,
-								 colorSVO,
-								 normalSVO,
-								 shadowTex,
-								 i,
-                                 ambientColor);
+								 currentLightVP,
+								 i);
 
 		totalIllum.x += illum.x;
 		totalIllum.y += illum.y;
 		totalIllum.z += illum.z;
+
+		lightDir.x += currentLightDir.x;
+		lightDir.y += currentLightDir.y;
+		lightDir.z += currentLightDir.z;
 	}
+
+	// Average Light Direction
+	float invCount = 1.0f / static_cast<float>(liParams.lightCount);
+	lightDir.x *= invCount;
+	lightDir.y *= invCount;
+	lightDir.z *= invCount;
+
+	// Clamp Total Irradiance if overflowed
+	totalIllum.x = Clamp(totalIllum.x, 0.0f, 1.0f);
+	totalIllum.y = Clamp(totalIllum.y, 0.0f, 1.0f);
+	totalIllum.z = Clamp(totalIllum.z, 0.0f, 1.0f);
+
+	// Total Illumination
 	return totalIllum;
 }

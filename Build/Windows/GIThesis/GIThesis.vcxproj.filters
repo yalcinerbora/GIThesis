@@ -354,7 +354,7 @@
     <ClInclude Include="..\..\..\Source\CSVONodeReduction.cuh">
       <Filter>GI\Thesis\Kernels\SVOHelpers</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CSVOMaterialAverage.cuh">
+    <ClInclude Include="..\..\..\Source\CSVOIllumAverage.cuh">
       <Filter>GI\Thesis\Kernels\SVOHelpers</Filter>
     </ClInclude>
   </ItemGroup>

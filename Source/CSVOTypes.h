@@ -79,6 +79,8 @@ struct CSVOLevelConst
 // Light Inject Related
 struct CLightInjectParameters
 {
+	const float3			ambientLight;
+
 	const bool				injectOn;
 	const float4			camPos;
 	const float3			camDir;
@@ -86,6 +88,7 @@ struct CLightInjectParameters
 	const CMatrix4x4*		gLightVP;
 	const CLight*			gLightStruct;
 
+	// Shadow map related
 	const float				depthNear;
 	const float				depthFar;
 	cudaTextureObject_t		shadowMaps;

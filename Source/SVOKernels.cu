@@ -4,6 +4,7 @@
 #include "CSVOHash.cuh"
 #include "CVoxelFunctions.cuh"
 #include "CSVOLightInject.cuh"
+#include "CSVOIllumAverage.cuh"
 #include <cuda.h>
 
 // No Negative Dimension Expansion (Best case)
@@ -158,26 +159,26 @@ inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode, unsigned int&
     return old;
 }
 
-inline __device__ unsigned int TraverseNode(// SVO
-											const CSVOLevelConst* svoLevels,
-											// Initial Node & Start Level (Optional)
-											const CSVONode* baseNode,
-											const uint32_t startLevel,
-											// Node Related
-											const uint3& voxelId,
-											// Constants
-											const OctreeParameters& octreeParams,
-											const uint32_t level)
+inline __device__ const CSVONode* TraverseNode(// SVO
+											   const CSVOLevelConst* svoLevels,
+											   // Node Related
+											   const uint3& voxelId,
+											   // Constants
+											   const OctreeParameters& octreeParams,
+											   const uint32_t level)
 {
 	// Returns Node Location on That Level	
-	uint32_t initialLevel = (baseNode != nullptr) ? startLevel : octreeParams.DenseLevel + 1;
-	const CSVONode* initalNode = baseNode;
-	if(baseNode == nullptr)
+	uint3 denseLevelId = CalculateParentVoxId(voxelId, octreeParams.DenseLevel, level);
+	const CSVOLevelConst& denseLevel = svoLevels[octreeParams.DenseLevel];
+	const CSVONode* node = denseLevel.gLevelNodes + DenseIndex(denseLevelId, octreeParams.DenseSize);
+
+	// Iterate untill level (This portion's nodes should be allocated)
+	for(uint32_t i = octreeParams.DenseLevel + 1; i <= level; i++)
 	{
-		uint3 denseLevelId = CalculateParentVoxId(voxelId, octreeParams.DenseLevel, level);
-		const CSVOLevelConst& denseLevel = svoLevels[octreeParams.DenseLevel];
-		initalNode = denseLevel.gLevelNodes + DenseIndex(denseLevelId, octreeParams.DenseSize);
+		unsigned int childId = CalculateLevelChildId(voxelId, i, level);
+		node = svoLevels[i].gLevelNodes + *node + childId;
 	}
+	return node;
 }
 
 inline __device__ unsigned int TraverseAndAllocate(// SVO
@@ -188,22 +189,17 @@ inline __device__ unsigned int TraverseAndAllocate(// SVO
 												   const uint3& parentVoxelId,
 												   // Constants
 												   const OctreeParameters& octreeParams,
-												   const uint32_t level)
+												   const uint32_t parentLevel)
 {
-	// Initialize Pointer with dense
-	uint3 denseLevelId = CalculateParentVoxId(parentVoxelId, octreeParams.DenseLevel, level - 1);
-	const CSVOLevel& denseLevel = svoLevels[octreeParams.DenseLevel];
-	CSVONode* node = denseLevel.gLevelNodes + DenseIndex(denseLevelId, octreeParams.DenseSize);
 
-	// Iterate untill level (This portion's nodes should be allocated)
-	for(uint32_t i = octreeParams.DenseLevel + 1; i < level; i++)
-	{
-		unsigned int childId = CalculateLevelChildId(parentVoxelId, i, level - 1);
-		node = svoLevels[i].gLevelNodes + *node + childId;
-	}
+	const CSVONode* node = TraverseNode(reinterpret_cast<const CSVOLevelConst*>(svoLevels),
+										parentVoxelId,
+										octreeParams,
+										parentLevel);
 
 	// Now Node pointer points the required location
-	CSVONode nodeLocation = AtomicAllocateNode(node, gLevelAllocator);
+	CSVONode nodeLocation = AtomicAllocateNode(const_cast<CSVONode*>(node), 
+											   gLevelAllocator);
 	
 	// Check the capacity if capacity Fails
 	assert(nodeLocation < gLevelCapacity);
@@ -569,7 +565,8 @@ __global__ void SVOReconstruct(// SVO
 	const CVoxelNorm voxelNormPacked = gVoxelPages[pageId].dGridVoxNorm[pageLocalId];
 	
 	// Unpack Position
-	uint3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxelPosPacked),
+	uint3 voxPos = ExpandVoxPos(voxelPosPacked);
+	uint3 nodePos = ExpandToSVODepth(voxPos,
 									 cascadeId,
 									 octreeParams.CascadeCount,
 									 octreeParams.CascadeBaseLevel);
@@ -764,19 +761,22 @@ __global__ void SVOReconstruct(// SVO
 														uParentNode,
 														// Constants
 														octreeParams,
-														i);
+														i - 1);
 				}
 
 				// Is this required ? (or volatile cast does the trick?)
-				__threadfence_block();
+				//__threadfence_block();
 			}
 		}
 		// This level's nodes are allocated now to the next level
 		__syncthreads();
 	}
 
-	__threadfence();
+	//__threadfence();
 	// All Levels are Allocated (for this block at least)
+	// Now each thread will write on its own to the leaf
+	// Cull unnecessary threads
+	if(voxelNormPacked == 0xFFFFFFFF) return;
 
 	// Now load albeo etc and average those on leaf levels
 	// Find your opengl data and voxel cache
@@ -793,137 +793,187 @@ __global__ void SVOReconstruct(// SVO
 	// Unpack Occupancy
 	float3 weights = ExpandOccupancy(voxOccupPacked);
 	float3 normal = ExpandVoxNormal(voxelNormPacked);
-	//float4 voxAlbedo = UnpackSVOIrradiance(voxAlbedoPacked);
+	float4 voxAlbedo = UnpackSVOIrradiance(*reinterpret_cast<const CSVOIrradiance*>(&voxAlbedoPacked));
 	
+	// Light Injection
+	float4 irradiance;
+	float3 lightDir = {0.0f, 0.0f, 0.0f};
+	if(liParams.injectOn)
+	{
+		// World Space Position Reconstruction
+		const float3 edgePos = gGridInfos[cascadeId].position;
+		const float span = gGridInfos[cascadeId].span;
+		float3 worldPos;
+		worldPos.x = edgePos.x + (static_cast<float>(voxPos.x) + weights.x) * span;
+		worldPos.x = edgePos.y + (static_cast<float>(voxPos.y) + weights.y) * span;
+		worldPos.x = edgePos.z + (static_cast<float>(voxPos.z) + weights.z) * span;
 
-	//CSVONode* node = nullptr;
-	//if(i == octreeParams.DenseLevel)
-	//{
-	//	uint3 levelVoxId = CalculateLevelVoxId(currentVoxPos, i, svoConstants.totalDepth);
-	//	node = gSVODense +
-	//		svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
-	//		svoConstants.denseDim * levelVoxId.y +
-	//		levelVoxId.x;
-	//}
-	//else
-	//{
-	//	node = gSVOSparse + gLevelOffsets[levelIndex] + location;
-	//}
+		// Generated Irradiance
+		float3 irradianceDiffuse = LightInject(lightDir,
+											   // Node Params
+											   worldPos,
+											   voxAlbedo,
+											   normal,
+											   // Light Parameters
+											   liParams);
 
-	//// Allocate (or acquire) next location
-	//location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
-	//assert(location < gLevelTotalSizes[levelIndex + 1]);
+		irradiance.x = irradianceDiffuse.x;
+		irradiance.y = irradianceDiffuse.x;
+		irradiance.z = irradianceDiffuse.x;
+	}
+	else
+	{
+		irradiance.x = voxAlbedo.x;
+		irradiance.y = voxAlbedo.x;
+		irradiance.z = voxAlbedo.x;
+	}
+	irradiance.w = voxAlbedo.w;
+
+	// Now Leaf Illumination Data Injection
+	// Each Node will traverse all potential 27 parents
+			
+	// Determine Meta Node of this level and
+	// Determine Bitmap
+	uint3 parentNode;
+	parentNode.x = nodePos.x & 0xFFFFFFFE;
+	parentNode.y = nodePos.y & 0xFFFFFFFE;
+	parentNode.z = nodePos.z & 0xFFFFFFFE;
+	uint32_t bitmap = 0x00;
+	bitmap |= (nodePos.z & 0x1) << 2;
+	bitmap |= (nodePos.y & 0x1) << 1;
+	bitmap |= (nodePos.x & 0x1) << 0;	
+	uint32_t invBitmap = (~bitmap) & 0x00000007;
+
+	// Find out generation size and lookup tables
+	int8_t lookupIndex = static_cast<int8_t>(__popc(invBitmap));
+	const char3* lookupTable = voxLookupTables[lookupIndex];
+	const int8_t lookupCount = voxLookupSizes[lookupIndex];
+
+	// Determine Swap Locations
+	// For one or two negative expansions lookup table
+	// needs to be adjusted since it stored as x (or xy) negative
+	// we need to check bits for that
+	int8_t swapFrom = 0, swapTo = 0;
+	if(__popc(bitmap) == 1)
+	{
+		swapFrom = 2;
+		swapTo = __ffs(bitmap) - 1;
+	}
+	else if(__popc(bitmap) == 2)
+	{
+		swapTo = __ffs(invBitmap) - 1;
+	}
+
+	// We found out iterations now iterate
+	for(int8_t j = 0; j < lookupCount; j++)
+	{
+		uint32_t parentLevel = cascadeMaxLevel - 1;
+
+		// Swap the neigbour map
+		char3 neigbourMap = lookupTable[j];
+		Swap(neigbourMap, swapFrom, swapTo);
+
+		int3 currentParent;
+		currentParent.x = static_cast<int>(nodePos.x >> 1) + neigbourMap.x;
+		currentParent.y = static_cast<int>(nodePos.y >> 1) + neigbourMap.y;
+		currentParent.z = static_cast<int>(nodePos.z >> 1) + neigbourMap.z;
+
+		// Boundary Check
+		int parentLevelSize = (0x1 << parentLevel);
+		if(currentParent.x < 0 || currentParent.x >= parentLevelSize ||
+		   currentParent.y < 0 || currentParent.y >= parentLevelSize ||
+		   currentParent.z < 0 || currentParent.z >= parentLevelSize)
+			continue;
+
+		uint3 uParentNode;
+		uParentNode.x = static_cast<uint32_t>(currentParent.x);
+		uParentNode.y = static_cast<uint32_t>(currentParent.y);
+		uParentNode.z = static_cast<uint32_t>(currentParent.z);
+
+		// Traverse to this parent
+		const CSVONode* n = TraverseNode(reinterpret_cast<CSVOLevelConst*>(gSVOLevels),
+										 uParentNode, octreeParams, parentLevel);
+			
+		//// Found Parent Now This parent may have multiple children (up to 8)
+		//// to be allocated
+		//1 + (1 - (neigbourMap.x | (bitmap >> 0))) *
+		//1 + (1 - (neigbourMap.y | (bitmap >> 1))) *
+		//1 + (1 - (neigbourMap.z | (bitmap >> 2))) *
+
+		//int8_t childCount = 1 * 
+		//for(int i = 0; i < )
+		
+
+		//AtomicIllumAvg(illumNode, irradiance, normal, lightDir, occupancy);
+
+	}
+	
+	// Finally All Done
 
 
 
 
-
-
-	//// Light Injection
-	//if(inject)
-	//{
-	//	float4 colorSVO = UnpackSVOColor(voxelColorPacked);
-	//	float4 normalSVO = UnpackSVONormal(voxelNormPacked);
-
-	//	float3 worldPos =
-	//	{
-	//		outerCascadePos.x + voxelPos.x * span,
-	//		outerCascadePos.y + voxelPos.y * span,
-	//		outerCascadePos.z + voxelPos.z * span
-	//	};
-
-	//	// First Averager find and inject light
-	//	float3 = ambientColor;
-	//	float3 illum = LightInject(worldPos,
-
-	//							   colorSVO,
-	//							   normalSVO,
-
-	//							   camPos,
-	//							   camDir,
-
-	//							   lightVP,
-	//							   lightStruct,
-
-	//							   depthNear,
-	//							   depthFar,
-
-	//							   shadowMaps,
-	//							   lightCount);
-
-	//	colorSVO.x = illum.x;
-	//	colorSVO.y = illum.y;
-	//	colorSVO.z = illum.z;
-	//	voxelColorPacked = PackSVOColor(colorSVO);
-	//}
-
-	////printf("cascadeNo %d weights %f, %f, %f\n", cascadeNo, weights.x, weights.y, weights.z);
-
-	//float totalOccupancy = 0.0f;
-	//for(unsigned int i = 0; i < GI_SVO_WORKER_PER_NODE; i++)
-	//{
-	//	// Create NeigNode
-	//	uint3 currentVoxPos = voxelPos;
-	//	unsigned int cascadeOffset = svoConstants.numCascades - cascadeNo - 1;
-	//	currentVoxPos.x += voxLookup[i].x * (voxOffset.x << cascadeOffset);
-	//	currentVoxPos.y += voxLookup[i].y * (voxOffset.y << cascadeOffset);
-	//	currentVoxPos.z += voxLookup[i].z * (voxOffset.z << cascadeOffset);
-	//	
-	//	// Calculte this nodes occupancy
-	//	float occupancy = 1.0f;
-	//	float3 volume;
-	//	volume.x = (voxLookup[i].x == 1) ? weights.x : (1.0f - weights.x);
-	//	volume.y = (voxLookup[i].y == 1) ? weights.y : (1.0f - weights.y);
-	//	volume.z = (voxLookup[i].z == 1) ? weights.z : (1.0f - weights.z);
-	//	occupancy = volume.x * volume.y * volume.z;
-	//	totalOccupancy += occupancy;
-
-	//	//printf("(%d, %d, %d) occupancy %f\n",
-	//	//	   voxLookup[i].z, voxLookup[i].y, voxLookup[i].x,
-	//	//	   occupancy);
-
-	//	unsigned int location;
-	//	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
-	//	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
-	//	{
-	//		unsigned int levelIndex = i - svoConstants.denseDepth;
-	//		CSVONode* node = nullptr;
-	//		if(i == svoConstants.denseDepth)
-	//		{
-	//			uint3 levelVoxId = CalculateLevelVoxId(currentVoxPos, i, svoConstants.totalDepth);
-	//			node = gSVODense +
-	//				svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
-	//				svoConstants.denseDim * levelVoxId.y +
-	//				levelVoxId.x;
-	//		}
-	//		else
-	//		{
-	//			node = gSVOSparse + gLevelOffsets[levelIndex] + location;
-	//		}
-
-	//		// Allocate (or acquire) next location
-	//		location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
-	//		assert(location < gLevelTotalSizes[levelIndex + 1]);
-
-	//		// Offset child
-	//		unsigned int childId = CalculateLevelChildId(currentVoxPos, i + 1, svoConstants.totalDepth);
-	//		location += childId;
-	//	}
-
-	//	AtomicAvg(gSVOMat + matSparseOffset +
-	//			  gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location,
-	//			  voxelColorPacked,
-	//			  voxelNormPacked,
-	//			  {0.0f, 0.0f, 0.0f, 0.0f},
-	//			  occupancy);
-
-	//	//// Non atmoic overwrite
-	//	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
-	//	//		svoConstants.denseDepth] + location].colorPortion = PackSVOMaterialPortion(voxelColorPacked, 0x0);
-	//	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
-	//	//		svoConstants.denseDepth] + location].normalPortion = PackSVOMaterialPortion(voxelNormPacked, 0x0);
-	//		
-	//}
-
-	////printf("total occupancy %f\n", totalOccupancy);
+	
 }
+
+// Old Code
+//float totalOccupancy = 0.0f;
+//for(unsigned int i = 0; i < GI_SVO_WORKER_PER_NODE; i++)
+//{
+//	// Create NeigNode
+//	uint3 currentVoxPos = voxelPos;
+//	unsigned int cascadeOffset = svoConstants.numCascades - cascadeNo - 1;
+//	currentVoxPos.x += voxLookup[i].x * (voxOffset.x << cascadeOffset);
+//	currentVoxPos.y += voxLookup[i].y * (voxOffset.y << cascadeOffset);
+//	currentVoxPos.z += voxLookup[i].z * (voxOffset.z << cascadeOffset);
+//	
+//	// Calculte this nodes occupancy
+//	float occupancy = 1.0f;
+//	float3 volume;
+//	volume.x = (voxLookup[i].x == 1) ? weights.x : (1.0f - weights.x);
+//	volume.y = (voxLookup[i].y == 1) ? weights.y : (1.0f - weights.y);
+//	volume.z = (voxLookup[i].z == 1) ? weights.z : (1.0f - weights.z);
+//	occupancy = volume.x * volume.y * volume.z;
+//	totalOccupancy += occupancy;
+//	//printf("(%d, %d, %d) occupancy %f\n",
+//	//	   voxLookup[i].z, voxLookup[i].y, voxLookup[i].x,
+//	//	   occupancy);
+//	unsigned int location;
+//	unsigned int cascadeMaxLevel = svoConstants.totalDepth - (svoConstants.numCascades - cascadeNo);
+//	for(unsigned int i = svoConstants.denseDepth; i <= cascadeMaxLevel; i++)
+//	{
+//		unsigned int levelIndex = i - svoConstants.denseDepth;
+//		CSVONode* node = nullptr;
+//		if(i == svoConstants.denseDepth)
+//		{
+//			uint3 levelVoxId = CalculateLevelVoxId(currentVoxPos, i, svoConstants.totalDepth);
+//			node = gSVODense +
+//				svoConstants.denseDim * svoConstants.denseDim * levelVoxId.z +
+//				svoConstants.denseDim * levelVoxId.y +
+//				levelVoxId.x;
+//		}
+//		else
+//		{
+//			node = gSVOSparse + gLevelOffsets[levelIndex] + location;
+//		}
+//		// Allocate (or acquire) next location
+//		location = AtomicAllocateNode(node, gLevelAllocators[levelIndex + 1]);
+//		assert(location < gLevelTotalSizes[levelIndex + 1]);
+//		// Offset child
+//		unsigned int childId = CalculateLevelChildId(currentVoxPos, i + 1, svoConstants.totalDepth);
+//		location += childId;
+//	}
+//	AtomicAvg(gSVOMat + matSparseOffset +
+//			  gLevelOffsets[cascadeMaxLevel + 1 - svoConstants.denseDepth] + location,
+//			  voxelColorPacked,
+//			  voxelNormPacked,
+//			  {0.0f, 0.0f, 0.0f, 0.0f},
+//			  occupancy);
+//	//// Non atmoic overwrite
+//	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
+//	//		svoConstants.denseDepth] + location].colorPortion = PackSVOMaterialPortion(voxelColorPacked, 0x0);
+//	//gSVOMat[matSparseOffset + gLevelOffsets[cascadeMaxLevel + 1 -
+//	//		svoConstants.denseDepth] + location].normalPortion = PackSVOMaterialPortion(voxelNormPacked, 0x0);
+//		
+//}
+////printf("total occupancy %f\n", totalOccupancy);

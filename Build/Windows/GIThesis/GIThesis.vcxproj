@@ -72,7 +72,7 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_52,sm_52</CodeGeneration>
+      <CodeGeneration>compute_52,sm_52;compute_61,sm_61</CodeGeneration>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <GenerateLineInfo>true</GenerateLineInfo>
       <MaxRegCount>
@@ -113,7 +113,7 @@
     </PostBuildEvent>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_52,sm_52</CodeGeneration>
+      <CodeGeneration>compute_52,sm_52;compute_61,sm_61</CodeGeneration>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <FastMath>true</FastMath>
       <GPUDebugInfo>false</GPUDebugInfo>
@@ -150,7 +150,7 @@
     <ClInclude Include="..\..\..\Source\CSVOHash.cuh" />
     <ClInclude Include="..\..\..\Source\GIVoxelPages.h" />
     <ClInclude Include="..\..\..\Source\PageKernels.cuh" />
-    <ClInclude Include="..\..\..\Source\CSVOMaterialAverage.cuh" />
+    <ClInclude Include="..\..\..\Source\CSVOIllumAverage.cuh" />
     <ClInclude Include="..\..\..\Source\ThesisScenes.h" />
     <ClInclude Include="..\..\..\Source\CSVOTypes.h" />
     <ClInclude Include="..\..\..\Source\CudaInit.h" />

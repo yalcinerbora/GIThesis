@@ -103,6 +103,9 @@ GISparseVoxelOctree::ShadowMapsCUDA::~ShadowMapsCUDA()
 
 void GISparseVoxelOctree::ShadowMapsCUDA::Map()
 {
+	CudaTimer t;
+	t.Start();
+
 	assert(dLightParamArray == nullptr);
 	assert(dLightVPMatrixArray == nullptr);
 	assert(shadowMapArray == nullptr);
@@ -135,6 +138,9 @@ void GISparseVoxelOctree::ShadowMapsCUDA::Map()
 
 	dLightParamArray = reinterpret_cast<const CLight*>(glBufferCUDA + lightOffset);
 	dLightVPMatrixArray = reinterpret_cast<const CMatrix4x4*>(glBufferCUDA + matrixOffset);
+
+	t.Stop();
+	GI_LOG("Mapping Shadow Maps %f ms", t.ElapsedMilliS());
 }
 
 void GISparseVoxelOctree::ShadowMapsCUDA::Unmap()
@@ -364,6 +370,9 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 
 void GISparseVoxelOctree::MapOGLData()
 {
+	CudaTimer t;
+	t.Start();
+
 	// Get Node Pointer
 	CUDA_CHECK(cudaGraphicsMapResources(1, &gpuResource));
 	size_t size; uint8_t* oglCudaPtr;
@@ -412,6 +421,9 @@ void GISparseVoxelOctree::MapOGLData()
 	CUDA_CHECK(cudaMemcpy(dOctreeLevels, svoLevels.data(),
 						  (octreeParams->MaxSVOLevel + 1) * sizeof(CSVOLevel),
 						  cudaMemcpyHostToDevice));
+
+	t.Stop();
+	GI_LOG("Map Time (with clear) %f ms", t.ElapsedMilliS());
 }
 
 void GISparseVoxelOctree::UnmapOGLData()
@@ -441,6 +453,7 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 											  // Constants
 											  uint32_t batchCount,
 											  const LightInjectParameters& injectParams,
+											  const IEVector3& ambientColor,
 											  bool injectOn)
 {
 	CudaTimer t;
@@ -449,6 +462,8 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 	// Gen LI Params
 	CLightInjectParameters liParams = 
 	{
+		float3{ambientColor[0], ambientColor[1], ambientColor[2]},
+
 		injectOn,
 		injectParams.camPos,
 		injectParams.camDir,
@@ -516,6 +531,7 @@ void GISparseVoxelOctree::UpdateSVO(// Timing Related
 									// Constants
 									uint32_t batchCount,
 									const LightInjectParameters& injectParams,
+									const IEVector3& ambientColor,
 									bool injectOn)
 {
 	MapOGLData();
@@ -523,7 +539,7 @@ void GISparseVoxelOctree::UpdateSVO(// Timing Related
 
 	reconstructTime = GenerateHierarchy(doTiming,
 										pages, caches, batchCount,
-										injectParams, injectOn);
+										injectParams, ambientColor, injectOn);
 	averageTime = AverageNodes(doTiming);
 
 	shadowMaps.Unmap();

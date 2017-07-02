@@ -101,11 +101,11 @@ inline __device__ uint64_t AtomicOccupLightDirAvg(uint64_t* gIllumUpper,
 	return old;
 }
 
-inline __device__ CSVOIllumination AtomicAvg(CSVOIllumination* gIllum,
-											 const float4& nodeIrradiance,
-											 const float3& nodeNormal,
-											 const float3& nodeLightDir,
-											 const float nodeOccupancy)
+inline __device__ CSVOIllumination AtomicIllumAvg(CSVOIllumination* gIllum,
+												  const float4& nodeIrradiance,
+												  const float3& nodeNormal,
+												  const float3& nodeLightDir,
+												  const float nodeOccupancy)
 {
 
 	uint64_t lower = AtomicIllumNormalAvg(&(gIllum->irradiancePortion),

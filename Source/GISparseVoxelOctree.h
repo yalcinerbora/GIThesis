@@ -65,10 +65,10 @@ static constexpr size_t BigSizes[] =
 	2048 * 1024,	// 7 Dense
 
 	/*16384*/4096 * 1024,	// 8
-	/*16384*/32192 * 1024,	// 9
-	/*16384*/32192 * 1024,	// 10
-	/*32384*/32192 * 1024,	// 11
-	/*32384*/16192 * 1024,	// 12
+	/*16384*/4096 * 1024,	// 9
+	/*16384*/16384 * 1024,	// 10
+	/*32384*/8192 * 1024,	// 11
+	/*32384*/8192 * 1024,	// 12
 	/*32384*/8192 * 1024	// 13
 };
 
@@ -182,9 +182,7 @@ class GISparseVoxelOctree
 		const uint32_t*					dLevelCapacities;
 		uint32_t*						dLevelSizes;
 		CSVOLevel*						dOctreeLevels;
-
 		
-
 		// Difference between offsets (since node do not hold dense info except last dense level)
 		std::vector<uint32_t>			hIllumOffsetsAndCapacities;
 		size_t							nodeIllumDifference;

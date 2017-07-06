@@ -58,6 +58,13 @@ class OctreeParameters;
 //												 const unsigned int parentSize);
 //
 
+extern __global__ void AverageLevel(CSVOLevel& gSVOLevel,
+									const uint32_t nodeCount,
+									const OctreeParameters octreeParams);
+
+extern __global__ void ResetIllumCounter(CSVOLevel& gSVOLevel,
+										 const uint32_t nodeCount);
+
 extern __global__ void SVOReconstruct(// SVO
 									  CSVOLevel* gSVOLevels,
 									  uint32_t* gLevelAllocators,

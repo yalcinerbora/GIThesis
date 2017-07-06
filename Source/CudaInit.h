@@ -27,7 +27,7 @@ class CudaInit
 {
 	public:
 		// Thread per Block counts
-		static constexpr int	TBPSmall = 128;
+		static constexpr int	TBPSmall = 256;
 		static constexpr int	TBP = 512;
 		static constexpr int	TBP_XY = 16;
 

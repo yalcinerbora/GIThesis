@@ -1,14 +1,15 @@
+#pragma once
 /**
 
 Atomic Allocation used by voxel include and svo reconstruct
 its basically a CAS looped integer value that uses an array as a stack
 
 */
-
-#ifndef __CATOMICALLOC_H__
-#define __CATOMICALLOC_H__
-
 #include <cuda.h>
+
+__device__ unsigned int AtomicAlloc(unsigned int* gStackSize);
+__device__ unsigned int AtomicDealloc(unsigned int* gStackSize,
+									  const unsigned int maxValue);
 
 inline __device__ unsigned int AtomicAlloc(unsigned int* gStackSize)
 {
@@ -36,4 +37,3 @@ inline __device__ unsigned int AtomicDealloc(unsigned int* gStackSize,
 	while(assumed != old);
 	return old;
 }
-#endif //__CATOMICALLOC_H__

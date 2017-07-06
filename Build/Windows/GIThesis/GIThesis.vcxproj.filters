@@ -306,9 +306,6 @@
     <ClInclude Include="..\..\..\Source\CVoxelTypes.h">
       <Filter>GI\Thesis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh">
-      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\Source\PageKernels.cuh">
       <Filter>GI\Thesis\Kernels</Filter>
     </ClInclude>
@@ -356,6 +353,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CSVOIllumAverage.cuh">
       <Filter>GI\Thesis\Kernels\SVOHelpers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CAtomicPageAlloc.cuh">
+      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CSVONodeAlloc.cuh">
+      <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -11,14 +11,14 @@
 
 #define GI_ONE_OVER_PI 0.318309f
 
-__device__ inline float Dot(const float3& vec1, const float3& vec2)
+inline __device__ float Dot(const float3& vec1, const float3& vec2)
 {
 	return	vec1.x * vec2.x +
 			vec1.y * vec2.y +
 			vec1.z * vec2.z;
 }
 
-__device__ inline float Dot(const float4& vec1, const float4& vec2)
+inline __device__ float Dot(const float4& vec1, const float4& vec2)
 {
 	return	vec1.x * vec2.x +
 			vec1.y * vec2.y +
@@ -26,17 +26,17 @@ __device__ inline float Dot(const float4& vec1, const float4& vec2)
 			vec1.w * vec2.w;
 }
 
-__device__ inline float Length(const float3& vec)
+inline __device__ float Length(const float3& vec)
 {
 	return sqrtf(Dot(vec, vec));
 }
 
-__device__ inline float Length(const float4& vec)
+inline __device__ float Length(const float4& vec)
 {
 	return sqrtf(Dot(vec, vec));
 }
 
-__device__ inline float3 Normalize(const float3& vec)
+inline __device__ float3 Normalize(const float3& vec)
 {
 	float length = Length(vec);
 	if(length != 0.0f) length = 1.0f / length;
@@ -49,7 +49,7 @@ __device__ inline float3 Normalize(const float3& vec)
 	};
 }
 
-__device__ inline float4 Normalize(const float4& vec)
+inline __device__ float4 Normalize(const float4& vec)
 {
 	float length = Length(vec);
 	if(length != 0.0f) length = 1.0f / length;
@@ -63,12 +63,12 @@ __device__ inline float4 Normalize(const float4& vec)
 	};
 }
 
-__device__ inline float Clamp(float x, float min, float max)
+inline __device__ float Clamp(float x, float min, float max)
 {
 	return  (x < min) ? min : ((x > max) ? max : x);
 }
 
-__device__ inline float4 CalculateShadowUV(const CMatrix4x4* lightVP,
+inline __device__ float4 CalculateShadowUV(const CMatrix4x4* lightVP,
 										   const CLight& lightStruct,
 										   const float3& worldPos,
 										   const float4& camPos,
@@ -289,7 +289,7 @@ inline __device__ float3 PhongBRDF(// Out Light
 	return irradiance;
 }
 
-__device__ inline float3 LightInject(float3& lightDir,
+inline __device__ float3 LightInject(float3& lightDir,
 									 // Node Params
 									 const float3& worldPos,
 									 const float4& albedo,

@@ -701,8 +701,8 @@ double GIVoxelPages::Transform(const GIVoxelCache& cache,
 	if(doTiming) t.Start();
 
 	// KC
-	int gridSize = CudaInit::GenBlockSize(static_cast<int>(dPages.Size() * PageSize));
-	int blockSize = CudaInit::TBP;
+	int gridSize = CudaInit::GenBlockSizeSmall(static_cast<int>(dPages.Size() * PageSize));
+	int blockSize = CudaInit::TBPSmall;
 	VoxelTransform<<<gridSize, blockSize>>>(// Voxel Pages
 										    dPages.Data(),
 										    dVoxelGrids,

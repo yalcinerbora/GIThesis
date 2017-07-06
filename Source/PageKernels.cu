@@ -7,7 +7,7 @@
 #include "CMatrixFunctions.cuh"
 #include "CAABBFunctions.cuh"
 #include "COpenGLTypes.h"
-#include "CAtomicAlloc.cuh"
+#include "CAtomicPageAlloc.cuh"
 #include "GIVoxelPages.h"
 
 #define GI_MAX_JOINT_COUNT 63

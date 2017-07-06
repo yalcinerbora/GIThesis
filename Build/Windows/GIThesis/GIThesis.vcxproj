@@ -58,6 +58,7 @@
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <DisableIntelLangExtensions>true</DisableIntelLangExtensions>
       <Cpp0xSupport>true</Cpp0xSupport>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -75,13 +76,14 @@
       <CodeGeneration>compute_52,sm_52;compute_61,sm_61</CodeGeneration>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <GenerateLineInfo>true</GenerateLineInfo>
-      <MaxRegCount>
-      </MaxRegCount>
+      <MaxRegCount>0</MaxRegCount>
       <AdditionalOptions>-Xptxas="-dlcm=ca" -Wno-deprecated-gpu-targets %(AdditionalOptions)</AdditionalOptions>
       <AdditionalCompilerOptions>
       </AdditionalCompilerOptions>
       <Defines>_ITERATOR_DEBUG_LEVEL=0;</Defines>
-      <KeepDir>$(IntDir)\Cuda</KeepDir>
+      <KeepDir>$(IntDir)</KeepDir>
+      <NvccCompilation>compile</NvccCompilation>
+      <PtxAsOptionV>true</PtxAsOptionV>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -97,6 +99,7 @@
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <DisableIntelLangExtensions>true</DisableIntelLangExtensions>
       <Cpp0xSupport>true</Cpp0xSupport>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -118,11 +121,12 @@
       <FastMath>true</FastMath>
       <GPUDebugInfo>false</GPUDebugInfo>
       <GenerateLineInfo>true</GenerateLineInfo>
-      <MaxRegCount>
-      </MaxRegCount>
+      <MaxRegCount>32</MaxRegCount>
       <AdditionalOptions>-Xptxas="-dlcm=ca" -Wno-deprecated-gpu-targets %(AdditionalOptions)</AdditionalOptions>
       <Defines>_ITERATOR_DEBUG_LEVEL=0;</Defines>
-      <KeepDir>$(IntDir)\Cuda</KeepDir>
+      <KeepDir>$(IntDir)</KeepDir>
+      <NvccCompilation>compile</NvccCompilation>
+      <PtxAsOptionV>true</PtxAsOptionV>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -144,9 +148,10 @@
     <ClInclude Include="..\..\..\Source\Animation.h" />
     <ClInclude Include="..\..\..\Source\AntBar.h" />
     <ClInclude Include="..\..\..\Source\CMatrixFunctions.cuh" />
+    <ClInclude Include="..\..\..\Source\CSVONodeAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CSVONodeReduction.cuh" />
     <ClInclude Include="..\..\..\Source\GLSLBindPoints.h" />
-    <ClInclude Include="..\..\..\Source\CAtomicAlloc.cuh" />
+    <ClInclude Include="..\..\..\Source\CAtomicPageAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CSVOHash.cuh" />
     <ClInclude Include="..\..\..\Source\GIVoxelPages.h" />
     <ClInclude Include="..\..\..\Source\PageKernels.cuh" />

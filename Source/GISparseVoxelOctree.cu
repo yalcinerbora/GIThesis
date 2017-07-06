@@ -478,7 +478,8 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 	};
 	
 	// KC
-	int gridSize = CudaInit::GenBlockSize(static_cast<int>(pages.PageCount() * GIVoxelPages::PageSize));
+	// 8 Thread per node (8-neigbour sampling)
+	int gridSize = CudaInit::GenBlockSize(static_cast<int>(pages.PageCount() * 2 * GIVoxelPages::PageSize));
 	int blockSize = CudaInit::TBP;
 	SVOReconstruct<<<gridSize, blockSize>>>(// SVO
 										    dOctreeLevels,
@@ -509,8 +510,29 @@ double GISparseVoxelOctree::AverageNodes(bool doTiming)
 	CudaTimer t;
 	if(doTiming) t.Start();
 
+	// Average Down to Top Fashion
+	for(uint32_t i = octreeParams->MaxSVOLevel; i >= octreeParams->MinSVOLevel; i--)
+	{
+		// Get Level Size (we need to get it level by level since it will be updated on each average level)
+		uint32_t levelSize = 0;
+		CUDA_CHECK(cudaMemcpy(&levelSize,
+							  dLevelSizes + i, 
+							  sizeof(uint32_t), 
+							  cudaMemcpyDeviceToHost));
 
-	// Work
+		// Reset potential average counters for overlapping
+		if(i >= octreeParams->CascadeBaseLevel)
+		{
+			// Reset Base values (if there is a node)
+			int gridSize = CudaInit::GenBlockSize(static_cast<int>(levelSize * 2));
+			int blockSize = CudaInit::TBP;
+
+			ResetIllumCounter<<<gridSize, blockSize>>>(dOctreeLevels[i], levelSize);
+		}
+
+		// Do Average
+	}
+
 
 	if(doTiming)
 	{

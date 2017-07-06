@@ -8,12 +8,18 @@ Sparse voxel octree types that used in cuda funcs
 #define GI_SVO_NODE_WORK_PER_THREAD 8
 
 #include <cstdint>
+#include "CVoxelTypes.h"
 
 struct CLight;
 struct CMatrix4x4;
 
 // Last 2 bit is unused (only slight difference then voxel pos)
-typedef unsigned int CSVONode;
+//typedef unsigned int CSVONode;
+struct CSVONode
+{
+	uint32_t next;
+	CVoxelPos pos;
+};
 
 typedef unsigned int CSVOIrradiance; // (rgb irradiance, a component specularity)
 typedef unsigned int CSVOLightDir;   // (xyz direction, w component used in average)

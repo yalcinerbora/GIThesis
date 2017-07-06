@@ -111,22 +111,23 @@ __constant__ static const char3 voxLookup8[8] =
 __device__ unsigned int AtomicAllocateNode(CSVONode* gNode,
 										   unsigned int& gLevelAllocator,
 										   const CVoxelPos& voxPos);
-__device__ const CSVONode* TraverseNode(// SVO
+__device__ const CSVONode* TraverseNode(uint32_t& traversedLevel,
+										// SVO
 										const CSVOLevelConst* svoLevels,
 										// Node Related
 										const uint3& voxelId,
 										// Constants
 										const OctreeParameters& octreeParams,
 										const uint32_t level);
-__device__ unsigned int TraverseAndAllocate(// SVO
-											uint32_t& gLevelAllocator,
-											const uint32_t gLevelCapacity,
-											const CSVOLevel* svoLevels,
-											// Node Related
-											const uint3& parentVoxelId,
-											// Constants
-											const OctreeParameters& octreeParams,
-											const uint32_t parentLevel);
+__device__ CSVOIllumination* TraverseAndAllocate(// SVO
+												 uint32_t* gLevelAllocators,
+												 const uint32_t* gLevelCapacities,
+												 const CSVOLevel* gSVOLevels,
+												 // Node Related
+												 const uint3& voxelId,
+												 // Constants
+												 const OctreeParameters& octreeParams,
+												 const uint32_t level);
 
 inline __device__ unsigned int AtomicAllocateNode(CSVONode* gNode,
 												  unsigned int& gLevelAllocator,

@@ -341,6 +341,49 @@ __global__ void ResetIllumCounter(CSVOLevel& gSVOLevel,
 		// Make it as if it has single node
 		portion &= 0x01FFFFFF;
 		*portionWithCounter = portion;
+
+
+		//if(liParams.injectOn)
+		//{
+		//	// Gen Illumination
+		//	float4 irradiance;
+		//	float3 lightDir = {0.0f, 0.0f, 0.0f};
+
+		//	// World Space Position Reconstruction
+		//	const float3 edgePos = gGridInfos[cascadeId].position;
+		//	const float span = gGridInfos[cascadeId].span;
+		//	const uint3	voxPos = ExpandVoxPos(voxelPosPacked);
+		//	float3 weights = ExpandOccupancy(voxOccupPacked);
+
+		//	float3 worldPos;
+		//	worldPos.x = edgePos.x + (static_cast<float>(voxPos.x) + weights.x) * span;
+		//	worldPos.y = edgePos.y + (static_cast<float>(voxPos.y) + weights.y) * span;
+		//	worldPos.z = edgePos.z + (static_cast<float>(voxPos.z) + weights.z) * span;
+
+		//	// Normal
+		//	float3 normal = ExpandVoxNormal(voxelNormPacked);
+
+		//	// Generated Irradiance
+		//	float3 irradianceDiffuse = LightInject(lightDir,
+		//										   // Node Params
+		//										   worldPos,
+		//										   voxAlbedo,
+		//										   normal,
+		//										   // Light Parameters
+		//										   liParams);
+
+		//	irradiance.x = irradianceDiffuse.x;
+		//	irradiance.y = irradianceDiffuse.y;
+		//	irradiance.z = irradianceDiffuse.z;
+		//	irradiance.w = voxAlbedo.w;
+
+		//	irradPacked = PackSVOIrradiance(irradiance);
+		//	lightDirPacked = PackVoxNormal(lightDir);
+		//}
+		//else
+		//{
+		//	irradPacked = PackSVOIrradiance(voxAlbedo);
+		//}
 	}	
 }
 
@@ -359,16 +402,15 @@ __global__ void SVOReconstruct(// SVO
 							   const OctreeParameters octreeParams,
 							   const uint32_t batchCount)
 {
-
 	// Shared Memory for generic data
 	__shared__ CSegmentInfo sSegInfo;
 	__shared__ CMeshVoxelInfo sMeshVoxelInfo;
 
 	// Local Ids
 	unsigned int blockLocalId = threadIdx.x;
-	unsigned int nodeLocalId = blockLocalId % 2;
+	//unsigned int nodeLocalId = blockLocalId % 2;
 
-	unsigned int globalId = (threadIdx.x + blockIdx.x * blockDim.x) / 2;
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GIVoxelPages::PageSize;
 	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
 	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
@@ -400,110 +442,51 @@ __global__ void SVOReconstruct(// SVO
 	}
 	__syncthreads();
 
-	// Fetch Position and Normal
-	// Generate Light Direction and Irradiance
-	const CVoxelPos voxelPosPacked = gVoxelPages[pageId].dGridVoxPos[pageLocalId];
+	// Now we can cull invalid nodes
 	const CVoxelNorm voxelNormPacked = gVoxelPages[pageId].dGridVoxNorm[pageLocalId];
+	if(voxelNormPacked == 0xFFFFFFFF) return;
+
+	// Unpack Vox Pos
+	const CVoxelPos voxelPosPacked = gVoxelPages[pageId].dGridVoxPos[pageLocalId];
 
 	// Unpack Occupancy
 	const CVoxelOccupancy voxOccupPacked = gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId];
-	float3 weights = ExpandOccupancy(voxOccupPacked);
-
-	// Now we can cull invalid nodes
-	if(voxelNormPacked == 0xFFFFFFFF) return;
-
-	// Illum Data Packed
-	VoxelAlbedo irradPacked = 0;
-	VoxelNormal lightDirPacked = 0;
-
-	// Light Injection
-	if(nodeLocalId == 0)
-	{
-		// Now load albeo etc and average those on leaf levels
-		// Find your opengl data and voxel cache
-		const uint16_t& batchId = sSegInfo.batchId;
-		const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
-
-		// Voxel Ids
-		const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
-		const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
-
-		// Voxel Albedo
-		const CVoxelAlbedo voxAlbedoPacked = batchCache.dVoxelAlbedo[batchLocalVoxelId];
-		float4 voxAlbedo = UnpackSVOIrradiance(*reinterpret_cast<const CSVOIrradiance*>(&voxAlbedoPacked));
-
-		if(liParams.injectOn)
-		{						
-			// Gen Illumination
-			float4 irradiance;
-			float3 lightDir = {0.0f, 0.0f, 0.0f};
-
-			// World Space Position Reconstruction
-			const float3 edgePos = gGridInfos[cascadeId].position;
-			const float span = gGridInfos[cascadeId].span;
-			const uint3	voxPos = ExpandVoxPos(voxelPosPacked);
-
-			float3 worldPos;
-			worldPos.x = edgePos.x + (static_cast<float>(voxPos.x) + weights.x) * span;
-			worldPos.y = edgePos.y + (static_cast<float>(voxPos.y) + weights.y) * span;
-			worldPos.z = edgePos.z + (static_cast<float>(voxPos.z) + weights.z) * span;
-
-			// Normal
-			float3 normal = ExpandVoxNormal(voxelNormPacked);
-
-			// Generated Irradiance
-			float3 irradianceDiffuse = LightInject(lightDir,
-												   // Node Params
-												   worldPos,
-												   voxAlbedo,
-												   normal,
-												   // Light Parameters
-												   liParams);
-
-			irradiance.x = irradianceDiffuse.x;
-			irradiance.y = irradianceDiffuse.y;
-			irradiance.z = irradianceDiffuse.z;
-			irradiance.w = voxAlbedo.w;
-
-			irradPacked = PackSVOIrradiance(irradiance);
-			lightDirPacked = PackVoxNormal(lightDir);
-		}
-		else
-		{
-			irradPacked = PackSVOIrradiance(voxAlbedo);
-		}		
-	}	
-	// Transfer illum data to neigbour
-	//unsigned int warpLocalNodeId = globalId % (warpSize >> 1);
-	irradPacked = __shfl(irradPacked, 0, 2);
-	lightDirPacked = __shfl(lightDirPacked, 0, 2);
+	
+	// Get Albedo (it is dependant)
+	// Find your opengl data and voxel cache
+	const uint16_t& batchId = sSegInfo.batchId;
+	const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
+	// Voxel Ids
+	const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
+	const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
+	// Voxel Albedo
+	const VoxelAlbedo albedoPacked = batchCache.dVoxelAlbedo[batchLocalVoxelId];
 
 	// Now we will start allocating all nodes
 	// Each node will generate multiple neigbouring nodes (8-neigbour filtering)
 	// Two threads are responsible for single node, they store the alocated positions
 	// Then each thread will average upper or lower half of the node
-	uint4 nodeLocations; uint8_t validBits = 0x00;
 	#pragma unroll
-	for(int j = 0; j < 4; j++)
+	for(int a = 0; a < 8; a++)
 	{
-		const uint3	voxPos = ExpandVoxPos(voxelPosPacked);
+		// Convert Linear Loop to 3D		
+		int i = (a >> 0) & 0x1;
+		int j = (a >> 1) & 0x1;
+		int k = (a >> 2) & 0x1;
 
-		int3 myMetaNeigbour;
-		myMetaNeigbour.x = static_cast<int>(voxPos.x) + voxLookup8[nodeLocalId * 4 + j].x;
-		myMetaNeigbour.y = static_cast<int>(voxPos.y) + voxLookup8[nodeLocalId * 4 + j].y;
-		myMetaNeigbour.z = static_cast<int>(voxPos.z) + voxLookup8[nodeLocalId * 4 + j].z;
+		const uint3	voxPos = ExpandVoxPos(voxelPosPacked);
+		
+		uint3 myMetaNeigbour;
+		myMetaNeigbour.x = static_cast<int>(voxPos.x) + i;
+		myMetaNeigbour.y = static_cast<int>(voxPos.y) + j;
+		myMetaNeigbour.z = static_cast<int>(voxPos.z) + k;
 
 		// Boundary Check
-		bool validNode = (myMetaNeigbour.x >= 0 || myMetaNeigbour.x < octreeParams.CascadeBaseLevelSize ||
-						  myMetaNeigbour.y >= 0 || myMetaNeigbour.y < octreeParams.CascadeBaseLevelSize ||
-						  myMetaNeigbour.z >= 0 || myMetaNeigbour.z < octreeParams.CascadeBaseLevelSize);
-		validBits |= ((validNode) ? 1 : 0) << j;
-		
-		uint3 uMyMetaNeigbour;
-		uMyMetaNeigbour.x = static_cast<unsigned int>(myMetaNeigbour.x);
-		uMyMetaNeigbour.y = static_cast<unsigned int>(myMetaNeigbour.y);
-		uMyMetaNeigbour.z = static_cast<unsigned int>(myMetaNeigbour.z);
-		const uint3 nodePos = ExpandToSVODepth(uMyMetaNeigbour,
+		bool validNode = (myMetaNeigbour.x < octreeParams.CascadeBaseLevelSize ||
+						  myMetaNeigbour.y < octreeParams.CascadeBaseLevelSize ||
+						  myMetaNeigbour.z < octreeParams.CascadeBaseLevelSize);
+
+		const uint3 nodePos = ExpandToSVODepth(myMetaNeigbour,
 											   cascadeId,
 											   octreeParams.CascadeCount,
 											   octreeParams.CascadeBaseLevel);
@@ -522,152 +505,299 @@ __global__ void SVOReconstruct(// SVO
 															  octreeParams,
 															  cascadeMaxLevel);
 			
-			uint32_t nodeOffset = illumNode - gSVOLevels[cascadeMaxLevel].gLevelIllum;
-			reinterpret_cast<unsigned int*>(&nodeLocations)[j] = nodeOffset;
+			// Calculte this nodes occupancy
+			float3 weights = ExpandOccupancy(voxOccupPacked);
+			float3 volume;		
+			volume.x = (i == 1) ? weights.x : (1.0f - weights.x);
+			volume.y = (j == 1) ? weights.y : (1.0f - weights.y);
+			volume.z = (k == 1) ? weights.z : (1.0f - weights.z);
+			float occupancy = volume.x * volume.y * volume.z;
+
+			float4 unpackAlbedo = UnpackSVOIrradiance(albedoPacked);
+			AtomicIllumLeafAvg(reinterpret_cast<uint64_t*>(illumNode), unpackAlbedo, occupancy);
+
+			/*unpackAlbedo = UnpackSVONormal(voxelNormPacked);
+			AtomicIllumLeafAvg(reinterpret_cast<uint64_t*>(illumNode + 1), unpackAlbedo, occupancy);*/
 		}
 	}
 
-	// Now Each Thread will load single node
-	#pragma unroll
-	for(int i = 0; i < 8; i++)
-	{
-		uint32_t shuffleValidBits = __shfl(validBits, (i < 4) ? 0 : 1, 2);
-		if((shuffleValidBits >> (i % 4)) == 0) continue;
-
-		uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - cascadeId;
-		uint32_t nodeShare = reinterpret_cast<unsigned int*>(&nodeLocations)[i % 4];
-		uint32_t nodeOffset = __shfl(nodeShare, (i < 4) ? 0 : 1, 2); 
-		uint64_t* illumNodePartial = reinterpret_cast<uint64_t*>(gSVOLevels[cascadeMaxLevel].gLevelIllum + nodeOffset);
-
-		float4 upperPortion = {0.0f};
-		float3 lowerPortion = {0.0f};
-
-		// Calculte this nodes occupancy
-		float3 volume;
-		volume.x = (voxLookup8[i].x == 1) ? weights.x : (1.0f - weights.x);
-		volume.y = (voxLookup8[i].y == 1) ? weights.y : (1.0f - weights.y);
-		volume.z = (voxLookup8[i].z == 1) ? weights.z : (1.0f - weights.z);
-		float occupancy = 0; volume.x * volume.y * volume.z;
-
-		// Determine your data
-		if(nodeLocalId == 0)
-		{
-			upperPortion = UnpackSVOIrradiance(irradPacked);
-			lowerPortion = ExpandVoxNormal(voxelNormPacked);
-
-			upperPortion.x *= occupancy;
-			upperPortion.y *= occupancy;
-			upperPortion.z *= occupancy;
-			upperPortion.w *= occupancy;
-		}
-		else
-		{
-			// TODO: Anisotropic Occupancy
-			upperPortion = float4{occupancy, occupancy, occupancy, occupancy};
-			lowerPortion = ExpandVoxNormal(lightDirPacked);
-		}
-		lowerPortion.x *= occupancy;
-		lowerPortion.y *= occupancy;
-		lowerPortion.z *= occupancy;
-
-		// Portion Average (Code Invariant Average)
-		AtomicIllumPortionAvg(illumNodePartial + nodeLocalId, upperPortion, lowerPortion);
-	}
-
-
-	//// Initialize Materials
-	//// Half of the registers are here
-	//CSVOIllumination matA, matB, matC, matD, matE, matF, matG, matH;
+	//// Now Each Thread will load single node
+	//#pragma unroll
 	//for(int i = 0; i < 8; i++)
 	//{
+	//	uint32_t shuffleValidBits = __shfl(validBits, i / 4, 2);
+	//	if((shuffleValidBits >> (i % 4)) == 0) continue;
 
-	//}
+	//	uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - cascadeId;
+	//	uint32_t nodeShare = nodeLocations[i % 4];
+	//	uint32_t nodeOffset = __shfl(nodeShare, i / 4, 2); 
+	//	uint64_t* illumNodePartial = reinterpret_cast<uint64_t*>(gSVOLevels[cascadeMaxLevel].gLevelIllum + nodeOffset);
 
-	//// Up to this poing 24 registers are being used
+	//	// Calculte this nodes occupancy
+	//	float3 weights = ExpandOccupancy(voxOccupPacked);
+	//	float3 volume;		
+	//	volume.x = (voxLookup8[i].x == 1) ? weights.x : (1.0f - weights.x);
+	//	volume.y = (voxLookup8[i].y == 1) ? weights.y : (1.0f - weights.y);
+	//	volume.z = (voxLookup8[i].z == 1) ? weights.z : (1.0f - weights.z);
+	//	float occupancy = volume.x * volume.y * volume.z;
 
-	//// Values
-	//uint8_t activeNodes = validBits;	// Initially active nodes
-	//uint8_t responsibleNodes = 0x00;	// nodes that we are responsible for allocating	
+	//	// Portions
+	//	float4 upperPortion = {0.0f};
+	//	float3 lowerPortion = {0.0f};
 
-	//// Warp internal average of nodes
-	//for(int i = 0; i < warpSize; i++)
-	//{
-	//	// Only process active nodes
-	//	for(uint8_t j = 0; j < __popc(activeNodes); j++)
+	//	// Determine your data
+	//	if(nodeLocalId == 0)
 	//	{
-	//		// Calculte this nodes occupancy
-	//		float3 volume;
-	//		volume.x = (voxLookup8[j].x == 1) ? weights.x : (1.0f - weights.x);
-	//		volume.y = (voxLookup8[j].y == 1) ? weights.y : (1.0f - weights.y);
-	//		volume.z = (voxLookup8[j].z == 1) ? weights.z : (1.0f - weights.z);
-	//		float occupancy = volume.x * volume.y * volume.z;
+	//		upperPortion = UnpackSVOIrradiance(irradPacked);
+	//		lowerPortion = ExpandVoxNormal(voxelNormPacked);
 
-	//		switch(i / 2)
-	//		{
-	//			case 0:
-	//				break;
-	//			case 1:
-	//				break;
-	//			case 2:
-	//				break;
-	//			case 3:
-	//				break;
-	//			case 4:
-	//				break;
-	//		}
+	//		upperPortion.x *= occupancy;
+	//		upperPortion.y *= occupancy;
+	//		upperPortion.z *= occupancy;
+	//		upperPortion.w *= occupancy;
 	//	}
-	//}
-	//	//uint32_t node = __shfl(Index(illumLow, illumHigh, 0), j % warpSize);
-
-	////	bool foundNode = false;
-	////	#pragma unroll
-	////	for(int j = 0; j < 8; j++)
-	////	{
-	////		if(Index(illumLow, illumHigh, j) == node)
-	////			foundNode = true;
-	////	}
-	////	uint32_t bitmap = __ballot(foundNode);
-
-	////	for(int i = 0; i < 6; i++)
-	////	{
-	////		uint32_t z = __shfl(illumLow.x, (i * 2) % 32);
-	////		uint32_t t = __shfl(illumLow.x, (i * 2) % 32);
-	////	}
-	////}
-
-	//// All allocation Nodes are generated
-
-	////constexpr int32_t HashSize = /*503;*//*1531;*/1871;/*3067;*///5639;
-	////__shared__ CSVOIllumination sIllumData[HashSize];
-	////__shared__ uint32_t sIllumLocation[HashSize];
-
-	////HashTableReset(sIllumLocation, HashSize);
-
-	////#pragma unroll
-	////for(int j = 0; j < 8; j++)
-	////{
-	////	uint32_t index;
-	////	uint32_t loc = Index(illumLow, illumHigh, j);
-	////	HashMap(index, sIllumLocation, loc, HashSize);
-	////}
-
-	//#pragma unroll
-	//for(int j = 0; j < 8; j++)
-	//{
-	//	if((validBits >> j) & 0x1 == 1)
+	//	else
 	//	{
-	//		uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - cascadeId;
-	//		CSVOIllumination* illumNode = gSVOLevels[cascadeMaxLevel].gLevelIllum + Index(illumLow, illumHigh, j);
-
-	//		// Calculte this nodes occupancy
-	//		float3 volume;
-	//		volume.x = (voxLookup8[j].x == 1) ? weights.x : (1.0f - weights.x);
-	//		volume.y = (voxLookup8[j].y == 1) ? weights.y : (1.0f - weights.y);
-	//		volume.z = (voxLookup8[j].z == 1) ? weights.z : (1.0f - weights.z);
-	//		float occupancy = volume.x * volume.y * volume.z;
-
-	//		// Average
-	//		AtomicIllumAvg(illumNode, irradiance, normal, lightDir, occupancy);
+	//		// TODO: Anisotropic Occupancy
+	//		upperPortion = float4{occupancy, occupancy, occupancy, occupancy};
+	//		lowerPortion = ExpandVoxNormal(lightDirPacked);
 	//	}
+	//	lowerPortion.x *= occupancy;
+	//	lowerPortion.y *= occupancy;
+	//	lowerPortion.z *= occupancy;
+
+	//	// Portion Average (Code Invariant Average)
+	//	AtomicIllumPortionAvg(illumNodePartial + nodeLocalId, upperPortion, lowerPortion);
 	//}
 }
+
+//
+//__global__ void SVOIllumInject(// SVO
+//							   CSVOLevel* gSVOLevels,
+//							   uint32_t* gLevelAllocators,
+//							   const uint32_t* gLevelCapacities,
+//							   // Voxel Pages
+//							   const CVoxelPageConst* gVoxelPages,
+//							   const CVoxelGrid* gGridInfos,
+//							   // Cache Data (for Voxel Albedo)
+//							   const BatchVoxelCache* gBatchVoxelCache,
+//							   // Light Injection Related
+//							   const CLightInjectParameters liParams,
+//							   // Limits
+//							   const OctreeParameters octreeParams,
+//							   const uint32_t batchCount)
+//{
+//	// Shared Memory for generic data
+//	__shared__ CSegmentInfo sSegInfo;
+//	__shared__ CMeshVoxelInfo sMeshVoxelInfo;
+//
+//	// Local Ids
+//	unsigned int blockLocalId = threadIdx.x;
+//	unsigned int nodeLocalId = blockLocalId % 2;
+//
+//	unsigned int globalId = (threadIdx.x + blockIdx.x * blockDim.x) / 2;
+//	unsigned int pageId = globalId / GIVoxelPages::PageSize;
+//	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
+//	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
+//	unsigned int segmentLocalVoxId = pageLocalId % GIVoxelPages::SegmentSize;
+//
+//	// Get Segments Obj Information Struct
+//	CObjectType objType;
+//	CSegmentOccupation occupation;
+//	uint8_t cascadeId;
+//	bool firstOccurance;
+//	if(blockLocalId == 0)
+//	{
+//		// Load to smem
+//		// Todo split this into the threadss
+//		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
+//		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
+//	}
+//	__syncthreads();
+//	if(blockLocalId != 0)
+//	{
+//		ExpandSegmentInfo(cascadeId, objType, occupation, firstOccurance, sSegInfo.packed);
+//	}
+//	// Full Block Cull
+//	if(occupation == CSegmentOccupation::EMPTY) return;
+//	assert(occupation != CSegmentOccupation::MARKED_FOR_CLEAR);
+//	if(blockLocalId == 0)
+//	{
+//		sMeshVoxelInfo = gBatchVoxelCache[cascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId];
+//	}
+//	__syncthreads();
+//
+//	// Fetch Position and Normal
+//	// Generate Light Direction and Irradiance
+//	const CVoxelPos voxelPosPacked = gVoxelPages[pageId].dGridVoxPos[pageLocalId];
+//	const CVoxelNorm voxelNormPacked = gVoxelPages[pageId].dGridVoxNorm[pageLocalId];
+//
+//	// Unpack Occupancy
+//	const CVoxelOccupancy voxOccupPacked = gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId];
+//	float3 weights = ExpandOccupancy(voxOccupPacked);
+//
+//	// Now we can cull invalid nodes
+//	if(voxelNormPacked == 0xFFFFFFFF) return;
+//
+//	// Illum Data Packed
+//	VoxelAlbedo irradPacked = 0;
+//	VoxelNormal lightDirPacked = 0;
+//
+//	//// Light Injection
+//	//if(nodeLocalId == 0)
+//	//{
+//	//	// Now load albeo etc and average those on leaf levels
+//	//	// Find your opengl data and voxel cache
+//	//	const uint16_t& batchId = sSegInfo.batchId;
+//	//	const BatchVoxelCache& batchCache = gBatchVoxelCache[cascadeId * batchCount + batchId];
+//
+//	//	// Voxel Ids
+//	//	const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
+//	//	const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
+//
+//	//	// Voxel Albedo
+//	//	const CVoxelAlbedo voxAlbedoPacked = batchCache.dVoxelAlbedo[batchLocalVoxelId];
+//	//	float4 voxAlbedo = UnpackSVOIrradiance(*reinterpret_cast<const CSVOIrradiance*>(&voxAlbedoPacked));
+//
+//	//	if(liParams.injectOn)
+//	//	{
+//	//		// Gen Illumination
+//	//		float4 irradiance;
+//	//		float3 lightDir = {0.0f, 0.0f, 0.0f};
+//
+//	//		// World Space Position Reconstruction
+//	//		const float3 edgePos = gGridInfos[cascadeId].position;
+//	//		const float span = gGridInfos[cascadeId].span;
+//	//		const uint3	voxPos = ExpandVoxPos(voxelPosPacked);
+//
+//	//		float3 worldPos;
+//	//		worldPos.x = edgePos.x + (static_cast<float>(voxPos.x) + weights.x) * span;
+//	//		worldPos.y = edgePos.y + (static_cast<float>(voxPos.y) + weights.y) * span;
+//	//		worldPos.z = edgePos.z + (static_cast<float>(voxPos.z) + weights.z) * span;
+//
+//	//		// Normal
+//	//		float3 normal = ExpandVoxNormal(voxelNormPacked);
+//
+//	//		// Generated Irradiance
+//	//		float3 irradianceDiffuse = LightInject(lightDir,
+//	//											   // Node Params
+//	//											   worldPos,
+//	//											   voxAlbedo,
+//	//											   normal,
+//	//											   // Light Parameters
+//	//											   liParams);
+//
+//	//		irradiance.x = irradianceDiffuse.x;
+//	//		irradiance.y = irradianceDiffuse.y;
+//	//		irradiance.z = irradianceDiffuse.z;
+//	//		irradiance.w = voxAlbedo.w;
+//
+//	//		irradPacked = PackSVOIrradiance(irradiance);
+//	//		lightDirPacked = PackVoxNormal(lightDir);
+//	//	}
+//	//	else
+//	//	{
+//	//		irradPacked = PackSVOIrradiance(voxAlbedo);
+//	//	}
+//	//}
+//	// Transfer illum data to neigbour
+//	//unsigned int warpLocalNodeId = globalId % (warpSize >> 1);
+//	irradPacked = __shfl(irradPacked, 0, 2);
+//	lightDirPacked = __shfl(lightDirPacked, 0, 2);
+//
+//	// Now we will start allocating all nodes
+//	// Each node will generate multiple neigbouring nodes (8-neigbour filtering)
+//	// Two threads are responsible for single node, they store the alocated positions
+//	// Then each thread will average upper or lower half of the node
+//	uint4 nodeLocations; uint8_t validBits = 0x00;
+//	#pragma unroll
+//	for(int j = 0; j < 4; j++)
+//	{
+//		const uint3	voxPos = ExpandVoxPos(voxelPosPacked);
+//
+//		int3 myMetaNeigbour;
+//		myMetaNeigbour.x = static_cast<int>(voxPos.x) + voxLookup8[nodeLocalId * 4 + j].x;
+//		myMetaNeigbour.y = static_cast<int>(voxPos.y) + voxLookup8[nodeLocalId * 4 + j].y;
+//		myMetaNeigbour.z = static_cast<int>(voxPos.z) + voxLookup8[nodeLocalId * 4 + j].z;
+//
+//		// Boundary Check
+//		bool validNode = (myMetaNeigbour.x >= 0 || myMetaNeigbour.x < octreeParams.CascadeBaseLevelSize ||
+//						  myMetaNeigbour.y >= 0 || myMetaNeigbour.y < octreeParams.CascadeBaseLevelSize ||
+//						  myMetaNeigbour.z >= 0 || myMetaNeigbour.z < octreeParams.CascadeBaseLevelSize);
+//		validBits |= ((validNode) ? 1 : 0) << j;
+//
+//		uint3 uMyMetaNeigbour;
+//		uMyMetaNeigbour.x = static_cast<unsigned int>(myMetaNeigbour.x);
+//		uMyMetaNeigbour.y = static_cast<unsigned int>(myMetaNeigbour.y);
+//		uMyMetaNeigbour.z = static_cast<unsigned int>(myMetaNeigbour.z);
+//		const uint3 nodePos = ExpandToSVODepth(uMyMetaNeigbour,
+//											   cascadeId,
+//											   octreeParams.CascadeCount,
+//											   octreeParams.CascadeBaseLevel);
+//
+//		// Allocate and Average Illumination Values
+//		if(validNode)
+//		{
+//			uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - cascadeId;
+//			uint32_t test;
+//			const CSVONode* illumNode = TraverseNode(test,
+//													  // SVO
+//													  reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+//													  // Node Related
+//													  nodePos,
+//													  // Constants
+//													  octreeParams,
+//													  cascadeMaxLevel);
+//
+//			uint32_t nodeOffset = illumNode - gSVOLevels[cascadeMaxLevel].gLevelNodes;
+//			reinterpret_cast<unsigned int*>(&nodeLocations)[j] = nodeOffset;
+//		}
+//	}
+//
+//	// Now Each Thread will load single node
+//	#pragma unroll
+//	for(int i = 0; i < 8; i++)
+//	{
+//		uint32_t shuffleValidBits = __shfl(validBits, (i < 4) ? 0 : 1, 2);
+//		if((shuffleValidBits >> (i % 4)) == 0) continue;
+//
+//		uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - cascadeId;
+//		uint32_t nodeShare = reinterpret_cast<unsigned int*>(&nodeLocations)[i % 4];
+//		uint32_t nodeOffset = __shfl(nodeShare, (i < 4) ? 0 : 1, 2); 
+//		uint64_t* illumNodePartial = reinterpret_cast<uint64_t*>(gSVOLevels[cascadeMaxLevel].gLevelIllum + nodeOffset);
+//
+//		float4 upperPortion = {0.0f};
+//		float3 lowerPortion = {0.0f};
+//
+//		// Calculte this nodes occupancy
+//		float3 volume;
+//		volume.x = (voxLookup8[i].x == 1) ? weights.x : (1.0f - weights.x);
+//		volume.y = (voxLookup8[i].y == 1) ? weights.y : (1.0f - weights.y);
+//		volume.z = (voxLookup8[i].z == 1) ? weights.z : (1.0f - weights.z);
+//		float occupancy = 0; volume.x * volume.y * volume.z;
+//
+//		// Determine your data
+//		if(nodeLocalId == 0)
+//		{
+//			upperPortion = UnpackSVOIrradiance(irradPacked);
+//			lowerPortion = ExpandVoxNormal(voxelNormPacked);
+//
+//			upperPortion.x *= occupancy;
+//			upperPortion.y *= occupancy;
+//			upperPortion.z *= occupancy;
+//			upperPortion.w *= occupancy;
+//		}
+//		else
+//		{
+//			// TODO: Anisotropic Occupancy
+//			upperPortion = float4{occupancy, occupancy, occupancy, occupancy};
+//			lowerPortion = ExpandVoxNormal(lightDirPacked);
+//		}
+//		lowerPortion.x *= occupancy;
+//		lowerPortion.y *= occupancy;
+//		lowerPortion.z *= occupancy;
+//
+//		// Portion Average (Code Invariant Average)
+//		AtomicIllumPortionAvg(illumNodePartial + nodeLocalId, upperPortion, lowerPortion);
+//	}
+//}

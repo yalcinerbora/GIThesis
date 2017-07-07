@@ -21,7 +21,7 @@ enum class CObjectType
 typedef VoxelPosition CVoxelPos;
 typedef VoxelNormal CVoxelNorm;
 typedef uint32_t CVoxelOccupancy;
-typedef uchar4 CVoxelAlbedo;
+typedef uint32_t CVoxelAlbedo;
 typedef MeshVoxelInfo CMeshVoxelInfo;
 
 // Voxel Rendering Data

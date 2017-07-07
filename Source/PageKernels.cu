@@ -116,8 +116,7 @@ __global__ void CopyPage(// OGL Buffer
 			const uint32_t objectLocalVoxelId = sSegInfo.objectSegmentId * GIVoxelPages::SegmentSize + segmentLocalVoxId;
 			const uint32_t batchLocalVoxelId = objectLocalVoxelId + sMeshVoxelInfo.voxOffset;
 
-			uchar4 voxAlbedo = batchCache.dVoxelAlbedo[batchLocalVoxelId];
-			voxNorm = *reinterpret_cast<uint32_t*>(&voxAlbedo);
+			voxNorm = batchCache.dVoxelAlbedo[batchLocalVoxelId];
 		}
 
 		// Inject Voxel Pos

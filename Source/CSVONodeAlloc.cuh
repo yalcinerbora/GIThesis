@@ -2,19 +2,19 @@
 
 #include <cuda.h>
 
-// No Negative Dimension Expansion (Best case)
-__constant__ static const char3 voxLookup8[8] =
-{
-	{0, 0, 0},
-	{1, 0, 0},
-	{0, 1, 0},
-	{1, 1, 0},
-
-	{0, 0, 1},
-	{1, 0, 1},
-	{0, 1, 1},
-	{1, 1, 1}
-};
+//// No Negative Dimension Expansion (Best case)
+//__constant__ static const char3 voxLookup8[8] =
+//{
+//	{0, 0, 0},
+//	{1, 0, 0},
+//	{0, 1, 0},
+//	{1, 1, 0},
+//
+//	{0, 0, 1},
+//	{1, 0, 1},
+//	{0, 1, 1},
+//	{1, 1, 1}
+//};
 
 //// Single Negative Dimension Expansion
 //__constant__ static const char3 voxLookup12[12] =

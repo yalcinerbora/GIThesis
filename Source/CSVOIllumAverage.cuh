@@ -8,16 +8,23 @@ __device__ uint64_t AvgIllumPortion(const uint64_t& illumPortion,
 									const float4& upperPortion,
 									const float3& lowerPortion);
 
+__device__ uint64_t AvgAlbedoAndOccupancy(const uint64_t& occupancyPortion,
+										  const float4& albedo,
+										  const float occupancy);
+
 __device__ uint64_t AtomicIllumPortionAvg(uint64_t* gIllumPortion,
 										  const float4& upperPortion,
 										  const float3& lowerPortion);
+
+__device__ uint64_t AtomicIllumLeafAvg(uint64_t* gIllumUpper,
+									   const float4& albedo,
+									   float nodeOccupancy);
 
 __device__ CSVOIllumination AtomicIllumAvg(CSVOIllumination* gIllum,
 										   const float4& nodeIrradiance,
 										   const float3& nodeNormal,
 										   const float3& nodeLightDir,
 										   const float nodeOccupancy);
-
 
 inline __device__ uint64_t AvgIllumPortion(const uint64_t& illumPortion,
 										   const float4& upperPortion,
@@ -50,46 +57,39 @@ inline __device__ uint64_t AvgIllumPortion(const uint64_t& illumPortion,
 	// Increment Counter
 	avgLower.w += 1.0f;
 
-	illumSplit.x = PackSVOIrradiance(avgUpper);
-	illumSplit.y = PackSVONormal(avgLower);
-	return PackWords(illumSplit.x, illumSplit.y);
+	return PackWords(PackSVOIrradiance(avgUpper), 
+					 PackSVONormal(avgLower));
 }
 
-//inline __device__ uint64_t AvgOccupancyAndLightDir(const uint64_t& occupancyPortion,
-//												   const float3& lightDir,
-//												   const float occupancy)
-//{
-//	// Unpack Illumination
-//	uint2 illumSplit = UnpackWords(occupancyPortion);
-//	float4 avgOccupancy = UnpackSVOOccupancy(illumSplit.x);
-//	float4 avgLightDir = UnpackSVOLightDir(illumSplit.y);
-//
-//	// Divisors
-//	float invCount = 1.0f / (avgLightDir.w + 1.0f);
-//	
-//	// Irradiance Average
-//	avgOccupancy.x = (avgLightDir.w * avgOccupancy.x + occupancy) * invCount;
-//	avgOccupancy.y = (avgLightDir.w * avgOccupancy.y + occupancy) * invCount;
-//	avgOccupancy.z = (avgLightDir.w * avgOccupancy.z + occupancy) * invCount;
-//	avgOccupancy.w = (avgLightDir.w * avgOccupancy.w + occupancy) * invCount;
-//
-//	avgOccupancy.x = fminf(1.0f, avgOccupancy.x);
-//	avgOccupancy.y = fminf(1.0f, avgOccupancy.y);
-//	avgOccupancy.z = fminf(1.0f, avgOccupancy.z);
-//	avgOccupancy.w = fminf(1.0f, avgOccupancy.w);
-//
-//	// Normal Average
-//	avgLightDir.x = (avgLightDir.w * avgLightDir.x + lightDir.x * occupancy) * invCount;
-//	avgLightDir.y = (avgLightDir.w * avgLightDir.y + lightDir.y * occupancy) * invCount;
-//	avgLightDir.z = (avgLightDir.w * avgLightDir.z + lightDir.z * occupancy) * invCount;
-//
-//	avgLightDir.w += 1.0f;
-//
-//	illumSplit.x = PackSVOOccupancy(avgOccupancy);
-//	illumSplit.y = PackSVOLightDir(avgLightDir);
-//	return PackWords(illumSplit.x, illumSplit.y);
-//}
+inline __device__ uint64_t AvgAlbedoAndOccupancy(const uint64_t& occupancyPortion,
+												 const float4& albedo,
+												 const float occupancy)
+{
+	// Unpack Illumination
+	uint2 illumSplit = UnpackWords(occupancyPortion);
+	float4 avgAlbedo = UnpackSVOIrradiance(illumSplit.x);
+	float avgOccup = UnpackSVOLeafOccupancy(illumSplit.y);
+	
+	// Divisors
+	float invCount = 1.0f / (avgOccup + occupancy);
+	
+	// Irradiance Average
+	avgAlbedo.x = (avgOccup * avgAlbedo.x + albedo.x) * invCount;
+	avgAlbedo.y = (avgOccup * avgAlbedo.y + albedo.y) * invCount;
+	avgAlbedo.z = (avgOccup * avgAlbedo.z + albedo.z) * invCount;
+	avgAlbedo.w = (avgOccup * avgAlbedo.w + albedo.w) * invCount;
 
+	avgAlbedo.x = fminf(1.0f, avgAlbedo.x);
+	avgAlbedo.y = fminf(1.0f, avgAlbedo.y);
+	avgAlbedo.z = fminf(1.0f, avgAlbedo.z);
+	avgAlbedo.w = fminf(1.0f, avgAlbedo.w);
+
+	// Normal Average
+	avgOccup += occupancy;
+
+	return PackWords(PackSVOIrradiance(avgAlbedo),
+					 PackSVOLeafOccupancy(avgOccup));
+}
 
 inline __device__ uint64_t AtomicIllumPortionAvg(uint64_t* gIllumPortion,
 												 const float4& upperPortion,
@@ -100,28 +100,25 @@ inline __device__ uint64_t AtomicIllumPortionAvg(uint64_t* gIllumPortion,
 	do
 	{
 		assumed = old;
-		
 		uint64_t avg = AvgIllumPortion(assumed, upperPortion, lowerPortion);
 		old = atomicCAS(gIllumPortion, assumed, avg);
 	} while(assumed != old);
 	return old;
 }
 
-//inline __device__ uint64_t AtomicOccupLightDirAvg(uint64_t* gIllumUpper,
-//												  const float3& nodeLightDir,
-//												  float nodeOccupancy)
-//{
-//	uint64_t assumed, old = *gIllumUpper;
-//	do
-//	{
-//		assumed = old;
-//		old = atomicCAS(gIllumUpper, assumed,
-//						AvgOccupancyAndLightDir(assumed, 
-//												nodeLightDir,
-//												nodeOccupancy));
-//	} while(assumed != old);
-//	return old;
-//}
+inline __device__ uint64_t AtomicIllumLeafAvg(uint64_t* gIllumUpper,
+											  const float4& albedo,
+											  float nodeOccupancy)
+{
+	uint64_t assumed, old = *gIllumUpper;
+	do
+	{
+		assumed = old;
+		uint64_t avg = AvgAlbedoAndOccupancy(assumed, albedo, nodeOccupancy);
+		old = atomicCAS(gIllumUpper, assumed, avg);
+	} while(assumed != old);
+	return old;
+}
 
 inline __device__ CSVOIllumination AtomicIllumAvg(CSVOIllumination* gIllum,
 												  const float4& nodeIrradiance,

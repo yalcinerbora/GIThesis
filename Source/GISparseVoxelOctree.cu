@@ -479,7 +479,7 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 	
 	// KC
 	// 8 Thread per node (8-neigbour sampling)
-	int gridSize = CudaInit::GenBlockSize(static_cast<int>(pages.PageCount() * 2 * GIVoxelPages::PageSize));
+	int gridSize = CudaInit::GenBlockSize(static_cast<int>(pages.PageCount() * GIVoxelPages::PageSize));
 	int blockSize = CudaInit::TBP;
 	SVOReconstruct<<<gridSize, blockSize>>>(// SVO
 										    dOctreeLevels,

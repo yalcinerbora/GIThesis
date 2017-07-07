@@ -46,6 +46,11 @@ inline __device__ float4 UnpackSVOOccupancy(const CSVOWeight& weight)
 	return UnpackSVOIrradiance(weight);
 }
 
+inline __device__ float UnpackSVOLeafOccupancy(const uint32_t& occupancy)
+{
+	return __uint_as_float(occupancy);
+}
+
 inline __device__ float4 UnpackSVONormal(const CSVONormal& normal)
 {
 	float4 result;
@@ -75,6 +80,11 @@ inline __device__ CSVOIrradiance PackSVOIrradiance(const float4& irradiance)
 inline __device__ CSVOWeight PackSVOOccupancy(const float4& weight)
 {
 	return PackSVOIrradiance(weight);
+}
+
+inline __device__ uint32_t PackSVOLeafOccupancy(const float& occupancy)
+{
+	return __float_as_uint(occupancy);
 }
 
 inline __device__ CSVONormal PackSVONormal(const float4& normal)

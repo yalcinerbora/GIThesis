@@ -46,9 +46,17 @@ inline __device__ float4 UnpackSVOOccupancy(const CSVOWeight& weight)
 	return UnpackSVOIrradiance(weight);
 }
 
-inline __device__ float UnpackSVOLeafOccupancy(const uint32_t& occupancy)
+inline __device__ float3 UnpackSVONormalLeaf(float& occupancy, float& average,
+											 const uint32_t& normal)
 {
-	return __uint_as_float(occupancy);
+	float3 result;
+	result.x = static_cast<float>(static_cast<char>((normal >> 0) & 0xFF)) / 0x7F;
+	result.y = static_cast<float>(static_cast<char>((normal >> 8) & 0xFF)) / 0x7F;
+	result.z = sqrtf(1.0f - result.x * result.x - result.y * result.y);
+
+	occupancy = static_cast<float>(static_cast<unsigned char>((normal >> 16) & 0xFF));
+	average = static_cast<float>(static_cast<unsigned char>((normal >> 24) & 0xFF));
+	return result;
 }
 
 inline __device__ float4 UnpackSVONormal(const CSVONormal& normal)
@@ -82,19 +90,26 @@ inline __device__ CSVOWeight PackSVOOccupancy(const float4& weight)
 	return PackSVOIrradiance(weight);
 }
 
-inline __device__ uint32_t PackSVOLeafOccupancy(const float& occupancy)
+inline __device__ uint32_t PackSVONormalLeaf(const float3& normal,
+											 const float& occupancy,
+											 const float& average)
 {
-	return __float_as_uint(occupancy);
+	uint32_t packed = 0;
+	packed |= (static_cast<unsigned int>(average) & 0xFF) << 24;
+	packed |= (static_cast<unsigned int>(occupancy) & 0xFF) << 16;
+	packed |= (static_cast<int>(normal.y * 0x7F) & 0xFF) << 8;
+	packed |= (static_cast<int>(normal.x * 0x7F) & 0xFF) << 0;
+	return packed;
 }
 
 inline __device__ CSVONormal PackSVONormal(const float4& normal)
 {
-	unsigned int value = 0;
-	value |= (static_cast<unsigned int>(normal.w) & 0xFF) << 24;
-	value |= (static_cast<int>(normal.z * 0x7F) & 0xFF) << 16;
-	value |= (static_cast<int>(normal.y * 0x7F) & 0xFF) << 8;
-	value |= (static_cast<int>(normal.x * 0x7F) & 0xFF) << 0;
-	return value;
+	unsigned int packed = 0;
+	packed |= (static_cast<unsigned int>(normal.w) & 0xFF) << 24;
+	packed |= (static_cast<int>(normal.z * 0x7F) & 0xFF) << 16;
+	packed |= (static_cast<int>(normal.y * 0x7F) & 0xFF) << 8;
+	packed |= (static_cast<int>(normal.x * 0x7F) & 0xFF) << 0;
+	return packed;
 }
 
 inline __device__ CSVOLightDir PackSVOLightDir(const float4& lightDir)
@@ -106,10 +121,10 @@ inline __device__ CSVOLightDir PackSVOLightDir(const float4& lightDir)
 inline __device__ uint64_t PackWords(const uint32_t& upper,
 									 const uint32_t& lower)
 {
-	uint64_t mat = 0;
-	mat |= static_cast<uint64_t>(upper) << 32;
-	mat |= static_cast<uint64_t>(lower);
-	return mat;
+	uint64_t illum = 0;
+	illum |= static_cast<uint64_t>(upper) << 32;
+	illum |= static_cast<uint64_t>(lower);
+	return illum;
 }
 
 inline __device__ unsigned int UnpackLowerWord(const uint64_t& portion)

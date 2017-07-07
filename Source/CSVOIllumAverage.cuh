@@ -63,21 +63,26 @@ inline __device__ uint64_t AvgIllumPortion(const uint64_t& illumPortion,
 
 inline __device__ uint64_t AvgAlbedoAndOccupancy(const uint64_t& occupancyPortion,
 												 const float4& albedo,
+												 const float3& normal,
 												 const float occupancy)
 {
 	// Unpack Illumination
 	uint2 illumSplit = UnpackWords(occupancyPortion);
+
+	float avgOccupancy, avgAverage;
 	float4 avgAlbedo = UnpackSVOIrradiance(illumSplit.x);
-	float avgOccup = UnpackSVOLeafOccupancy(illumSplit.y);
+	float3 avgNormal = UnpackSVONormalLeaf(avgOccupancy, avgAverage, illumSplit.y);
+		
+		//LeafOccupancy(illumSplit.y);
 	
 	// Divisors
-	float invCount = 1.0f / (avgOccup + occupancy);
+	float invCount = 1.0f / (avgAverage + 1.0f);
 	
 	// Irradiance Average
-	avgAlbedo.x = (avgOccup * avgAlbedo.x + albedo.x) * invCount;
-	avgAlbedo.y = (avgOccup * avgAlbedo.y + albedo.y) * invCount;
-	avgAlbedo.z = (avgOccup * avgAlbedo.z + albedo.z) * invCount;
-	avgAlbedo.w = (avgOccup * avgAlbedo.w + albedo.w) * invCount;
+	avgAlbedo.x = (avgAverage * avgAlbedo.x + albedo.x * occupancy) * invCount;
+	avgAlbedo.y = (avgAverage * avgAlbedo.y + albedo.y * occupancy) * invCount;
+	avgAlbedo.z = (avgAverage * avgAlbedo.z + albedo.z * occupancy) * invCount;
+	avgAlbedo.w = (avgAverage * avgAlbedo.w + albedo.w * occupancy) * invCount;
 
 	avgAlbedo.x = fminf(1.0f, avgAlbedo.x);
 	avgAlbedo.y = fminf(1.0f, avgAlbedo.y);
@@ -85,10 +90,20 @@ inline __device__ uint64_t AvgAlbedoAndOccupancy(const uint64_t& occupancyPortio
 	avgAlbedo.w = fminf(1.0f, avgAlbedo.w);
 
 	// Normal Average
-	avgOccup += occupancy;
+	avgNormal.x = (avgAverage * avgNormal.x + normal.x * occupancy) * invCount;
+	avgNormal.y = (avgAverage * avgNormal.y + normal.y * occupancy) * invCount;
+	avgNormal.z = (avgAverage * avgNormal.z + normal.z * occupancy) * invCount;
+	avgNormal = Normalize(avgNormal);
+
+	// Occupancy
+	avgOccupancy += occupancy;
+	avgOccupancy = fminf(1.0f, avgOccupancy);
+
+	// Average
+	avgAverage += 1.0f;
 
 	return PackWords(PackSVOIrradiance(avgAlbedo),
-					 PackSVOLeafOccupancy(avgOccup));
+					 PackSVONormalLeaf(avgNormal, avgOccupancy, avgAverage));
 }
 
 inline __device__ uint64_t AtomicIllumPortionAvg(uint64_t* gIllumPortion,
@@ -108,13 +123,14 @@ inline __device__ uint64_t AtomicIllumPortionAvg(uint64_t* gIllumPortion,
 
 inline __device__ uint64_t AtomicIllumLeafAvg(uint64_t* gIllumUpper,
 											  const float4& albedo,
+											  const float3& normal,
 											  float nodeOccupancy)
 {
 	uint64_t assumed, old = *gIllumUpper;
 	do
 	{
 		assumed = old;
-		uint64_t avg = AvgAlbedoAndOccupancy(assumed, albedo, nodeOccupancy);
+		uint64_t avg = AvgAlbedoAndOccupancy(assumed, albedo, normal, nodeOccupancy);
 		old = atomicCAS(gIllumUpper, assumed, avg);
 	} while(assumed != old);
 	return old;

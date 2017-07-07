@@ -80,6 +80,7 @@ void ThesisSolution::Load(SceneI& s)
 									ioTime,
 									transTime,
 									svoReconTime,
+									svoInjectTime,
 									svoAverageTime,
 									coneTraceTime,
 									miscTime,
@@ -136,7 +137,7 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		depthRange[1]
 	};
 
-	voxelOctree.UpdateSVO(svoReconTime, svoAverageTime, doTiming,
+	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAverageTime, doTiming,
 						  voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),
 						  liParams,

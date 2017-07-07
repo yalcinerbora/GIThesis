@@ -58,24 +58,32 @@ class OctreeParameters;
 //												 const unsigned int parentSize);
 //
 
-extern __global__ void AverageLevel(CSVOLevel& gSVOLevel,
-									const uint32_t nodeCount,
-									const OctreeParameters octreeParams);
+extern __global__ void AverageLevel(// SVO
+									const CSVOLevel* gSVOLevels,
+									uint32_t* gLevelAllocators,
+									const uint32_t* gLevelCapacities,
+									// Limits
+									const OctreeParameters octreeParams,
+									const uint32_t currentLevel,
+									const uint32_t nodeCount);
 
-extern __global__ void ResetIllumCounter(CSVOLevel& gSVOLevel,
-										 const uint32_t nodeCount);
+extern __global__ void LightInject(const CSVOLevel& gSVOLevel,
+								   // CascadeRelated
+								   const CVoxelGrid& gGridInfo,
+								   // Light Injection Related
+								   const CLightInjectParameters liParams,
+								   // Limits
+								   const OctreeParameters octreeParams,
+								   const uint32_t nodeCount);
 
 extern __global__ void SVOReconstruct(// SVO
-									  CSVOLevel* gSVOLevels,
+									  const CSVOLevel* gSVOLevels,
 									  uint32_t* gLevelAllocators,
 									  const uint32_t* gLevelCapacities,
 									  // Voxel Pages
 									  const CVoxelPageConst* gVoxelPages,
-									  const CVoxelGrid* gGridInfos,
 									  // Cache Data (for Voxel Albedo)
 									  const BatchVoxelCache* gBatchVoxelCache,
-									  // Light Injection Related
-									  const CLightInjectParameters liParams,
 									  // Limits
 									  const OctreeParameters octreeParams,
 									  const uint32_t batchCount);

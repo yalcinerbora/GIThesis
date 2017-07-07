@@ -25,6 +25,7 @@ class ThesisBar : public AntBar
 											  double& ioTime,
 											  double& transTime,
 											  double& svoReconTime,
+											  double& svoInjectTime,
 											  double& svoAverageTime,
 											  double& coneTraceTime,
 											  double& miscTime,

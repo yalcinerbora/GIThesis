@@ -206,10 +206,14 @@ class GISparseVoxelOctree
 														  // Cache System
 														  const GIVoxelCache& caches,
 														  // Constants
-														  uint32_t batchCount,
-														  const LightInjectParameters& injectParams,
-														  const IEVector3& ambientColor,
-														  bool injectOn);
+														  uint32_t batchCount);
+		double							InjectLight(bool doTiming,
+													// Page System
+													const GIVoxelPages& pages,
+													// Light Injection Related
+													const LightInjectParameters& injectParams,
+													const IEVector3& ambientColor,
+													bool injectOn);
 		double							AverageNodes(bool doTiming);
 
 	protected:
@@ -229,6 +233,7 @@ class GISparseVoxelOctree
 		// Updates SVO Tree depending on the changes of the allocators
 		void							UpdateSVO(// Timing Related
 												  double& reconstructTime,
+												  double& injectTime,
 												  double& averageTime,
 												  bool doTiming,
 												  // Page System

@@ -7,7 +7,6 @@
 
 #define GI_LIGHT_POINT 0.0f
 #define GI_LIGHT_DIRECTIONAL 1.0f
-#define GI_LIGHT_AREA 2.0f
 
 #define GI_ONE_OVER_PI 0.318309f
 
@@ -68,18 +67,15 @@ inline __device__ float Clamp(float x, float min, float max)
 	return  (x < min) ? min : ((x > max) ? max : x);
 }
 
-inline __device__ float4 CalculateShadowUV(const CMatrix4x4* lightVP,
-										   const CLight& lightStruct,
-										   const float3& worldPos,
-										   const float4& camPos,
-										   const float3& camDir,
-										   float depthNear,
-										   float depthFar)
+inline __device__ bool CalculateShadowOcclusion(const CMatrix4x4* lightVP,
+												const CLight& lightStruct,
+												const float3& worldPos,
+												const CLightInjectParameters& liParams,
+												int lightIndex)
 {
 	float viewIndex = 0.0f;
 	float3 lightVec;
-	if(lightStruct.position.w == GI_LIGHT_POINT ||
-	   lightStruct.position.w == GI_LIGHT_AREA)
+	if(lightStruct.position.w == GI_LIGHT_POINT)
 	{
 		// Determine which side of the light is the point
 		// minimum absolute value
@@ -103,25 +99,21 @@ inline __device__ float4 CalculateShadowUV(const CMatrix4x4* lightVP,
 		lightVecSigns.z = abs(lightVecSigns.z) * (abs((lightVecSigns.x - 1.0f) * 0.5f) + 4.0f);
 
 		viewIndex = lightVecSigns.x + lightVecSigns.y + lightVecSigns.z;
-
-		// Area light is half sphere
-		if(lightStruct.position.w == GI_LIGHT_AREA)
-			viewIndex = (lightVec.y < 0.0f) ? viewIndex : 2.0f;
 	}
 	else
 	{
 		// Determine Cascade
 		float3 distVec;
-		distVec.x = worldPos.x - camPos.x;
-		distVec.y = worldPos.y - camPos.y;
-		distVec.z = worldPos.z - camPos.z;
+		distVec.x = worldPos.x - liParams.camPos.x;
+		distVec.y = worldPos.y - liParams.camPos.y;
+		distVec.z = worldPos.z - liParams.camPos.z;
 		
-		float worldDist = fmaxf(0.0f, Dot(distVec, camDir));
+		float worldDist = fmaxf(0.0f, Dot(distVec, liParams.camDir));
 
 		// Inv geom sum
-		const float exponent = 1.2f;
-		viewIndex = worldDist / camPos.w;
-		viewIndex = floor(log2(viewIndex * (exponent - 1.0f) + 1.0f) / log2(exponent));
+		const float exponent = 1.1f;
+		viewIndex = worldDist / liParams.camPos.w;
+		viewIndex = round(log2(viewIndex * (exponent - 1.0f) + 1.0f) / log2(exponent));
 	}
 
 	// Mult with proper cube side matrix
@@ -135,45 +127,54 @@ inline __device__ float4 CalculateShadowUV(const CMatrix4x4* lightVP,
 	ndc.z = clip.z / clip.w;
 
 	// NDC to Tex
-	float depth = 0.5 * ((2.0f * depthNear + 1.0f) + 
-						 (depthFar - depthNear) * ndc.z);
+	float depth = 0.5 * ((2.0f * liParams.depthNear + 1.0f) + 
+						 (liParams.depthFar - liParams.depthNear) * ndc.z);
 	if(lightStruct.position.w == GI_LIGHT_DIRECTIONAL)
 	{
 		lightVec.x = 0.5f * ndc.x + 0.5f;
 		lightVec.y = 0.5f * ndc.y + 0.5f;
 		lightVec.z = viewIndex;
 	}
-	return float4{lightVec.x, lightVec.y, lightVec.z, depth};
+
+	// Check Light Occulusion (ShadowMap)
+	float shadowDepth = 0.0f;
+	if(lightStruct.position.w == GI_LIGHT_DIRECTIONAL)
+	{
+		// Texture Array Fetch
+		shadowDepth = tex2DLayeredLod<float>(liParams.shadowMaps,
+											 lightVec.x,
+											 lightVec.y,
+											 static_cast<float>(lightIndex * 6) + lightVec.z,
+											 0.0f);
+	}
+	else
+	{
+		// Cube Fetch if applicable
+		shadowDepth = texCubemapLayeredLod<float>(liParams.shadowMaps,
+												  lightVec.x,
+												  lightVec.y,
+												  lightVec.z,
+												  lightIndex,
+												  0.0f);
+	}
+
+	// Cull if occluded
+	if(shadowDepth < depth) return true;
+	return false;
+	//return float4{lightVec.x, lightVec.y, lightVec.z, depth};
 }
-
-//const float4& camPos,
-//const float3& camDir,
-
-//// Light Related
-//const CMatrix4x4* lightVP,
-//const CLight& lightStruct,
-
-//float depthNear,
-//float depthFar,
-
-//// SVO Surface Voxel
-//
-
-//cudaTextureObject_t shadowTex,
-//uint32_t lightIndex,
-//                        const float3& ambientColor)
 
 inline __device__ float3 PhongBRDF(// Out Light
 								   float3& lightDirection,
 								   // Node Params
 								   const float3& worldPos,
-								   const float4& albedo,
 								   const float3& normal,
+								   const float& specularity,
 								   // Constants for this light
 								   const CLightInjectParameters& liParams,
 								   const CLight& lightStruct,
 								   const CMatrix4x4* lightVP,
-								   const uint32_t lightIndex)
+								   int lightIndex)
 
 {
 	float3 irradiance = {0.0f, 0.0f, 0.0f};
@@ -218,16 +219,13 @@ inline __device__ float3 PhongBRDF(// Out Light
 	biasedWorld.y += worldLight.y * 3.0f;
 	biasedWorld.z += worldLight.z * 3.0f;
 
-	float4 shadowUV = CalculateShadowUV(lightVP,
-										lightStruct,
-										biasedWorld,
-										liParams.camPos,
-										liParams.camDir,
-										liParams.depthNear,
-										liParams.depthFar);
-
-
-
+	bool occluded = CalculateShadowOcclusion(lightVP,
+											 lightStruct,
+											 biasedWorld,
+											 liParams,
+											 lightIndex);
+	if(occluded) return irradiance;
+	
 	float3 worldHalf;
 	worldHalf.x = worldLight.x + worldEye.x;
 	worldHalf.y = worldLight.y + worldEye.y;
@@ -241,35 +239,10 @@ inline __device__ float3 PhongBRDF(// Out Light
 	// Early Bail From Light Occulusion
 	// This also eliminates some self shadowing artifacts
 	if(intensity == 0.0f) return irradiance;
-
-	// Check Light Occulusion (ShadowMap)
-	float shadowDepth = 0.0f;
-	if(lightStruct.position.w == GI_LIGHT_DIRECTIONAL)
-	{
-		// Texture Array Fetch
-		shadowDepth = tex2DLayeredLod<float>(liParams.shadowMaps,
-											 shadowUV.x,
-											 shadowUV.y,
-											 static_cast<float>(lightIndex * 6) + shadowUV.z,
-											 0.0f);
-	}
-	else
-	{
-		// Cube Fetch if applicable
-		shadowDepth = texCubemapLayeredLod<float>(liParams.shadowMaps,
-												  shadowUV.x,
-												  shadowUV.y,
-												  shadowUV.z,
-												  lightIndex,
-												  0.0f);
-	}
-
-	// Cull if occluded
-	if(shadowDepth < shadowUV.w) return irradiance;
-
+	
 	// Specular
 	// Blinn-Phong
-    float specPower = 16.0f + albedo.w * 2048.0f;
+    float specPower = 16.0f + specularity * 2048.0f;
     float power = (pow(fmaxf(Dot(worldHalf, normal), 0.0f), specPower));	
 	irradiance.x += power;
 	irradiance.y += power;
@@ -280,71 +253,63 @@ inline __device__ float3 PhongBRDF(// Out Light
 	irradiance.y *= falloff * lightStruct.color.y * lightStruct.color.w;
 	irradiance.z *= falloff * lightStruct.color.z * lightStruct.color.w;
 
-	// Surface Albedo	
-	irradiance.x *= albedo.x;
-	irradiance.y *= albedo.y;
-	irradiance.z *= albedo.z;
-
 	lightDirection = worldLight;
+
+	if(lightStruct.position.w == GI_LIGHT_POINT)
+	{
+		lightDirection.x *= falloff;
+		lightDirection.y *= falloff;
+		lightDirection.z *= falloff;
+	}
 	return irradiance;
 }
 
-inline __device__ float3 LightInject(float3& lightDir,
-									 // Node Params
-									 const float3& worldPos,
-									 const float4& albedo,
-									 const float3& normal,
-									 // Light Parameters
-									 const CLightInjectParameters& liParams)
+inline __device__ float3 TotalIrradiance(float3& mainLightDir,
+										 // Node Params
+										 const float3& worldPos,
+										 const float3& normal,
+										 const float4& albedo,
+										 // Light Parameters
+										 const CLightInjectParameters& liParams)
 {
-	// Base Ambient Illumination
+	mainLightDir = float3{0.0f, 0.0f, 0.0f};
 	float3 totalIllum = liParams.ambientLight;
-	totalIllum.x *= albedo.x;
-	totalIllum.y *= albedo.y;
-	totalIllum.z *= albedo.z;
 
-	// Base Light Direction
-	lightDir = {0.0f, 0.0f, 0.0f};
-
-	// For Each Light
-	for(int i = 0; i < liParams.lightCount; i++)
+	//for(int lightId = 0; lightId < liParams.lightCount; lightId++)
+	int lightId = 0;
 	{
-		const CMatrix4x4* currentLightVP = liParams.gLightVP + (i * 6);
-		const CLight light = liParams.gLightStruct[i];
-
-		float3 currentLightDir;
+		const CLight& light = liParams.gLightStruct[lightId];
+		const CMatrix4x4* lightVP = liParams.gLightVP + (lightId * 6);
+		
+		float3 lightDir;
 		float3 illum = PhongBRDF(// Out Light
-								 currentLightDir,
+								 lightDir,
 								 // Node Params
 								 worldPos,
-								 albedo,
 								 normal,
+								 albedo.w,
 								 // Constants for this light
 								 liParams,
 								 light,
-								 currentLightVP,
-								 i);
+								 lightVP,
+								 lightId);
 
 		totalIllum.x += illum.x;
 		totalIllum.y += illum.y;
 		totalIllum.z += illum.z;
 
-		lightDir.x += currentLightDir.x;
-		lightDir.y += currentLightDir.y;
-		lightDir.z += currentLightDir.z;
+		mainLightDir.x += lightDir.x;
+		mainLightDir.y += lightDir.y;
+		mainLightDir.z += lightDir.z;
 	}
+	
+	Normalize(mainLightDir);
 
-	// Average Light Direction
-	float invCount = 1.0f / static_cast<float>(liParams.lightCount);
-	lightDir.x *= invCount;
-	lightDir.y *= invCount;
-	lightDir.z *= invCount;
-
-	// Clamp Total Irradiance if overflowed
-	totalIllum.x = Clamp(totalIllum.x, 0.0f, 1.0f);
-	totalIllum.y = Clamp(totalIllum.y, 0.0f, 1.0f);
-	totalIllum.z = Clamp(totalIllum.z, 0.0f, 1.0f);
-
-	// Total Illumination
+	totalIllum.x = fminf(totalIllum.x, 1.0f);
+	totalIllum.y = fminf(totalIllum.y, 1.0f);
+	totalIllum.z = fminf(totalIllum.z, 1.0f);
+	totalIllum.x *= albedo.x;
+	totalIllum.y *= albedo.y;
+	totalIllum.z *= albedo.z;
 	return totalIllum;
 }

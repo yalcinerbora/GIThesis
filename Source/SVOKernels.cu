@@ -311,94 +311,148 @@
 //}
 
 
-__global__ void AverageLevel(CSVOLevel& gSVOLevel,
-							 const uint32_t nodeCount,
-							 const OctreeParameters octreeParams)
+__global__ void AverageLevel(// SVO
+							 const CSVOLevel* gSVOLevels,
+							 uint32_t* gLevelAllocators,
+							 const uint32_t* gLevelCapacities,
+							 // Limits
+							 const OctreeParameters octreeParams,
+							 const uint32_t currentLevel,
+							 const uint32_t nodeCount)
 {
-	//unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	//if(globalId >= nodeCount) return;
+	// Two thread per node
+	unsigned int globalId = (threadIdx.x + blockIdx.x * blockDim.x) / 2;
+	if(globalId >= nodeCount) return;
+
+	// 
 
 
 	//#pragma unroll
 	//for(int i = 0; i )
 }
 
-__global__ void ResetIllumCounter(CSVOLevel& gSVOLevel,
-								  const uint32_t nodeCount)
+__global__ void LightInject(const CSVOLevel& gSVOLevel,
+							// CascadeRelated
+							const CVoxelGrid& gGridInfo,
+							// Light Injection Related
+							const CLightInjectParameters liParams,
+							// Limits
+							const OctreeParameters octreeParams,
+							const uint32_t nodeCount)
 {
-	// Two Threads per load
+	__shared__ CVoxelGrid sGridInfo;	
+	static_assert(sizeof(CVoxelGrid) % 4 == 0, "CVoxelGrid should be 4 byte loadable.");
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int illumId = globalId / 2;
-	unsigned int wordId = globalId % 2;
-	if(illumId >= nodeCount) return;
 
-	// Load only required portion (compiler may load entire 128-bit illum)
-	uint32_t* wordPartitionIllum = reinterpret_cast<uint32_t*>(gSVOLevel.gLevelIllum);
-	uint32_t* portionWithCounter = wordPartitionIllum + illumId * 4 + wordId * 2 + 1;
-	uint32_t portion = *portionWithCounter;
-	if(portion != 0x0)
+	// Load Required Data
+	if(threadIdx.x < sizeof(CVoxelGrid) / 4)
 	{
-		// Make it as if it has single node
-		portion &= 0x01FFFFFF;
-		*portionWithCounter = portion;
+		*(reinterpret_cast<uint32_t*>(&sGridInfo) + threadIdx.x) =
+		*(reinterpret_cast<const uint32_t*>(&gGridInfo) + threadIdx.x);
+	}
+	__syncthreads();
 
+	// Loaded to Memory, now can cull unused threads
+	if(globalId >= nodeCount) return;
 
-		//if(liParams.injectOn)
+	// We need threads but not all of them are active thus load conditionally
+	uint64_t illumPortion = *reinterpret_cast<uint64_t*>(gSVOLevel.gLevelIllum + globalId);
+	// Load only required portion
+	if(illumPortion != 0x0)
+	{
+		// Unpack Illumination
+		uint2 illumSplit = UnpackWords(illumPortion);
+		float occupancy, average;
+		float4 albedo = UnpackSVOIrradiance(illumSplit.x);
+		float3 normal = UnpackSVONormalLeaf(occupancy, average, illumSplit.y);
+		
+		float3 lightDir = {0.0f, 0.0f, 0.0f};
+		if(liParams.injectOn)
+		{
+			// World Space Position Reconstruction
+			const float3 edgePos = sGridInfo.position;
+			const float span = sGridInfo.span;
+			const uint3	voxPos = ExpandVoxPos(gSVOLevel.gLevelNodes[globalId].pos);
+
+			float3 worldPos;
+			worldPos.x = edgePos.x + static_cast<float>(voxPos.x) * span;
+			worldPos.y = edgePos.y + static_cast<float>(voxPos.y) * span;
+			worldPos.z = edgePos.z + static_cast<float>(voxPos.z) * span;
+
+			// Generated Irradiance
+			float3 irradianceDiffuse = TotalIrradiance(lightDir,
+													   // Node Params
+													   worldPos,
+													   normal,
+													   albedo,
+													   // Light Parameters
+													   liParams);
+
+			albedo.x = irradianceDiffuse.x;
+			albedo.y = irradianceDiffuse.y;
+			albedo.z = irradianceDiffuse.z;
+		}
+
+		// Shared memory opeartions are done
+		// Finally we can cull threads
+		if(globalId >= nodeCount) return;
+
+		// Pack 
+		uint4 packedData;
+		// Irrad Portion
+		float4 normalF4 = make_float4(normal.x, normal.y, normal.z, 1.0f);
+		packedData.x = PackSVOIrradiance(albedo);
+		packedData.y = PackSVONormal(normalF4);
+		
+		// Occupancy Portion		
+		float4 occupF4 = make_float4(occupancy, occupancy, occupancy, occupancy);
+		float4 lightDirF4 = make_float4(lightDir.x, lightDir.y, lightDir.z, 1.0f);
+		packedData.z = PackSVOOccupancy(occupF4);
+		packedData.w = PackSVONormal(lightDirF4);
+
+		// This write is better perfwise
+		uint32_t* illumlocation = reinterpret_cast<uint32_t*>(gSVOLevel.gLevelIllum + globalId);
+		illumlocation[0] = packedData.x;
+		illumlocation[1] = packedData.y;
+		illumlocation[2] = packedData.z;
+		illumlocation[3] = packedData.w;
+
+		// Naive store failed miserably now wil test better store with warps
+		// Warp Managed Store
+		//int warpLocalId = threadIdx.x % warpSize;
+		//uint32_t words[4];
+
+		//// Warp Level Store
+		//#pragma unroll
+		//for(int i = 0; i < 4; i++)
 		//{
-		//	// Gen Illumination
-		//	float4 irradiance;
-		//	float3 lightDir = {0.0f, 0.0f, 0.0f};
+		//	int expandId = (warpLocalId + i) % 4;
+		//	int fetchNodeId = expandId * 8 + warpLocalId / 4;
 
-		//	// World Space Position Reconstruction
-		//	const float3 edgePos = gGridInfos[cascadeId].position;
-		//	const float span = gGridInfos[cascadeId].span;
-		//	const uint3	voxPos = ExpandVoxPos(voxelPosPacked);
-		//	float3 weights = ExpandOccupancy(voxOccupPacked);
-
-		//	float3 worldPos;
-		//	worldPos.x = edgePos.x + (static_cast<float>(voxPos.x) + weights.x) * span;
-		//	worldPos.y = edgePos.y + (static_cast<float>(voxPos.y) + weights.y) * span;
-		//	worldPos.z = edgePos.z + (static_cast<float>(voxPos.z) + weights.z) * span;
-
-		//	// Normal
-		//	float3 normal = ExpandVoxNormal(voxelNormPacked);
-
-		//	// Generated Irradiance
-		//	float3 irradianceDiffuse = LightInject(lightDir,
-		//										   // Node Params
-		//										   worldPos,
-		//										   voxAlbedo,
-		//										   normal,
-		//										   // Light Parameters
-		//										   liParams);
-
-		//	irradiance.x = irradianceDiffuse.x;
-		//	irradiance.y = irradianceDiffuse.y;
-		//	irradiance.z = irradianceDiffuse.z;
-		//	irradiance.w = voxAlbedo.w;
-
-		//	irradPacked = PackSVOIrradiance(irradiance);
-		//	lightDirPacked = PackVoxNormal(lightDir);
+		//	// Send Data
+		//	words[i] = __shfl(packedData[(warpLocalId + i) % 4], fetchNodeId);
 		//}
-		//else
+
+		//#pragma unroll
+		//for(int i = 0; i < 4; i++)
 		//{
-		//	irradPacked = PackSVOIrradiance(voxAlbedo);
+		//	uint32_t* illumlocation = reinterpret_cast<uint32_t*>(gSVOLevel.gLevelIllum);
+		//	illumlocation += globalId / warpSize + 4 * i; 
+		//	
+		//	illumlocation[warpLocalId] = words[i];
 		//}
 	}	
 }
 
 __global__ void SVOReconstruct(// SVO
-							   CSVOLevel* gSVOLevels,
+							   const CSVOLevel* gSVOLevels,
 							   uint32_t* gLevelAllocators,
 							   const uint32_t* gLevelCapacities,
 							   // Voxel Pages
 							   const CVoxelPageConst* gVoxelPages,
-							   const CVoxelGrid* gGridInfos,
 							   // Cache Data (for Voxel Albedo)
 							   const BatchVoxelCache* gBatchVoxelCache,
-							   // Light Injection Related
-							   const CLightInjectParameters liParams,
-							   // Limits
+							   // Limits			
 							   const OctreeParameters octreeParams,
 							   const uint32_t batchCount)
 {
@@ -408,8 +462,6 @@ __global__ void SVOReconstruct(// SVO
 
 	// Local Ids
 	unsigned int blockLocalId = threadIdx.x;
-	//unsigned int nodeLocalId = blockLocalId % 2;
-
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int pageId = globalId / GIVoxelPages::PageSize;
 	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
@@ -514,10 +566,10 @@ __global__ void SVOReconstruct(// SVO
 			float occupancy = volume.x * volume.y * volume.z;
 
 			float4 unpackAlbedo = UnpackSVOIrradiance(albedoPacked);
-			AtomicIllumLeafAvg(reinterpret_cast<uint64_t*>(illumNode), unpackAlbedo, occupancy);
-
-			/*unpackAlbedo = UnpackSVONormal(voxelNormPacked);
-			AtomicIllumLeafAvg(reinterpret_cast<uint64_t*>(illumNode + 1), unpackAlbedo, occupancy);*/
+			float3 unpackNormal = ExpandVoxNormal(voxelNormPacked);
+			AtomicIllumLeafAvg(reinterpret_cast<uint64_t*>(illumNode), 
+							   unpackAlbedo, unpackNormal,
+							   occupancy);
 		}
 	}
 

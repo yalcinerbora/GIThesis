@@ -451,16 +451,48 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 											  // Cache System
 											  const GIVoxelCache& caches,
 											  // Constants
-											  uint32_t batchCount,
-											  const LightInjectParameters& injectParams,
-											  const IEVector3& ambientColor,
-											  bool injectOn)
+											  uint32_t batchCount)
+{
+	CudaTimer t;
+	if(doTiming) t.Start();
+
+	// KC
+	int gridSize = CudaInit::GenBlockSize(static_cast<int>(pages.PageCount() * GIVoxelPages::PageSize));
+	int blockSize = CudaInit::TBP;
+	SVOReconstruct<<<gridSize, blockSize>>>(// SVO
+										    dOctreeLevels,
+										    dLevelSizes,
+										    dLevelCapacities,
+										    // Voxel Pages
+										    pages.getVoxelPages(),
+										    // Cache Data (for Voxel Albedo)
+										    caches.getDeviceCascadePointersDevice().Data(),
+										    // Limits
+										    *octreeParams,
+										    batchCount);
+	CUDA_KERNEL_CHECK();
+
+	if(doTiming)
+	{
+		t.Stop();
+		return t.ElapsedMilliS();
+	}
+	return 0.0;
+}
+
+double GISparseVoxelOctree::InjectLight(bool doTiming,
+										// Page System
+										const GIVoxelPages& pages,
+										// Light Injection Related
+										const LightInjectParameters& injectParams,
+										const IEVector3& ambientColor,
+										bool injectOn)
 {
 	CudaTimer t;
 	if(doTiming) t.Start();
 
 	// Gen LI Params
-	CLightInjectParameters liParams = 
+	CLightInjectParameters liParams =
 	{
 		float3{ambientColor[0], ambientColor[1], ambientColor[2]},
 
@@ -476,26 +508,34 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 		shadowMaps.ShadowMapArray(),
 		shadowMaps.LightCount()
 	};
-	
-	// KC
-	// 8 Thread per node (8-neigbour sampling)
-	int gridSize = CudaInit::GenBlockSize(static_cast<int>(pages.PageCount() * GIVoxelPages::PageSize));
-	int blockSize = CudaInit::TBP;
-	SVOReconstruct<<<gridSize, blockSize>>>(// SVO
-										    dOctreeLevels,
-										    dLevelSizes,
-										    dLevelCapacities,
-										    // Voxel Pages
-										    pages.getVoxelPages(),
-										    pages.getVoxelGrids(),
-										    // Cache Data (for Voxel Albedo)
-										    caches.getDeviceCascadePointersDevice().Data(),
-										    // Light Injection Related
-										    liParams,
-										    // Limits
-										    *octreeParams,
-										    batchCount);
-	CUDA_KERNEL_CHECK();
+
+	// Average Down to Top Fashion
+	for(uint32_t i = octreeParams->MaxSVOLevel; i >= octreeParams->CascadeBaseLevel; i--)
+	{
+		uint32_t gridId = octreeParams->MaxSVOLevel - i;
+
+		// Get Level Size
+		uint32_t levelSize = 0;
+		CUDA_CHECK(cudaMemcpy(&levelSize,
+							  dLevelSizes + i, 
+							  sizeof(uint32_t), 
+							  cudaMemcpyDeviceToHost));
+
+		// Reset Base values (if there is a node)
+		int gridSize = CudaInit::GenBlockSize(static_cast<int>(levelSize));
+		int blockSize = CudaInit::TBP;
+
+		// KC
+		LightInject<<<gridSize, blockSize>>>(dOctreeLevels[i],
+											 // Cascade Related
+											 *(pages.getVoxelGrids() + gridId),
+											 // Light Injection Related
+											 liParams,
+											 // Limits
+											 *octreeParams,
+											 levelSize);
+	}
+
 
 	if(doTiming)
 	{
@@ -513,26 +553,28 @@ double GISparseVoxelOctree::AverageNodes(bool doTiming)
 	// Average Down to Top Fashion
 	for(uint32_t i = octreeParams->MaxSVOLevel; i >= octreeParams->MinSVOLevel; i--)
 	{
-		// Get Level Size (we need to get it level by level since it will be updated on each average level)
+		// Get Level Size (we need to get it level by level, 
+		// since it will be updated on each average level)
 		uint32_t levelSize = 0;
 		CUDA_CHECK(cudaMemcpy(&levelSize,
-							  dLevelSizes + i, 
-							  sizeof(uint32_t), 
+							  dLevelSizes + i,
+							  sizeof(uint32_t),
 							  cudaMemcpyDeviceToHost));
 
-		// Reset potential average counters for overlapping
-		if(i >= octreeParams->CascadeBaseLevel)
-		{
-			// Reset Base values (if there is a node)
-			int gridSize = CudaInit::GenBlockSize(static_cast<int>(levelSize * 2));
-			int blockSize = CudaInit::TBP;
+		// Reset Base values (if there is a node)
+		int gridSize = CudaInit::GenBlockSize(static_cast<int>(levelSize));
+		int blockSize = CudaInit::TBP;
 
-			ResetIllumCounter<<<gridSize, blockSize>>>(dOctreeLevels[i], levelSize);
-		}
-
-		// Do Average
+		// KC
+		AverageLevel<<<gridSize, blockSize>>>(// SVO
+											  dOctreeLevels,
+											  dLevelSizes,
+											  dLevelCapacities,
+											  // Limits
+											  *octreeParams,
+											  i,
+											  levelSize);
 	}
-
 
 	if(doTiming)
 	{
@@ -544,6 +586,7 @@ double GISparseVoxelOctree::AverageNodes(bool doTiming)
 
 void GISparseVoxelOctree::UpdateSVO(// Timing Related
 									double& reconstructTime,
+									double& injectTime,
 									double& averageTime,
 									bool doTiming,
 									// Page System
@@ -560,8 +603,9 @@ void GISparseVoxelOctree::UpdateSVO(// Timing Related
 	shadowMaps.Map();
 
 	reconstructTime = GenerateHierarchy(doTiming,
-										pages, caches, batchCount,
-										injectParams, ambientColor, injectOn);
+										pages, caches, batchCount);
+	injectTime = InjectLight(doTiming, pages, 
+							 injectParams, ambientColor, injectOn);
 	averageTime = AverageNodes(doTiming);
 
 	shadowMaps.Unmap();

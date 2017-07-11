@@ -14,7 +14,14 @@ Designed for fast reconstruction from its bottom
 #include <cstdio>
 
 // Small Tidy Functions
-inline __device__ unsigned int DenseIndex(const uint3& voxelPos, const unsigned int levelSize)
+inline __device__ unsigned int DenseIndex(const int3& voxelPos, const unsigned int levelSize)
+{
+	return  voxelPos.z * levelSize * levelSize +
+			voxelPos.y * levelSize +
+			voxelPos.x;
+}
+
+inline __device__ unsigned int DenseIndex(const short3& voxelPos, const unsigned int levelSize)
 {
 	return  voxelPos.z * levelSize * levelSize +
 			voxelPos.y * levelSize +
@@ -147,7 +154,7 @@ inline __device__ uint2 UnpackWords(const uint64_t& portion)
 }
 
 // Node Manipulation
-inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
+inline __device__ unsigned int CalculateLevelChildId(const int3& voxelPos,
 													 const unsigned int parentLevel,
 													 const unsigned int currentLevel)
 {
@@ -165,19 +172,19 @@ inline __device__ unsigned int CalculateLevelChildId(const uint3& voxelPos,
 //	return 0x01 << CalculateLevelChildId(voxelPos, levelDepth, totalDepth);
 //}
 
-inline __device__ uint3 CalculateParentVoxId(const uint3& voxelPos,
+inline __device__ int3 CalculateParentVoxId(const int3& voxelPos,
 											 const unsigned int parentLevel,
 											 const unsigned int currentLevel)
 {
 	assert(currentLevel >= parentLevel);
-	uint3 levelVoxelId;
+	int3 levelVoxelId;
 	levelVoxelId.x = voxelPos.x >> (currentLevel - parentLevel);
 	levelVoxelId.y = voxelPos.y >> (currentLevel - parentLevel);
 	levelVoxelId.z = voxelPos.z >> (currentLevel - parentLevel);
 	return levelVoxelId;
 }
 
-inline __device__ uint3 ExpandToSVODepth(const uint3& voxelPos,
+inline __device__ int3 ExpandToSVODepth(const int3& voxelPos,
 										 const unsigned int cascadeId,
 										 const unsigned int numCascades,
 										 const unsigned int baseLevel)
@@ -185,7 +192,7 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& voxelPos,
 	int cascadeNo = static_cast<int>(cascadeId);
 	int invCascadeNo = static_cast<int>(numCascades) - cascadeNo - 1;
 
-	uint3 expandedVoxId;
+	int3 expandedVoxId;
 	expandedVoxId.x = voxelPos.x;
 	expandedVoxId.y = voxelPos.y;
 	expandedVoxId.z = voxelPos.z;
@@ -218,14 +225,14 @@ inline __device__ uint3 ExpandToSVODepth(const uint3& voxelPos,
 	return expandedVoxId;
 }
 
-inline __device__ CVoxelPos PackNodeId(const uint3& localVoxelPos,
+inline __device__ CVoxelPos PackNodeId(const int3& localVoxelPos,
 									   const unsigned int level,
 									   const unsigned int numCascades,
 									   const unsigned int baseLevel,
 									   const unsigned int maxSVOLevel)
 {
 	unsigned int cascadeNo = maxSVOLevel - level;
-	uint3 result = localVoxelPos;
+	int3 result = localVoxelPos;
 
 	// Pack it if it does not fit into baseLevel
 	if(cascadeNo < numCascades - 1)

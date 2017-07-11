@@ -10,6 +10,7 @@ __device__ uint64_t AvgIllumPortion(const uint64_t& illumPortion,
 
 __device__ uint64_t AvgAlbedoAndOccupancy(const uint64_t& occupancyPortion,
 										  const float4& albedo,
+										  const float3& normal,
 										  const float occupancy);
 
 __device__ uint64_t AtomicIllumPortionAvg(uint64_t* gIllumPortion,
@@ -18,6 +19,7 @@ __device__ uint64_t AtomicIllumPortionAvg(uint64_t* gIllumPortion,
 
 __device__ uint64_t AtomicIllumLeafAvg(uint64_t* gIllumUpper,
 									   const float4& albedo,
+									   const float3& normal,
 									   float nodeOccupancy);
 
 __device__ CSVOIllumination AtomicIllumAvg(CSVOIllumination* gIllum,

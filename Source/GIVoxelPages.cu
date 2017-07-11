@@ -222,6 +222,11 @@ double GIVoxelPages::PageRenderer::Draw(bool doTiming,
 								      renderType);
 	CUDA_KERNEL_CHECK();
 
+	// DEBUG
+	uint32_t nodesInCirculation = 0;
+	CUDA_CHECK(cudaMemcpy(&nodesInCirculation, atomicIndex, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+	GI_LOG("Total Valid node count in pages : %d", nodesInCirculation);
+
 	// Unmap buffer and continue
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &debugBufferResource));
 	debugBufferCUDA = nullptr;

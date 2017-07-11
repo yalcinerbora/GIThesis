@@ -436,7 +436,7 @@ __global__ void VoxelTransform(// Voxel Pages
 	}
 
 	// Fetch NormalPos from cache
-	uint3 voxPos;
+	int3 voxPos;
 	float3 normal;
 	voxPos = ExpandVoxPos(batchCache.dVoxelPos[batchLocalVoxelId]);
 	normal = ExpandVoxNormal(batchCache.dVoxelNorm[batchLocalVoxelId]);

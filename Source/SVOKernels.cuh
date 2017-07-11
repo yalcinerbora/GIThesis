@@ -58,14 +58,29 @@ class OctreeParameters;
 //												 const unsigned int parentSize);
 //
 
-extern __global__ void AverageLevel(// SVO
-									const CSVOLevel* gSVOLevels,
-									uint32_t* gLevelAllocators,
-									const uint32_t* gLevelCapacities,
-									// Limits
-									const OctreeParameters octreeParams,
-									const uint32_t currentLevel,
-									const uint32_t nodeCount);
+extern __global__ void AverageLevelDense(// SVO
+										 const CSVOLevel* gSVOLevels,										 
+										 // Limits
+										 const OctreeParameters octreeParams,
+										 const uint32_t currentLevel);
+
+extern __global__ void AverageLevelSparse(// SVO
+										  const CSVOLevel* gSVOLevels,
+										  uint32_t* gLevelAllocators,
+										  const uint32_t* gLevelCapacities,
+										  // Limits
+										  const OctreeParameters octreeParams,
+										  const uint32_t currentLevel,
+										  const uint32_t nodeCount);
+
+extern __global__ void GenNeigbourPtrs(// SVO
+									   const CSVOLevel* gSVOLevels,
+									   uint32_t* gLevelAllocators,
+									   const uint32_t* gLevelCapacities,									  
+									   // Limits
+									   const OctreeParameters octreeParams,
+									   const uint32_t nodeCount,
+									   const uint32_t level);
 
 extern __global__ void LightInject(const CSVOLevel& gSVOLevel,
 								   // CascadeRelated

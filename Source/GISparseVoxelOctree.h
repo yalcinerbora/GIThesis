@@ -55,21 +55,21 @@ struct IndirectUniforms
 
 static constexpr size_t BigSizes[] =
 {
-	1,              // Root
-	8,              // 1 Dense
-	64,             // 2 Dense
-	512,            // 3 Dense
-	4096,           // 4 Dense
-	32768,          // 5 Dense
-	262144,		    // 6 Dense
-	2048 * 1024,	// 7 Dense
+	1,					// Root
+	8,					// 1 Dense
+	64,					// 2 Dense
+	512,				// 3 Dense
+	4096,				// 4 Dense
+	32768,				// 5 Dense
+	262144,				// 6 Dense
 
-	/*16384*/4096 * 1024,	// 8
-	/*16384*/4096 * 1024,	// 9
-	/*16384*/16384 * 1024,	// 10
-	/*32384*/8192 * 1024,	// 11
-	/*32384*/8192 * 1024,	// 12
-	/*32384*/8192 * 1024	// 13
+	256	 * 1024,		// 7
+	1	 * 1024 * 1024,	// 8
+	4	 * 1024 * 1024,	// 9
+	10	 * 1024 * 1024,	// 10
+	6	 * 1024 * 1024,	// 11	
+	8	 * 1024 * 1024,	// 12
+	8	 * 1024 * 1024,	// 13
 };
 
 class OctreeParameters
@@ -184,6 +184,7 @@ class GISparseVoxelOctree
 		CSVOLevel*						dOctreeLevels;
 		
 		// Difference between offsets (since node do not hold dense info except last dense level)
+		std::vector<uint32_t>			hLevelSizes;
 		std::vector<uint32_t>			hIllumOffsetsAndCapacities;
 		size_t							nodeIllumDifference;
 

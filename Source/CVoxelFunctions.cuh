@@ -34,9 +34,9 @@ inline __device__ void ExpandSegmentInfo(uint8_t& cascadId,
 	firstOccurance = ((packed >> 9) & 0x0001) != 0;
 }
 
-inline __device__ uint3 ExpandVoxPos(const CVoxelPos packedVoxPos)
+inline __device__ int3 ExpandVoxPos(const CVoxelPos packedVoxPos)
 {
-	uint3 result;	
+	int3 result;	
 	result.x = (packedVoxPos & 0x000003FF) >>  0;
 	result.y = (packedVoxPos & 0x000FFC00) >> 10;
 	result.z = (packedVoxPos & 0x3FF00000) >> 20;
@@ -75,7 +75,7 @@ inline __device__ ushort2 ExpandOnlyObjId(const unsigned int packVoxIdX)
 
 //-------------------------------------------------------------------------------------------//
 
-inline __device__ CVoxelPos PackVoxPos(const uint3& voxPos/*, const unsigned int cascadeNo*/)
+inline __device__ CVoxelPos PackVoxPos(const int3& voxPos/*, const unsigned int cascadeNo*/)
 {
 	unsigned int packed = 0;
 	//packed |= (cascadeNo & 0x00000003) << 30;

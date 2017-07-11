@@ -310,25 +310,129 @@
 //	return reinterpret_cast<unsigned int*>(&loc)[index % 4];
 //}
 
-
-__global__ void AverageLevel(// SVO
-							 const CSVOLevel* gSVOLevels,
-							 uint32_t* gLevelAllocators,
-							 const uint32_t* gLevelCapacities,
-							 // Limits
-							 const OctreeParameters octreeParams,
-							 const uint32_t currentLevel,
-							 const uint32_t nodeCount)
+__global__ void AverageLevelDense(// SVO
+								  const CSVOLevel* gSVOLevels,
+								  // Limits
+								  const OctreeParameters octreeParams,
+								  const uint32_t currentLevel)
 {
 	// Two thread per node
-	unsigned int globalId = (threadIdx.x + blockIdx.x * blockDim.x) / 2;
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int nodeId = globalId / 2;
+	unsigned int nodeLocalId = globalId % 2;
+	unsigned int gridLength = (0x1 << currentLevel);
+	unsigned int nodeCount = gridLength * gridLength * gridLength;
+
+	// Cull unnecesary threads
+	if(nodeId >= nodeCount) return;
+
+	const CSVOLevel& level = gSVOLevels[currentLevel];
+	const CSVOLevel& nextLevel = gSVOLevels[currentLevel + 1];
+	
+	// 3D Node Id
+	short3 nodeId3D;
+	nodeId3D.x = (nodeId) % gridLength;
+	nodeId3D.y = (nodeId / gridLength) % gridLength;
+	nodeId3D.z = (nodeId / (gridLength * gridLength));
+	nodeId3D.x <<= 1;
+	nodeId3D.y <<= 1;
+	nodeId3D.z <<= 1;
+
+	// Average Register
+	uint64_t illumPart = 0x0;
+
+	#pragma unroll
+	for(int i = 0; i < 8; i++)
+	{
+		short3 childId;
+		childId.x = nodeId3D.x + (i >> 0) & 0x1;
+		childId.y = nodeId3D.y + (i >> 1) & 0x1;
+		childId.z = nodeId3D.z + (i >> 2) & 0x1;
+		uint32_t linearId = DenseIndex(childId, 0x1 << (currentLevel + 1));
+
+		uint64_t childPart = reinterpret_cast<uint64_t*>(nextLevel.gLevelIllum + linearId)[nodeLocalId];
+		float4 upperWord = UnpackSVOIrradiance(UnpackUpperWord(childPart));
+		float3 lowerWord = ExpandVoxNormal(UnpackLowerWord(childPart));
+		AvgIllumPortion(illumPart, upperWord, lowerWord);
+	}
+	// Write averaged value
+	reinterpret_cast<uint64_t*>(level.gLevelIllum + nodeId)[nodeLocalId] = illumPart;
+}
+
+__global__ void AverageLevelSparse(// SVO
+								   const CSVOLevel* gSVOLevels,
+								   uint32_t* gLevelAllocators,
+								   const uint32_t* gLevelCapacities,
+								   // Limits
+								   const OctreeParameters octreeParams,
+								   const uint32_t currentLevel,
+								   const uint32_t nodeCount)
+{
+	// Two thread per node
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int nodeId = globalId / 2;
+	unsigned int nodeLocalId = globalId % 2;
+	
+	// Cull unnecesary threads
+	if(nodeId >= nodeCount) return;
+
+	const CSVOLevel& level = gSVOLevels[currentLevel];
+	const CSVOLevel& nextLevel = gSVOLevels[currentLevel + 1];
+	const uint32_t nodeChild = level.gLevelNodes[nodeId].next;
+
+	// Each Thread will average (and read/write)
+	// single double word part of the illumination
+	uint64_t illumPart = 0x0;
+	
+	// Read potential parent value
+	if(currentLevel >= octreeParams.CascadeBaseLevel)
+		illumPart = reinterpret_cast<uint64_t*>(level.gLevelIllum + nodeId)[nodeLocalId];
+	
+	// Average Children
+	if(nodeChild != 0xFFFFFFFF)
+	{
+		#pragma unroll
+		for(int i = 0; i < 8; i++)
+		{
+			uint64_t childPart = reinterpret_cast<uint64_t*>(nextLevel.gLevelIllum + nodeChild + i)[nodeLocalId];
+			float4 upperWord = UnpackSVOIrradiance(UnpackUpperWord(childPart));
+			float3 lowerWord = ExpandVoxNormal(UnpackLowerWord(childPart));
+			AvgIllumPortion(illumPart, upperWord, lowerWord);
+		}
+		// Write averaged value
+		reinterpret_cast<uint64_t*>(level.gLevelIllum + nodeId)[nodeLocalId] = illumPart;
+	}
+}
+
+__global__ void GenNeigbourPtrs(// SVO
+								const CSVOLevel* gSVOLevels,
+								uint32_t* gLevelAllocators,
+								const uint32_t* gLevelCapacities,
+								// Limits
+								const OctreeParameters octreeParams,
+								const uint32_t nodeCount,
+								const uint32_t level)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= nodeCount) return;
 
-	// 
+	const CSVOLevel& currentLevel = gSVOLevels[level];
+	uint32_t voxPosPacked = reinterpret_cast<uint32_t*>(currentLevel.gLevelIllum + globalId * 8)[2];
+	if(voxPosPacked != 0x0)
+	{
+		uint32_t cascadeId = octreeParams.MaxSVOLevel - level;
+		const int3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxPosPacked),
+											  cascadeId,
+											  octreeParams.CascadeCount,
+											  octreeParams.CascadeBaseLevel);
 
-
-	//#pragma unroll
-	//for(int i = 0; i )
+		NodeReconstruct(gLevelAllocators,
+						gLevelCapacities,
+						gSVOLevels,
+						nodePos,
+						octreeParams,
+						level);
+	}
 }
 
 __global__ void LightInject(const CSVOLevel& gSVOLevel,
@@ -341,11 +445,11 @@ __global__ void LightInject(const CSVOLevel& gSVOLevel,
 							const uint32_t nodeCount)
 {
 	__shared__ CVoxelGrid sGridInfo;	
-	static_assert(sizeof(CVoxelGrid) % 4 == 0, "CVoxelGrid should be 4 byte loadable.");
+	static_assert(sizeof(CVoxelGrid) % sizeof(uint32_t) == 0, "CVoxelGrid should be word loadable.");
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 
 	// Load Required Data
-	if(threadIdx.x < sizeof(CVoxelGrid) / 4)
+	if(threadIdx.x < sizeof(CVoxelGrid) / sizeof(uint32_t))
 	{
 		*(reinterpret_cast<uint32_t*>(&sGridInfo) + threadIdx.x) =
 		*(reinterpret_cast<const uint32_t*>(&gGridInfo) + threadIdx.x);
@@ -355,24 +459,26 @@ __global__ void LightInject(const CSVOLevel& gSVOLevel,
 	// Loaded to Memory, now can cull unused threads
 	if(globalId >= nodeCount) return;
 
-	// We need threads but not all of them are active thus load conditionally
-	uint64_t illumPortion = *reinterpret_cast<uint64_t*>(gSVOLevel.gLevelIllum + globalId);
-	// Load only required portion
+	// Load illum data and world pos
+	uint64_t illumPortion = reinterpret_cast<uint64_t*>(gSVOLevel.gLevelIllum + globalId)[0];
+	uint32_t voxPosPacked = reinterpret_cast<uint32_t*>(gSVOLevel.gLevelIllum + globalId)[2];
+	
 	if(illumPortion != 0x0)
 	{
 		// Unpack Illumination
 		uint2 illumSplit = UnpackWords(illumPortion);
 		float occupancy, average;
 		float4 albedo = UnpackSVOIrradiance(illumSplit.x);
-		float3 normal = UnpackSVONormalLeaf(occupancy, average, illumSplit.y);
-		
+		float3 normal = UnpackSVONormalLeaf(occupancy, average, illumSplit.y);		
 		float3 lightDir = {0.0f, 0.0f, 0.0f};
+
+		// Do light injection
 		if(liParams.injectOn)
 		{
 			// World Space Position Reconstruction
 			const float3 edgePos = sGridInfo.position;
 			const float span = sGridInfo.span;
-			const uint3	voxPos = ExpandVoxPos(gSVOLevel.gLevelNodes[globalId].pos);
+			const int3 voxPos = ExpandVoxPos(voxPosPacked);
 
 			float3 worldPos;
 			worldPos.x = edgePos.x + static_cast<float>(voxPos.x) * span;
@@ -393,54 +499,26 @@ __global__ void LightInject(const CSVOLevel& gSVOLevel,
 			albedo.z = irradianceDiffuse.z;
 		}
 
-		// Shared memory opeartions are done
-		// Finally we can cull threads
-		if(globalId >= nodeCount) return;
-
-		// Pack 
-		uint4 packedData;
+		// Write illumination
+		uint4 packedIllumData;
 		// Irrad Portion
 		float4 normalF4 = make_float4(normal.x, normal.y, normal.z, 1.0f);
-		packedData.x = PackSVOIrradiance(albedo);
-		packedData.y = PackSVONormal(normalF4);
+		packedIllumData.x = PackSVOIrradiance(albedo);
+		packedIllumData.y = PackSVONormal(normalF4);
 		
 		// Occupancy Portion		
 		float4 occupF4 = make_float4(occupancy, occupancy, occupancy, occupancy);
 		float4 lightDirF4 = make_float4(lightDir.x, lightDir.y, lightDir.z, 1.0f);
-		packedData.z = PackSVOOccupancy(occupF4);
-		packedData.w = PackSVONormal(lightDirF4);
+		packedIllumData.z = PackSVOOccupancy(occupF4);
+		packedIllumData.w = PackSVONormal(lightDirF4);
 
+		// Naive store failed miserably writing word by word gives better perf
 		// This write is better perfwise
 		uint32_t* illumlocation = reinterpret_cast<uint32_t*>(gSVOLevel.gLevelIllum + globalId);
-		illumlocation[0] = packedData.x;
-		illumlocation[1] = packedData.y;
-		illumlocation[2] = packedData.z;
-		illumlocation[3] = packedData.w;
-
-		// Naive store failed miserably now wil test better store with warps
-		// Warp Managed Store
-		//int warpLocalId = threadIdx.x % warpSize;
-		//uint32_t words[4];
-
-		//// Warp Level Store
-		//#pragma unroll
-		//for(int i = 0; i < 4; i++)
-		//{
-		//	int expandId = (warpLocalId + i) % 4;
-		//	int fetchNodeId = expandId * 8 + warpLocalId / 4;
-
-		//	// Send Data
-		//	words[i] = __shfl(packedData[(warpLocalId + i) % 4], fetchNodeId);
-		//}
-
-		//#pragma unroll
-		//for(int i = 0; i < 4; i++)
-		//{
-		//	uint32_t* illumlocation = reinterpret_cast<uint32_t*>(gSVOLevel.gLevelIllum);
-		//	illumlocation += globalId / warpSize + 4 * i; 
-		//	
-		//	illumlocation[warpLocalId] = words[i];
-		//}
+		illumlocation[0] = packedIllumData.x;
+		illumlocation[1] = packedIllumData.y;
+		illumlocation[2] = packedIllumData.z;
+		illumlocation[3] = packedIllumData.w;
 	}	
 }
 
@@ -463,8 +541,9 @@ __global__ void SVOReconstruct(// SVO
 	// Local Ids
 	unsigned int blockLocalId = threadIdx.x;
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int pageId = globalId / GIVoxelPages::PageSize;
-	unsigned int pageLocalId = globalId % GIVoxelPages::PageSize;
+	unsigned int nodeId = globalId;
+	unsigned int pageId = nodeId / GIVoxelPages::PageSize;
+	unsigned int pageLocalId = nodeId % GIVoxelPages::PageSize;
 	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
 	unsigned int segmentLocalVoxId = pageLocalId % GIVoxelPages::SegmentSize;
 
@@ -521,55 +600,67 @@ __global__ void SVOReconstruct(// SVO
 	#pragma unroll
 	for(int a = 0; a < 8; a++)
 	{
-		// Convert Linear Loop to 3D		
-		int i = (a >> 0) & 0x1;
-		int j = (a >> 1) & 0x1;
-		int k = (a >> 2) & 0x1;
-
-		const uint3	voxPos = ExpandVoxPos(voxelPosPacked);
+		// Convert Linear Loop to 3D
+		char3 ijk;
+		ijk.x = (a >> 0) & 0x1;
+		ijk.y = (a >> 1) & 0x1;
+		ijk.z = (a >> 2) & 0x1;
 		
-		uint3 myMetaNeigbour;
-		myMetaNeigbour.x = static_cast<int>(voxPos.x) + i;
-		myMetaNeigbour.y = static_cast<int>(voxPos.y) + j;
-		myMetaNeigbour.z = static_cast<int>(voxPos.z) + k;
+		int3 myMetaNeigbour = ExpandVoxPos(voxelPosPacked);
+		myMetaNeigbour.x += ijk.x;
+		myMetaNeigbour.y += ijk.y;
+		myMetaNeigbour.z += ijk.z;
 
 		// Boundary Check
-		bool validNode = (myMetaNeigbour.x < octreeParams.CascadeBaseLevelSize ||
-						  myMetaNeigbour.y < octreeParams.CascadeBaseLevelSize ||
+		bool validNode = (myMetaNeigbour.x < octreeParams.CascadeBaseLevelSize &&
+						  myMetaNeigbour.y < octreeParams.CascadeBaseLevelSize &&
 						  myMetaNeigbour.z < octreeParams.CascadeBaseLevelSize);
 
-		const uint3 nodePos = ExpandToSVODepth(myMetaNeigbour,
-											   cascadeId,
-											   octreeParams.CascadeCount,
-											   octreeParams.CascadeBaseLevel);
+		int3 nodePos = ExpandToSVODepth(myMetaNeigbour,
+										cascadeId,
+										octreeParams.CascadeCount,
+										octreeParams.CascadeBaseLevel);
 
 		// Allocate and Average Illumination Values
 		if(validNode)
 		{
-			uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - cascadeId;
-			CSVOIllumination* illumNode = TraverseAndAllocate(// SVO
-															  gLevelAllocators,
-															  gLevelCapacities,
-															  gSVOLevels,
-															  // Node Related
-															  nodePos,
-															  // Constants
-															  octreeParams,
-															  cascadeMaxLevel);
 			
+			uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - cascadeId;
+			uint32_t nodeLocation = TraverseAndAllocate(// SVO
+														gLevelAllocators,
+														gLevelCapacities,
+														gSVOLevels,
+														// Node Related
+														nodePos,
+														// Constants
+														octreeParams,
+														cascadeMaxLevel);
+
 			// Calculte this nodes occupancy
 			float3 weights = ExpandOccupancy(voxOccupPacked);
-			float3 volume;		
-			volume.x = (i == 1) ? weights.x : (1.0f - weights.x);
-			volume.y = (j == 1) ? weights.y : (1.0f - weights.y);
-			volume.z = (k == 1) ? weights.z : (1.0f - weights.z);
+			float3 volume;
+			volume.x = (ijk.x == 1) ? weights.x : (1.0f - weights.x);
+			volume.y = (ijk.y == 1) ? weights.y : (1.0f - weights.y);
+			volume.z = (ijk.z == 1) ? weights.z : (1.0f - weights.z);
 			float occupancy = volume.x * volume.y * volume.z;
 
+			// Unpack albedo and voxel normal for average
 			float4 unpackAlbedo = UnpackSVOIrradiance(albedoPacked);
 			float3 unpackNormal = ExpandVoxNormal(voxelNormPacked);
-			AtomicIllumLeafAvg(reinterpret_cast<uint64_t*>(illumNode), 
+
+			// Atomic Average to Location
+			CSVOIllumination* illumNode = gSVOLevels[cascadeMaxLevel].gLevelIllum + nodeLocation;
+			AtomicIllumLeafAvg(reinterpret_cast<uint64_t*>(illumNode),
 							   unpackAlbedo, unpackNormal,
 							   occupancy);
+
+			//myMetaNeigbour.x &= 0xFFFFFFFE;
+			//myMetaNeigbour.y &= 0xFFFFFFFE;
+			//myMetaNeigbour.z &= 0xFFFFFFFE;
+
+			uint32_t packedVoxPos = PackVoxPos(myMetaNeigbour);
+			illumNode = gSVOLevels[cascadeMaxLevel].gLevelIllum + (nodeLocation / 8 * 8);
+			reinterpret_cast<uint32_t*>(illumNode)[2] = packedVoxPos | 0x80000000;
 		}
 	}
 

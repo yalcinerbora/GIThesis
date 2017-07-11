@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{94B71C19-CC4A-4562-ADB1-63AC79E31CB9}</ProjectGuid>
+    <ProjectGuid>{D42EAB3B-14B3-4F51-ACD6-67929873CCB4}</ProjectGuid>
     <RootNamespace>GIThesis</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -123,7 +123,7 @@
       <GenerateLineInfo>true</GenerateLineInfo>
       <MaxRegCount>32</MaxRegCount>
       <AdditionalOptions>-Xptxas="-dlcm=ca" -Wno-deprecated-gpu-targets %(AdditionalOptions)</AdditionalOptions>
-      <Defines>_ITERATOR_DEBUG_LEVEL=0;</Defines>
+      <Defines>_ITERATOR_DEBUG_LEVEL=0;NDEBUG</Defines>
       <KeepDir>$(IntDir)</KeepDir>
       <NvccCompilation>compile</NvccCompilation>
       <PtxAsOptionV>true</PtxAsOptionV>
@@ -132,9 +132,6 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\Animation.cpp" />
     <ClCompile Include="..\..\..\Source\AntBar.cpp" />
-    <CudaCompile Include="..\..\..\Source\GIVoxelPages.cu">
-      <FileType>CppCode</FileType>
-    </CudaCompile>
     <ClCompile Include="..\..\..\Source\ThesisScenes.cpp" />
     <ClCompile Include="..\..\..\Source\CudaInit.cpp" />
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
@@ -159,9 +156,7 @@
     <ClInclude Include="..\..\..\Source\ThesisScenes.h" />
     <ClInclude Include="..\..\..\Source\CSVOTypes.h" />
     <ClInclude Include="..\..\..\Source\CudaInit.h" />
-    <ClInclude Include="..\..\..\Source\CudaVector.hpp">
-      <FileType>Document</FileType>
-    </ClInclude>
+    <ClInclude Include="..\..\..\Source\CudaVector.hpp" />
     <ClCompile Include="..\..\..\Source\Globals.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEAxisAalignedBB.cpp" />
     <ClCompile Include="..\..\..\Source\IEUtility\IEBoundingSphere.cpp" />
@@ -212,9 +207,6 @@
     <ClInclude Include="..\..\..\Source\SceneLights.h" />
     <ClInclude Include="..\..\..\Source\StructuredBuffer.hpp" />
     <ClCompile Include="..\..\..\Source\ThesisSolution.cpp" />
-    <CudaCompile Include="..\..\..\Source\GIVoxelCache.cu">
-      <FileType>CppCode</FileType>
-    </CudaCompile>
     <ClCompile Include="..\..\..\Source\VoxelVAO.cpp" />
     <ClCompile Include="..\..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\..\Source\WindowInput.cpp" />
@@ -265,13 +257,12 @@
     <ClInclude Include="..\..\..\Source\WindowInput.h" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="..\..\..\Source\GIVoxelCache.cu" />
     <CudaCompile Include="..\..\..\Source\GISparseVoxelOctree.cu" />
     <CudaCompile Include="..\..\..\Source\PageKernels.cu" />
-    <CudaCompile Include="..\..\..\Source\SVOKernels.cu">
-      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">32</MaxRegCount>
-      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|x64'">32</MaxRegCount>
-    </CudaCompile>
+    <CudaCompile Include="..\..\..\Source\SVOKernels.cu" />
     <CudaCompile Include="..\..\..\Source\VoxelCopyToVAO.cu" />
+    <CudaCompile Include="..\..\..\Source\GIVoxelPages.cu" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GLSLShaderCompiler\GLSLShaderCompiler.vcxproj">

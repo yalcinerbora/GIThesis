@@ -312,7 +312,7 @@ bool FindMarchLength(inout vec3 outData,
 			traversedLevel < fetchLevel;
 			traversedLevel++)
 		{
-			uint offset = svoLevelOffsets[fetchLevel] - nodeOffsetDifference;
+			uint offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;
 			uint currentNode = svoNode[offset + nodeIndex];
 			if(currentNode == 0xFFFFFFFF && traversedLevel >= minCascadeLevel) break;
 			else if(currentNode == 0xFFFFFFFF) 

@@ -10,10 +10,11 @@
 		Sample positions from depth buffer
 */
 
-#define I_COLOR_FB layout(rgba8, binding = 2) restrict writeonly
+// Definitions
+#define I_OUT_TEXTURE layout(rgba8, binding = 0) restrict
 
 #define LU_SVO_NODE layout(std430, binding = 2) readonly
-#define LU_SVO_MATERIAL layout(std430, binding = 3) readonly
+#define LU_SVO_ILLUM layout(std430, binding = 3) readonly
 #define LU_SVO_LEVEL_OFFSET layout(std430, binding = 4) readonly
 
 #define U_RENDER_TYPE layout(location = 0)
@@ -21,22 +22,21 @@
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
-#define U_SVO_CONSTANTS layout(std140, binding = 3)
+#define U_OCTREE_UNIFORMS layout(std140, binding = 3)
 
 #define T_DEPTH layout(binding = 2)
 #define T_DENSE_NODE layout(binding = 5)
 #define T_DENSE_MAT layout(binding = 6)
 
-// Ratio Between TraceBuffer and GBuffer
-#define TRACE_RATIO 1
+//#define FLT_MAX 3.402823466e+38F
+//#define EPSILON 0.00001f
+//#define PI_OVR_2 (3.1416f * 0.5f)
 
-#define RENDER_TYPE_COLOR 0
-#define RENDER_TYPE_OCCLUSION 1
-#define RENDER_TYPE_NORMAL 2
-
-#define FLT_MAX 3.402823466e+38F
-#define EPSILON 0.00001f
-#define PI_OVR_2 (3.1416f * 0.5f)
+#define IRRADIANCE 0
+#define SPECULAR_ALBEDO 1
+#define NORMAL 2
+#define OCCLUSION 3
+#define LIGHT_DIR 4
 
 // Buffers
 U_RENDER_TYPE uniform uint renderType;
@@ -44,36 +44,17 @@ U_FETCH_LEVEL uniform uint fetchLevel;
 
 LU_SVO_NODE buffer SVONode
 { 
-	uint svoNode[];
+	uvec4 svoNode[];
 };
 
-LU_SVO_MATERIAL buffer SVOMaterial
+LU_SVO_ILLUM buffer SVOIllumination
 { 
-	uvec2 svoMaterial[];
+	uvec4 svoIllum[];
 };
 
 LU_SVO_LEVEL_OFFSET buffer SVOLevelOffsets
 {
-	uint svoLevelOffset[];
-};
-
-U_SVO_CONSTANTS uniform SVOConstants
-{
-	// xyz gridWorldPosition
-	// w is gridSpan
-	vec4 worldPosSpan;
-
-	// x is grid dimension
-	// y is grid depth
-	// z is dense dimension
-	// w is dense depth
-	uvec4 dimDepth;
-
-	// x is cascade count
-	// y is node sparse offet
-	// z is material sparse offset
-	// w is dense mat tex min level
-	uvec4 offsetCascade;
+	uint svoLevelOffsets[];
 };
 
 U_FTRANSFORM uniform FrameTransform
@@ -92,11 +73,26 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 	vec4 depthNearFar;	// depth range params (last two unused)
 };
 
+U_OCTREE_UNIFORMS uniform OctreeUniforms
+{
+	vec3 worldPos;
+	float baseSpan;
+
+	uint minSVOLevel;
+	uint denseLevel;
+	uint minCascadeLevel;
+	uint maxSVOLevel;
+	
+	uint cascadeCount;
+	uint nodeOffsetDifference;
+	uint gridSize;
+	uint pad1;
+};
+
 // Textures
-uniform I_COLOR_FB image2D traceTex;
+uniform I_OUT_TEXTURE image2D fbo;
+
 uniform T_DEPTH sampler2D gBuffDepth;
-uniform T_DENSE_NODE usampler3D tSVODense;
-uniform T_DENSE_MAT usampler3D tSVOMat;
 
 // Functions
 vec3 DepthToWorld(vec2 gBuffUV)
@@ -116,186 +112,157 @@ vec3 DepthToWorld(vec2 gBuffUV)
 	return (invViewProjection * clip).xyz;
 }
 
-float IntersectDistance(in vec3 relativePos, 
-						in vec3 dir, 
-						in float gridDim)
+uint DenseIndexToLinear(in ivec3 denseIndex, in uint level)
 {
-	// 6 Plane intersection on cube normalized coordinates
-	// Since planes axis aligned writing code is optimized 
-	// (instead of dot products)
-
-	// P is normCoord (ray position)
-	// D is dir (ray direction)
-	// N is plane normal (since axis aligned (1, 0, 0), (0, 1, 0), (0, 0, 1)
-	// d is gridDim (plane distance from origin) (for "far" planes)
-
-	// d - (P dot N) (P dot N returns Px Py Pz for each plane)
-	vec3 tClose = vec3(0.0f) - relativePos;	
-	vec3 tFar = vec3(gridDim) - relativePos;
-	
-	// Negate zeroes from direction
-	// (D dot N) returns Dx Dy Dz for each plane
-	// IF perpendicaular make it intersect super far
-	bvec3 dirMask = greaterThan(abs(dir), vec3(EPSILON));
-	dir.x = (dirMask.x) ? dir.x : EPSILON;
-	dir.y = (dirMask.y) ? dir.y : EPSILON;
-	dir.z = (dirMask.z) ? dir.z : EPSILON;
-
-	// acutal T value
-	// d - (P dot N) / (N dot D)
-	vec3 dirInv = vec3(1.0f) / dir;
-	tClose *= dirInv;
-	tFar *= dirInv;
-
-	// Negate Negative
-	// Write FLT_MAX if its <= EPSILON
-	bvec3 tCloseMask = greaterThan(tClose, vec3(EPSILON));
-	bvec3 tFarMask = greaterThan(tFar, vec3(EPSILON));
-	tClose.x = (tCloseMask.x) ? tClose.x : FLT_MAX;
-	tClose.y = (tCloseMask.y) ? tClose.y : FLT_MAX;
-	tClose.z = (tCloseMask.z) ? tClose.z : FLT_MAX;
-	tFar.x = (tFarMask.x) ? tFar.x : FLT_MAX;
-	tFar.y = (tFarMask.y) ? tFar.y : FLT_MAX;
-	tFar.z = (tFarMask.z) ? tFar.z : FLT_MAX;
-
-	// Reduction
-	float minClose = min(min(tClose.x, tClose.y), tClose.z);
-	float minFar = min(min(tFar.x, tFar.y), tFar.z);
-	return min(minClose, minFar) + 0.01f;
+	// TODO: Change to Morton (Z-order curve)
+	uint size = 1 << level;
+	return  denseIndex.z * size * size +
+			denseIndex.y * size +
+			denseIndex.x;
 }
 
-ivec3 LevelVoxId(in vec3 worldPoint, in uint depth)
+ivec3 LevelVoxId(out vec3 offset, in vec3 worldPoint, in uint depth)
 {
-	ivec3 result = ivec3(floor((worldPoint - worldPosSpan.xyz) / worldPosSpan.w));
-	return result >> (dimDepth.y - depth);
+	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
+	vec3 voxId = (worldPoint - worldPos.xyz) / levelSpan;
+	vec3 voxIdBase = floor(voxId);
+	offset = voxId - voxIdBase;
+	return ivec3(voxIdBase);
 }
 
-uint SpanToDepth(in uint number)
+vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
 {
-	return dimDepth.y - findMSB(number);
+	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
+	return (worldPoint - worldPos.xyz) / levelSpan;
 }
+
 
 uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
 {
 	uint bitSet = 0;
-	bitSet |= ((voxPos.z >> (dimDepth.y - levelDepth)) & 0x000000001) << 2;
-	bitSet |= ((voxPos.y >> (dimDepth.y - levelDepth)) & 0x000000001) << 1;
-	bitSet |= ((voxPos.x >> (dimDepth.y - levelDepth)) & 0x000000001) << 0;
+	bitSet |= ((voxPos.z >> (maxSVOLevel - levelDepth)) & 0x000000001) << 2;
+	bitSet |= ((voxPos.y >> (maxSVOLevel - levelDepth)) & 0x000000001) << 1;
+	bitSet |= ((voxPos.x >> (maxSVOLevel - levelDepth)) & 0x000000001) << 0;
 	return bitSet;
 }
 
-vec3 UnpackColor(in uint colorPacked)
+vec4 UnpackIrradianceSVO(in uint irradiancePacked)
 {
-	vec3 color;
-	color.x = float((colorPacked & 0x000000FF) >> 0) / 255.0f;
-	color.y = float((colorPacked & 0x0000FF00) >> 8) / 255.0f;
-	color.z = float((colorPacked & 0x00FF0000) >> 16) / 255.0f;
-	return color;
+	return unpackUnorm4x8(irradiancePacked);
 }
 
-vec3 UnpackNormalSVO(in uint voxNormPosY)
+vec4 UnpackOccupancySVO(in uint occupancyPacked)
 {
-	return unpackSnorm4x8(voxNormPosY).xyz;
+	return unpackUnorm4x8(occupancyPacked);
 }
 
-float UnpackOcculusion(in uint colorPacked)
+vec3 UnpackNormalSVO(in uint normalPacked)
 {
-	return unpackUnorm4x8(colorPacked).w;
-	//return float((colorPacked & 0xFF000000) >> 24) / 255.0f;
+	return unpackSnorm4x8(normalPacked).xyz;
 }
 
-uint SampleSVO(in vec3 worldPos)
+vec3 UnpackLightDirSVO(in uint lightDirPacked)
 {
-	// Start tracing (stateless start from root (dense))
-	ivec3 voxPos = LevelVoxId(worldPos, dimDepth.y);
+	return unpackSnorm4x8(lightDirPacked).xyz;
+}
 
+float AnisotropicOcclusion(in vec4 occlusion,
+						   in vec3 direction)
+{
+	// TODO:
+	return occlusion.x;
+}
+
+vec3 FetchFromIllum(out float occlusion, in uvec4 illum, in vec3 marchDir)
+{
+	// Occlusion
+	vec4 occupancy = UnpackOccupancySVO(illum.z);
+	occlusion = AnisotropicOcclusion(occupancy, marchDir);
+
+	if(renderType == IRRADIANCE) return UnpackIrradianceSVO(illum.x).xyz;
+	else if(renderType == SPECULAR_ALBEDO) return UnpackIrradianceSVO(illum.x).www;
+	else if(renderType == NORMAL) return UnpackNormalSVO(illum.y);
+	else if(renderType == OCCLUSION)
+	{
+		return vec3(1.0f - occlusion);
+	}
+	else if(renderType == LIGHT_DIR) return UnpackLightDirSVO(illum.w);
+	return vec3(0.0f);
+}
+
+vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
+{
+	vec3 offset;
+	ivec3 voxPos = LevelVoxId(offset, worldPos, maxSVOLevel);
+	ivec3 maxLevelSize = ivec3((0x1 << (cascadeCount - 1)) * gridSize);
+	
 	// Cull if out of bounds
 	if(any(lessThan(voxPos, ivec3(0))) ||
-	   any(greaterThanEqual(voxPos, ivec3(dimDepth.x))))
+	   any(greaterThanEqual(voxPos, maxLevelSize)))
 	{
-		return 0;
+		// Node is out of bounds
+		return vec3(0.0f);
 	}
 
 	// Check Dense
-	if(fetchLevel <= dimDepth.w &&
-	   fetchLevel >= offsetCascade.w)
+	if(fetchLevel >= minSVOLevel && 
+	   fetchLevel <= denseLevel)
 	{
 		// Dense Fetch
-		uint mipId = dimDepth.w - fetchLevel;
-		uint levelDim = dimDepth.z >> mipId;
-		vec3 levelUV = LevelVoxId(worldPos, fetchLevel) / float(levelDim);
-				
-		if(renderType == RENDER_TYPE_COLOR)
-			return textureLod(tSVOMat, levelUV, float(mipId)).x;
-		else if(renderType == RENDER_TYPE_OCCLUSION)
-			return textureLod(tSVOMat, levelUV, float(mipId)).y;
-		else if(renderType == RENDER_TYPE_NORMAL)
-			return textureLod(tSVOMat, levelUV, float(mipId)).y;
-	}
-
-	// Sparse Check
-	uint nodeIndex = 0;
-	for(uint i = dimDepth.w; i <= dimDepth.y; i++)
-	{
-		uint currentNode;
-		if(i == dimDepth.w)
-		{
-			ivec3 denseVox = LevelVoxId(worldPos, dimDepth.w);
-			vec3 texCoord = vec3(denseVox) / dimDepth.z;
-			currentNode = texture(tSVODense, texCoord).x;
-		}
-		else
-		{
-			currentNode = svoNode[offsetCascade.y +
-								  svoLevelOffset[i - dimDepth.w] +
-								  nodeIndex];
-		}
+		vec3 interp;
+		uint offset = svoLevelOffsets[fetchLevel];
+		ivec3 index = LevelVoxId(interp, worldPos, fetchLevel);
+		uvec4 illum = svoIllum[offset + DenseIndexToLinear(index, fetchLevel)];
 		
-		// Color Check
-		if((i < fetchLevel &&
-		   i > (dimDepth.y - offsetCascade.x) &&
-		   currentNode == 0xFFFFFFFF) ||
-		   i == fetchLevel)
-		{
-			// Mid Leaf Level
-			uint loc = offsetCascade.z + svoLevelOffset[i - dimDepth.w] + nodeIndex;
-			if(renderType == RENDER_TYPE_COLOR)
-				return svoMaterial[loc].x;
-			else if(renderType == RENDER_TYPE_OCCLUSION)
-			{
-				return svoMaterial[loc].y;
-			}
-			else if(renderType == RENDER_TYPE_NORMAL)
-				return svoMaterial[loc].y;
-		}
-
-		// Node check (Empty node also not leaf)
-		// Means object does not
-		if(currentNode == 0xFFFFFFFF)
-		{
-			return 0;
-		}
-		else
-		{
-			// Node has value
-			// Go deeper
-			nodeIndex = currentNode + CalculateLevelChildId(voxPos, i + 1);
-		}
+		// Data Fetch (return gray if no value is avail)
+		float dataOcclusion;
+		vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
+		if (dataOcclusion == 0.0f);
+			result = vec3(0.25f);
+		return result;
 	}
-	return 0;
-}
-
-vec3 InterpolatePos(in vec3 worldPos)
-{
-	// Interpolate position if gBufferTex > traceTex
-	if(TRACE_RATIO == 1) return worldPos;
 	else
 	{
-		// TODO: Implement
-		// Use sibling cone threads and shared memory to reduce neigbouring pixels
-		// dimensional difference has to be power of two
-		return worldPos;
+		// Sparse Check
+		// Start tracing (stateless start from root (dense))
+		// Initialize Traverse
+		uint nodeIndex = 0;
+	
+		// Dense Node Index Fetch
+		vec3 interp;
+		uint offset = svoLevelOffsets[denseLevel] - nodeOffsetDifference;
+		ivec3 index = LevelVoxId(interp, worldPos, denseLevel);
+		nodeIndex = svoNode[offset + DenseIndexToLinear(index, denseLevel)].x;
+
+		uint traversedLevel;
+		for(traversedLevel = denseLevel + 1; 
+			traversedLevel <= fetchLevel;
+			traversedLevel++)
+		{
+			if(nodeIndex == 0xFFFFFFFF && traversedLevel >= minCascadeLevel)
+			   break;
+
+			offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;					
+			nodeIndex = svoNode[offset + nodeIndex].x + CalculateLevelChildId(voxPos, traversedLevel);
+		}
+
+		if(traversedLevel >= minCascadeLevel || 
+		   traversedLevel == fetchLevel)
+		{
+			traversedLevel--;
+
+			offset = svoLevelOffsets[traversedLevel];					
+			uvec4 illum = svoIllum[offset + nodeIndex];
+
+			// Data Fetch (return gray if no value is avail)
+			float dataOcclusion;
+			vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
+			if (dataOcclusion == 0.0f);
+				result = vec3(0.25f);
+			return result;
+		}
 	}
+	return vec3(0.25f);
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
@@ -303,30 +270,16 @@ void main(void)
 {
 	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	uvec2 pixelId = globalId / TRACE_RATIO;
-	if(any(greaterThanEqual(pixelId, imageSize(traceTex).xy))) return;
+	uvec2 pixelId = globalId;
+	if(any(greaterThanEqual(pixelId, imageSize(fbo).xy))) return;
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
 	vec2 gBuffUV = vec2(pixelId + vec2(0.5f) - viewport.xy) / viewport.zw;
 	vec3 worldPos = DepthToWorld(gBuffUV);
-	worldPos = InterpolatePos(worldPos); 
+	vec3 marchDir = normalize(worldPos - camPos.xyz);
+	
+	// Actual Work
+	vec3 result = SampleSVO(worldPos, marchDir);
 
-	uint data = SampleSVO(worldPos);
-	vec3 color = vec3(1.0f, 0.0f, 1.0f);
-	if(data != 0)
-	{
-		if(renderType == RENDER_TYPE_COLOR)			   
-		{
-			color = UnpackColor(data);
-		}
-		else if(renderType == RENDER_TYPE_OCCLUSION)
-		{
-			color = vec3(1.0f - UnpackOcculusion(data));
-		}
-		else if(renderType == RENDER_TYPE_NORMAL)
-		{
-			color = UnpackNormalSVO(data);
-		}
-	}
-	imageStore(traceTex, ivec2(globalId), vec4(color, 0.0f)); 
+	imageStore(fbo, ivec2(globalId), vec4(result, 0.0f));
 }

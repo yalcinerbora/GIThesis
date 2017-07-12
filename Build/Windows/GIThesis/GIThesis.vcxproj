@@ -132,6 +132,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\Animation.cpp" />
     <ClCompile Include="..\..\..\Source\AntBar.cpp" />
+    <ClCompile Include="..\..\..\Source\ConeTraceTexture.cpp" />
     <ClCompile Include="..\..\..\Source\ThesisScenes.cpp" />
     <ClCompile Include="..\..\..\Source\CudaInit.cpp" />
     <ClCompile Include="..\..\..\Source\CudaTimer.cpp" />
@@ -145,6 +146,7 @@
     <ClInclude Include="..\..\..\Source\Animation.h" />
     <ClInclude Include="..\..\..\Source\AntBar.h" />
     <ClInclude Include="..\..\..\Source\CMatrixFunctions.cuh" />
+    <ClInclude Include="..\..\..\Source\ConeTraceTexture.h" />
     <ClInclude Include="..\..\..\Source\CSVONodeAlloc.cuh" />
     <ClInclude Include="..\..\..\Source\CSVONodeReduction.cuh" />
     <ClInclude Include="..\..\..\Source\GLSLBindPoints.h" />

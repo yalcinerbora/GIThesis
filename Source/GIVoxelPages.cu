@@ -576,6 +576,7 @@ GIVoxelPages::GIVoxelPages(GIVoxelPages&& other)
 	: batches(other.batches)
 	, svoParams(other.svoParams)
 	, segmentAmount(other.segmentAmount)
+	, outermostGridPosition(other.outermostGridPosition)
 	, gpuData(std::move(other.gpuData))
 	, dVoxelGrids(other.dVoxelGrids)
 	, dBatchOGLData(other.dBatchOGLData)
@@ -600,6 +601,7 @@ GIVoxelPages& GIVoxelPages::operator=(GIVoxelPages&& other)
 	batches = other.batches;
 	svoParams = other.svoParams;
 	segmentAmount = other.segmentAmount;
+	outermostGridPosition = other.outermostGridPosition;
 	gpuData = std::move(other.gpuData);
 	dVoxelGrids = other.dVoxelGrids;
 	dBatchOGLData = other.dBatchOGLData;
@@ -651,6 +653,8 @@ void GIVoxelPages::UpdateGridPositions(const IEVector3& cameraPos)
 		float displacement = subSeries * baseHalf;
 		positions[i] = voxelCornerPos + displacement;
 	}
+
+	outermostGridPosition = positions.back();
 
 	// Copy new positions
 	CUDA_CHECK(cudaMemcpy2D(dVoxelGrids, sizeof(CVoxelGrid),
@@ -862,7 +866,7 @@ double GIVoxelPages::Draw(bool doTiming,
 	return pageRenderer.Draw(doTiming, cascadeCount, renderType, camera, cache, *this);
 }
 
-void  GIVoxelPages::DeallocateDraw()
+void GIVoxelPages::DeallocateDraw()
 {
 	if(pageRenderer.Allocated())
 	{
@@ -870,12 +874,17 @@ void  GIVoxelPages::DeallocateDraw()
 	}
 }
 
-const CVoxelPageConst* GIVoxelPages::getVoxelPages() const
+const CVoxelPageConst* GIVoxelPages::getVoxelPagesDevice() const
 {
 	return reinterpret_cast<const CVoxelPageConst*>(dPages.Data());
 }
 
-const CVoxelGrid* GIVoxelPages::getVoxelGrids() const
+const CVoxelGrid* GIVoxelPages::getVoxelGridsDevice() const
 {
 	return dVoxelGrids;
+}
+
+const IEVector3& GIVoxelPages::getOutermostGridPosition() const
+{
+	return outermostGridPosition;
 }

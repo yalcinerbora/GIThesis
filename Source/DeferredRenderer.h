@@ -158,7 +158,6 @@ class DeferredRenderer
 		GLuint						linearSampler;
 		GLuint						shadowMapSampler;
 				
-		void						BindFrameTransform(GLuint bindingPoint);
 		void						UpdateFTransformBuffer();
 		void						UpdateInvFTransformBuffer();
 
@@ -175,11 +174,13 @@ class DeferredRenderer
 		const GBuffer&				getGBuffer() const;
 		GLuint						getLightIntensityBufferGL();
 
+		void						RefreshFTransform(const Camera&);
 		void						RefreshInvFTransform(SceneI&,
 														 const Camera&,
 														 GLsizei width,
 														 GLsizei height);
 		void						BindInvFrameTransform(GLuint bindingPoint) const;
+		void						BindFrameTransform(GLuint bindingPoint) const;
 
 		void						Render(SceneI&, const Camera&, bool directLight, 
 										   const IEVector3& ambientColor,

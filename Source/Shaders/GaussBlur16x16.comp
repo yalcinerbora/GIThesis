@@ -1,0 +1,106 @@
+#version 430
+/*	
+	**16x16 Gaussian Blur Compute Shader**
+	
+	File Name	: GaussBlur16x16.comp
+	Author		: Bora Yalciner
+	Description	:
+
+		Gaussian Blur Post Process
+*/
+
+#define I_OUT_TEXTURE layout(rgba16, binding = 0) restrict writeonly
+
+#define T_IN layout(binding = 0)
+#define T_DEPTH layout(binding = 2)
+
+#define U_DIRECTION layout(location = 0)
+#define U_NEAR_FAR layout(location = 1)
+
+#define BLOCK_SIZE_X 16
+#define BLOCK_SIZE_Y 16
+
+#define KERNEL_SIZE_HALF 4
+
+// Uniforms
+uniform U_DIRECTION uint direction;
+uniform U_NEAR_FAR vec2 nearFar;
+
+uniform vec2 DIRECTION_VECTOR[2] = 
+{
+	vec2(0.0f, 1.0f),
+	vec2(1.0f, 0.0f)
+};
+
+uniform float WEIGHTS[KERNEL_SIZE_HALF * 2 + 1] = 
+{
+	0.115345f,	// Center Pixel
+	0.110763f,	// 1
+	0.098079f,	// 2
+	0.080084f,	// 3
+	0.060298f,	// 4
+	0.041864f,	// 5
+	0.026802f,	// 6
+	0.015823f,	// 7
+	0.008614f	// 8
+};
+
+uniform I_OUT_TEXTURE image2D imgOut;
+
+uniform T_IN sampler2D tIn;
+uniform T_DEPTH sampler2D tDepth;
+
+float LinearizeDepth(float depth) 
+{   
+	return (2.0f * nearFar.x) / (nearFar.y + nearFar.x - depth * (nearFar.y - nearFar.x));
+}
+
+float DepthWeight(float center, float offset)
+{
+	float centerWorld = center * (nearFar.y - nearFar.x);
+	float offsetWorld = offset * (nearFar.y - nearFar.x);
+
+	float factor = abs(offsetWorld - centerWorld);
+	factor *= factor;
+	return 1.0f / (1.0f + factor);
+}
+
+layout (local_size_x = BLOCK_SIZE_X, local_size_y = BLOCK_SIZE_Y, local_size_z = 1) in;
+void main(void)
+{
+	// Thread Logic is per pixel
+	uvec2 globalId = gl_GlobalInvocationID.xy;
+	vec2 resolution = vec2(imageSize(imgOut).xy);
+	vec2 uv = vec2(globalId + 0.5f) / resolution;
+
+	// Skip if Out of bounds
+	if(any(greaterThanEqual(globalId, imageSize(imgOut).xy))) return;
+	
+	float centerDepthLinear = LinearizeDepth(texture(tDepth, uv).x);
+	vec4 result = texture(tIn, uv) * WEIGHTS[0];
+	float weights = WEIGHTS[0];
+	for(int i = 0; i < KERNEL_SIZE_HALF; i++)
+	{
+		// Linear Texture Sampling Offsets and Weights
+		uint index = (i * 2) + 1;
+		float weight = WEIGHTS[index] + WEIGHTS[index + 1];
+		float pixelOffset = index * WEIGHTS[index] + (index + 1) * WEIGHTS[index + 1];
+		pixelOffset /= weight;
+
+		vec2 uvOffset = pixelOffset * DIRECTION_VECTOR[direction] / resolution;
+
+		// Positive Direction
+		float depthLinear = LinearizeDepth(texture(tDepth, uv + uvOffset).x);
+		float depthWeight = DepthWeight(centerDepthLinear, depthLinear);
+		result += texture(tIn, uv + uvOffset) * weight * depthWeight;
+		weights += weight * depthWeight;
+
+		// Negative Direction
+		depthLinear = LinearizeDepth(texture(tDepth, uv - uvOffset).x);
+		depthWeight = DepthWeight(centerDepthLinear, depthLinear);
+		result += texture(tIn, uv - uvOffset) * weight * depthWeight;
+		weights += weight * depthWeight;
+	}
+	result /= weights;
+	imageStore(imgOut, ivec2(globalId), result);
+}

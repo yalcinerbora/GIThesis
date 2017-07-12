@@ -178,8 +178,8 @@ int main()
 	// Sponza Atrium
 	std::vector<std::string> sponzaRigid = 
 	{
-		"sponza.gfg",
-		"sponzaDynamic.gfg"
+		//"sponza.gfg",
+		//"sponzaDynamic.gfg"
 	};
 	std::vector<std::string> sponzaSkeletal =
 	{

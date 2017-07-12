@@ -75,15 +75,8 @@ ThesisBar::ThesisBar(const SceneLights& lights,
 	//			   sizeDef.c_str());
 	//}
 
-
-
-	//TwDefine((std::string(ThesisBarName) + " refresh=0.01 ").c_str());
-	//TwDefine((std::string(ThesisBarName) + " size='250 400' ").c_str());
-	//TwDefine((std::string(ThesisBarName) + " valueswidth=fit ").c_str());
-	//TwDefine((std::string(ThesisBarName) + " position='5 278' ").c_str());
-
 	TwDefine((std::string(ThesisBarName) + " refresh=0.01 ").c_str());
-	TwDefine((std::string(ThesisBarName) + " size='220 210' ").c_str());
+	TwDefine((std::string(ThesisBarName) + " size='220 220' ").c_str());
 	TwDefine((std::string(ThesisBarName) + " valueswidth=fit ").c_str());
 	TwDefine((std::string(ThesisBarName) + " position='5 278' ").c_str());
 }

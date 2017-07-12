@@ -334,28 +334,57 @@ __global__ void AverageLevelDense(// SVO
 	nodeId3D.x = (nodeId) % gridLength;
 	nodeId3D.y = (nodeId / gridLength) % gridLength;
 	nodeId3D.z = (nodeId / (gridLength * gridLength));
-	nodeId3D.x <<= 1;
-	nodeId3D.y <<= 1;
-	nodeId3D.z <<= 1;
+	nodeId3D.x *= 2;
+	nodeId3D.y *= 2;
+	nodeId3D.z *= 2;
 
 	// Average Register
-	uint64_t illumPart = 0x0;
+	float4 avgLower = {0.0f, 0.0f, 0.0f, 0.0f};
+	float4 avgUpper = {0.0f, 0.0f, 0.0f, 0.0f};
+	float count = 0.0f;
 
 	#pragma unroll
 	for(int i = 0; i < 8; i++)
 	{
 		short3 childId;
-		childId.x = nodeId3D.x + (i >> 0) & 0x1;
-		childId.y = nodeId3D.y + (i >> 1) & 0x1;
-		childId.z = nodeId3D.z + (i >> 2) & 0x1;
+		childId.x = nodeId3D.x + ((i >> 0) & 0x1);
+		childId.y = nodeId3D.y + ((i >> 1) & 0x1);
+		childId.z = nodeId3D.z + ((i >> 2) & 0x1);
 		uint32_t linearId = DenseIndex(childId, 0x1 << (currentLevel + 1));
 
 		uint64_t childPart = reinterpret_cast<uint64_t*>(nextLevel.gLevelIllum + linearId)[nodeLocalId];
-		float4 upperWord = UnpackSVOIrradiance(UnpackUpperWord(childPart));
-		float3 lowerWord = ExpandVoxNormal(UnpackLowerWord(childPart));
-		AvgIllumPortion(illumPart, upperWord, lowerWord);
+		if(childPart != 0x0)
+		{
+			float4 lowerWord = UnpackSVOIrradiance(UnpackLowerWord(childPart));
+			float3 upperWord = ExpandVoxNormal(UnpackUpperWord(childPart));
+
+			avgLower.x += lowerWord.x;
+			avgLower.y += lowerWord.y;
+			avgLower.z += lowerWord.z;
+			avgLower.w += lowerWord.w;
+
+			avgUpper.x += upperWord.x;
+			avgUpper.y += upperWord.y;
+			avgUpper.z += upperWord.z;
+
+			count += 1.0f;
+		}
 	}
+	// Division
+	float countInv = 1.0f / count;
+	float lowerDivider = (nodeLocalId == 0) ? countInv : 0.125f;
+	avgLower.x *= lowerDivider;
+	avgLower.y *= lowerDivider;
+	avgLower.z *= lowerDivider;
+	avgLower.w *= lowerDivider;
+
+	avgUpper.x *= countInv;
+	avgUpper.y *= countInv;
+	avgUpper.z *= countInv;
+	avgUpper.w = 1.0f;
+		
 	// Write averaged value
+	uint64_t illumPart = PackWords(PackSVONormal(avgUpper), PackSVOIrradiance(avgLower));
 	reinterpret_cast<uint64_t*>(level.gLevelIllum + nodeId)[nodeLocalId] = illumPart;
 }
 
@@ -382,12 +411,16 @@ __global__ void AverageLevelSparse(// SVO
 
 	// Each Thread will average (and read/write)
 	// single double word part of the illumination
-	uint64_t illumPart = 0x0;
-	
+	uint64_t illumPart = 0x0;	
 	// Read potential parent value
 	if(currentLevel >= octreeParams.CascadeBaseLevel)
 		illumPart = reinterpret_cast<uint64_t*>(level.gLevelIllum + nodeId)[nodeLocalId];
 	
+	float4 avgLower = UnpackSVOIrradiance(UnpackLowerWord(illumPart));
+	float4 avgUpper = UnpackSVONormal(UnpackUpperWord(illumPart));
+	float count = (illumPart == 0x0) ? 0.0f : 8.0f;
+	float denseDivider = (illumPart == 0x0) ? 0.125f : 0.0625f;
+
 	// Average Children
 	if(nodeChild != 0xFFFFFFFF)
 	{
@@ -395,11 +428,38 @@ __global__ void AverageLevelSparse(// SVO
 		for(int i = 0; i < 8; i++)
 		{
 			uint64_t childPart = reinterpret_cast<uint64_t*>(nextLevel.gLevelIllum + nodeChild + i)[nodeLocalId];
-			float4 upperWord = UnpackSVOIrradiance(UnpackUpperWord(childPart));
-			float3 lowerWord = ExpandVoxNormal(UnpackLowerWord(childPart));
-			AvgIllumPortion(illumPart, upperWord, lowerWord);
+			if(childPart != 0x0)
+			{
+				float4 lowerWord = UnpackSVOIrradiance(UnpackLowerWord(childPart));
+				float3 upperWord = ExpandVoxNormal(UnpackUpperWord(childPart));
+
+				avgLower.x += lowerWord.x;
+				avgLower.y += lowerWord.y;
+				avgLower.z += lowerWord.z;
+				avgLower.w += lowerWord.w;
+
+				avgUpper.x += upperWord.x;
+				avgUpper.y += upperWord.y;
+				avgUpper.z += upperWord.z;
+
+				count += 1.0f;
+			}
 		}
+		// Division
+		float countInv = 1.0f / count;
+		float lowerDivider = (nodeLocalId == 0) ? countInv : denseDivider;
+		avgLower.x *= lowerDivider;
+		avgLower.y *= lowerDivider;
+		avgLower.z *= lowerDivider;
+		avgLower.w *= lowerDivider;
+
+		avgUpper.x *= countInv;
+		avgUpper.y *= countInv;
+		avgUpper.z *= countInv;
+		avgUpper.w = 1.0f;
+
 		// Write averaged value
+		illumPart = PackWords(PackSVONormal(avgUpper), PackSVOIrradiance(avgLower));
 		reinterpret_cast<uint64_t*>(level.gLevelIllum + nodeId)[nodeLocalId] = illumPart;
 	}
 }

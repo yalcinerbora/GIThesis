@@ -120,6 +120,9 @@
     <ClCompile Include="..\..\..\Source\VoxelVAO.cpp">
       <Filter>GI\Thesis\OGL</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Source\ConeTraceTexture.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\Macros.h" />
@@ -359,6 +362,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Source\CSVONodeAlloc.cuh">
       <Filter>GI\Thesis\Kernels\HelperFunctions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\ConeTraceTexture.h">
+      <Filter>Render</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

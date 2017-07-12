@@ -109,8 +109,7 @@ xcopy $(SolutionDir)..\..\Source\Shaders\*.comp $(SolutionDir)..\..\WorkingDir\S
     <None Include="..\..\..\Source\Shaders\DPass.frag" />
     <None Include="..\..\..\Source\Shaders\DPass.vert" />
     <None Include="..\..\..\Source\Shaders\DPassSkeletal.vert" />
-    <None Include="..\..\..\Source\Shaders\EdgeDetect.comp" />
-    <None Include="..\..\..\Source\Shaders\Gauss32.comp" />
+    <None Include="..\..\..\Source\Shaders\GaussBlur16x16.comp" />
     <None Include="..\..\..\Source\Shaders\GWriteGeneric.frag" />
     <None Include="..\..\..\Source\Shaders\GWriteGeneric.vert" />
     <None Include="..\..\..\Source\Shaders\GWriteSkeletal.vert" />

@@ -16,6 +16,7 @@ class SceneI;
 class GIVoxelPages;
 class GIVoxelCache;
 class DeferredRenderer;
+class ConeTraceTexture;
 
 #pragma pack(push, 1)
 struct OctreeUniforms
@@ -23,15 +24,15 @@ struct OctreeUniforms
 	IEVector3	worldPos;
 	float		baseSpan;
 
-	uint32_t	gridSize;
 	uint32_t	minSVOLevel;
-	uint32_t	maxSVOLevel;
 	uint32_t	denseLevel;
-
+	uint32_t	minCascadeLevel;
+	uint32_t	maxSVOLevel;
+	
 	uint32_t	cascadeCount;
 	uint32_t	nodeOffsetDifference;
+	uint32_t	gridSize;
 	uint32_t	pad0;
-	uint32_t	pad1;
 };
 
 struct IndirectUniforms
@@ -53,6 +54,26 @@ struct IndirectUniforms
 };
 #pragma pack(pop)
 
+//static constexpr size_t BigSizes[] =
+//{
+//	1,					// Root
+//	8,					// 1 Dense
+//	64,					// 2 Dense
+//	512,				// 3 Dense
+//	4096,				// 4 Dense
+//	32768,				// 5 Dense
+//	262144,				// 6 Dense
+//
+//	256	 * 1024,		// 7
+//	1	 * 1024 * 1024,	// 8
+//	4	 * 1024 * 1024,	// 9
+//	10	 * 1024 * 1024,	// 10
+//	6	 * 1024 * 1024,	// 11	
+//	8	 * 1024 * 1024,	// 12
+//	8	 * 1024 * 1024,	// 13
+//};
+
+
 static constexpr size_t BigSizes[] =
 {
 	1,					// Root
@@ -63,13 +84,13 @@ static constexpr size_t BigSizes[] =
 	32768,				// 5 Dense
 	262144,				// 6 Dense
 
-	256	 * 1024,		// 7
-	1	 * 1024 * 1024,	// 8
-	4	 * 1024 * 1024,	// 9
-	10	 * 1024 * 1024,	// 10
-	6	 * 1024 * 1024,	// 11	
-	8	 * 1024 * 1024,	// 12
-	8	 * 1024 * 1024,	// 13
+	64 * 1024,	// 7
+	64 * 1024,	// 8
+	64 * 1024,	// 9
+	64 * 1024,	// 10
+	64 * 1024,	// 11	
+	64 * 1024,	// 12
+	64 * 1024,	// 13
 };
 
 class OctreeParameters
@@ -125,9 +146,6 @@ struct LightInjectParameters
 class GISparseVoxelOctree
 {
 	public:
-		static constexpr GLsizei		TraceWidth = /*160;*//*320;*//*640;*//*800;*/1280;/*1600;*//*1920;*//*2560;*///3840;
-		static constexpr GLsizei		TraceHeight = /*90;*//*180;*//*360;*//*450;*/720;/*900;*//*1080;*//*1440;*///2160;
-
 		class ShadowMapsCUDA
 		{
 			private:
@@ -253,7 +271,7 @@ class GISparseVoxelOctree
 		// Traces entire scene with the given ray params
 		// Writes results to outputTexture
 		// Uses GBuffer to create inital rays (free camera to first bounce)
-		double							GlobalIllumination(GLuint outputTexture,
+		double							GlobalIllumination(ConeTraceTexture& coneTex,
 														   const DeferredRenderer&,
 														   const Camera& camera,
 														   const IndirectUniforms&,
@@ -261,12 +279,12 @@ class GISparseVoxelOctree
 														   bool aoOn,
 														   bool specularOn);
 		// Debug Tracing
-		double							DebugTraceSVO(GLuint outputTexture,
+		double							DebugTraceSVO(ConeTraceTexture& coneTex,
 													  const DeferredRenderer&,
 													  const Camera& camera,
 													  uint32_t renderLevel,
 													  OctreeRenderType);
-		double							DebugSampleSVO(GLuint& outputTexture,
+		double							DebugSampleSVO(ConeTraceTexture& coneTex,
 													   const DeferredRenderer&,
 													   const Camera& camera,
 													   uint32_t renderLevel,

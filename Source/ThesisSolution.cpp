@@ -18,6 +18,7 @@ ThesisSolution::ThesisSolution(uint32_t denseLevel,
 				   cascadeCount, cascadeBaseLevel,
 				   baseSpan)
 	, name(name)
+	, coneTex(TraceWidth, TraceHeight, GL_RGBA16F)
 	, currentScene(nullptr)
 	, dRenderer(deferredDenderer)
 	, giOn(false)
@@ -144,11 +145,6 @@ void ThesisSolution::Frame(const Camera& mainCam)
 						  ambientColor,
 						  injectOn);
 	
-	//// Update FrameTransform Matrices 
-	//// And its inverse realted buffer
-	////assert(TraceWidth == DeferredRenderer::gBuffWidth);
-	////assert(TraceHeight == DeferredRenderer::gBuffHeight);
-	//dRenderer.RefreshInvFTransform(camera, TraceWidth, TraceHeight);
 
 	// Rendering Choice
 	if(scheme >= RenderScheme::G_DIFF_ALBEDO &&
@@ -189,7 +185,22 @@ void ThesisSolution::Frame(const Camera& mainCam)
 			voxelPages.DeallocateDraw();
 			if(scheme == RenderScheme::SVO_VOXELS)
 			{
+				
+			}
+			else if(scheme == RenderScheme::SVO_SAMPLE)
+			{
+				// Uniform Updates
+				//dRenderer.RefreshFTransform(mainCam);
+				dRenderer.RefreshInvFTransform(*currentScene, mainCam,
+											   coneTex.Width(), coneTex.Height());
+				voxelOctree.UpdateOctreeUniforms(voxelPages.getOutermostGridPosition());
 
+				// Actual Render
+				miscTime = voxelOctree.DebugSampleSVO(coneTex, dRenderer, mainCam,
+													  thesisBar.SVOLevel(),
+													  thesisBar.SVORenderType());
+			
+				dRenderer.ShowTexture(mainCam, coneTex.Texture());
 			}
 		}
 	}	

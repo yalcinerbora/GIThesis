@@ -88,12 +88,6 @@
     <None Include="..\..\..\Source\Shaders\VoxRenderWorld.vert">
       <Filter>VoxelRender</Filter>
     </None>
-    <None Include="..\..\..\Source\Shaders\EdgeDetect.comp">
-      <Filter>PostProcess</Filter>
-    </None>
-    <None Include="..\..\..\Source\Shaders\Gauss32.comp">
-      <Filter>PostProcess</Filter>
-    </None>
     <None Include="..\..\..\Source\Shaders\PackObjectVoxels.comp">
       <Filter>Voxelization\Rigid</Filter>
     </None>
@@ -122,6 +116,9 @@
       <Filter>Voxelization</Filter>
     </None>
     <None Include="..\..\Common\shaders.ninja" />
+    <None Include="..\..\..\Source\Shaders\GaussBlur16x16.comp">
+      <Filter>PostProcess</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Deferred">

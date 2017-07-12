@@ -11,7 +11,7 @@
 */
 
 // Definitions
-#define I_OUT_TEXTURE layout(rgba8, binding = 0) restrict
+#define I_OUT_TEXTURE layout(rgba16f, binding = 0) restrict writeonly
 
 #define LU_SVO_NODE layout(std430, binding = 2) readonly
 #define LU_SVO_ILLUM layout(std430, binding = 3) readonly
@@ -25,12 +25,6 @@
 #define U_OCTREE_UNIFORMS layout(std140, binding = 3)
 
 #define T_DEPTH layout(binding = 2)
-#define T_DENSE_NODE layout(binding = 5)
-#define T_DENSE_MAT layout(binding = 6)
-
-//#define FLT_MAX 3.402823466e+38F
-//#define EPSILON 0.00001f
-//#define PI_OVR_2 (3.1416f * 0.5f)
 
 #define IRRADIANCE 0
 #define SPECULAR_ALBEDO 1
@@ -86,7 +80,7 @@ U_OCTREE_UNIFORMS uniform OctreeUniforms
 	uint cascadeCount;
 	uint nodeOffsetDifference;
 	uint gridSize;
-	uint pad1;
+	uint pad0;
 };
 
 // Textures
@@ -100,6 +94,8 @@ vec3 DepthToWorld(vec2 gBuffUV)
 	// Converts Depthbuffer Value to World Coords
 	// First Depthbuffer to Screen Space
 	vec3 ndc = vec3(gBuffUV, texture(gBuffDepth, gBuffUV).x);
+	if(ndc.z == 1.0f) return vec3(1.0e+10);
+
 	ndc.xy = 2.0f * ndc.xy - 1.0f;
 	ndc.z = ((2.0f * (ndc.z - depthNearFar.x) / (depthNearFar.y - depthNearFar.x)) - 1.0f);
 
@@ -115,7 +111,7 @@ vec3 DepthToWorld(vec2 gBuffUV)
 uint DenseIndexToLinear(in ivec3 denseIndex, in uint level)
 {
 	// TODO: Change to Morton (Z-order curve)
-	uint size = 1 << level;
+	uint size = (0x1 << level);
 	return  denseIndex.z * size * size +
 			denseIndex.y * size +
 			denseIndex.x;
@@ -136,13 +132,12 @@ vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
 	return (worldPoint - worldPos.xyz) / levelSpan;
 }
 
-
-uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
+uint CalculateLevelChildId(in ivec3 voxPos, in uint level)
 {
 	uint bitSet = 0;
-	bitSet |= ((voxPos.z >> (maxSVOLevel - levelDepth)) & 0x000000001) << 2;
-	bitSet |= ((voxPos.y >> (maxSVOLevel - levelDepth)) & 0x000000001) << 1;
-	bitSet |= ((voxPos.x >> (maxSVOLevel - levelDepth)) & 0x000000001) << 0;
+	bitSet |= ((voxPos.z >> (maxSVOLevel - level)) & 0x000000001) << 2;
+	bitSet |= ((voxPos.y >> (maxSVOLevel - level)) & 0x000000001) << 1;
+	bitSet |= ((voxPos.x >> (maxSVOLevel - level)) & 0x000000001) << 0;
 	return bitSet;
 }
 
@@ -182,10 +177,7 @@ vec3 FetchFromIllum(out float occlusion, in uvec4 illum, in vec3 marchDir)
 	if(renderType == IRRADIANCE) return UnpackIrradianceSVO(illum.x).xyz;
 	else if(renderType == SPECULAR_ALBEDO) return UnpackIrradianceSVO(illum.x).www;
 	else if(renderType == NORMAL) return UnpackNormalSVO(illum.y);
-	else if(renderType == OCCLUSION)
-	{
-		return vec3(1.0f - occlusion);
-	}
+	else if(renderType == OCCLUSION) return vec3(1.0f - occlusion);
 	else if(renderType == LIGHT_DIR) return UnpackLightDirSVO(illum.w);
 	return vec3(0.0f);
 }
@@ -194,11 +186,14 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 {
 	vec3 offset;
 	ivec3 voxPos = LevelVoxId(offset, worldPos, maxSVOLevel);
-	ivec3 maxLevelSize = ivec3((0x1 << (cascadeCount - 1)) * gridSize);
+	ivec3 maxLevelSize = ivec3(0x1 << maxSVOLevel);
 	
 	// Cull if out of bounds
-	if(any(lessThan(voxPos, ivec3(0))) ||
-	   any(greaterThanEqual(voxPos, maxLevelSize)))
+	//if(any(lessThan(voxPos, ivec3(0))) ||
+	//   any(greaterThanEqual(voxPos, maxLevelSize)))
+	if(	voxPos.x < 0 || voxPos.x >= maxLevelSize.x ||
+		voxPos.y < 0 || voxPos.y >= maxLevelSize.y ||
+		voxPos.z < 0 || voxPos.z >= maxLevelSize.z)
 	{
 		// Node is out of bounds
 		return vec3(0.0f);
@@ -210,59 +205,64 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 	{
 		// Dense Fetch
 		vec3 interp;
-		uint offset = svoLevelOffsets[fetchLevel];
 		ivec3 index = LevelVoxId(interp, worldPos, fetchLevel);
+		uint offset = svoLevelOffsets[fetchLevel];
 		uvec4 illum = svoIllum[offset + DenseIndexToLinear(index, fetchLevel)];
 		
 		// Data Fetch (return gray if no value is avail)
 		float dataOcclusion;
 		vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
-		if (dataOcclusion == 0.0f);
-			result = vec3(0.25f);
+//		if (dataOcclusion == 0.0f);
+//			result = vec3(0.25f);
 		return result;
 	}
 	else
 	{
 		// Sparse Check
 		// Start tracing (stateless start from root (dense))
-		// Initialize Traverse
-		uint nodeIndex = 0;
-	
+		// Initialize Traverse	
 		// Dense Node Index Fetch
 		vec3 interp;
-		uint offset = svoLevelOffsets[denseLevel] - nodeOffsetDifference;
 		ivec3 index = LevelVoxId(interp, worldPos, denseLevel);
-		nodeIndex = svoNode[offset + DenseIndexToLinear(index, denseLevel)].x;
+		uint offset = svoLevelOffsets[denseLevel] - nodeOffsetDifference;
+		uint nodeIndex = svoNode[offset + DenseIndexToLinear(index, denseLevel)].x;
 
 		uint traversedLevel;
 		for(traversedLevel = denseLevel + 1; 
 			traversedLevel <= fetchLevel;
 			traversedLevel++)
 		{
-			if(nodeIndex == 0xFFFFFFFF && traversedLevel >= minCascadeLevel)
-			   break;
+			if(nodeIndex == 0xFFFFFFFF) break;
 
 			offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;					
 			nodeIndex = svoNode[offset + nodeIndex].x + CalculateLevelChildId(voxPos, traversedLevel);
 		}
+		traversedLevel--;
 
+		// Fetch data if either we are on traversed level
+		// or missed but on cascade level		 
 		if(traversedLevel >= minCascadeLevel || 
 		   traversedLevel == fetchLevel)
 		{
-			traversedLevel--;
-
 			offset = svoLevelOffsets[traversedLevel];					
 			uvec4 illum = svoIllum[offset + nodeIndex];
 
 			// Data Fetch (return gray if no value is avail)
 			float dataOcclusion;
 			vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
-			if (dataOcclusion == 0.0f);
-				result = vec3(0.25f);
+			//if (dataOcclusion == 0.0f);
+			//	result = vec3(0.25f);
 			return result;
 		}
 	}
-	return vec3(0.25f);
+	return vec3(0.25f, 0.0f, 1.0f);
+}
+
+float LinearDepth(float depthLog)
+{
+	float n = depthNearFar.x;
+	float f = depthNearFar.y;
+	return (2 * n) / (f + n - depthLog * (f - n));
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
@@ -270,16 +270,33 @@ void main(void)
 {
 	// Thread Logic is per cone per pixel
 	uvec2 globalId = gl_GlobalInvocationID.xy;
-	uvec2 pixelId = globalId;
-	if(any(greaterThanEqual(pixelId, imageSize(fbo).xy))) return;
+	if(any(greaterThanEqual(globalId, imageSize(fbo).xy))) return;
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
-	vec2 gBuffUV = vec2(pixelId + vec2(0.5f) - viewport.xy) / viewport.zw;
+	vec2 gBuffUV = vec2(globalId + vec2(0.5f) - viewport.xy) / viewport.zw;
 	vec3 worldPos = DepthToWorld(gBuffUV);
 	vec3 marchDir = normalize(worldPos - camPos.xyz);
 	
 	// Actual Work
 	vec3 result = SampleSVO(worldPos, marchDir);
+	//vec3 result = vec3(worldPos);
+
+	//uint linearId = globalId.y * imageSize(fbo).x + globalId.x;
+	//uint irradiance = svoIllum[linearId].x;
+	//uint node = svoNode[linearId].x;
+	//if(linearId < 627200)
+	//{
+	//	//if(node != 0xFFFFFFFF)
+	//	//imageStore(fbo, ivec2(globalId), vec4(1.0f));
+	//	//else
+	//	//imageStore(fbo, ivec2(globalId), vec4(0.0f));
+
+	//	imageStore(fbo, ivec2(globalId), UnpackIrradianceSVO(irradiance));
+	//}
+	//else
+	//{
+	//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 0.33f, 0.0f));
+	//}
 
 	imageStore(fbo, ivec2(globalId), vec4(result, 0.0f));
 }

@@ -10,8 +10,7 @@ rule glsl
   
 build $outFolder/ApplyVoxLI.comp.spirv : glsl $srcFolder/ApplyVoxLI.comp
 build $outFolder/DetermineSplitCount.comp.spirv : glsl $srcFolder/DetermineSplitCount.comp
-build $outFolder/EdgeDetect.comp.spirv : glsl $srcFolder/EdgeDetect.comp
-build $outFolder/Gauss32.comp.spirv : glsl $srcFolder/Gauss32.comp
+build $outFolder/GaussBlur16x16.comp.spirv : glsl $srcFolder/GaussBlur16x16.comp
 build $outFolder/HierZ.comp.spirv : glsl $srcFolder/HierZ.comp
 build $outFolder/PackObjectVoxels.comp.spirv : glsl $srcFolder/PackObjectVoxels.comp
 build $outFolder/PackObjectVoxelsSkel.comp.spirv : glsl $srcFolder/PackObjectVoxelsSkel.comp
@@ -56,8 +55,7 @@ build all : phony $
   $outFolder/PPLightPresent.frag.spirv $
   $outFolder/DPass.frag.spirv $
   $outFolder/ApplyVoxLI.comp.spirv $
-  $outFolder/EdgeDetect.comp.spirv $
-  $outFolder/Gauss32.comp.spirv $
+  $outFolder/GaussBlur16x16.comp.spirv $
   $outFolder/HierZ.comp.spirv $
   $outFolder/PackObjectVoxels.comp.spirv $
   $outFolder/PackObjectVoxelsSkel.comp.spirv $

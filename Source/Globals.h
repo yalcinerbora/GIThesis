@@ -36,9 +36,11 @@ enum class VoxelRenderType
 
 enum class OctreeRenderType
 {
-	IRRADIANCE,		// Irradiance
-	OCCUPANCY,		// Occupancy
-	RADIANCE_DIR,	// Incoming Radiance Direction
+	IRRADIANCE,		
+	SPECULAR_ALBEDO,
+	NORMAL,			
+	OCCUPANCY,			
+	RADIANCE_DIR,
 	END
 };
 

@@ -99,6 +99,7 @@ class GIVoxelPages
 		const std::vector<MeshBatchI*>*			batches;
 		const OctreeParameters*					svoParams;
 		uint32_t								segmentAmount;
+		IEVector3								outermostGridPosition;
 
 		// Static GPU Data
 		CudaVector<uint8_t>						gpuData;
@@ -168,8 +169,9 @@ class GIVoxelPages
 													 const GIVoxelCache& cache);
 		void									DeallocateDraw();
 
-		const CVoxelPageConst*					getVoxelPages() const;
-		const CVoxelGrid*						getVoxelGrids() const;
+		const CVoxelPageConst*					getVoxelPagesDevice() const;
+		const CVoxelGrid*						getVoxelGridsDevice() const;
+		const IEVector3&						getOutermostGridPosition() const;
 };
 
 static_assert(GIVoxelPages::PageSize % CudaInit::TBP == 0, "Page size must be divisible by thread per block");

@@ -143,7 +143,7 @@ void VoxelRenderSelect::Next()
 			*scheme == RenderScheme::SVO_SAMPLE)
 	{
 		int renderType = static_cast<int>(svoRenderType);
-		int sTypeMax = static_cast<int>(VoxelRenderType::END) - 1;
+		int sTypeMax = static_cast<int>(OctreeRenderType::END) - 1;
 		svoRenderType = static_cast<OctreeRenderType>(std::min(sTypeMax, renderType + 1));
 	}
 }

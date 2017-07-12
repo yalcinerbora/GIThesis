@@ -14,6 +14,7 @@ Solution implementtion
 #include "GIVoxelCache.h"
 #include "GIVoxelPages.h"
 #include "GISparseVoxelOctree.h"
+#include "ConeTraceTexture.h"
 
 class DeferredRenderer;
 class WindowInput;
@@ -24,11 +25,17 @@ class ThesisSolution : public SolutionI
 		const OctreeParameters		octreeParams;
 		const std::string			name;
 
+		static constexpr GLsizei	TraceWidth = 1280;
+		static constexpr GLsizei	TraceHeight = 720;
+
 	private:
 		// Entire Voxel Cache one Per Batch
 		GIVoxelCache				voxelCaches;
 		GIVoxelPages				voxelPages;
 		GISparseVoxelOctree			voxelOctree;
+
+		// Texture that is used for tracing
+		ConeTraceTexture			coneTex;
 
 		// Timings
 		double						frameTime;

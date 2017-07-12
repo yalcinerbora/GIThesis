@@ -8,6 +8,7 @@
 #include "GIVoxelCache.h"
 #include "SVOKernels.cuh"
 #include "CudaTimer.h"
+#include "ConeTraceTexture.h"
 #include <numeric>
 #include <cuda_gl_interop.h>
 
@@ -103,8 +104,8 @@ GISparseVoxelOctree::ShadowMapsCUDA::~ShadowMapsCUDA()
 
 void GISparseVoxelOctree::ShadowMapsCUDA::Map()
 {
-	CudaTimer t;
-	t.Start();
+	//CudaTimer t;
+	//t.Start();
 
 	assert(dLightParamArray == nullptr);
 	assert(dLightVPMatrixArray == nullptr);
@@ -139,8 +140,8 @@ void GISparseVoxelOctree::ShadowMapsCUDA::Map()
 	dLightParamArray = reinterpret_cast<const CLight*>(glBufferCUDA + lightOffset);
 	dLightVPMatrixArray = reinterpret_cast<const CMatrix4x4*>(glBufferCUDA + matrixOffset);
 
-	t.Stop();
-	GI_LOG("Mapping Shadow Maps %f ms", t.ElapsedMilliS());
+	//t.Stop();
+	//GI_LOG("Mapping Shadow Maps %f ms", t.ElapsedMilliS());
 }
 
 void GISparseVoxelOctree::ShadowMapsCUDA::Unmap()
@@ -368,8 +369,8 @@ GISparseVoxelOctree::~GISparseVoxelOctree()
 
 void GISparseVoxelOctree::MapOGLData()
 {
-	CudaTimer t;
-	t.Start();
+	//CudaTimer t;
+	//t.Start();
 
 	// Get Node Pointer
 	CUDA_CHECK(cudaGraphicsMapResources(1, &gpuResource));
@@ -414,8 +415,8 @@ void GISparseVoxelOctree::MapOGLData()
 						  (octreeParams->MaxSVOLevel + 1) * sizeof(CSVOLevel),
 						  cudaMemcpyHostToDevice));
 
-	t.Stop();
-	GI_LOG("Map Time (with clear) %f ms", t.ElapsedMilliS());
+	//t.Stop();
+	//GI_LOG("Map Time (with clear) %f ms", t.ElapsedMilliS());
 }
 
 void GISparseVoxelOctree::UnmapOGLData()
@@ -456,7 +457,7 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 											dLevelSizes,
 											dLevelCapacities,
 											// Voxel Pages
-											pages.getVoxelPages(),
+											pages.getVoxelPagesDevice(),
 											// Cache Data (for Voxel Albedo)
 											caches.getDeviceCascadePointersDevice().Data(),
 											// Limits
@@ -544,7 +545,7 @@ double GISparseVoxelOctree::InjectLight(bool doTiming,
 		// KC
 		LightInject<<<gridSize, blockSize>>>(dOctreeLevels[i],
 											 // Cascade Related
-											 *(pages.getVoxelGrids() + gridId),
+											 *(pages.getVoxelGridsDevice() + gridId),
 											 // Light Injection Related
 											 liParams,
 											 // Limits
@@ -569,7 +570,10 @@ double GISparseVoxelOctree::AverageNodes(bool doTiming)
 	// Average Down to Top Fashion
 	for(uint32_t i = octreeParams->MaxSVOLevel - 1; i >= octreeParams->DenseLevel; i--)
 	{
-		int gridSize = CudaInit::GenBlockSize(static_cast<int>(hLevelSizes[i] * 2));
+		int denseLevelSize = (0x1 << i) * (0x1 << i) * (0x1 << i);
+		int levelSize = (i == octreeParams->DenseLevel) ? denseLevelSize : hLevelSizes[i];
+
+		int gridSize = CudaInit::GenBlockSize(static_cast<int>(levelSize * 2));
 		int blockSize = CudaInit::TBP;
 
 		// KC
@@ -580,7 +584,7 @@ double GISparseVoxelOctree::AverageNodes(bool doTiming)
 													// Limits
 													*octreeParams,
 													i,
-													hLevelSizes[i]);
+													levelSize);
 	}
 	for(uint32_t i = octreeParams->DenseLevel - 1; i >= octreeParams->MinSVOLevel; i--)
 	{
@@ -639,15 +643,18 @@ void GISparseVoxelOctree::UpdateOctreeUniforms(const IEVector3& outerCascadePos)
 	OctreeUniforms u = {};
 	u.worldPos = outerCascadePos;
 	u.baseSpan = octreeParams->BaseSpan;
-	u.gridSize = octreeParams->CascadeBaseLevelSize;
 	u.minSVOLevel = octreeParams->MinSVOLevel;
-	u.maxSVOLevel = octreeParams->MaxSVOLevel;
 	u.denseLevel = octreeParams->DenseLevel;
+	u.minCascadeLevel = octreeParams->CascadeBaseLevel;
+	u.maxSVOLevel = octreeParams->MaxSVOLevel;
 	u.cascadeCount = octreeParams->CascadeCount;
 	u.nodeOffsetDifference = static_cast<uint32_t>(nodeIllumDifference);
-	std::memcpy(oglData.CPUData().data() + octreeUniformsOffset,
-				&u, sizeof(OctreeUniforms));
-	oglData.SendSubData(static_cast<uint32_t>(octreeUniformsOffset), sizeof(OctreeUniforms));
+	u.gridSize = octreeParams->CascadeBaseLevelSize;
+	u.pad0 = 0xFFFFFFFF;
+		
+	oglData.SendSubData(reinterpret_cast<const uint8_t*>(&u),
+						static_cast<uint32_t>(octreeUniformsOffset), 
+						sizeof(OctreeUniforms));
 }
 
 void GISparseVoxelOctree::UpdateIndirectUniforms(const IndirectUniforms& indirectUniforms)
@@ -658,7 +665,7 @@ void GISparseVoxelOctree::UpdateIndirectUniforms(const IndirectUniforms& indirec
 	oglData.SendSubData(static_cast<uint32_t>(indirectUniformsOffset), sizeof(IndirectUniforms));
 }
 
-double GISparseVoxelOctree::GlobalIllumination(GLuint outputTexture,
+double GISparseVoxelOctree::GlobalIllumination(ConeTraceTexture& coneTex,
 											   const DeferredRenderer& dRenderer,
 											   const Camera& camera,
 											   const IndirectUniforms&,
@@ -668,7 +675,7 @@ double GISparseVoxelOctree::GlobalIllumination(GLuint outputTexture,
 {
 	// Light Intensity Texture
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-	glClearTexImage(outputTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
+	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
 	
 	// Timing Voxelization Process
 	GLuint queryID;
@@ -690,13 +697,13 @@ double GISparseVoxelOctree::GlobalIllumination(GLuint outputTexture,
 								sizeof(IndirectUniforms));
 
 	// SSBO Buffers
-	oglData.BindAsUniformBuffer(LU_SVO_LEVEL_OFFSET, 
-								static_cast<uint32_t>(illumOffsetsOffset), 
-								sizeof(uint32_t) * (octreeParams->MaxSVOLevel + 1));
-	oglData.BindAsUniformBuffer(LU_SVO_NODE, static_cast<uint32_t>(nodeOffset), 
-								static_cast<uint32_t>(illumOffset - nodeOffset));
-	oglData.BindAsUniformBuffer(LU_SVO_ILLUM, static_cast<uint32_t>(illumOffset), 
-								static_cast<uint32_t>(oglData.Count() - illumOffset));
+	oglData.BindAsShaderStorageBuffer(LU_SVO_LEVEL_OFFSET,
+									  static_cast<uint32_t>(illumOffsetsOffset),
+									  sizeof(uint32_t) * (octreeParams->MaxSVOLevel + 1));
+	oglData.BindAsShaderStorageBuffer(LU_SVO_NODE, static_cast<uint32_t>(nodeOffset),
+									  static_cast<uint32_t>(illumOffset - nodeOffset));
+	oglData.BindAsShaderStorageBuffer(LU_SVO_ILLUM, static_cast<uint32_t>(illumOffset),
+									  static_cast<uint32_t>(oglData.Count() - illumOffset));
 
 	// Textures
 	dRenderer.getGBuffer().BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
@@ -704,13 +711,12 @@ double GISparseVoxelOctree::GlobalIllumination(GLuint outputTexture,
 	dRenderer.getGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
 
 	// Images
-	glBindImageTexture(I_OUT_TEXTURE, outputTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glBindImageTexture(I_OUT_TEXTURE, coneTex.Texture(), 0, false, 0, GL_WRITE_ONLY, coneTex.Format());
 	
 	// Dispatch
-	uint2 gridSize;
-	gridSize.x = (TraceWidth + 16 - 1) / 16;
-	gridSize.y = (TraceHeight + 16 - 1) / 16;
-	glDispatchCompute(gridSize.x, gridSize.y, 1);
+	GLuint gridX = (coneTex.Width() + 16 - 1) / 16;
+	GLuint gridY = (coneTex.Height() + 16 - 1) / 16;
+	glDispatchCompute(gridX, gridY, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	
 	// Timer
@@ -723,22 +729,130 @@ double GISparseVoxelOctree::GlobalIllumination(GLuint outputTexture,
 	return timeElapsed / 1000000.0;
 }
 
-double GISparseVoxelOctree::DebugTraceSVO(GLuint outputTexture,
-										  const DeferredRenderer&,
+double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
+										  const DeferredRenderer& dRenderer,
 										  const Camera& camera,
 										  uint32_t renderLevel,
-										  OctreeRenderType)
+										  OctreeRenderType octreeRender)
 {
-	return 0.0f;
+
+	// Light Intensity Texture
+	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
+
+	// Timing Voxelization Process
+	GLuint queryID;
+	glGenQueries(1, &queryID);
+	glBeginQuery(GL_TIME_ELAPSED, queryID);
+
+	// Shaders
+	compVoxSampleWorld.Bind();
+
+	// Uniforms
+	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(octreeRender));
+	glUniform1ui(U_FETCH_LEVEL, renderLevel);
+
+	// Uniform Buffers
+	// Frame transform already bound
+	dRenderer.BindInvFrameTransform(U_INVFTRANSFORM);
+	oglData.BindAsUniformBuffer(U_OCTREE_UNIFORMS, static_cast<uint32_t>(octreeUniformsOffset),
+								sizeof(OctreeUniforms));
+	//oglData.BindAsUniformBuffer(U_INDIRECT_UNIFORMS, static_cast<uint32_t>(indirectUniformsOffset),
+	//							sizeof(IndirectUniforms));
+
+	// SSBO Buffers
+	oglData.BindAsShaderStorageBuffer(LU_SVO_LEVEL_OFFSET,
+									  static_cast<uint32_t>(illumOffsetsOffset),
+									  sizeof(uint32_t) * (octreeParams->MaxSVOLevel + 1));
+	oglData.BindAsShaderStorageBuffer(LU_SVO_NODE, static_cast<uint32_t>(nodeOffset),
+									  static_cast<uint32_t>(illumOffset - nodeOffset));
+	oglData.BindAsShaderStorageBuffer(LU_SVO_ILLUM, static_cast<uint32_t>(illumOffset),
+									  static_cast<uint32_t>(oglData.Count() - illumOffset));
+
+	// Textures
+	//dRenderer.getGBuffer().BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
+	dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
+	//dRenderer.getGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
+
+	// Images
+	glBindImageTexture(I_OUT_TEXTURE, coneTex.Texture(), 0, false, 0, GL_WRITE_ONLY, coneTex.Format());
+
+	// Dispatch
+	GLuint gridX = (coneTex.Width() + 16 - 1) / 16;
+	GLuint gridY = (coneTex.Height() + 16 - 1) / 16;
+	glDispatchCompute(gridX, gridY, 1);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	// Timer
+	GLuint64 timeElapsed = 0;
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
+
+	// I have to unbind the compute shader or weird things happen
+	Shader::Unbind(ShaderType::COMPUTE);
+	return timeElapsed / 1000000.0;
 }
 
-double GISparseVoxelOctree::DebugSampleSVO(GLuint& outputTexture,
-										   const DeferredRenderer&,
+double GISparseVoxelOctree::DebugSampleSVO(ConeTraceTexture& coneTex,
+										   const DeferredRenderer& dRenderer,
 										   const Camera& camera,
 										   uint32_t renderLevel,
-										   OctreeRenderType)
+										   OctreeRenderType octreeRender)
 {
-	return 0.0f;
+	GI_LOG("Render Level %d", renderLevel);
+
+	// Light Intensity Texture
+	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
+
+	// Timing Voxelization Process
+	GLuint queryID;
+	glGenQueries(1, &queryID);
+	glBeginQuery(GL_TIME_ELAPSED, queryID);
+
+	// Shaders
+	compVoxSampleWorld.Bind();
+
+	// Uniforms
+	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(octreeRender));
+	glUniform1ui(U_FETCH_LEVEL, renderLevel);
+
+	// Uniform Buffers
+	// Frame transform already bound
+	dRenderer.BindFrameTransform(U_FTRANSFORM);
+	dRenderer.BindInvFrameTransform(U_INVFTRANSFORM);
+	oglData.BindAsUniformBuffer(U_OCTREE_UNIFORMS, static_cast<uint32_t>(octreeUniformsOffset),
+								sizeof(OctreeUniforms));
+
+	// SSBO Buffers
+	oglData.BindAsShaderStorageBuffer(LU_SVO_LEVEL_OFFSET,
+									  static_cast<uint32_t>(illumOffsetsOffset),
+									  sizeof(uint32_t) * (octreeParams->MaxSVOLevel + 1));
+	oglData.BindAsShaderStorageBuffer(LU_SVO_NODE, static_cast<uint32_t>(nodeOffset),
+									  static_cast<uint32_t>(illumOffset - nodeOffset));
+	oglData.BindAsShaderStorageBuffer(LU_SVO_ILLUM, static_cast<uint32_t>(illumOffset),
+									  static_cast<uint32_t>(oglData.Count() - illumOffset));
+
+	// Textures
+	//dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::COLOR);
+	dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
+	//dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::NORMAL);
+
+	// Images
+	glBindImageTexture(I_OUT_TEXTURE, coneTex.Texture(), 0, false, 0, GL_WRITE_ONLY, coneTex.Format());
+
+	// Dispatch
+	GLuint gridX = (coneTex.Width() + 16 - 1) / 16;
+	GLuint gridY = (coneTex.Height() + 16 - 1) / 16;
+	glDispatchCompute(gridX, gridY, 1);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	// Timer
+	GLuint64 timeElapsed = 0;
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
+
+	return timeElapsed / 1000000.0;
 }
 
 size_t GISparseVoxelOctree::MemoryUsage() const

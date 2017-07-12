@@ -62,6 +62,8 @@ class StructuredBuffer
 		void					ChangeData(uint32_t index, const T& newData);
 		void					SendData();
 		void					SendSubData(uint32_t offset, uint32_t size);
+		void					SendSubData(const T* data, uint32_t offset,
+											uint32_t size);
 
 		std::vector<T>&			CPUData();
 		const std::vector<T>&	CPUData() const;

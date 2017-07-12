@@ -146,7 +146,7 @@ void DeferredRenderer::BindInvFrameTransform(GLuint bindingPoint) const
 								sizeof(InvFrameTransform));
 }
 
-void DeferredRenderer::BindFrameTransform(GLuint bindingPoint)
+void DeferredRenderer::BindFrameTransform(GLuint bindingPoint) const
 {
 	gpuData.BindAsUniformBuffer(bindingPoint,
 								static_cast<GLuint>(fOffset), 
@@ -705,6 +705,12 @@ void DeferredRenderer::Present(const Camera& camera, bool doTiming)
 	}
 }
 
+void DeferredRenderer::RefreshFTransform(const Camera& camera)
+{
+	fTransform = camera.GenerateTransform();
+	UpdateFTransformBuffer();
+}
+
 void DeferredRenderer::RefreshInvFTransform(SceneI& scene,
 											const Camera& camera,
 											GLsizei width,
@@ -719,7 +725,7 @@ void DeferredRenderer::RefreshInvFTransform(SceneI& scene,
 		ft.view.Inverse() * ft.projection.Inverse(),
 		IEVector4(camera.pos, scene.getSceneLights().getCascadeLength(camera.far)),
 		IEVector4((camera.centerOfInterest - camera.pos).NormalizeSelf()),
-		{0, 0, static_cast<unsigned int>(width), static_cast<unsigned int>(height)},
+		{0, 0, static_cast<GLuint>(width), static_cast<GLuint>(height)},
 		{depthRange[0], depthRange[1], 0.0f, 0.0f}
 	};
 	UpdateInvFTransformBuffer();
@@ -750,8 +756,7 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLi
 							  const IEVector3& ambientColor, bool doTiming)
 {
 	// Camera Transform Update
-	fTransform = camera.GenerateTransform();
-	UpdateFTransformBuffer();
+	RefreshFTransform(camera);
 
 	// Send new Light Params
 	scene.getSceneLights().SendLightDataToGPU();

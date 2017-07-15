@@ -164,6 +164,6 @@ void main(void)
 		norm += (mat3(jointTransforms[vWIndex[3]].finalRot) * normalModel) * vWeight[3];
 
 		norm = mat3(modelTransforms[transformId].modelRotation) * norm;
-		fColor = norm;
+		fColor = (norm + 1.0f) * 0.5f;
 	}
 }

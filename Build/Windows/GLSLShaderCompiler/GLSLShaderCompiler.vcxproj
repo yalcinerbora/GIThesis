@@ -104,46 +104,126 @@ xcopy $(SolutionDir)..\..\Source\Shaders\*.comp $(SolutionDir)..\..\WorkingDir\S
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="..\..\..\Source\Shaders\ApplyVoxLI.comp" />
-    <None Include="..\..\..\Source\Shaders\DetermineSplitCount.comp" />
-    <None Include="..\..\..\Source\Shaders\DPass.frag" />
-    <None Include="..\..\..\Source\Shaders\DPass.vert" />
-    <None Include="..\..\..\Source\Shaders\DPassSkeletal.vert" />
-    <None Include="..\..\..\Source\Shaders\GaussBlur16x16.comp" />
-    <None Include="..\..\..\Source\Shaders\GWriteGeneric.frag" />
-    <None Include="..\..\..\Source\Shaders\GWriteGeneric.vert" />
-    <None Include="..\..\..\Source\Shaders\GWriteSkeletal.vert" />
-    <None Include="..\..\..\Source\Shaders\HierZ.comp" />
-    <None Include="..\..\..\Source\Shaders\LightPass.frag" />
-    <None Include="..\..\..\Source\Shaders\LightPass.vert" />
-    <None Include="..\..\..\Source\Shaders\PackObjectVoxels.comp" />
-    <None Include="..\..\..\Source\Shaders\PackObjectVoxelsSkel.comp" />
-    <None Include="..\..\..\Source\Shaders\PPLightPresent.frag" />
-    <None Include="..\..\..\Source\Shaders\PProcessGBuff.frag" />
-    <None Include="..\..\..\Source\Shaders\PProcessGeneric.frag" />
-    <None Include="..\..\..\Source\Shaders\PProcessGeneric.vert" />
-    <None Include="..\..\..\Source\Shaders\PProcessShadowMap.frag" />
-    <None Include="..\..\..\Source\Shaders\ShadowMap.frag" />
-    <None Include="..\..\..\Source\Shaders\ShadowMap.vert" />
-    <None Include="..\..\..\Source\Shaders\ShadowMapA.geom" />
-    <None Include="..\..\..\Source\Shaders\ShadowMapD.geom" />
-    <None Include="..\..\..\Source\Shaders\ShadowMapP.geom" />
-    <None Include="..\..\..\Source\Shaders\ShadowMapSkeletal.vert" />
-    <None Include="..\..\..\Source\Shaders\VoxelizeGeom.frag" />
-    <None Include="..\..\..\Source\Shaders\VoxelizeGeom.geom" />
-    <None Include="..\..\..\Source\Shaders\VoxelizeGeom.vert" />
-    <None Include="..\..\..\Source\Shaders\VoxelizeGeomCount.frag" />
-    <None Include="..\..\..\Source\Shaders\VoxelizeGeomSkel.frag" />
-    <None Include="..\..\..\Source\Shaders\VoxelizeGeomSkel.geom" />
-    <None Include="..\..\..\Source\Shaders\VoxelizeGeomSkel.vert" />
-    <None Include="..\..\..\Source\Shaders\VoxGI.comp" />
-    <None Include="..\..\..\Source\Shaders\VoxRender.frag" />
-    <None Include="..\..\..\Source\Shaders\VoxRender.vert" />
-    <None Include="..\..\..\Source\Shaders\VoxRenderSkeletal.vert" />
-    <None Include="..\..\..\Source\Shaders\VoxRenderWorld.vert" />
-    <None Include="..\..\..\Source\Shaders\VoxTraceDeferred.comp" />
-    <None Include="..\..\..\Source\Shaders\VoxTraceWorld.comp" />
-    <None Include="..\..\Common\shaders.ninja" />
+    <Text Include="..\..\..\Source\Shaders\ApplyVoxLI.comp">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\DetermineSplitCount.comp">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\DPass.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\DPass.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\DPassSkeletal.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\GaussBlur16x16.comp">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\GWriteGeneric.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\GWriteGeneric.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\GWriteSkeletal.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\HierZ.comp">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\LightPass.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\LightPass.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\PackObjectVoxels.comp">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\PackObjectVoxelsSkel.comp">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\PPLightPresent.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\PProcessGBuff.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\PProcessGeneric.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\PProcessGeneric.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\PProcessShadowMap.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\ShadowMap.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\ShadowMap.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\ShadowMapA.geom">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\ShadowMapD.geom">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\ShadowMapP.geom">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\ShadowMapSkeletal.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeGeom.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeGeom.geom">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeGeom.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeGeomCount.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeGeomSkel.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeGeomSkel.geom">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeGeomSkel.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxGI.comp">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxRender.frag">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxRender.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxRenderSkeletal.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxRenderWorld.vert">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxTraceDeferred.comp">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxTraceWorld.comp">
+      <FileType>Document</FileType>
+    </Text>
+    <CustomBuild Include="..\..\Common\shaders.ninja">
+      <FileType>Document</FileType>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

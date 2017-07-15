@@ -132,12 +132,12 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	IEVector3 camDir = (mainCam.centerOfInterest - mainCam.pos).Normalize();
 	LightInjectParameters liParams = 
 	{
-		{mainCam.pos[0], mainCam.pos[1], mainCam.pos[2]},
+		{mainCam.pos[0], mainCam.pos[1], mainCam.pos[2], currentScene->getSceneLights().getCascadeLength(mainCam.far)},
 		{camDir[0], camDir[1], camDir[2]},
-		depthRange[0],
-		depthRange[1]
+		depthRange[0], depthRange[1]
 	};
 
+	injectOn = true;
 	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAverageTime, doTiming,
 						  voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),

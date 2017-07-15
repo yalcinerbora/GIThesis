@@ -113,7 +113,7 @@ inline __device__ bool CalculateShadowOcclusion(const CMatrix4x4* lightVP,
 		// Inv geom sum
 		const float exponent = 1.1f;
 		viewIndex = worldDist / liParams.camPos.w;
-		viewIndex = round(log2(viewIndex * (exponent - 1.0f) + 1.0f) / log2(exponent));
+		viewIndex = roundf(log2f(viewIndex * (exponent - 1.0f) + 1.0f) / log2f(exponent));
 	}
 
 	// Mult with proper cube side matrix

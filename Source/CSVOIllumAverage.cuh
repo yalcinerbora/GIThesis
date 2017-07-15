@@ -63,28 +63,28 @@ inline __device__ uint64_t AvgIllumPortion(const uint64_t& illumPortion,
 					 PackSVONormal(avgLower));
 }
 
-inline __device__ uint64_t AvgAlbedoAndOccupancy(const uint64_t& occupancyPortion,
+inline __device__ uint64_t AvgAlbedoAndOccupancy(const uint64_t& lowerPortion,
 												 const float4& albedo,
 												 const float3& normal,
 												 const float occupancy)
 {
 	// Unpack Illumination
-	uint2 illumSplit = UnpackWords(occupancyPortion);
+	uint2 illumSplit = UnpackWords(lowerPortion);
 
-	float avgOccupancy, avgAverage;
+	float avgOccupancy, counter;
 	float4 avgAlbedo = UnpackSVOIrradiance(illumSplit.x);
-	float3 avgNormal = UnpackSVONormalLeaf(avgOccupancy, avgAverage, illumSplit.y);
+	float3 avgNormal = UnpackSVONormalLeaf(avgOccupancy, counter, illumSplit.y);
 		
 		//LeafOccupancy(illumSplit.y);
 	
 	// Divisors
-	float invCount = 1.0f / (avgAverage + 1.0f);
+	float invCounter = 1.0f / (counter + 1.0f);
 	
 	// Irradiance Average
-	avgAlbedo.x = (avgAverage * avgAlbedo.x + albedo.x * occupancy) * invCount;
-	avgAlbedo.y = (avgAverage * avgAlbedo.y + albedo.y * occupancy) * invCount;
-	avgAlbedo.z = (avgAverage * avgAlbedo.z + albedo.z * occupancy) * invCount;
-	avgAlbedo.w = (avgAverage * avgAlbedo.w + albedo.w * occupancy) * invCount;
+	avgAlbedo.x = (counter * avgAlbedo.x + albedo.x/* * occupancy*/) * invCounter;
+	avgAlbedo.y = (counter * avgAlbedo.y + albedo.y/* * occupancy*/) * invCounter;
+	avgAlbedo.z = (counter * avgAlbedo.z + albedo.z/* * occupancy*/) * invCounter;
+	avgAlbedo.w = (counter * avgAlbedo.w + albedo.w/* * occupancy*/) * invCounter;
 
 	avgAlbedo.x = fminf(1.0f, avgAlbedo.x);
 	avgAlbedo.y = fminf(1.0f, avgAlbedo.y);
@@ -92,9 +92,10 @@ inline __device__ uint64_t AvgAlbedoAndOccupancy(const uint64_t& occupancyPortio
 	avgAlbedo.w = fminf(1.0f, avgAlbedo.w);
 
 	// Normal Average
-	avgNormal.x = (avgAverage * avgNormal.x + normal.x * occupancy) * invCount;
-	avgNormal.y = (avgAverage * avgNormal.y + normal.y * occupancy) * invCount;
-	avgNormal.z = (avgAverage * avgNormal.z + normal.z * occupancy) * invCount;
+	float3 normal2 = Normalize(normal);
+	avgNormal.x = (counter * avgNormal.x + normal.x/* * occupancy*/) * invCounter;
+	avgNormal.y = (counter * avgNormal.y + normal.y/* * occupancy*/) * invCounter;
+	avgNormal.z = (counter * avgNormal.z + normal.z/* * occupancy*/) * invCounter;
 	avgNormal = Normalize(avgNormal);
 
 	// Occupancy
@@ -102,10 +103,10 @@ inline __device__ uint64_t AvgAlbedoAndOccupancy(const uint64_t& occupancyPortio
 	avgOccupancy = fminf(1.0f, avgOccupancy);
 
 	// Average
-	avgAverage += 1.0f;
+	counter += 1.0f;
 
-	return PackWords(PackSVOIrradiance(avgAlbedo),
-					 PackSVONormalLeaf(avgNormal, avgOccupancy, avgAverage));
+	return PackWords(PackSVONormalLeaf(avgNormal, avgOccupancy, counter),
+					 PackSVOIrradiance(avgAlbedo));
 }
 
 inline __device__ uint64_t AtomicIllumPortionAvg(uint64_t* gIllumPortion,

@@ -129,8 +129,7 @@ void MeshBatch::GenTransformMatrix(IEMatrix4x4& transform,
 								   IEMatrix4x4& rotation,
 								   const GFGTransform& gfgTransform)
 {
-	transform = IEMatrix4x4::IdentityMatrix;
-	transform = IEMatrix4x4::Rotate(gfgTransform.rotate[0], IEVector3::XAxis) * transform;
+	transform = IEMatrix4x4::Rotate(gfgTransform.rotate[0], IEVector3::XAxis);
 	transform = IEMatrix4x4::Rotate(gfgTransform.rotate[1], IEVector3::YAxis) * transform;
 	transform = IEMatrix4x4::Rotate(gfgTransform.rotate[2], IEVector3::ZAxis) * transform;
 

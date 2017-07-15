@@ -266,6 +266,11 @@ GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams,
 	// Offsets Generated Allocate
 	oglData.Resize(offset, false);
 
+	// Send Offset Pointers
+	oglData.SendSubData(reinterpret_cast<const uint8_t*>(internalOffsets.data()),
+						static_cast<uint32_t>(illumOffsetsOffset), 
+						(octreeParams.MaxSVOLevel + 1) * sizeof(uint32_t));
+
 	// Now CUDA
 	size_t totalSize = (octreeParams.MaxSVOLevel + 1) * (sizeof(uint32_t) * 2 +
 														 sizeof(CSVOLevel));
@@ -415,6 +420,9 @@ void GISparseVoxelOctree::MapOGLData()
 						  (octreeParams->MaxSVOLevel + 1) * sizeof(CSVOLevel),
 						  cudaMemcpyHostToDevice));
 
+
+
+
 	//t.Stop();
 	//GI_LOG("Map Time (with clear) %f ms", t.ElapsedMilliS());
 }
@@ -479,15 +487,15 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 		int gridSize = CudaInit::GenBlockSize(static_cast<int>(levelSize / 8));
 		int blockSize = CudaInit::TBP;
 
-		// KC
-		GenNeigbourPtrs<<<gridSize, blockSize>>>(// SVO
-											     dOctreeLevels,
-											     dLevelSizes,
-											     dLevelCapacities,
-											     // Limits
-											     *octreeParams,
-											     levelSize / 8,
-											     i);
+		//// KC
+		//GenNeigbourPtrs<<<gridSize, blockSize>>>(// SVO
+		//									     dOctreeLevels,
+		//									     dLevelSizes,
+		//									     dLevelCapacities,
+		//									     // Limits
+		//									     *octreeParams,
+		//									     levelSize / 8,
+		//									     i);
 	}
 
 	// Recieve Used Level Sizes
@@ -572,19 +580,19 @@ double GISparseVoxelOctree::AverageNodes(bool doTiming)
 	{
 		int denseLevelSize = (0x1 << i) * (0x1 << i) * (0x1 << i);
 		int levelSize = (i == octreeParams->DenseLevel) ? denseLevelSize : hLevelSizes[i];
-
 		int gridSize = CudaInit::GenBlockSize(static_cast<int>(levelSize * 2));
 		int blockSize = CudaInit::TBP;
 
+		const CSVOLevelConst& dNextLevel = reinterpret_cast<const CSVOLevelConst&>(dOctreeLevels[i + 1]);
+
 		// KC
 		AverageLevelSparse<<<gridSize, blockSize>>>(// SVO
-													dOctreeLevels,
-													dLevelSizes,
-													dLevelCapacities,
+													dOctreeLevels[i],
+													dNextLevel,
 													// Limits
 													*octreeParams,
-													i,
-													levelSize);
+													static_cast<uint32_t>(levelSize),
+													i >= octreeParams->CascadeBaseLevel);
 	}
 	for(uint32_t i = octreeParams->DenseLevel - 1; i >= octreeParams->MinSVOLevel; i--)
 	{
@@ -593,12 +601,15 @@ double GISparseVoxelOctree::AverageNodes(bool doTiming)
 		int gridSize = CudaInit::GenBlockSize(static_cast<int>(levelSize * 2));
 		int blockSize = CudaInit::TBP;
 
+		const CSVOLevelConst& dNextLevel = reinterpret_cast<const CSVOLevelConst&>(dOctreeLevels[i + 1]);
+
 		// KC
 		AverageLevelDense<<<gridSize, blockSize>>>(// SVO
-												   dOctreeLevels,
+												   dOctreeLevels[i],
+												   dNextLevel,
 												   // Limits
 												   *octreeParams,
-												   i);
+												   0x1 << i);
 	}
 
 	if(doTiming)

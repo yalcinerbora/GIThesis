@@ -116,6 +116,7 @@ void main(void)
 	else if(renderType == NORMAL)
 	{
 		vec3 normalModel = UnpackNormal(voxNorm);
-		fColor = mat3x3(modelTransforms[transformId].modelRotation) * normalModel;
+		vec3 normalWorld = mat3x3(modelTransforms[transformId].modelRotation) * normalModel;
+		fColor = (normalWorld + 1.0f) * 0.5f;
 	}
 }

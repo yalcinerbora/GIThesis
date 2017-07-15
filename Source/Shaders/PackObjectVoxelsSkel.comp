@@ -96,7 +96,7 @@ void main(void)
 		if(normal.w > 0.0f)
 		{
 			// Average Divide
-			albedo.xyz /= normal.w;
+			albedo.xyzw /= normal.w;
 			normal.xyz /= normal.w;
 			normal.w = 0.0f;
 

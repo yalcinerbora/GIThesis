@@ -126,11 +126,11 @@ ivec3 LevelVoxId(out vec3 offset, in vec3 worldPoint, in uint depth)
 	return ivec3(voxIdBase);
 }
 
-vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
-{
-	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
-	return (worldPoint - worldPos.xyz) / levelSpan;
-}
+//vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
+//{
+//	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
+//	return (worldPoint - worldPos.xyz) / levelSpan;
+//}
 
 uint CalculateLevelChildId(in ivec3 voxPos, in uint level)
 {
@@ -176,7 +176,7 @@ vec3 FetchFromIllum(out float occlusion, in uvec4 illum, in vec3 marchDir)
 
 	if(renderType == IRRADIANCE) return UnpackIrradianceSVO(illum.x).xyz;
 	else if(renderType == SPECULAR_ALBEDO) return UnpackIrradianceSVO(illum.x).www;
-	else if(renderType == NORMAL) return UnpackNormalSVO(illum.y);
+	else if(renderType == NORMAL) return (UnpackNormalSVO(illum.y) + 1.0f) * 0.5f;
 	else if(renderType == OCCLUSION) return vec3(1.0f - occlusion);
 	else if(renderType == LIGHT_DIR) return UnpackLightDirSVO(illum.w);
 	return vec3(0.0f);
@@ -212,8 +212,7 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 		// Data Fetch (return gray if no value is avail)
 		float dataOcclusion;
 		vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
-//		if (dataOcclusion == 0.0f);
-//			result = vec3(0.25f);
+		//if (dataOcclusion == 0.0f); result = vec3(0.25f);
 		return result;
 	}
 	else
@@ -224,34 +223,31 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 		// Dense Node Index Fetch
 		vec3 interp;
 		ivec3 index = LevelVoxId(interp, worldPos, denseLevel);
-		uint offset = svoLevelOffsets[denseLevel] - nodeOffsetDifference;
-		uint nodeIndex = svoNode[offset + DenseIndexToLinear(index, denseLevel)].x;
+		uint nodeIndex = DenseIndexToLinear(index, denseLevel);
 
-		uint traversedLevel;
-		for(traversedLevel = denseLevel + 1; 
-			traversedLevel <= fetchLevel;
-			traversedLevel++)
-		{
-			if(nodeIndex == 0xFFFFFFFF) break;
-
-			offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;					
-			nodeIndex = svoNode[offset + nodeIndex].x + CalculateLevelChildId(voxPos, traversedLevel);
+		uint traversedLevel = denseLevel;
+		while(traversedLevel < fetchLevel)
+		{			
+			uint offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;
+			uint nextNode = svoNode[offset + nodeIndex].x;
+			if(nextNode == 0xFFFFFFFF) break;
+			
+			traversedLevel++;
+			nodeIndex = nextNode + CalculateLevelChildId(voxPos, traversedLevel);
 		}
-		traversedLevel--;
 
 		// Fetch data if either we are on traversed level
 		// or missed but on cascade level		 
 		if(traversedLevel >= minCascadeLevel || 
 		   traversedLevel == fetchLevel)
 		{
-			offset = svoLevelOffsets[traversedLevel];					
+			uint offset = svoLevelOffsets[traversedLevel];					
 			uvec4 illum = svoIllum[offset + nodeIndex];
 
 			// Data Fetch (return gray if no value is avail)
 			float dataOcclusion;
 			vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
-			//if (dataOcclusion == 0.0f);
-			//	result = vec3(0.25f);
+			//if (dataOcclusion == 0.0f); result = vec3(0.25f);
 			return result;
 		}
 	}
@@ -279,24 +275,23 @@ void main(void)
 	
 	// Actual Work
 	vec3 result = SampleSVO(worldPos, marchDir);
-	//vec3 result = vec3(worldPos);
-
+	imageStore(fbo, ivec2(globalId), vec4(result, 1.0f));
+		
 	//uint linearId = globalId.y * imageSize(fbo).x + globalId.x;
-	//uint irradiance = svoIllum[linearId].x;
-	//uint node = svoNode[linearId].x;
-	//if(linearId < 627200)
+	//uint offset = svoLevelOffsets[9];		
+	//uint irradiance = svoIllum[offset + linearId].x;
+	//uint node = svoNode[offset - nodeOffsetDifference + linearId].x;
+	////if(linearId < 737792)
+	////if(linearId < (64*64*64))
+	//if(linearId < 100 * 1024)
 	//{
-	//	//if(node != 0xFFFFFFFF)
-	//	//imageStore(fbo, ivec2(globalId), vec4(1.0f));
-	//	//else
-	//	//imageStore(fbo, ivec2(globalId), vec4(0.0f));
+	//	if(node != 0xFFFFFFFF) imageStore(fbo, ivec2(globalId), vec4(1.0f));
+	//	else imageStore(fbo, ivec2(globalId), vec4(0.0f));
 
-	//	imageStore(fbo, ivec2(globalId), UnpackIrradianceSVO(irradiance));
+	//	//imageStore(fbo, ivec2(globalId), UnpackIrradianceSVO(irradiance));
 	//}
 	//else
 	//{
 	//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 0.33f, 0.0f));
 	//}
-
-	imageStore(fbo, ivec2(globalId), vec4(result, 0.0f));
 }

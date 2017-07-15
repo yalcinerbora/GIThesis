@@ -59,19 +59,19 @@ class OctreeParameters;
 //
 
 extern __global__ void AverageLevelDense(// SVO
-										 const CSVOLevel* gSVOLevels,										 
+										 const CSVOLevel& gCurrentLevel,
+										 const CSVOLevelConst& gNextLevel,
 										 // Limits
 										 const OctreeParameters octreeParams,
-										 const uint32_t currentLevel);
+										 const uint32_t currentLevelLength);
 
 extern __global__ void AverageLevelSparse(// SVO
-										  const CSVOLevel* gSVOLevels,
-										  uint32_t* gLevelAllocators,
-										  const uint32_t* gLevelCapacities,
+										  const CSVOLevel& gCurrentLevel,
+										  const CSVOLevelConst& gNextLevel,
 										  // Limits
 										  const OctreeParameters octreeParams,
-										  const uint32_t currentLevel,
-										  const uint32_t nodeCount);
+										  const uint32_t nodeCount,
+										  const bool isCascadeLevel);
 
 extern __global__ void GenNeigbourPtrs(// SVO
 									   const CSVOLevel* gSVOLevels,

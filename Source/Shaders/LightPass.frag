@@ -262,7 +262,7 @@ vec3 PhongBDRF(in vec3 worldPos)
 	vec3 lightIntensity = vec3(0.0f);
 
 	// UV Coords
-	vec2 gBuffUV = vec2(gl_FragCoord.xy - viewport.xy /*- vec2(0.5f)*/) / viewport.zw;
+	vec2 gBuffUV = vec2(gl_FragCoord.xy - viewport.xy) / viewport.zw;
 	vec4 shadowUV = CalculateShadowUV(worldPos);
 
 	// Phong BDRF Calculation

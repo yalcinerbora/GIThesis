@@ -630,11 +630,9 @@ void GIVoxelPages::UpdateGridPositions(const IEVector3& cameraPos)
 
 	// Align outermost cascade
 	// TODO: Better solution for higher level voxel jittering
-	//float rootSnapLevelMultiplier = 64.0f;
-	//float rootSnapLevelMultiplier = 16.0f;
-	//float rootSnapLevelMultiplier = 4.0f;
-	//float rootSnapLevelMultiplier = 2.0f;
-    float rootSnapLevelMultiplier = 1.0f;
+    float rootSnapLevelMultiplier = static_cast<float>(0x1 << 3);
+
+	// Removes Jitterin on base cascade level
 	outerSpan *= rootSnapLevelMultiplier;
 	voxelCornerPos[0] -= std::fmod(voxelCornerPos[0] + outerSpan * 0.5f, outerSpan);
 	voxelCornerPos[1] -= std::fmod(voxelCornerPos[1] + outerSpan * 0.5f, outerSpan);

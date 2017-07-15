@@ -111,7 +111,7 @@ GFGLoadError GFGLoader::LoadGFG(BatchParams& params,
                                                 gfgFile.Header().sceneHierarchy.nodes.end(),
                                                 HasThisTransform));
         IEMatrix4x4 transform = IEMatrix4x4::IdentityMatrix;
-        IEMatrix3x3 transformRotation = IEMatrix3x3::IdentityMatrix;
+        IEMatrix4x4 transformRotation = IEMatrix4x4::IdentityMatrix;
         while(parent->parentIndex != -1)
         {
             const GFGTransform& t = gfgFile.Header().transformData.transforms[parent->transformIndex];

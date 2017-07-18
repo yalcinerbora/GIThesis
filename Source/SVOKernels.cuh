@@ -82,37 +82,19 @@ extern __global__ void GenNeigbourPtrs(// SVO
 									   const uint32_t nodeCount,
 									   const uint32_t level);
 
-extern __global__ void LightInject(const CSVOLevel& gSVOLevel,
-								   // CascadeRelated
-								   const CVoxelGrid& gGridInfo,
-								   // Light Injection Related
-								   const CLightInjectParameters liParams,
-								   // Limits
-								   const OctreeParameters octreeParams,
-								   const uint32_t nodeCount);
+extern __global__ void LightInject(const CSVOLevel& gSVOLevel, uint32_t nodeCount);
 
 extern __global__ void SVOReconstruct(// SVO
-									  uint32_t* gLocations,
 									  const CSVOLevel* gSVOLevels,
 									  uint32_t* gLevelAllocators,
 									  const uint32_t* gLevelCapacities,
 									  // Voxel Pages
 									  const CVoxelPageConst* gVoxelPages,
-									  // Limits
-									  const OctreeParameters octreeParams,
-									  const uint32_t totalCount);
-
-extern __global__ void SVOLightInject(// SVO
-									  const uint32_t* gLocations,
-									  const CSVOLevel* gSVOLevels,
-									  // Voxel Pages
-									  const CVoxelPageConst* gVoxelPages,
+									  const CVoxelGrid* gGridInfos,
 									  // Cache Data (for Voxel Albedo)
 									  const BatchVoxelCache* gBatchVoxelCache,
-									  // Inject Related
-									  const CVoxelGrid* gGridInfos,
+									  // Inject Related									  
 									  const CLightInjectParameters liParams,
 									  // Limits			
 									  const OctreeParameters octreeParams,
-									  const uint32_t batchCount,
-									  const uint32_t totalCount);
+									  const uint32_t batchCount);

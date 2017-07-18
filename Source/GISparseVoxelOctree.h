@@ -200,8 +200,7 @@ class GISparseVoxelOctree
 		const uint32_t*					dLevelCapacities;
 		uint32_t*						dLevelSizes;
 		CSVOLevel*						dOctreeLevels;
-		CudaVector<uint32_t>			dLeafLocations;
-		
+
 		// Difference between offsets (since node do not hold dense info except last dense level)
 		std::vector<uint32_t>			hLevelSizes;
 		std::vector<uint32_t>			hIllumOffsetsAndCapacities;
@@ -222,18 +221,16 @@ class GISparseVoxelOctree
 		void							PrintSVOLevelUsages(const std::vector<uint32_t>& svoSizes) const;
 		double							GenerateHierarchy(bool doTiming,
 														  // Page System
-														  const GIVoxelPages& pages);
-		double							InjectLight(bool doTiming,
-													// Page System
-													const GIVoxelPages& pages,
-													// Cache System
-													const GIVoxelCache& caches,
-													// Constants
-													uint32_t batchCount,
-													// Light Injection Related
-													const LightInjectParameters& injectParams,
-													const IEVector3& ambientColor,
-													bool injectOn);
+														  const GIVoxelPages& pages,
+														  // Cache System
+														  const GIVoxelCache& caches,
+														  // Constants
+														  uint32_t batchCount,
+														  // Light Injection Related
+														  const LightInjectParameters& injectParams,
+														  const IEVector3& ambientColor,
+														  bool injectOn);
+		double							AdjustIllumData(bool doTiming);
 		double							AverageNodes(bool doTiming);
 
 	protected:
@@ -249,9 +246,6 @@ class GISparseVoxelOctree
 		GISparseVoxelOctree&			operator=(const GISparseVoxelOctree&) = delete;
 		GISparseVoxelOctree&			operator=(GISparseVoxelOctree&&);
 										~GISparseVoxelOctree();
-
-		// Resizes Intermediate Buffer
-		void							AdjustLeafLocations(const GIVoxelPages& pages);
 
 		// Updates SVO Tree depending on the changes of the allocators
 		void							UpdateSVO(// Timing Related

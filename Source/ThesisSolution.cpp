@@ -67,9 +67,7 @@ void ThesisSolution::Load(SceneI& s)
 	// Initialize SVO System
 	voxelOctree = GISparseVoxelOctree(octreeParams,
 									  currentScene,
-									  BigSizes);
-	voxelOctree.AdjustLeafLocations(voxelPages);
-	
+									  BigSizes);	
 	// Initialize GUI
 	lightBar = std::move(LightBar(currentScene->getSceneLights(),
 								  directLighting,

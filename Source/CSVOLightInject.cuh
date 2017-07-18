@@ -109,6 +109,7 @@ inline __device__ bool HasShadowOcclusionPoint(const CMatrix4x4* lightVP,
 	//	//										  lightIndex,
 	//	//										  0.0f);
 	//}
+	return true;
 }
 
 inline __device__ bool HasShadowOcclusionDirectional(const CMatrix4x4* lightVP,
@@ -252,9 +253,9 @@ inline __device__ float3 PhongBRDFDirectional(// Out Light
 	// Bias the world a little bit since voxel system and world system do not align perfectly
 	// Only for shadow map fetch
 	float3 biasedWorld = worldPos;
-	biasedWorld.x += worldLight.x * 3.0f;
-	biasedWorld.y += worldLight.y * 3.0f;
-	biasedWorld.z += worldLight.z * 3.0f;
+	biasedWorld.x += worldLight.x * 1.5f;
+	biasedWorld.y += worldLight.y * 1.5f;
+	biasedWorld.z += worldLight.z * 1.5f;
 
 	bool occluded = HasShadowOcclusionDirectional(lightVP,
 												  lightStruct,
@@ -266,20 +267,20 @@ inline __device__ float3 PhongBRDFDirectional(// Out Light
 	// Lambert Diffuse Model
 	irradiance = {GI_ONE_OVER_PI, GI_ONE_OVER_PI, GI_ONE_OVER_PI};
 
-	//// Specular
-	//float3 worldHalf;
-	//worldHalf.x = worldLight.x + worldEye.x;
-	//worldHalf.y = worldLight.y + worldEye.y;
-	//worldHalf.z = worldLight.z + worldEye.z;
-	//worldHalf = Normalize(worldHalf);
+	// Specular
+	float3 worldHalf;
+	worldHalf.x = worldLight.x + worldEye.x;
+	worldHalf.y = worldLight.y + worldEye.y;
+	worldHalf.z = worldLight.z + worldEye.z;
+	worldHalf = Normalize(worldHalf);
 
-	//// Blinn-Phong
-	//float specPower = 16.0f + specularity * 2048.0f;
-	//float power = GI_ONE_OVER_PI * 0.125f * (specPower + 6.0f) * 
-	//			  (pow(fmaxf(Dot(worldHalf, normal), 0.0f), specPower)) * 900.0f;
-	//irradiance.x += power;
-	//irradiance.y += power;
-	//irradiance.z += power;
+	// Blinn-Phong
+	float specPower = 16.0f + specularity * 2048.0f;
+	float power = GI_ONE_OVER_PI * 0.125f * (specPower + 6.0f) * 
+				  (pow(fmaxf(Dot(worldHalf, normal), 0.0f), specPower)) * 900.0f;
+	irradiance.x += power;
+	irradiance.y += power;
+	irradiance.z += power;
 
 	// NdL + Colorize + Intensity + Falloff
 	irradiance.x *= NdL * lightStruct.color.x * lightStruct.color.w;
@@ -298,7 +299,6 @@ inline __device__ float3 TotalIrradiance(float3& mainLightDir,
 										 // Light Parameters
 										 const CLightInjectParameters& liParams)
 {
-	//mainLightDir = float3{0.0f, 0.0f, 0.0f};
 	float3 totalIllum = liParams.ambientLight;
 
 	//for(int lightId = 0; lightId < liParams.lightCount; lightId++)
@@ -324,16 +324,15 @@ inline __device__ float3 TotalIrradiance(float3& mainLightDir,
 		totalIllum.y += illum.y;
 		totalIllum.z += illum.z;
 
-		//mainLightDir.x += lightDir.x;
-		//mainLightDir.y += lightDir.y;
-		//mainLightDir.z += lightDir.z;
+		mainLightDir.x += lightDir.x;
+		mainLightDir.y += lightDir.y;
+		mainLightDir.z += lightDir.z;
 	}
 	
-	//Normalize(mainLightDir);
-	//float invCoutner = 1.0f / static_cast<float>(liParams.lightCount);
-	//mainLightDir.x *= invCoutner;
-	//mainLightDir.y *= invCoutner;
-	//mainLightDir.z *= invCoutner;
+	float invCoutner = 1.0f / static_cast<float>(liParams.lightCount);
+	mainLightDir.x *= invCoutner;
+	mainLightDir.y *= invCoutner;
+	mainLightDir.z *= invCoutner;
 
 	totalIllum.x = fminf(totalIllum.x, 1.0f);
 	totalIllum.y = fminf(totalIllum.y, 1.0f);

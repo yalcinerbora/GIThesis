@@ -212,7 +212,7 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 		// Data Fetch (return gray if no value is avail)
 		float dataOcclusion;
 		vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
-		//if (dataOcclusion == 0.0f) result = vec3(0.25f);
+		//if (dataOcclusion == 0.0f) vec3(1.0f, 0.0f, 1.0f);
 		return result;
 	}
 	else
@@ -247,11 +247,11 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 			// Data Fetch (return gray if no value is avail)
 			float dataOcclusion;
 			vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
-			//if (dataOcclusion == 0.0f) result = vec3(0.25f);
+			if (dataOcclusion == 0.0f) result = vec3(1.0f, 0.0f, 1.0f);
 			return result;
 		}
 	}
-	return vec3(1.0f, 0.0f, 1.0f);
+	return vec3(0.0f, 1.0f, 1.0f);
 }
 
 float LinearDepth(float depthLog)

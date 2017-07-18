@@ -92,13 +92,27 @@ extern __global__ void LightInject(const CSVOLevel& gSVOLevel,
 								   const uint32_t nodeCount);
 
 extern __global__ void SVOReconstruct(// SVO
+									  uint32_t* gLocations,
 									  const CSVOLevel* gSVOLevels,
 									  uint32_t* gLevelAllocators,
 									  const uint32_t* gLevelCapacities,
 									  // Voxel Pages
 									  const CVoxelPageConst* gVoxelPages,
-									  // Cache Data (for Voxel Albedo)
-									  const BatchVoxelCache* gBatchVoxelCache,
 									  // Limits
 									  const OctreeParameters octreeParams,
-									  const uint32_t batchCount);
+									  const uint32_t totalCount);
+
+extern __global__ void SVOLightInject(// SVO
+									  const uint32_t* gLocations,
+									  const CSVOLevel* gSVOLevels,
+									  // Voxel Pages
+									  const CVoxelPageConst* gVoxelPages,
+									  // Cache Data (for Voxel Albedo)
+									  const BatchVoxelCache* gBatchVoxelCache,
+									  // Inject Related
+									  const CVoxelGrid* gGridInfos,
+									  const CLightInjectParameters liParams,
+									  // Limits			
+									  const OctreeParameters octreeParams,
+									  const uint32_t batchCount,
+									  const uint32_t totalCount);

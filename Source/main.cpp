@@ -178,8 +178,9 @@ int main()
 	// Sponza Atrium
 	std::vector<std::string> sponzaRigid = 
 	{
-		//"sponza.gfg",
-		"sponzaDynamic.gfg"
+		"sponza.gfg",
+		"sponzaDynamic.gfg",
+		//"box_text.gfg"
 	};
 	std::vector<std::string> sponzaSkeletal =
 	{
@@ -254,7 +255,5 @@ int main()
 		t.Lap();
 		solution->SetFPS(t.ElapsedMilliS());
 	}
-
-
 	return 0;
 }

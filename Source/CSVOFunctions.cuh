@@ -41,8 +41,8 @@ inline __device__ void Swap(char3& data, int8_t i0, int8_t i1)
 inline __device__ float4 UnpackSVOIrradiance(const CSVOIrradiance& irrad)
 {
 	float4 irradiance;
-	irradiance.x = static_cast<float>((irrad & 0x000000FF) >> 0) / 255.0f;
-	irradiance.y = static_cast<float>((irrad & 0x0000FF00) >> 8) / 255.0f;
+	irradiance.x = static_cast<float>((irrad & 0x000000FF) >>  0) / 255.0f;
+	irradiance.y = static_cast<float>((irrad & 0x0000FF00) >>  8) / 255.0f;
 	irradiance.z = static_cast<float>((irrad & 0x00FF0000) >> 16) / 255.0f;
 	irradiance.w = static_cast<float>((irrad & 0xFF000000) >> 24) / 255.0f;
 	return irradiance;
@@ -56,16 +56,44 @@ inline __device__ float4 UnpackSVOOccupancy(const CSVOWeight& weight)
 inline __device__ float3 UnpackSVONormalLeaf(float& occupancy, float& counter,
 											 const uint32_t& packed)
 {
-	uint8_t signBit = static_cast<uint8_t>((packed & 0x70000000) >> 31);
-
-	float3 normal;
+	float3 normal = {0.0f, 0.0f, 0.0f};
 	normal.x = static_cast<float>(static_cast<char>((packed >> 0) & 0xFF)) / 0x7F;
 	normal.y = static_cast<float>(static_cast<char>((packed >> 8) & 0xFF)) / 0x7F;
-	normal.z = sqrtf(1.0f - normal.x * normal.x - normal.y * normal.y);
-	normal.z *= (signBit == 1) ? -1.0f : 1.0f;
+	normal.z = static_cast<float>(static_cast<char>((packed >> 16) & 0xFF)) / 0x7F;
+	//////normal.x = (static_cast<float>((packed >> 0) & 0xFF) / 255.0f) * 2.0f - 1.0f;
+	//////normal.y = (static_cast<float>((packed >> 8) & 0xFF) / 255.0f) * 2.0f - 1.0f;
+	//////normal.x = 0.0f;
+	//////normal.y = 0.0f;
 
-	occupancy = static_cast<float>((packed >> 16) & 0xFF) / 255.0f;
-	counter = static_cast<float>(static_cast<unsigned char>((packed >> 24) & 0x7F));
+	//bool oldNeg = (normal.z < 0.0f);
+
+	//float length = normal.x * normal.x +
+	//			   normal.y * normal.y +
+	//			   normal.z * normal.z;
+	//length = sqrtf(length);
+
+	//printf("diff %f\n", 1.0f - length);
+	//normal.z = sqrtf(length * length - (normal.x * normal.x + normal.y * normal.y));
+
+	//normal.z *= (oldNeg) ? -1.0f : +1.0f;
+
+	//if(normal.z != normal.z) printf("\f ", normal.z);
+
+	//uint32_t signBit = (packed & 0x80000000) >> 31;
+	//if(signBit == 1) normal.z = -normal.z;
+
+	//uint32_t signBit = 0x80000000;
+	//normal.z = __uint_as_float(__float_as_uint(normal.z) | signBit);
+	//normal.z *= -1.0f;
+
+	/*float3 normal = {0.0f, 0.0f, 0.0f};
+	normal.y = (packed & 0x0000FFFF) * 65535.0f;*/
+
+	//occupancy = static_cast<float>((packed >> 16) & 0xFF) / 0xFF;
+	//counter = static_cast<float>((packed >> 24) & 0x7F);
+	counter = static_cast<float>((packed >> 24) & 0xFF);
+
+	//counter = __uint_as_float(packed);
 
 	return normal;
 }
@@ -88,8 +116,8 @@ inline __device__ float4 UnpackSVOLightDir(const CSVOLightDir& lightDir)
 // Illumination Unpack
 inline __device__ CSVOIrradiance PackSVOIrradiance(const float4& irradiance)
 {
-	CSVOIrradiance packed;
-	packed = static_cast<unsigned int>(irradiance.w * 255.0f) << 24;
+	CSVOIrradiance packed = 0;
+	packed |= static_cast<unsigned int>(irradiance.w * 255.0f) << 24;
 	packed |= static_cast<unsigned int>(irradiance.z * 255.0f) << 16;
 	packed |= static_cast<unsigned int>(irradiance.y * 255.0f) << 8;
 	packed |= static_cast<unsigned int>(irradiance.x * 255.0f) << 0;
@@ -104,15 +132,33 @@ inline __device__ CSVOWeight PackSVOOccupancy(const float4& weight)
 inline __device__ uint32_t PackSVONormalLeaf(const float3& normal,
 											 const float& occupancy,
 											 const float& counter)
-{
-	uint8_t signBit = (normal.z < 0) ? 1 : 0;
-	
+{	
 	uint32_t packed = 0;
-	packed |= (signBit & 0x1) << 31;
-	packed |= (static_cast<unsigned int>(counter) & 0x7F) << 24;
-	packed |= (static_cast<unsigned int>(occupancy * 0xFF) & 0xFF) << 16;
-	packed |= (static_cast<int>(normal.y * 0x7F) & 0xFF) << 8;
-	packed |= (static_cast<int>(normal.x * 0x7F) & 0xFF) << 0;
+	//packed |= __float_as_uint(normal.z) & 0x80000000;
+
+
+
+	//packed = signbit(normal.z) ? 0x80000000 : 0;
+	//packed |= (static_cast<unsigned int>((normal.y + 1.0f) * 0.5f * 0xFF) & 0xFF);
+	packed |= (static_cast<unsigned int>(counter) & 0x000000FF) << 24;
+	//packed |= (static_cast<unsigned int>(occupancy * 0xFF) & 0x000000FF) << 16;
+	packed |= (static_cast<int>(normal.z * 0x7F) & 0x000000FF) << 16;
+	packed |= (static_cast<int>(normal.y * 0x7F) & 0x000000FF) << 8;
+	packed |= (static_cast<int>(normal.x * 0x7F) & 0x000000FF) << 0;
+
+	//packed |= (static_cast<int>(normal.y * 0x7FFFFF) & 0x00FFFFFF) << 0;
+
+	//packed |= (static_cast<int>(normal.y * 0x7FFF) & 0x0000FFFF) < 0;
+
+//	packed |= (static_cast<unsigned int>((normal.y + 1.0f) * 0.5f * 255.0f) & 0x000000FF) << 8;
+//	packed |= (static_cast<unsigned int>((normal.x + 1.0f) * 0.5f * 255.0f) & 0x000000FF) << 0;
+
+	//packed |= (static_cast<unsigned int>((0.0f + 1.0f) * 0.5f * 255.0f) & 0x000000FF) << 8;
+	//packed |= (static_cast<unsigned int>((0.0f + 1.0f) * 0.5f * 255.0f) & 0x000000FF) << 0;
+
+
+//	packed = __float_as_uint(counter);
+
 	return packed;
 }
 

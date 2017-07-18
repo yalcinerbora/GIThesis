@@ -68,6 +68,7 @@ void ThesisSolution::Load(SceneI& s)
 	voxelOctree = GISparseVoxelOctree(octreeParams,
 									  currentScene,
 									  BigSizes);
+	voxelOctree.AdjustLeafLocations(voxelPages);
 	
 	// Initialize GUI
 	lightBar = std::move(LightBar(currentScene->getSceneLights(),
@@ -93,7 +94,7 @@ void ThesisSolution::Load(SceneI& s)
 	// TODO:
 
 
-
+	// Print System Memory Usage
 	GI_LOG("Page Memory Usage %.2fMB", 
 		   static_cast<double>(voxelPages.MemoryUsage()) / 1024.0f / 1024.0f);
 	GI_LOG("SVO Memory Usage %.2fMB", 
@@ -137,12 +138,21 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		depthRange[0], depthRange[1]
 	};
 
+
+
+	//GLuint texture = currentScene->getSceneLights().getShadowTextureArrayView();
+	//std::vector<float> shadowData(2048 * 2048, 0.0f);
+	//glGetTextureSubImage(texture, 0, 0, 0, 3, 2048, 2048, 1, GL_RED, GL_FLOAT, 2048 * 2048 * sizeof(float),
+	//					 shadowData.data());
+	//GI_LOG("%f", shadowData[1048 * 2048 + 800]);
+
+
 	injectOn = true;
 	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAverageTime, doTiming,
 						  voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),
 						  liParams,
-						  ambientColor,
+						  aColor,
 						  injectOn);
 	
 

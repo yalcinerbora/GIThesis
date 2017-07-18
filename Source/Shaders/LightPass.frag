@@ -169,7 +169,7 @@ vec4 CalculateShadowUV(in vec3 worldPos)
 
 	// NDC to Tex
 	float depth = 0.5f * ((2.0f * depthNearFar.x + 1.0f) + 
-						(depthNearFar.y - depthNearFar.x) * ndc.z);
+						  (depthNearFar.y - depthNearFar.x) * ndc.z);
 
 	if(lightParams[fIndex].position.w == GI_LIGHT_DIRECTIONAL)
 		lightVec = vec3(0.5f * ndc.xy + 0.5f, viewIndex);
@@ -259,8 +259,6 @@ float ShadowSample(in vec4 shadowUV)
 
 vec3 PhongBDRF(in vec3 worldPos)
 {
-	vec3 lightIntensity = vec3(0.0f);
-
 	// UV Coords
 	vec2 gBuffUV = vec2(gl_FragCoord.xy - viewport.xy) / viewport.zw;
 	vec4 shadowUV = CalculateShadowUV(worldPos);
@@ -301,33 +299,14 @@ vec3 PhongBDRF(in vec3 worldPos)
 	vec3 worldReflect = normalize(-reflect(worldLight, worldNormal));
 	vec3 worldHalf = normalize(worldLight + worldEye);
 
-	// Diffuse Factor
-	// Lambert Diffuse Model
-	float lambertFactor = GI_ONE_OVER_PI * max(dot(worldNormal, worldLight), 0.0f);
-
-	//// Burley Diffuse Model (Disney)
-	//float rougness = 0.5f;
-	//float NdL = dot(worldNormal, worldLight);
-	//float NdV = dot(worldNormal, worldEye);
-	//float LdH = max(dot(worldLight, worldHalf), 0.0f);
-	//float fD90 = 0.5 + 2.0f * pow(LdH, 2.0f) * rougness;
-	//lightIntensity = vec3(//(1.0f + (fD90 - 1.0f) * pow(1.0f - NdL, 5.0f)) *
-	//					  //(1.0f + (fD90 - 1.0f) * pow(1.0f - NdV, 5.0f)) 
-	//					  mix(1.0f, fD90, pow(clamp(1.0f - NdL, 0.0f, 1.0f), 5.0f)) *
-	//					  mix(1.0f, fD90, pow(clamp(1.0f - NdV, 0.0f, 1.0f), 5.0f)) *
-	//					  GI_ONE_OVER_PI);
-	//lightIntensity = max(lightIntensity, vec3(0.0f));
-	//lightIntensity *= NdL;
-
-	// Early Bail From Light Occulusion
-	// This also eliminates some self shadowing artifacts
-	if(lambertFactor <= 0.0f) return vec3(0.0f);
+	float NdL =  max(dot(worldNormal, worldLight), 0.0f);
+	if(NdL <= 0.0f) return vec3(0.0f);
 
 	// Check Light Occulusion (ShadowMap)
 	float shadowIntensity = ShadowSample(shadowUV);
 	//float shadowIntensity = ShadowSampleFlat(shadowUV);
 	
-	// Early Bail from specular
+	// Early Bail If no light access
 	if(shadowIntensity <= 0.0f) return vec3(0.0f);
 
 	////DEBUG	
@@ -347,8 +326,25 @@ vec3 PhongBDRF(in vec3 worldPos)
 	//	lightIntensity *= 0.1f;
 	//}
 
-	// Lambert
-	lightIntensity = vec3(lambertFactor);
+	// Lambert Diffuse Model
+	float lambertFactor = GI_ONE_OVER_PI;
+
+	//// Burley Diffuse Model (Disney)
+	//float rougness = 0.5f;
+	//float NdL = dot(worldNormal, worldLight);
+	//float NdV = dot(worldNormal, worldEye);
+	//float LdH = max(dot(worldLight, worldHalf), 0.0f);
+	//float fD90 = 0.5 + 2.0f * pow(LdH, 2.0f) * rougness;
+	//lightIntensity = vec3(//(1.0f + (fD90 - 1.0f) * pow(1.0f - NdL, 5.0f)) *
+	//					  //(1.0f + (fD90 - 1.0f) * pow(1.0f - NdV, 5.0f)) 
+	//					  mix(1.0f, fD90, pow(clamp(1.0f - NdL, 0.0f, 1.0f), 5.0f)) *
+	//					  mix(1.0f, fD90, pow(clamp(1.0f - NdV, 0.0f, 1.0f), 5.0f)) *
+	//					  GI_ONE_OVER_PI);
+	//lightIntensity = max(lightIntensity, vec3(0.0f));
+	//lightIntensity *= NdL;
+
+	// Diffuse
+	vec3 lightIntensity = vec3(lambertFactor);
 
 	// Specular
 	float specPower = 16.0f + (texture(gBuffColor, gBuffUV).a) * 2048.0f;
@@ -358,6 +354,9 @@ vec3 PhongBDRF(in vec3 worldPos)
 	// Blinn-Phong
 	lightIntensity += GI_ONE_OVER_PI * 0.125f * (specPower + 6.0f) * 
 					  vec3(pow(max(dot(worldHalf, worldNormal), 0.0f), specPower));
+
+	// NdL
+	lightIntensity *= NdL;
 
 	// Falloff
 	lightIntensity *= falloff;

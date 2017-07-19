@@ -102,8 +102,6 @@ __global__ void AverageLevelSparse(// SVO
 	// Cull unnecesary threads
 	if(nodeId >= nodeCount) return;
 
-	//const CSVOLevel& level = gSVOLevels[currentLevel];
-	//const CSVOLevel& nextLevel = gSVOLevels[currentLevel + 1];
 	const uint32_t nodeChildrenBase = gCurrentLevel.gLevelNodes[nodeId].next;
 
 	// Each Thread will average (and read/write)
@@ -113,9 +111,8 @@ __global__ void AverageLevelSparse(// SVO
 	{
 		uint64_t illumPart = 0x0;
 
-		// Read potential parent value
-		if(isCascadeLevel)
-			illumPart = reinterpret_cast<uint64_t*>(gCurrentLevel.gLevelIllum + nodeId)[nodeLocalId];
+		// Read potential parent value		
+		if(isCascadeLevel) illumPart = reinterpret_cast<uint64_t*>(gCurrentLevel.gLevelIllum + nodeId)[nodeLocalId];
 
 		float4 avgLower = UnpackSVOIrradiance(UnpackLowerWord(illumPart));
 		float4 avgUpper = UnpackSVONormal(UnpackUpperWord(illumPart));
@@ -176,8 +173,8 @@ __global__ void GenNeigbourPtrs(// SVO
 	if(globalId >= nodeCount) return;
 
 	const CSVOLevel& currentLevel = gSVOLevels[level];
-	uint32_t voxPosPacked = reinterpret_cast<uint32_t*>(currentLevel.gLevelIllum + globalId * 8)[3];
-	if(voxPosPacked != 0x0)
+	uint32_t voxPosPacked = currentLevel.gVoxId[globalId];
+	if(voxPosPacked != 0xFFFFFFFF)
 	{
 		uint32_t cascadeId = octreeParams.MaxSVOLevel - level;
 		const int3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxPosPacked),
@@ -191,11 +188,11 @@ __global__ void GenNeigbourPtrs(// SVO
 						nodePos,
 						octreeParams,
 						level);
+		currentLevel.gVoxId[globalId] = 0xFFFFFFFF;
 	}
 }
 
-__global__ void LightInject(const CSVOLevel& gSVOLevel,
-							uint32_t nodeCount)
+__global__ void AdjustIllumParameters(const CSVOLevel& gSVOLevel, uint32_t nodeCount)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= nodeCount) return;
@@ -355,15 +352,15 @@ __global__ void SVOReconstruct(// SVO
 		{
 			uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - sCascadeId;
 
-			uint32_t nodeLocation = TraverseAndAllocate(// SVO
-														gLevelAllocators,
-														gLevelCapacities,
-														gSVOLevels,
-														// Node Related
-														nodePos,
-														// Constants
-														octreeParams,
-														cascadeMaxLevel);
+			uint32_t nodeLocation = AllocateWithParent(// SVO
+													   gLevelAllocators,
+													   gLevelCapacities,
+													   gSVOLevels,
+													   // Node Related
+													   nodePos,
+													   // Constants
+													   octreeParams,
+													   cascadeMaxLevel);
 
 			char3 ijk;
 			ijk.x = (a >> 0) & 0x1;

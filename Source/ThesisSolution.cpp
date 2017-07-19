@@ -80,7 +80,7 @@ void ThesisSolution::Load(SceneI& s)
 									ioTime,
 									transTime,
 									svoReconTime,
-									svoInjectTime,
+									svoGenPtrTime,
 									svoAverageTime,
 									coneTraceTime,
 									miscTime,
@@ -146,7 +146,7 @@ void ThesisSolution::Frame(const Camera& mainCam)
 
 
 	injectOn = true;
-	voxelOctree.UpdateSVO(svoReconTime, svoInjectTime, svoAverageTime, doTiming,
+	voxelOctree.UpdateSVO(svoReconTime, svoGenPtrTime, svoAverageTime, doTiming,
 						  voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),
 						  liParams,

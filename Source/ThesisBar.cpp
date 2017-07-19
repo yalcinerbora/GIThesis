@@ -8,7 +8,7 @@ ThesisBar::ThesisBar(const SceneLights& lights,
 					 double& ioTime,
 					 double& transTime,
 					 double& svoReconTime,
-					 double& svoInjectTime,
+					 double& svoGenPtr,
 					 double& svoAverageTime,
 					 double& coneTraceTime,
 					 double& miscTime,
@@ -29,8 +29,8 @@ ThesisBar::ThesisBar(const SceneLights& lights,
 			   " label='Transform' group='Timings (ms)' precision=2 help='Voxel Grid Update Timing per frame.' ");
 	TwAddVarRO(bar, "svoReconTime", TW_TYPE_DOUBLE, &svoReconTime,
 			   " label='SVO Reconstruct' group='Timings (ms)' precision=2 help='SVO Reconstruction Timing per frame.' ");
-	TwAddVarRO(bar, "svoInbjectTime", TW_TYPE_DOUBLE, &svoInjectTime,
-			   " label='SVO Light Inject' group='Timings (ms)' precision=2 help='SVO Light Injection Timing per frame.' ");
+	TwAddVarRO(bar, "svoGenPtrTime", TW_TYPE_DOUBLE, &svoGenPtr,
+			   " label='SVO Pointer Gen' group='Timings (ms)' precision=2 help='SVO Light Injection Timing per frame.' ");
 	TwAddVarRO(bar, "svoAvgTime", TW_TYPE_DOUBLE, &svoAverageTime,
 			   " label='SVO Avgerage' group='Timings (ms)' precision=2 help='SVO Average Timing per frame.' ");
 	TwAddVarRO(bar, "coneTraceTime", TW_TYPE_DOUBLE, &coneTraceTime,

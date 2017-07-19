@@ -247,18 +247,11 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 			// Data Fetch (return gray if no value is avail)
 			float dataOcclusion;
 			vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
-			if (dataOcclusion == 0.0f) result = vec3(1.0f, 0.0f, 1.0f);
+			if (dataOcclusion == 0.0f) result = vec3(1.0f, 0.0f, 0.0f);
 			return result;
 		}
 	}
-	return vec3(0.0f, 1.0f, 1.0f);
-}
-
-float LinearDepth(float depthLog)
-{
-	float n = depthNearFar.x;
-	float f = depthNearFar.y;
-	return (2 * n) / (f + n - depthLog * (f - n));
+	return vec3(0.0f, 1.0f, 0.0f);
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;

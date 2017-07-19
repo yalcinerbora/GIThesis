@@ -204,6 +204,7 @@ class GISparseVoxelOctree
 		// Difference between offsets (since node do not hold dense info except last dense level)
 		std::vector<uint32_t>			hLevelSizes;
 		std::vector<uint32_t>			hIllumOffsetsAndCapacities;
+		std::vector<uint32_t*>			dIllumOffsetPtrs;
 		size_t							nodeIllumDifference;
 
 		// Shadowmap interop for light injection
@@ -230,7 +231,7 @@ class GISparseVoxelOctree
 														  const LightInjectParameters& injectParams,
 														  const IEVector3& ambientColor,
 														  bool injectOn);
-		double							AdjustIllumData(bool doTiming);
+		double							GenNeigbourPointers(bool doTiming);
 		double							AverageNodes(bool doTiming);
 
 	protected:
@@ -250,7 +251,7 @@ class GISparseVoxelOctree
 		// Updates SVO Tree depending on the changes of the allocators
 		void							UpdateSVO(// Timing Related
 												  double& reconstructTime,
-												  double& injectTime,
+												  double& genPtrTime,
 												  double& averageTime,
 												  bool doTiming,
 												  // Page System

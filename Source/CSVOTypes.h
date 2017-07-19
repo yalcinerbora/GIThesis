@@ -18,7 +18,7 @@ struct CMatrix4x4;
 struct CSVONode
 {
 	uint32_t next;
-	uint32_t neigborus[3];
+	uint32_t neigbours[3];
 };
 
 // If i put CSVO node into packed pragma it fails on runtime (SVO Reconsrtuct kernel)
@@ -43,6 +43,7 @@ struct CSVOLevel
 {
 	CSVONode* gLevelNodes;
 	CSVOIllumination* gLevelIllum;
+	uint32_t* gVoxId;
 };
 
 struct CSVOLevelConst

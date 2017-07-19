@@ -43,7 +43,7 @@ class ThesisSolution : public SolutionI
 		double						ioTime;
 		double						transTime;
 		double						svoReconTime;
-		double						svoInjectTime;
+		double						svoGenPtrTime;
 		double						svoAverageTime;
 		double						coneTraceTime;
 		double						miscTime;

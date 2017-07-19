@@ -82,7 +82,7 @@ extern __global__ void GenNeigbourPtrs(// SVO
 									   const uint32_t nodeCount,
 									   const uint32_t level);
 
-extern __global__ void LightInject(const CSVOLevel& gSVOLevel, uint32_t nodeCount);
+extern __global__ void AdjustIllumParameters(const CSVOLevel& gSVOLevel, uint32_t nodeCount);
 
 extern __global__ void SVOReconstruct(// SVO
 									  const CSVOLevel* gSVOLevels,

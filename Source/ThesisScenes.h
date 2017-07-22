@@ -27,7 +27,7 @@ class SponzaScene : public ConstantScene
 	private:
 		void								PatrolNyra(double elapsedS);
 
-		static constexpr IEVector3			velocityBase = IEVector3(0.0f, 0.0f, 25.0f);
+		static constexpr IEVector3			velocityBase = IEVector3(0.0f, 0.0f, 0.25f);
 		static constexpr IEVector3			initalPosBase = IEVector3(0.0f, 0.0f, -4.33f);
 		static const IEQuaternion			initalOrientation;
 

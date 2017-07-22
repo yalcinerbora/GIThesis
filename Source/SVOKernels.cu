@@ -160,6 +160,66 @@ __global__ void AverageLevelSparse(// SVO
 	}
 }
 
+__global__ void LinkNeigbourPtrs(// SVO
+								 const CSVOLevel* gSVOLevels,
+								 uint32_t* gLevelAllocators,
+								 const uint32_t* gLevelCapacities,
+								 // Limits
+								 const OctreeParameters octreeParams,
+								 const uint32_t nodeCount,
+								 const uint32_t level)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	if(globalId >= nodeCount) return;
+
+	const CSVOLevel& currentLevel = gSVOLevels[level];
+	uint32_t voxPosPacked = currentLevel.gVoxId[globalId];
+	if(voxPosPacked != 0xFFFFFFFF &&
+	   (voxPosPacked & 0x80000000) == 0x0)
+	{
+		uint32_t cascadeId = octreeParams.MaxSVOLevel - level;
+		int3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxPosPacked),
+										cascadeId,
+										octreeParams.CascadeCount,
+										octreeParams.CascadeBaseLevel);
+
+		// Currently node points (i)th level node
+		int levelSize = (0x1 << level);
+
+		// Force gen back neigbours		
+		nodePos.x -= 1;
+		if(nodePos.x >= 0 && nodePos.x < levelSize)
+		{
+			uint32_t traversedLevel;
+			uint32_t nodeLocation = TraverseNode(traversedLevel,
+												 reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+												 nodePos, octreeParams, level);
+			if(traversedLevel == level) gSVOLevels[level].gLevelNodes[nodeLocation].neigbours[0] = globalId;
+		}
+		nodePos.x += 1;
+		nodePos.y -= 1;
+		if(nodePos.y >= 0 && nodePos.y < levelSize)
+		{
+			uint32_t traversedLevel;
+			uint32_t nodeLocation = TraverseNode(traversedLevel,
+												 reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+												 nodePos, octreeParams, level);
+			if(traversedLevel == level) gSVOLevels[level].gLevelNodes[nodeLocation].neigbours[1] = globalId;
+		}
+		nodePos.y += 1;
+		nodePos.z -= 1;
+		if(nodePos.z >= 0 && nodePos.z < levelSize)
+		{
+			uint32_t traversedLevel;
+			uint32_t nodeLocation = TraverseNode(traversedLevel,
+												 reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+												 nodePos, octreeParams, level);
+			if(traversedLevel == level) gSVOLevels[level].gLevelNodes[nodeLocation].neigbours[2] = globalId;
+		}
+		currentLevel.gVoxId[globalId] = 0xFFFFFFFF;
+	}
+}
+
 __global__ void GenNeigbourPtrs(// SVO
 								const CSVOLevel* gSVOLevels,
 								uint32_t* gLevelAllocators,
@@ -174,7 +234,8 @@ __global__ void GenNeigbourPtrs(// SVO
 
 	const CSVOLevel& currentLevel = gSVOLevels[level];
 	uint32_t voxPosPacked = currentLevel.gVoxId[globalId];
-	if(voxPosPacked != 0xFFFFFFFF)
+	if(voxPosPacked != 0xFFFFFFFF &&
+	   (voxPosPacked & 0x80000000) == 0x0)
 	{
 		uint32_t cascadeId = octreeParams.MaxSVOLevel - level;
 		const int3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxPosPacked),
@@ -352,15 +413,16 @@ __global__ void SVOReconstruct(// SVO
 		{
 			uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - sCascadeId;
 
-			uint32_t nodeLocation = AllocateWithParent(// SVO
-													   gLevelAllocators,
-													   gLevelCapacities,
-													   gSVOLevels,
-													   // Node Related
-													   nodePos,
-													   // Constants
-													   octreeParams,
-													   cascadeMaxLevel);
+			uint32_t nodeLocation = PunchThroughNode(// SVO
+													 gLevelAllocators,
+													 gLevelCapacities,
+													 gSVOLevels,
+													 // Node Related
+													 nodePos,
+													 // Constants
+													 octreeParams,
+													 cascadeMaxLevel,
+													 true);
 
 			char3 ijk;
 			ijk.x = (a >> 0) & 0x1;

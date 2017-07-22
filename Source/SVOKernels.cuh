@@ -73,6 +73,15 @@ extern __global__ void AverageLevelSparse(// SVO
 										  const uint32_t nodeCount,
 										  const bool isCascadeLevel);
 
+extern __global__ void LinkNeigbourPtrs(// SVO
+										const CSVOLevel* gSVOLevels,
+										uint32_t* gLevelAllocators,
+										const uint32_t* gLevelCapacities,
+										// Limits
+										const OctreeParameters octreeParams,
+										const uint32_t nodeCount,
+										const uint32_t level);
+
 extern __global__ void GenNeigbourPtrs(// SVO
 									   const CSVOLevel* gSVOLevels,
 									   uint32_t* gLevelAllocators,

@@ -222,8 +222,8 @@ GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams,
 	// Generate Initial Sizes for each level
 	std::vector<uint32_t> levelCapacities(octreeParams.MaxSVOLevel + 1, 0);
 	std::vector<uint32_t> internalOffsets(octreeParams.MaxSVOLevel + 1, 0);
-	std::vector<uint32_t> voxPackedOffsets(octreeParams.MaxSVOLevel + 1, 0);
-	size_t offset = 0, voxPackedOffset = 0;
+	//std::vector<uint32_t> voxPackedOffsets(octreeParams.MaxSVOLevel + 1, 0);
+	size_t offset = 0;
 	for(uint32_t i = octreeParams.MinSVOLevel; i <= octreeParams.MaxSVOLevel; i++)
 	{
 		assert(sizes[i] % 8 == 0);
@@ -234,15 +234,7 @@ GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams,
 		internalOffsets[i] = static_cast<uint32_t>(offset);
 		levelCapacities[i] = static_cast<uint32_t>(levelSize);
 		offset += levelSize;
-
-		if(i >= octreeParams.CascadeBaseLevel - 1 &&
-		   i < octreeParams.MaxSVOLevel)
-		{
-			voxPackedOffsets[i] = static_cast<uint32_t>(voxPackedOffset);
-			voxPackedOffset += levelSize;
-		}
 	}
-	size_t totalVoxPackSize = voxPackedOffset;
 	size_t totalIllumSize = offset;
 	size_t totalNodeSize = offset - nodeIllumDifference;
 	hIllumOffsetsAndCapacities.insert(hIllumOffsetsAndCapacities.end(),
@@ -283,7 +275,7 @@ GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams,
 	// Now CUDA
 	size_t totalSize = (octreeParams.MaxSVOLevel + 1) * (sizeof(uint32_t) * 2 +
 														 sizeof(CSVOLevel));
-	totalSize += totalVoxPackSize * sizeof(uint32_t);
+	totalSize += (totalNodeSize - levelCapacities[octreeParams.MaxSVOLevel]) * sizeof(uint32_t);
 	cudaData.Resize(totalSize);
 
 	// Allocation of CUDA Side
@@ -300,16 +292,18 @@ GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams,
 	offset += (sizeof(CSVOLevel) * (octreeParams.MaxSVOLevel + 1));
 	// Vox Packed
 	voxPackStart = offset;
-	offset += (sizeof(uint32_t) * (totalVoxPackSize));
+	offset += (totalNodeSize - levelCapacities[octreeParams.MaxSVOLevel]) * sizeof(uint32_t);
 	assert(offset == totalSize);
 
 	// Send pointers of packed data
 	std::vector<uint32_t*> voxPointers(octreeParams.MaxSVOLevel + 1, nullptr);
-	for(uint32_t i = octreeParams.CascadeBaseLevel - 1; i < octreeParams.MaxSVOLevel; i++)
+	for(uint32_t i = octreeParams.DenseLevel; i < octreeParams.MaxSVOLevel; i++)
 	{
-		voxPointers[i] = reinterpret_cast<uint32_t*>(cudaData.Data() + voxPackStart) + voxPackedOffsets[i];
+		uint32_t offset = static_cast<uint32_t>(hIllumOffsetsAndCapacities[i] - nodeIllumDifference);
+		voxPointers[i] = reinterpret_cast<uint32_t*>(cudaData.Data() + voxPackStart) + offset;
 	}
-	CUDA_CHECK(cudaMemset(cudaData.Data() + voxPackStart, 0xFF, totalVoxPackSize * sizeof(uint32_t)));
+	CUDA_CHECK(cudaMemset(cudaData.Data() + voxPackStart, 0xFF,
+				          (totalNodeSize - levelCapacities[octreeParams.MaxSVOLevel]) * sizeof(uint32_t)));
 	// Lets be sure here about data offsets etc...
 	uint8_t* dOctreeLevelsOffset = reinterpret_cast<uint8_t*>(dOctreeLevels) + offsetof(CSVOLevel, gVoxId);
 	CUDA_CHECK(cudaMemcpy2D(dOctreeLevelsOffset, sizeof(CSVOLevel),
@@ -411,7 +405,6 @@ void GISparseVoxelOctree::MapOGLData()
 	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&oglCudaPtr),
 													&size, gpuResource));
 	//assert(size == oglData.Capacity());
-	
 	std::vector<CSVOLevel> svoLevels(octreeParams->MaxSVOLevel + 1, {nullptr, nullptr, nullptr});
 	for(uint32_t i = octreeParams->MinSVOLevel; i < octreeParams->MaxSVOLevel + 1; i++)
 	{		
@@ -427,6 +420,7 @@ void GISparseVoxelOctree::MapOGLData()
 			nodePtr = reinterpret_cast<CSVONode*>(oglCudaPtr + nodeOffset) + nodeLevelOffset;
 
 			// Clear used node pointers			
+			CUDA_CHECK(cudaMemset(nodePtr, 0xFF, size * sizeof(CSVONode)));
 			CUDA_CHECK(cudaMemset(nodePtr, 0xFF, size * sizeof(CSVONode)));
 		}
 		svoLevels[i].gLevelNodes = nodePtr;
@@ -527,6 +521,11 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 											batchCount);
 	CUDA_KERNEL_CHECK();
 
+	// Recieve level sizess
+	CUDA_CHECK(cudaMemcpy(hLevelSizes.data(), dLevelSizes,
+						  (octreeParams->MaxSVOLevel + 1) * sizeof(uint32_t),
+						  cudaMemcpyDeviceToHost));
+
 	shadowMaps.Unmap();
 
 	if(doTiming)
@@ -542,37 +541,24 @@ double GISparseVoxelOctree::GenNeigbourPointers(bool doTiming)
 {
 	CudaTimer t;
 	if(doTiming) t.Start();
-
-	// Recieve Temporary Used Level Sizes
-	std::vector<uint32_t> tempLevelSizes(octreeParams->MaxSVOLevel + 1, 0);
-	CUDA_CHECK(cudaMemcpy(tempLevelSizes.data(), dLevelSizes,
-		(octreeParams->MaxSVOLevel + 1) * sizeof(uint32_t),
-						  cudaMemcpyDeviceToHost));
-
+	
 	// Only Leaf node levels require this
-	for(uint32_t i = octreeParams->MaxSVOLevel; i >= octreeParams->CascadeBaseLevel; i--)
+	//for(uint32_t i = octreeParams->MaxSVOLevel - 1; i >= octreeParams->CascadeBaseLevel - 1; i--)
+	for(uint32_t i = octreeParams->CascadeBaseLevel - 1; i < octreeParams->MaxSVOLevel; i++)
 	{
-		// Kernel Call Light Injection
-		int gridSize = CudaInit::GenBlockSize(static_cast<int>(tempLevelSizes[i]));
+		// Kernel Call Pointer Generation
+		int gridSize = CudaInit::GenBlockSize(static_cast<int>(hLevelSizes[i]));
 		int blockSize = CudaInit::TBP;
 
 		// KC
-		AdjustIllumParameters<<<gridSize, blockSize>>>(dOctreeLevels[i], tempLevelSizes[i]);
-		CUDA_KERNEL_CHECK();
-
-		// Kernel Call Pointer Generation
-		gridSize = CudaInit::GenBlockSize(static_cast<int>(tempLevelSizes[i - 1]));
-		blockSize = CudaInit::TBP;
-
-		// KC
 		GenNeigbourPtrs<<<gridSize, blockSize>>>(// SVO
-													dOctreeLevels,
-													dLevelSizes,
-													dLevelCapacities,
-													// Limits
-													*octreeParams,
-													tempLevelSizes[i - 1],
-													i - 1);
+												 dOctreeLevels,
+												 dLevelSizes,
+												 dLevelCapacities,
+												 // Limits
+												 *octreeParams,
+												 hLevelSizes[i],
+												 i);
 		CUDA_KERNEL_CHECK();
 	}
 
@@ -581,24 +567,32 @@ double GISparseVoxelOctree::GenNeigbourPointers(bool doTiming)
 	// We need to check that
 
 	// Recieve Used Level Sizes
-	CUDA_CHECK(cudaMemcpy(hLevelSizes.data(), dLevelSizes,
+	std::vector<uint32_t> extraLevelSizes(octreeParams->MaxSVOLevel + 1, 0);
+	CUDA_CHECK(cudaMemcpy(extraLevelSizes.data(), dLevelSizes,
 						  (octreeParams->MaxSVOLevel + 1) * sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
-	//// Only Leaf node levels require this
-	//for(uint32_t i = octreeParams->MaxSVOLevel; i >= octreeParams->CascadeBaseLevel; i--)
-	//{
-	//	int size = static_cast<int>(hLevelSizes[i] - tempLevelSizes[i]);
 
-	//	// Kernel Call Light Injection
-	//	int gridSize = CudaInit::GenBlockSize(size);
-	//	int blockSize = CudaInit::TBP;
+	// Make sure everything is connected
+	for(uint32_t i = octreeParams->DenseLevel; i >= octreeParams->DenseLevel; i--)
+	{
+		// Kernel Call Light Injection
+		int gridSize = CudaInit::GenBlockSize(extraLevelSizes[i]);
+		int blockSize = CudaInit::TBP;
 
-	//	// KC
-	//	// TODO:
-	//	CUDA_KERNEL_CHECK();
-	//}
+		// KC
+		LinkNeigbourPtrs<<<gridSize, blockSize>>>(// SVO
+												  dOctreeLevels,
+												  dLevelSizes,
+												  dLevelCapacities,
+												  // Limits
+												  *octreeParams,
+												  extraLevelSizes[i],
+												  i);
+		CUDA_KERNEL_CHECK();
+	}
 
-
+	// Push Level Sizes
+	hLevelSizes = extraLevelSizes;
 
 	if(doTiming)
 	{
@@ -612,6 +606,18 @@ double GISparseVoxelOctree::AverageNodes(bool doTiming)
 {
 	CudaTimer t;
 	if(doTiming) t.Start();
+
+	// Adjust Illum Nodes for averaging
+	for(uint32_t i = octreeParams->MaxSVOLevel; i >= octreeParams->CascadeBaseLevel; i--)
+	{
+		// Kernel Call Light Injection
+		int gridSize = CudaInit::GenBlockSize(static_cast<int>(hLevelSizes[i]));
+		int blockSize = CudaInit::TBP;
+
+		// KC
+		AdjustIllumParameters<<<gridSize, blockSize>>>(dOctreeLevels[i], hLevelSizes[i]);
+		CUDA_KERNEL_CHECK();
+	}
 
 	// Average Down to Top Fashion
 	for(uint32_t i = octreeParams->MaxSVOLevel - 1; i >= octreeParams->DenseLevel; i--)
@@ -677,8 +683,9 @@ void GISparseVoxelOctree::UpdateSVO(// Timing Related
 	reconstructTime = GenerateHierarchy(doTiming, pages, caches, 
 										batchCount, injectParams,
 										ambientColor, injectOn);
-	genPtrTime = GenNeigbourPointers(doTiming);
 	averageTime = AverageNodes(doTiming);
+	genPtrTime = GenNeigbourPointers(doTiming);
+	
 	UnmapOGLData();
 }
 

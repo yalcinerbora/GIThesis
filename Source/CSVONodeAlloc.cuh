@@ -108,7 +108,7 @@
 //__constant__ static const int8_t voxLookupSizes[4] = {8, 12, 18, 27};
 //__constant__ static const char3* voxLookupTables[4] = {voxLookup8, voxLookup12, voxLookup18, voxLookup27};
 
-__device__ uint32_t AtomicAllocateNode(CSVONode* gNode, uint32_t* gLevelAllocator);
+__device__ uint32_t AtomicAllocateNode(bool& allocated, CSVONode* gNode, uint32_t* gLevelAllocator);
 __device__ uint32_t TraverseNode(uint32_t& traversedLevel,
 								 // SVO
 								 const CSVOLevelConst* svoLevels,
@@ -117,17 +117,18 @@ __device__ uint32_t TraverseNode(uint32_t& traversedLevel,
 								 // Constants
 								 const OctreeParameters& octreeParams,
 								 const uint32_t level);
-__device__ uint32_t TraverseAndAllocate(// SVO
-										uint32_t* gLevelAllocators,
-										const uint32_t* gLevelCapacities,
-										const CSVOLevel* gSVOLevels,
-										// Node Related
-										const int3& voxelId,
-										// Constants
-										const OctreeParameters& octreeParams,
-										const uint32_t level);
+__device__ uint32_t PunchThroughNode(// SVO
+									 uint32_t* gLevelAllocators,
+									 const uint32_t* gLevelCapacities,
+									 const CSVOLevel* gSVOLevels,
+									 // Node Related
+									 const int3& voxelId,
+									 // Constants
+									 const OctreeParameters& octreeParams,
+									 const uint32_t level,
+									 const bool initialAlloc);
 
-inline __device__ uint32_t AtomicAllocateNode(CSVONode* gNode, uint32_t* gLevelAllocator)
+inline __device__ uint32_t AtomicAllocateNode(bool& allocated, CSVONode* gNode, uint32_t* gLevelAllocator)
 {
 	// Release Configuration Optimization fucks up the code
 	// Prob changes some memory i-o ordering
@@ -154,6 +155,7 @@ inline __device__ uint32_t AtomicAllocateNode(CSVONode* gNode, uint32_t* gLevelA
 	// All other numbers are valid nodes (unless of course those are out of bounds)
 
 	// Just take node if already allocated
+	allocated = false;
 	if(gNode->next < 0xFFFFFFFE) return gNode->next;
 	// Try to lock the node and allocate for that node
 	uint32_t old = 0xFFFFFFFE;
@@ -166,6 +168,7 @@ inline __device__ uint32_t AtomicAllocateNode(CSVONode* gNode, uint32_t* gLevelA
 			uint32_t location = atomicAdd(gLevelAllocator, 8);
 			reinterpret_cast<volatile uint32_t&>(gNode->next) = location;
 			old = location;
+			allocated = true;
 		}
 		__threadfence();	// This is important somehow compiler changes this and makes infinite loop on same warp threads
 	}
@@ -200,72 +203,74 @@ inline __device__ uint32_t TraverseNode(uint32_t& traversedLevel,
 	return node - svoLevels[i - 1].gLevelNodes;
 }
 
-inline __device__ uint32_t AllocateWithParent(// SVO
-											  uint32_t* gLevelAllocators,
-											  const uint32_t* gLevelCapacities,
-											  const CSVOLevel* gSVOLevels,
-											  // Node Related
-											  const int3& voxelId,
-											  // Constants
-											  const OctreeParameters& octreeParams,
-											  const uint32_t level)
+inline __device__ uint32_t PunchThroughNode(// SVO
+											uint32_t* gLevelAllocators,
+											const uint32_t* gLevelCapacities,
+											const CSVOLevel* gSVOLevels,
+											// Node Related
+											const int3& voxelId,
+											// Constants
+											const OctreeParameters& octreeParams,
+											const uint32_t level,
+											const bool initialAlloc)
 {
 	int3 denseLevelId = CalculateParentVoxId(voxelId, octreeParams.DenseLevel, level);
 	const CSVOLevel& denseLevel = gSVOLevels[octreeParams.DenseLevel];
 	CSVONode* node = denseLevel.gLevelNodes + DenseIndex(denseLevelId, octreeParams.DenseSize);
 
 	// Iterate untill level (This portion's nodes should be allocated)
-	uint32_t parentLoc;
 	for(uint32_t i = octreeParams.DenseLevel + 1; i <= level; i++)
 	{
-		parentLoc = node - gSVOLevels[i - 1].gLevelNodes;
-		uint32_t allocNode = AtomicAllocateNode(node, gLevelAllocators + i);
+		bool allocated;
+		uint32_t allocNode = AtomicAllocateNode(allocated, node, gLevelAllocators + i);
+
+		if(allocated)
+		{
+			// Write Nodeid to ParentLoc
+			uint32_t parentLoc = node - gSVOLevels[i - 1].gLevelNodes;
+			int3 parentVoxId = CalculateParentVoxId(voxelId, i - 1, level);
+			uint32_t packedParent = PackNodeId(parentVoxId, i - 1,
+											   octreeParams.CascadeCount,
+											   octreeParams.CascadeBaseLevel,
+											   octreeParams.MaxSVOLevel);
+			packedParent |= (initialAlloc) ? 0x0000000 : 0x80000000;
+			gSVOLevels[i - 1].gVoxId[parentLoc] = packedParent;
+		}
+		
 		assert(allocNode < gLevelCapacities[i]);
 		uint32_t childId = CalculateLevelChildId(voxelId, i, level);
 		node = gSVOLevels[i].gLevelNodes + allocNode + childId;
 	}
-
-	// Write Nodeid to ParentLoc
-	int3 parentVoxId = voxelId;
-	parentVoxId.x >>= 1;
-	parentVoxId.y >>= 1;
-	parentVoxId.z >>= 1;
-	uint32_t packedParent = PackNodeId(parentVoxId, level - 1,
-									   octreeParams.CascadeCount,
-									   octreeParams.CascadeBaseLevel,
-									   octreeParams.MaxSVOLevel);
-
-	gSVOLevels[level - 1].gVoxId[parentLoc] = packedParent;
-
 	return node - gSVOLevels[level].gLevelNodes;
 }
 
-inline __device__ uint32_t TraverseAndAllocate(// SVO
-											   uint32_t* gLevelAllocators,
-											   const uint32_t* gLevelCapacities,
-											   const CSVOLevel* gSVOLevels,
-											   // Node Related
-											   const int3& voxelId,
-											   // Constants
-											   const OctreeParameters& octreeParams,
-											   const uint32_t level)
-{
-	// Returns Node Location on That Level	
-	int3 denseLevelId = CalculateParentVoxId(voxelId, octreeParams.DenseLevel, level);
-	const CSVOLevel& denseLevel = gSVOLevels[octreeParams.DenseLevel];
-	CSVONode* node = denseLevel.gLevelNodes + DenseIndex(denseLevelId, octreeParams.DenseSize);
-
-	// Iterate untill level (This portion's nodes should be allocated)
-	for(uint32_t i = octreeParams.DenseLevel + 1; i <= level; i++)
-	{		
-		uint32_t allocNode = AtomicAllocateNode(node, gLevelAllocators + i);
-		assert(allocNode < gLevelCapacities[i]);
-
-		uint32_t childId = CalculateLevelChildId(voxelId, i, level);
-		node = gSVOLevels[i].gLevelNodes + allocNode + childId;
-	}	
-	return node - gSVOLevels[level].gLevelNodes;
-}
+//inline __device__ uint32_t PunchThroughNode(// SVO
+//											uint32_t* gLevelAllocators,
+//											const uint32_t* gLevelCapacities,
+//											const CSVOLevel* gSVOLevels,
+//											// Node Related
+//											const int3& voxelId,
+//											// Constants
+//											const OctreeParameters& octreeParams,
+//											const uint32_t level)
+//{
+//	// Returns Node Location on That Level	
+//	int3 denseLevelId = CalculateParentVoxId(voxelId, octreeParams.DenseLevel, level);
+//	const CSVOLevel& denseLevel = gSVOLevels[octreeParams.DenseLevel];
+//	CSVONode* node = denseLevel.gLevelNodes + DenseIndex(denseLevelId, octreeParams.DenseSize);
+//
+//	// Iterate untill level (This portion's nodes should be allocated)
+//	for(uint32_t i = octreeParams.DenseLevel + 1; i <= level; i++)
+//	{
+//		bool allocated;
+//		uint32_t allocNode = AtomicAllocateNode(allocated, node, gLevelAllocators + i);
+//		assert(allocNode < gLevelCapacities[i]);
+//
+//		uint32_t childId = CalculateLevelChildId(voxelId, i, level);
+//		node = gSVOLevels[i].gLevelNodes + allocNode + childId;
+//	}	
+//	return node - gSVOLevels[level].gLevelNodes;
+//}
 
 inline __device__ void NodeReconstruct(// SVO
 									   uint32_t* gLevelAllocators,
@@ -284,7 +289,12 @@ inline __device__ void NodeReconstruct(// SVO
 	// Iterate untill level (This portion's nodes should be allocated)
 	for(uint32_t i = octreeParams.DenseLevel + 1; i <= level; i++)
 	{
-		const uint32_t nextNode = node->next; assert(nextNode != 0xFFFFFFFF);
+		const uint32_t nextNode = node->next; 		
+		if(nextNode == 0xFFFFFFFF)
+		{
+			assert(nextNode != 0xFFFFFFFF);
+		}
+
 		uint32_t childId = CalculateLevelChildId(voxelId, i, level);
 		uint32_t nodeOffset = nextNode + childId;
 		node = gSVOLevels[i].gLevelNodes + nodeOffset;
@@ -297,58 +307,26 @@ inline __device__ void NodeReconstruct(// SVO
 		levelId.x -= 1;
 		if(levelId.x >= 0 && levelId.x < levelSize)
 		{
-			uint32_t nodeLocation = TraverseAndAllocate(gLevelAllocators, gLevelCapacities, gSVOLevels,
-														levelId, octreeParams, i);
+			uint32_t nodeLocation = PunchThroughNode(gLevelAllocators, gLevelCapacities, gSVOLevels,
+													 levelId, octreeParams, i, false);
 			gSVOLevels[i].gLevelNodes[nodeLocation].neigbours[0] = nodeOffset;
 		}
 		levelId.x += 1;
 		levelId.y -= 1;
 		if(levelId.y >= 0 && levelId.y < levelSize)
 		{
-			uint32_t nodeLocation = TraverseAndAllocate(gLevelAllocators, gLevelCapacities, gSVOLevels,
-														levelId, octreeParams, i);
+			uint32_t nodeLocation = PunchThroughNode(gLevelAllocators, gLevelCapacities, gSVOLevels,
+													 levelId, octreeParams, i, false);
 			gSVOLevels[i].gLevelNodes[nodeLocation].neigbours[1] = nodeOffset;
 		}
 		levelId.y += 1;
 		levelId.z -= 1;
 		if(levelId.z >= 0 && levelId.z < levelSize)
 		{
-			uint32_t nodeLocation = TraverseAndAllocate(gLevelAllocators, gLevelCapacities, gSVOLevels,
-														levelId, octreeParams, i);
+			uint32_t nodeLocation = PunchThroughNode(gLevelAllocators, gLevelCapacities, gSVOLevels,
+													 levelId, octreeParams, i, false);
 			gSVOLevels[i].gLevelNodes[nodeLocation].neigbours[2] = nodeOffset;
 		}
-	
-		//uint32_t traversedLevel;
-		//const CSVOLevelConst* constLevels = reinterpret_cast<const CSVOLevelConst*>(gSVOLevels);
-		//// Try gen forward neigbours
-		//levelId.z += 1;
-		//levelId.x += 1;
-		//if(levelId.x >= 0 && levelId.x < levelSize)
-		//{			
-		//	uint32_t nodeLocation = TraverseNode(traversedLevel,
-		//										 constLevels,
-		//										 levelId, octreeParams, i);
-		//	
-		//	if(traversedLevel == i) node->neigborus[0] = nodeLocation;
-		//}
-		//levelId.x -= 1;
-		//levelId.y += 1;
-		//if(levelId.y >= 0 && levelId.y < levelSize)
-		//{
-		//	uint32_t nodeLocation = TraverseNode(traversedLevel,
-		//										 constLevels,
-		//										 levelId, octreeParams, i);
-		//	if(traversedLevel == i) node->neigborus[1] = nodeLocation;
-		//}
-		//levelId.y -= 1;
-		//levelId.z += 1;
-		//if(levelId.z >= 0 && levelId.z < levelSize)
-		//{
-		//	uint32_t nodeLocation = TraverseNode(traversedLevel,
-		//										 constLevels,
-		//										 levelId, octreeParams, i);
-		//	if(traversedLevel == i) node->neigborus[2] = nodeLocation;
-		//}
 	}
 }
 

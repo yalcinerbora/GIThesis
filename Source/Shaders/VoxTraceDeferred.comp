@@ -161,24 +161,154 @@ vec3 UnpackLightDirSVO(in uint lightDirPacked)
 	return unpackSnorm4x8(lightDirPacked).xyz;
 }
 
-float AnisotropicOcclusion(in vec4 occlusion,
-						   in vec3 direction)
+vec3 Interp3DVec3(in vec3 i0, in vec3 i1, in vec3 i2, in vec3 i3,
+				  in vec3 i4, in vec3 i5, in vec3 i6, in vec3 i7,
+				  in vec3 weight)
 {
-	// TODO:
-	return occlusion.x;
+	vec3 x0 = mix(i0, i1, weight.x);
+	vec3 x1 = mix(i2, i3, weight.x);
+	vec3 x2 = mix(i4, i5, weight.x);
+	vec3 x3 = mix(i6, i7, weight.x);
+
+	vec3 y0 = mix(x0, x1, weight.y);
+	vec3 y1 = mix(x2, x3, weight.y);
+
+	vec3 z = mix(y0, y1, weight.z);
+	return z;
 }
 
-vec3 FetchFromIllum(out float occlusion, in uvec4 illum, in vec3 marchDir)
+vec4 Interp3DVec4(in vec4 i0, in vec4 i1, in vec4 i2, in vec4 i3,
+				  in vec4 i4, in vec4 i5, in vec4 i6, in vec4 i7,
+				  in vec3 weight)
+{
+	vec4 x0 = mix(i0, i1, weight.x);
+	vec4 x1 = mix(i2, i3, weight.x);
+	vec4 x2 = mix(i4, i5, weight.x);
+	vec4 x3 = mix(i6, i7, weight.x);
+		   
+	vec4 y0 = mix(x0, x1, weight.y);
+	vec4 y1 = mix(x2, x3, weight.y);
+
+	vec4 z = mix(y0, y1, weight.z);
+	return z;
+}
+
+float AnisotropicOcclusion(in vec4 occ0, in vec4 occ1, in vec4 occ2, in vec4 occ3, 
+						   in vec4 occ4, in vec4 occ5, in vec4 occ6, in vec4 occ7, 
+						   in vec3 direction, in vec3 interp)
+{
+	// Interp Occlusion
+	vec4 occInterp = Interp3DVec4(occ0, occ1, occ2, occ3,
+								  occ4, occ5, occ6, occ7,
+								  interp);
+
+	// TODO: aniso occlusion
+	// (x is base occlusion, y,z,w directional occlusion modifiers)
+	return occInterp.x;
+}
+
+void InterpIllum(out float occlusion, out vec3 irrad, out float gloss,
+				 out vec3 normal, out vec3 lightDir,
+				 in uvec4 illum0, in uvec4 illum1, in uvec4 illum2, in uvec4 illum3,
+				 in uvec4 illum4, in uvec4 illum5, in uvec4 illum6, in uvec4 illum7,
+				 in vec3 marchDir, in vec3 interp)
 {
 	// Occlusion
-	vec4 occupancy = UnpackOccupancySVO(illum.z);
-	occlusion = AnisotropicOcclusion(occupancy, marchDir);
+	vec4 occ0 = UnpackOccupancySVO(illum0.z);
+	vec4 occ1 = UnpackOccupancySVO(illum1.z);
+	vec4 occ2 = UnpackOccupancySVO(illum2.z);
+	vec4 occ3 = UnpackOccupancySVO(illum3.z);
+	vec4 occ4 = UnpackOccupancySVO(illum4.z);
+	vec4 occ5 = UnpackOccupancySVO(illum5.z);
+	vec4 occ6 = UnpackOccupancySVO(illum6.z);
+	vec4 occ7 = UnpackOccupancySVO(illum7.z);
+	occlusion = AnisotropicOcclusion(occ0, occ1, occ2, occ3, 
+								     occ4, occ5, occ6, occ7,
+									 marchDir, interp);
 
-	if(renderType == IRRADIANCE) return UnpackIrradianceSVO(illum.x).xyz;
-	else if(renderType == SPECULAR_ALBEDO) return UnpackIrradianceSVO(illum.x).www;
-	else if(renderType == NORMAL) return (UnpackNormalSVO(illum.y) + 1.0f) * 0.5f;
+	vec3 value0, value1, value2, value3;
+	vec3 value4, value5, value6, value7;
+
+	// Irradiance
+	value0 = UnpackIrradianceSVO(illum0.x).xyz;
+	value1 = UnpackIrradianceSVO(illum1.x).xyz;
+	value2 = UnpackIrradianceSVO(illum2.x).xyz;
+	value3 = UnpackIrradianceSVO(illum3.x).xyz;
+	value4 = UnpackIrradianceSVO(illum4.x).xyz;
+	value5 = UnpackIrradianceSVO(illum5.x).xyz;
+	value6 = UnpackIrradianceSVO(illum6.x).xyz;
+	value7 = UnpackIrradianceSVO(illum7.x).xyz;
+
+	irrad = Interp3DVec3(value0, value1, value2, value3, 
+						 value4, value5, value6, value7,
+						 interp);
+
+	// Gloss
+	value0.x = UnpackIrradianceSVO(illum0.x).w;
+	value1.x = UnpackIrradianceSVO(illum1.x).w;
+	value2.x = UnpackIrradianceSVO(illum2.x).w;
+	value3.x = UnpackIrradianceSVO(illum3.x).w;
+	value4.x = UnpackIrradianceSVO(illum4.x).w;
+	value5.x = UnpackIrradianceSVO(illum5.x).w;
+	value6.x = UnpackIrradianceSVO(illum6.x).w;
+	value7.x = UnpackIrradianceSVO(illum7.x).w;
+
+	float x0 = mix(value0.x, value1.x, interp.x);
+	float x1 = mix(value2.x, value3.x, interp.x);
+	float x2 = mix(value4.x, value5.x, interp.x);
+	float x3 = mix(value6.x, value7.x, interp.x);
+
+	float y0 = mix(x0, x1, interp.y);
+	float y1 = mix(x2, x3, interp.y);
+	
+	gloss = mix(y0, y1, interp.z);
+
+	// Normal
+	value0 = (UnpackNormalSVO(illum0.y) + 1.0f) * 0.5f;
+	value1 = (UnpackNormalSVO(illum1.y) + 1.0f) * 0.5f;
+	value2 = (UnpackNormalSVO(illum2.y) + 1.0f) * 0.5f;
+	value3 = (UnpackNormalSVO(illum3.y) + 1.0f) * 0.5f;
+	value4 = (UnpackNormalSVO(illum4.y) + 1.0f) * 0.5f;
+	value5 = (UnpackNormalSVO(illum5.y) + 1.0f) * 0.5f;
+	value6 = (UnpackNormalSVO(illum6.y) + 1.0f) * 0.5f;
+	value7 = (UnpackNormalSVO(illum7.y) + 1.0f) * 0.5f;
+
+	normal = Interp3DVec3(value0, value1, value2, value3, 
+						  value4, value5, value6, value7,
+						  interp);
+
+	// Light Dir
+	value0 = (UnpackLightDirSVO(illum0.w) + 1.0f) * 0.5f;
+	value1 = (UnpackLightDirSVO(illum1.w) + 1.0f) * 0.5f;
+	value2 = (UnpackLightDirSVO(illum2.w) + 1.0f) * 0.5f;
+	value3 = (UnpackLightDirSVO(illum3.w) + 1.0f) * 0.5f;
+	value4 = (UnpackLightDirSVO(illum4.w) + 1.0f) * 0.5f;
+	value5 = (UnpackLightDirSVO(illum5.w) + 1.0f) * 0.5f;
+	value6 = (UnpackLightDirSVO(illum6.w) + 1.0f) * 0.5f;
+	value7 = (UnpackLightDirSVO(illum7.w) + 1.0f) * 0.5f;
+
+	lightDir = Interp3DVec3(value0, value1, value2, value3, 
+							value4, value5, value6, value7,
+							interp);
+}
+
+vec3 FetchFromIllum(out float occlusion, 				 
+					in uvec4 illum0, in uvec4 illum1, in uvec4 illum2, in uvec4 illum3,
+					in uvec4 illum4, in uvec4 illum5, in uvec4 illum6, in uvec4 illum7,
+					in vec3 marchDir, in vec3 interp)
+{
+	vec3 irrad, normal, lightDir;
+	float gloss;	
+	InterpIllum(occlusion, irrad, gloss, normal, lightDir,
+				illum0, illum1, illum2, illum3,
+				illum4, illum5, illum6, illum7,
+				marchDir, interp);
+
+	if(renderType == IRRADIANCE) return irrad;
+	else if(renderType == SPECULAR_ALBEDO) return vec3(gloss);
+	else if(renderType == NORMAL) return normal;
 	else if(renderType == OCCLUSION) return vec3(1.0f - occlusion);
-	else if(renderType == LIGHT_DIR) return (UnpackLightDirSVO(illum.w) + 1.0f) * 0.5f;
+	else if(renderType == LIGHT_DIR) return lightDir;
 	return vec3(0.0f);
 }
 
@@ -207,12 +337,24 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 		vec3 interp;
 		ivec3 index = LevelVoxId(interp, worldPos, fetchLevel);
 		uint offset = svoLevelOffsets[fetchLevel];
-		uvec4 illum = svoIllum[offset + DenseIndexToLinear(index, fetchLevel)];
+		
+		uvec4 illum0 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 0), fetchLevel)];
+		uvec4 illum1 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 0), fetchLevel)];
+		uvec4 illum2 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 0), fetchLevel)];
+		uvec4 illum3 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 0), fetchLevel)];
+
+		uvec4 illum4 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 1), fetchLevel)];
+		uvec4 illum5 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 1), fetchLevel)];
+		uvec4 illum6 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 1), fetchLevel)];
+		uvec4 illum7 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 1), fetchLevel)];
 		
 		// Data Fetch (return gray if no value is avail)
 		float dataOcclusion;
-		vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
-		//if (dataOcclusion == 0.0f) vec3(1.0f, 0.0f, 1.0f);
+		vec3 result = FetchFromIllum(dataOcclusion, 
+									illum0, illum1, illum2, illum3, 
+									illum4, illum5, illum6, illum7, 
+									marchDir, interp);
+		if (dataOcclusion == 0.0f) vec3(1.0f, 0.0f, 1.0f);
 		return result;
 	}
 	else
@@ -226,7 +368,7 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 		uint nodeIndex = DenseIndexToLinear(index, denseLevel);
 
 		uint traversedLevel = denseLevel;
-		while(traversedLevel < fetchLevel)
+		while(traversedLevel < (fetchLevel - 1))
 		{			
 			uint offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;
 			uint nextNode = svoNode[offset + nodeIndex].x;
@@ -238,15 +380,99 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 
 		// Fetch data if either we are on traversed level
 		// or missed but on cascade level		 
-		if(traversedLevel >= minCascadeLevel || 
-		   traversedLevel == fetchLevel)
+		if(traversedLevel >= (minCascadeLevel - 1) ||
+		   traversedLevel == (fetchLevel - 1))
 		{
-			uint offset = svoLevelOffsets[traversedLevel];					
-			uvec4 illum = svoIllum[offset + nodeIndex];
+			// Quadlinear Interp
+			// Deferred do not require this but we will implement this
+			uvec4 neighborsLow, neighborsHi;
+			uvec4 illum0 = uvec4(0), illum1 = uvec4(0);
+			uvec4 illum2 = uvec4(0), illum3 = uvec4(0);
+			uvec4 illum4 = uvec4(0), illum5 = uvec4(0);
+			uvec4 illum6 = uvec4(0), illum7 = uvec4(0);
+			
+			// Parent Level
+			uint parentLevel = traversedLevel;
+			uint offset = svoLevelOffsets[parentLevel];
+			uint nodeOffset = svoLevelOffsets[parentLevel] - nodeOffsetDifference;
 
+			// (0, 0, 0)
+			neighborsLow[0] = nodeIndex;
+			illum0 = svoIllum[offset + nodeIndex];
+
+			// Neigbours
+			uvec3 firstNeig = svoNode[nodeOffset + nodeIndex].yzw;
+			uvec3 secondNeig = uvec3(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+			uint thridNeig = 0xFFFFFFFF;
+
+			// First order neighbors
+			// (1, 0, 0)
+			// (0, 1, 0)
+			// (0, 0, 1)			
+			if(firstNeig.x != 0xFFFFFFFF)
+			{
+				neighborsLow[1] = svoNode[nodeOffset + firstNeig.x].x;
+				secondNeig.x = svoNode[nodeOffset + firstNeig.x].z;
+				illum1 = svoIllum[offset + firstNeig.x];
+			}
+			if(firstNeig.y != 0xFFFFFFFF) 
+			{
+				neighborsLow[2] = svoNode[nodeOffset + firstNeig.y].x;
+				secondNeig.y = svoNode[nodeOffset + firstNeig.y].w;
+				illum2 = svoIllum[offset + firstNeig.y];
+			}
+			if(firstNeig.z != 0xFFFFFFFF) 
+			{
+				neighborsHi[0] = svoNode[nodeOffset + firstNeig.z].x;
+				secondNeig.z = svoNode[nodeOffset + firstNeig.z].y;
+				illum4 = svoIllum[offset + firstNeig.z];
+			}
+			
+			// Second order neighbors
+			// (1, 1, 0)
+			// (0, 1, 1)
+			// (1, 0, 1)
+			if(secondNeig.x != 0xFFFFFFFF)
+			{
+				neighborsLow[3] = svoNode[nodeOffset + secondNeig.x].x;
+				thridNeig = svoNode[nodeOffset + secondNeig.x].w;
+				illum4 = svoIllum[offset + secondNeig.x];
+			}
+			if(secondNeig.y != 0xFFFFFFFF) 
+			{
+				neighborsLow[2] = svoNode[nodeOffset + secondNeig.y].x;
+				illum4 = svoIllum[offset + secondNeig.y];
+			}
+			if(secondNeig.z != 0xFFFFFFFF) 
+			{
+				neighborsHi[0] = svoNode[nodeOffset + secondNeig.z].x;
+				illum4 = svoIllum[offset + secondNeig.z];
+			}
+
+			// Third order neighbors
+			// (1, 1, 1)
+			if(thridNeig != 0xFFFFFFFF)
+			{
+				neighborsHi[3] = svoNode[nodeOffset + thridNeig].x;
+				illum1 = svoIllum[offset + thridNeig];
+			}
+
+			// Child Level
+			uint childLevel = traversedLevel + 1;
+			offset = svoLevelOffsets[childLevel];
+			nodeOffset = svoLevelOffsets[childLevel] - nodeOffsetDifference;
+
+			// We need to check node id to find out actual nodes
+			// If that level's voxelId is even (all nodes combined on first parent)
+			// For each bit next node moves a node
+
+		
 			// Data Fetch (return gray if no value is avail)
 			float dataOcclusion;
-			vec3 result = FetchFromIllum(dataOcclusion, illum, marchDir);
+			vec3 result = FetchFromIllum(dataOcclusion, 
+										 illum0, illum1, illum2, illum3,
+										 illum4, illum5, illum6, illum7,
+										 marchDir, interp);
 			if (dataOcclusion == 0.0f) result = vec3(1.0f, 0.0f, 0.0f);
 			return result;
 		}

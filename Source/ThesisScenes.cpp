@@ -42,7 +42,7 @@ SponzaScene::SponzaScene(const std::string& name,
 
 void SponzaScene::Initialize()
 {
-	skeletalBatch.getAnimationBatch().ChangeAnimationParams(0, 0.0f, 0.5f, AnimationType::REPEAT);
+	skeletalBatch.getAnimationBatch().ChangeAnimationParams(0, 0.0f, 0.05f, AnimationType::REPEAT);
 }
 
 void SponzaScene::PatrolNyra(double elapsedS)

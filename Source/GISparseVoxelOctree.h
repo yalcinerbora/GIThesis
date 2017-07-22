@@ -204,7 +204,6 @@ class GISparseVoxelOctree
 		// Difference between offsets (since node do not hold dense info except last dense level)
 		std::vector<uint32_t>			hLevelSizes;
 		std::vector<uint32_t>			hIllumOffsetsAndCapacities;
-		std::vector<uint32_t*>			dIllumOffsetPtrs;
 		size_t							nodeIllumDifference;
 
 		// Shadowmap interop for light injection

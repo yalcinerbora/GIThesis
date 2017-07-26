@@ -128,12 +128,6 @@ ivec3 LevelVoxId(out vec3 offset, in vec3 worldPoint, in uint depth)
 	return ivec3(floor(relativeLoc * invLevelSpan));
 }
 
-//vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
-//{
-//	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
-//	return (worldPoint - worldPos.xyz) / levelSpan;
-//}
-
 uint CalculateLevelChildId(in ivec3 voxPos, in uint level)
 {
 	uint bitSet = 0;
@@ -344,15 +338,13 @@ uvec4 FetchChildIllum(in uvec4 neigLo, in uvec4 neigHi, in ivec3 childNode, in u
 	return uvec4(0);
 }
 
-vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
+vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir, in uint maxLevel)
 {
 	vec3 offset;
 	ivec3 voxPos = LevelVoxId(offset, worldPos, maxSVOLevel);
 	ivec3 maxLevelSize = ivec3(0x1 << maxSVOLevel);
 	
 	// Cull if out of bounds
-	//if(any(lessThan(voxPos, ivec3(0))) ||
-	//   any(greaterThanEqual(voxPos, maxLevelSize)))
 	if(	voxPos.x < 0 || voxPos.x >= maxLevelSize.x ||
 		voxPos.y < 0 || voxPos.y >= maxLevelSize.y ||
 		voxPos.z < 0 || voxPos.z >= maxLevelSize.z)
@@ -362,13 +354,14 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 	}
 
 	// Check Dense
-	if(fetchLevel >= minSVOLevel && 
-	   fetchLevel <= denseLevel)
+	if(maxLevel <= minSVOLevel) return vec3(0.0f, 1.0f, 0.0f);
+	else if(maxLevel > minSVOLevel && 
+			maxLevel <= denseLevel)
 	{
 		// Dense Fetch
 		vec3 interp;
-		ivec3 index = LevelVoxId(interp, worldPos, fetchLevel);
-		uint offset = svoLevelOffsets[fetchLevel];
+		ivec3 index = LevelVoxId(interp, worldPos, maxLevel);
+		uint offset = svoLevelOffsets[maxLevel];
 		
 		uvec4 illum0 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 0), fetchLevel)];
 		uvec4 illum1 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 0), fetchLevel)];
@@ -398,24 +391,27 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 		vec3 interp;
 		ivec3 index = LevelVoxId(interp, worldPos, denseLevel);
 		uint nodeIndex = DenseIndexToLinear(index, denseLevel);
+		uint parentIndex = 0xFFFFFFFF;
 
 		uint traversedLevel = denseLevel;
-		while(traversedLevel < (fetchLevel - 1))
+		while(traversedLevel < maxLevel)
 		{			
 			uint offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;
 			uint nextNode = svoNode[offset + nodeIndex].x;
 			if(nextNode == 0xFFFFFFFF) break;
 			
 			traversedLevel++;
-			nodeIndex = nextNode + CalculateLevelChildId(voxPos, traversedLevel);
+			parentIndex = nodeIndex;
+			nodeIndex = nextNode + CalculateLevelChildId(voxPos, traversedLevel);			
 		}
 
 		// Fetch data if either we are on traversed level
 		// or missed but on cascade level		 
-		if(traversedLevel >= (minCascadeLevel - 1) ||
-		   traversedLevel == (fetchLevel - 1))
+		//if(/*(traversedLevel == maxLevel ||
+		//   traversedLevel >= minCascadeLevel) &&*/
+		if(traversedLevel != denseLevel &&
+		   parentIndex != 0xFFFFFFFF)
 		{			
-
 			// Quadlinear Interp
 			// Deferred do not require this but we will implement this
 			uvec4 neighborsLow = uvec4(0xFFFFFFFF);
@@ -430,17 +426,17 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 			uvec4 illum7 = uvec4(0); //uvec4(0x00FF00FF, 0, 0, 0); //
 			
 			// Parent Level
-			uint parentLevel = traversedLevel;
+			uint parentLevel = traversedLevel - 1;
 			uint offset = svoLevelOffsets[parentLevel];
 			uint nodeOffset = svoLevelOffsets[parentLevel] - nodeOffsetDifference;
 			index = LevelVoxId(interp, worldPos, parentLevel);
 
 			// (0, 0, 0)
-			neighborsLow[0] = svoNode[nodeOffset + nodeIndex].x;
-			illum0 = svoIllum[offset + nodeIndex];
+			neighborsLow[0] = svoNode[nodeOffset + parentIndex].x;
+			illum0 = svoIllum[offset + parentIndex];
 
 			// Neigbours
-			uvec3 firstNeig = svoNode[nodeOffset + nodeIndex].yzw;
+			uvec3 firstNeig = svoNode[nodeOffset + parentIndex].yzw;
 			uvec3 secondNeig = uvec3(0xFFFFFFFF);
 			uint thridNeig = 0xFFFFFFFF;
 
@@ -469,7 +465,6 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 
 				secondNeig.z = svoNode[nodeOffset + firstNeig.z].y;	// z -> x
 			}
-			
 			// Second order neighbors
 			// (1, 1, 0)
 			// (0, 1, 1)
@@ -491,7 +486,6 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 				neighborsHi[1] = svoNode[nodeOffset + secondNeig.z].x;
 				illum5 = svoIllum[offset + secondNeig.z];
 			}
-			
 			// Third order neighbors
 			// (1, 1, 1)
 			if(thridNeig != 0xFFFFFFFF)
@@ -509,9 +503,8 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 
 			// --------------------------//
 			// Child Level
-			uint childLevel = traversedLevel + 1;
+			uint childLevel = traversedLevel; 
 			offset = svoLevelOffsets[childLevel];
-			//nodeOffset = svoLevelOffsets[childLevel] - nodeOffsetDifference;
 			index = LevelVoxId(interp, worldPos, childLevel);
 			ivec3 childBaseId = index; childBaseId &= 0x00000001;
 
@@ -540,7 +533,21 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 			return result;
 		}
 	}
-	return vec3(0.0f, 1.0f, 0.0f);
+	//return vec3(0.0f, 1.0f, 0.0f);
+}
+
+uint DetermineMaxLevel(in vec3 pos)
+{
+	// Determine cascade no from distance of the camera
+	// And the min span for that cascade
+	float outerSpan = baseSpan * float(0x1 << (cascadeCount - 1));
+	vec3 gridCenter = worldPos.xyz + float(gridSize - 1) * 0.5f * outerSpan ;
+	vec3 diff = abs(pos - gridCenter) / (float(gridSize - 1) * 0.5f);
+	float maxDiff = max(diff.x, max(diff.y, diff.z));
+
+	uint cascade = findMSB(uint(maxDiff)) + 1;
+	cascade = min(cascade, cascadeCount - 1);
+	return maxSVOLevel - cascade;
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
@@ -552,11 +559,30 @@ void main(void)
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
 	vec2 gBuffUV = vec2(globalId + vec2(0.5f) - viewport.xy) / viewport.zw;
-	vec3 worldPos = DepthToWorld(gBuffUV);
+	vec3 pos = DepthToWorld(gBuffUV);
 	vec3 marchDir = normalize(worldPos - camPos.xyz);
 	
 	// Actual Work
-	vec3 result = SampleSVO(worldPos, marchDir);
+	uint maxLevel = min(fetchLevel, DetermineMaxLevel(pos));
+
+	//if(maxLevel == 10)
+	//{
+	//	imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 0.0f, 1.0f));
+	//}
+	//else if(maxLevel == 9)
+	//{
+	//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	//}
+	//else if(maxLevel == 8)
+	//{
+	//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 0.0f, 1.0f, 1.0f));
+	//}
+	//else if(maxLevel == 7)
+	//{
+	//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 1.0f, 1.0f));
+	//}
+
+	vec3 result = SampleSVO(pos, marchDir, maxLevel);
 	imageStore(fbo, ivec2(globalId), vec4(result, 1.0f));
 		
 	//uint linearId = globalId.y * imageSize(fbo).x + globalId.x;

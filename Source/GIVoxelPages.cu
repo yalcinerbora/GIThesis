@@ -222,10 +222,10 @@ double GIVoxelPages::PageRenderer::Draw(bool doTiming,
 								      renderType);
 	CUDA_KERNEL_CHECK();
 
-	// DEBUG
-	uint32_t nodesInCirculation = 0;
-	CUDA_CHECK(cudaMemcpy(&nodesInCirculation, atomicIndex, sizeof(uint32_t), cudaMemcpyDeviceToHost));
-	GI_LOG("Total Valid node count in pages : %d", nodesInCirculation);
+	//// DEBUG
+	//uint32_t nodesInCirculation = 0;
+	//CUDA_CHECK(cudaMemcpy(&nodesInCirculation, atomicIndex, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+	//GI_LOG("Total Valid node count in pages : %d", nodesInCirculation);
 
 	// Unmap buffer and continue
 	CUDA_CHECK(cudaGraphicsUnmapResources(1, &debugBufferResource));
@@ -633,10 +633,19 @@ void GIVoxelPages::UpdateGridPositions(const IEVector3& cameraPos)
     float rootSnapLevelMultiplier = static_cast<float>(0x1 << 3);
 
 	// Removes Jitterin on base cascade level
-	outerSpan *= rootSnapLevelMultiplier;
-	voxelCornerPos[0] -= std::fmod(voxelCornerPos[0] + outerSpan * 0.5f, outerSpan);
-	voxelCornerPos[1] -= std::fmod(voxelCornerPos[1] + outerSpan * 0.5f, outerSpan);
-	voxelCornerPos[2] -= std::fmod(voxelCornerPos[2] + outerSpan * 0.5f, outerSpan);
+	float snapSpan = outerSpan * rootSnapLevelMultiplier;
+	voxelCornerPos[0] -= std::fmod(voxelCornerPos[0] + snapSpan * 0.5f, snapSpan);
+	voxelCornerPos[1] -= std::fmod(voxelCornerPos[1] + snapSpan * 0.5f, snapSpan);
+	voxelCornerPos[2] -= std::fmod(voxelCornerPos[2] + snapSpan * 0.5f, snapSpan);
+
+	//// Grid Aligned Center
+	//IEVector3 voxelCenter = voxelCornerPos + outerSpan * (svoParams->CascadeBaseLevelSize - 1) * 0.5f;
+	//std::vector<IEVector3> positions(svoParams->CascadeCount);
+	//for(uint32_t i = 0; i < svoParams->CascadeCount; i++)
+	//{
+	//	float multiplier = (0x1 << i) * (svoParams->CascadeBaseLevelSize - 1) * 0.5f;
+	//	positions[i] = voxelCenter - multiplier;
+	//}
 
 	// Now align inner cascades according to outermost
 	// In all system cacades and its data lied from inner to outer

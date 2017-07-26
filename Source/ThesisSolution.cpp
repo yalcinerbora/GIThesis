@@ -136,8 +136,7 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		depthRange[0], depthRange[1]
 	};
 
-	//injectOn = true;
-	injectOn = false;
+	injectOn = true;
 	voxelOctree.UpdateSVO(svoReconTime, svoGenPtrTime, svoAverageTime, doTiming,
 						  voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),
@@ -185,7 +184,18 @@ void ThesisSolution::Frame(const Camera& mainCam)
 			voxelPages.DeallocateDraw();
 			if(scheme == RenderScheme::SVO_VOXELS)
 			{
-				
+				// Uniform Updates
+				//dRenderer.RefreshFTransform(mainCam);
+				dRenderer.RefreshInvFTransform(*currentScene, mainCam,
+											   coneTex.Width(), coneTex.Height());
+				voxelOctree.UpdateOctreeUniforms(voxelPages.getOutermostGridPosition());
+
+				// Actual Render
+				miscTime = voxelOctree.DebugTraceSVO(coneTex, dRenderer, mainCam,
+													 thesisBar.SVOLevel(),
+													 thesisBar.SVORenderType());
+
+				dRenderer.ShowTexture(mainCam, coneTex.Texture());
 			}
 			else if(scheme == RenderScheme::SVO_SAMPLE)
 			{

@@ -222,8 +222,8 @@ int main()
 	ThesisSolution thesisSolution(6,		// Dense Level
 								  3,		// Dense Count
 								  3,		// Cascade Count
-								  8,		// Base Level
-								  1.0f,		// Base Span
+								  9,		// Base Level
+								  0.5f,		// Base Span
 								  inputManager, deferredRenderer, "Thesis GI");
 	solutions.push_back(&emptySolution);
 	solutions.push_back(&thesisSolution);

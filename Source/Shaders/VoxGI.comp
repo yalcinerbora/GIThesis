@@ -677,13 +677,13 @@ void main(void)
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
 	vec2 gBuffUV = vec2(globalId + vec2(0.5f) - viewport.xy) / viewport.zw;
-	vec3 worldPos = DepthToWorld(gBuffUV);
+	vec3 pos = DepthToWorld(gBuffUV);
 	vec3 worldNorm = UnpackNormalGBuff(texture(gBuffNormal, gBuffUV).xy);
 
 	// Determine cascade no from distance of the camera
 	// And the min span for that cascade
-	vec3 gridCenter = worldPos.xyz + baseSpan * gridSize * (0x1 << (cascadeCount - 1));
-	vec3 diff = abs(worldPos - gridCenter) / float(gridSize / 2);
+	vec3 gridCenter = worldPos + baseSpan * gridSize * (0x1 << (cascadeCount - 1));
+	vec3 diff = abs(pos - gridCenter) / float(gridSize / 2);
 	float maxDiff = max(diff.x, max(diff.y, diff.z));
 	uint cascade = max(0, findMSB(uint(maxDiff)));
 	float cascadeSpan = baseSpan * float(0x1 << cascade);
@@ -694,7 +694,7 @@ void main(void)
 	float specConeAngle = specAngleMin + specularity * (specAngleMax - specAngleMin);
 	float specConeAperture = tan(specConeAngle * 0.5f);
 	// Direction
-	vec3 worldEye = normalize(camPos.xyz - worldPos);
+	vec3 worldEye = normalize(camPos.xyz - pos);
 	vec3 specConeDir = normalize(-reflect(worldEye, worldNorm));
 	bool skipSpec = specularity < 0.5f;
 
@@ -723,7 +723,7 @@ void main(void)
 
 		// Initally Start the cone away from the surface since
 		// voxel system and polygon system are not %100 aligned
-		vec3 initalTraceStart = worldPos + worldNorm * cascadeSpan * startOffsetBias;
+		vec3 initalTraceStart = pos + worldNorm * cascadeSpan * startOffsetBias;
 
 		// Total Illumination and Occlusion
 		vec3 totalIllumination = vec3(0.0f);
@@ -795,6 +795,6 @@ void main(void)
 	//imageStore(outTex, ivec2(globalId), vec4(diffuseConeDir, 0.0f));
 	imageStore(outTex, ivec2(globalId), surfaceAccumulation);
 	//imageStore(outTex, ivec2(globalId), vec4(result.w));
-	//imageStore(outTex, ivec2(globalId), vec4(worldPos, 0.0f));
+	//imageStore(outTex, ivec2(globalId), vec4(pos, 0.0f));
 	//imageStore(outTex, ivec2(globalId), vec4(worldNorm, 0.0f));
 }

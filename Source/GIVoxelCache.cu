@@ -42,8 +42,8 @@ size_t GIVoxelCache::FetchFileVoxelSize(const std::string& voxelGFGFile,
 	const auto& header = gfgFile.Header();
 	assert(gfgFile.Header().meshes.size() == 2);
 
-	return gfgFile.MeshVertexDataSize(0) +
-		   gfgFile.MeshVertexDataSize(1);
+	return (gfgFile.MeshVertexDataSize(0) +
+		   gfgFile.MeshVertexDataSize(1)) * batch->RepeatCount();
 }
 
 size_t GIVoxelCache::LoadBatchVoxels(size_t gpuBufferOffset, float currentSpan,
@@ -92,7 +92,7 @@ size_t GIVoxelCache::LoadBatchVoxels(size_t gpuBufferOffset, float currentSpan,
 			gfgFile.MeshVertexData(reinterpret_cast<uint8_t*>(objectInfoData.data()), 1);
 
 			// Some Validation
-			const auto& component = meshObjCount.components[i];
+			const auto& component = meshObjCount.components[0];
 			assert(component.dataType == GFGDataType::UINT32_2);
 			assert(sizeof(MeshVoxelInfo) == GFGDataTypeByteSize[static_cast<int>(GFGDataType::UINT32_2)]);
 			assert(component.internalOffset == 0);

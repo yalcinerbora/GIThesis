@@ -314,38 +314,38 @@ __global__ void GenFrontNeighborPtrs(// SVO
 												 nodePos, octreeParams, level);
 			if(traversedLevel == level) 
 				gSVOLevels[level].gLevelNodes[globalId].neigbours[0] = nodeLocation;
-			//else
-			//{
-			//	// Here is corner special case
-			//	// if x->y->z top right corner neighbor has illum value (and none other has illum)
-			//	// we cant traverse from x->y->z (or any other combination)
-			//	// we need to solve this case 
-			//	int3 cornerPos = nodePos;
-			//	cornerPos.y += 1;
-			//	cornerPos.z += 1;				
-			//	uint32_t cornerLoc = TraverseNode(traversedLevel,
-			//									  reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
-			//									  nodePos, octreeParams, level);
-			//	
-			//	const uint32_t* cornerIllumLoc = reinterpret_cast<const uint32_t*>(gSVOLevels[traversedLevel].gLevelIllum + cornerLoc);
-			//	if(traversedLevel == level && cornerIllumLoc[0] == 0x0)
-			//	{
-			//		// Corner has value and we couldnt generate a x neighbor node
-			//		// Force forward gen 
-			//		uint32_t xNLoc = PunchThroughNode(gLevelAllocators, gLevelCapacities, gSVOLevels,
-			//										  nodePos, octreeParams, level, false);
-			//		gSVOLevels[level].gLevelNodes[globalId].neigbours[0] = xNLoc;
+			else
+			{
+				// Here is corner special case
+				// if x->y->z top right corner neighbor has illum value (and none other has illum)
+				// we cant traverse from x->y->z (or any other combination)
+				// we need to solve this case 
+				int3 cornerPos = nodePos;
+				cornerPos.y += 1;
+				cornerPos.z += 1;				
+				uint32_t cornerLoc = TraverseNode(traversedLevel,
+												  reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+												  nodePos, octreeParams, level);
+				
+				const uint32_t* cornerIllumLoc = reinterpret_cast<const uint32_t*>(gSVOLevels[traversedLevel].gLevelIllum + cornerLoc);
+				if(traversedLevel == level && cornerIllumLoc[0] == 0x0)
+				{
+					// Corner has value and we couldnt generate a x neighbor node
+					// Force forward gen 
+					uint32_t xNLoc = PunchThroughNode(gLevelAllocators, gLevelCapacities, gSVOLevels,
+													  nodePos, octreeParams, level, false);
+					gSVOLevels[level].gLevelNodes[globalId].neigbours[0] = xNLoc;
 
-			//		// And Link X neigbours y neighbor (that y neighbor is available)
-			//		nodePos.y += 1;
-			//		uint32_t xyNLoc = TraverseNode(traversedLevel,
-			//									   reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
-			//									   nodePos, octreeParams, level);
-			//		assert(traversedLevel == level);
-			//		gSVOLevels[level].gLevelNodes[xyNLoc].neigbours[1] = xNLoc;
-			//		nodePos.y -= 1;
-			//	}
-			//}
+					// And Link X neigbours y neighbor (that y neighbor is available)
+					nodePos.y += 1;
+					uint32_t xyNLoc = TraverseNode(traversedLevel,
+												   reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+												   nodePos, octreeParams, level);
+					assert(traversedLevel == level);
+					gSVOLevels[level].gLevelNodes[xyNLoc].neigbours[1] = xNLoc;
+					nodePos.y -= 1;
+				}
+			}
 		}
 		nodePos.x -= 1;
 		nodePos.y += 1;

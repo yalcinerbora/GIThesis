@@ -795,7 +795,6 @@ double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
 										  uint32_t renderLevel,
 										  OctreeRenderType octreeRender)
 {
-
 	// Light Intensity Texture
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
@@ -806,7 +805,7 @@ double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
 	glBeginQuery(GL_TIME_ELAPSED, queryID);
 
 	// Shaders
-	compVoxSampleWorld.Bind();
+	compVoxTraceWorld.Bind();
 
 	// Uniforms
 	glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(octreeRender));
@@ -814,11 +813,10 @@ double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
 
 	// Uniform Buffers
 	// Frame transform already bound
+	dRenderer.BindFrameTransform(U_FTRANSFORM);
 	dRenderer.BindInvFrameTransform(U_INVFTRANSFORM);
 	oglData.BindAsUniformBuffer(U_OCTREE_UNIFORMS, static_cast<uint32_t>(octreeUniformsOffset),
 								sizeof(OctreeUniforms));
-	//oglData.BindAsUniformBuffer(U_INDIRECT_UNIFORMS, static_cast<uint32_t>(indirectUniformsOffset),
-	//							sizeof(IndirectUniforms));
 
 	// SSBO Buffers
 	oglData.BindAsShaderStorageBuffer(LU_SVO_LEVEL_OFFSET,
@@ -830,9 +828,9 @@ double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
 									  static_cast<uint32_t>(oglData.Count() - illumOffset));
 
 	// Textures
-	//dRenderer.getGBuffer().BindAsTexture(T_COLOR, RenderTargetLocation::COLOR);
+	//dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::COLOR);
 	dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
-	//dRenderer.getGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
+	//dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::NORMAL);
 
 	// Images
 	glBindImageTexture(I_OUT_TEXTURE, coneTex.Texture(), 0, false, 0, GL_WRITE_ONLY, coneTex.Format());
@@ -848,8 +846,6 @@ double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
 
-	// I have to unbind the compute shader or weird things happen
-	Shader::Unbind(ShaderType::COMPUTE);
 	return timeElapsed / 1000000.0;
 }
 
@@ -859,8 +855,6 @@ double GISparseVoxelOctree::DebugSampleSVO(ConeTraceTexture& coneTex,
 										   uint32_t renderLevel,
 										   OctreeRenderType octreeRender)
 {
-	GI_LOG("%d", renderLevel);
-
 	// Light Intensity Texture
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);

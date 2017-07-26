@@ -566,13 +566,13 @@ __global__ void VoxelTransform(// Voxel Pages
 
 	// Calculate VoxelWeights
 	float3 volumeWeight;
-	volumeWeight.x = worldPos.x * invSpan;
-	volumeWeight.y = worldPos.y * invSpan;
-	volumeWeight.z = worldPos.z * invSpan;
+	volumeWeight.x = fmodf(worldPos.x, sGridInfo.span) * invSpan;
+	volumeWeight.y = fmodf(worldPos.y, sGridInfo.span) * invSpan;
+	volumeWeight.z = fmodf(worldPos.z, sGridInfo.span) * invSpan;
 
-	volumeWeight.x = volumeWeight.x - static_cast<float>(voxPos.x);
-	volumeWeight.y = volumeWeight.y - static_cast<float>(voxPos.y);
-	volumeWeight.z = volumeWeight.z - static_cast<float>(voxPos.z);
+	//volumeWeight.x = volumeWeight.x - static_cast<float>(voxPos.x);
+	//volumeWeight.y = volumeWeight.y - static_cast<float>(voxPos.y);
+	//volumeWeight.z = volumeWeight.z - static_cast<float>(voxPos.z);
 
 	//volumeWeight.x = 1.0f;
 	//volumeWeight.y = 1.0f;

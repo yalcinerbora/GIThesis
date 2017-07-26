@@ -8,6 +8,126 @@
 #include "CSVONodeAlloc.cuh"
 #include <cuda.h>
 
+//__global__ void ClearList(const CSVOLevel& gDenseLevel,
+//						  uint32_t levelSize)
+//{
+//	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+//	if(globalId >= levelSize) return;
+//	if(gDenseLevel.gVoxId[globalId] != 0xFFFFFFFF)
+//		gDenseLevel.gVoxId[globalId] = 0xFFFFFFFF;
+//}
+//
+//
+//__global__ void DCheckDenseNeighbours(const CSVOLevel& gDenseLevel,
+//									  const OctreeParameters octreeParams)
+//{
+//	int levelSize = (0x1 << octreeParams.DenseLevel);
+//	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+//	if(globalId >= (levelSize * levelSize * levelSize)) return;
+//
+//	// Voxel Id
+//	uint32_t voxPosPacked = gDenseLevel.gVoxId[globalId];
+//	CSVONode node = gDenseLevel.gLevelNodes[globalId];
+//
+//	if(voxPosPacked != 0xFFFFFFFF) // Check all nodes
+//	{
+//		uint32_t cascadeId = octreeParams.MaxSVOLevel - octreeParams.DenseLevel;
+//		int3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxPosPacked),
+//										cascadeId,
+//										octreeParams.CascadeCount,
+//										octreeParams.CascadeBaseLevel);
+//		// X Neighbor Check
+//		int3 xNeighbor = nodePos; xNeighbor.x += 1;
+//		if(xNeighbor.x < levelSize)
+//		{
+//			uint32_t linearId = DenseIndex(xNeighbor, levelSize);
+//			uint32_t packedNeighbor = gDenseLevel.gVoxId[linearId];
+//			uint32_t irrad = reinterpret_cast<const uint32_t*>(gDenseLevel.gLevelIllum + linearId)[0];
+//
+////			if(irrad != 0x0)
+//			{
+//				int3 nodePosN = ExpandToSVODepth(ExpandVoxPos(packedNeighbor),
+//												 cascadeId,
+//												 octreeParams.CascadeCount,
+//												 octreeParams.CascadeBaseLevel);
+//				// Value Check
+//				assert(nodePosN.x == xNeighbor.x);
+//				assert(nodePosN.y == xNeighbor.y);
+//				assert(nodePosN.z == xNeighbor.z);
+//
+//				// Neighbor Check
+//				assert(linearId == node.neigbours[0]);
+//			}
+//			//else if(node.neigbours[0] != 0xFFFFFFFF)
+//			//{
+//			//	// Then we must have a valued illum
+//			//	uint32_t irrad = reinterpret_cast<const uint32_t*>(gDenseLevel.gLevelIllum + globalId)[0];
+//			//	assert(irrad != 0x0);
+//			//}
+//		}
+//
+//		// Y Neighbor Check
+//		int3 yNeighbor = nodePos; yNeighbor.y += 1;
+//		if(yNeighbor.y < levelSize)
+//		{
+//			uint32_t linearId = DenseIndex(yNeighbor, levelSize);
+//			uint32_t packedNeighbor = gDenseLevel.gVoxId[linearId];
+//			uint32_t irrad = reinterpret_cast<const uint32_t*>(gDenseLevel.gLevelIllum + linearId)[0];
+//
+////			if(irrad != 0x0)
+//			{
+//				int3 nodePosN = ExpandToSVODepth(ExpandVoxPos(packedNeighbor),
+//												 cascadeId,
+//												 octreeParams.CascadeCount,
+//												 octreeParams.CascadeBaseLevel);
+//				// Value Check
+//				assert(nodePosN.x == yNeighbor.x);
+//				assert(nodePosN.y == yNeighbor.y);
+//				assert(nodePosN.z == yNeighbor.z);
+//
+//				// Neighbor Check
+//				assert(linearId == node.neigbours[1]);
+//			}
+//			//else if(node.neigbours[1] != 0xFFFFFFFF)
+//			//{
+//			//	// Then we must have a valued illum
+//			//	uint32_t irrad = reinterpret_cast<const uint32_t*>(gDenseLevel.gLevelIllum + globalId)[0];
+//			//	assert(irrad != 0x0);
+//			//}
+//		}
+//
+//		// Z Neighbor Check
+//		int3 zNeighbor = nodePos; zNeighbor.z += 1;
+//		if(zNeighbor.z < levelSize)
+//		{
+//			uint32_t linearId = DenseIndex(zNeighbor, levelSize);
+//			uint32_t packedNeighbor = gDenseLevel.gVoxId[linearId];
+//			uint32_t irrad = reinterpret_cast<const uint32_t*>(gDenseLevel.gLevelIllum + linearId)[0];
+//
+////			if(irrad != 0x0)
+//			{
+//				int3 nodePosN = ExpandToSVODepth(ExpandVoxPos(packedNeighbor),
+//												 cascadeId,
+//												 octreeParams.CascadeCount,
+//												 octreeParams.CascadeBaseLevel);
+//				// Value Check
+//				assert(nodePosN.x == zNeighbor.x);
+//				assert(nodePosN.y == zNeighbor.y);
+//				assert(nodePosN.z == zNeighbor.z);
+//
+//				// Neighbor Check
+//				assert(linearId == node.neigbours[2]);
+//			}
+//			//else if(node.neigbours[2] != 0xFFFFFFFF)
+//			//{
+//			//	// Then we must have a valued illum
+//			//	uint32_t irrad = reinterpret_cast<const uint32_t*>(gDenseLevel.gLevelIllum + globalId)[0];
+//			//	assert(irrad != 0x0);
+//			//}
+//		}
+//	}
+//}
+
 __global__ void AverageLevelDense(// SVO
 								  const CSVOLevel& gCurrentLevel,
 								  const CSVOLevelConst& gNextLevel,
@@ -160,22 +280,114 @@ __global__ void AverageLevelSparse(// SVO
 	}
 }
 
-__global__ void LinkNeigbourPtrs(// SVO
-								 const CSVOLevel* gSVOLevels,
-								 uint32_t* gLevelAllocators,
-								 const uint32_t* gLevelCapacities,
-								 // Limits
-								 const OctreeParameters octreeParams,
-								 const uint32_t nodeCount,
-								 const uint32_t level)
+__global__ void GenFrontNeighborPtrs(// SVO
+									 const CSVOLevel* gSVOLevels,
+									 uint32_t* gLevelAllocators,
+									 const uint32_t* gLevelCapacities,
+									 // Limits
+									 const OctreeParameters octreeParams,
+									 const uint32_t nodeCount,
+									 const uint32_t level)
 {
 	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
 	if(globalId >= nodeCount) return;
 
 	const CSVOLevel& currentLevel = gSVOLevels[level];
 	uint32_t voxPosPacked = currentLevel.gVoxId[globalId];
-	if(voxPosPacked != 0xFFFFFFFF &&
-	   (voxPosPacked & 0x80000000) == 0x0)
+
+	if(voxPosPacked != 0xFFFFFFFF)
+	{
+		uint32_t cascadeId = octreeParams.MaxSVOLevel - level;
+		int3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxPosPacked),
+										cascadeId,
+										octreeParams.CascadeCount,
+										octreeParams.CascadeBaseLevel);
+		int levelId = (0x1 << level);
+		
+		// Force gen back neigbours		
+		nodePos.x += 1;
+		if(nodePos.x < levelId)
+		{
+			uint32_t traversedLevel;
+			uint32_t nodeLocation = TraverseNode(traversedLevel,
+												 reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+												 nodePos, octreeParams, level);
+			if(traversedLevel == level) 
+				gSVOLevels[level].gLevelNodes[globalId].neigbours[0] = nodeLocation;
+			//else
+			//{
+			//	// Here is corner special case
+			//	// if x->y->z top right corner neighbor has illum value (and none other has illum)
+			//	// we cant traverse from x->y->z (or any other combination)
+			//	// we need to solve this case 
+			//	int3 cornerPos = nodePos;
+			//	cornerPos.y += 1;
+			//	cornerPos.z += 1;				
+			//	uint32_t cornerLoc = TraverseNode(traversedLevel,
+			//									  reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+			//									  nodePos, octreeParams, level);
+			//	
+			//	const uint32_t* cornerIllumLoc = reinterpret_cast<const uint32_t*>(gSVOLevels[traversedLevel].gLevelIllum + cornerLoc);
+			//	if(traversedLevel == level && cornerIllumLoc[0] == 0x0)
+			//	{
+			//		// Corner has value and we couldnt generate a x neighbor node
+			//		// Force forward gen 
+			//		uint32_t xNLoc = PunchThroughNode(gLevelAllocators, gLevelCapacities, gSVOLevels,
+			//										  nodePos, octreeParams, level, false);
+			//		gSVOLevels[level].gLevelNodes[globalId].neigbours[0] = xNLoc;
+
+			//		// And Link X neigbours y neighbor (that y neighbor is available)
+			//		nodePos.y += 1;
+			//		uint32_t xyNLoc = TraverseNode(traversedLevel,
+			//									   reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+			//									   nodePos, octreeParams, level);
+			//		assert(traversedLevel == level);
+			//		gSVOLevels[level].gLevelNodes[xyNLoc].neigbours[1] = xNLoc;
+			//		nodePos.y -= 1;
+			//	}
+			//}
+		}
+		nodePos.x -= 1;
+		nodePos.y += 1;
+		if(nodePos.y < levelId)
+		{
+			uint32_t traversedLevel;
+			uint32_t nodeLocation = TraverseNode(traversedLevel,
+												 reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+												 nodePos, octreeParams, level);
+			if(traversedLevel == level)
+				gSVOLevels[level].gLevelNodes[globalId].neigbours[1] = nodeLocation;
+		}
+		nodePos.y -= 1;
+		nodePos.z += 1;
+		if(nodePos.z < levelId)
+		{
+			uint32_t traversedLevel;
+			uint32_t nodeLocation = TraverseNode(traversedLevel,
+												 reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
+												 nodePos, octreeParams, level);
+			if(traversedLevel == level) 
+				gSVOLevels[level].gLevelNodes[globalId].neigbours[2] = nodeLocation;
+		}
+		currentLevel.gVoxId[globalId] = 0xFFFFFFFF;
+	}
+}
+
+__global__ void GenBackNeighborPtrs(// SVO
+									 const CSVOLevel* gSVOLevels,
+									 uint32_t* gLevelAllocators,
+									 const uint32_t* gLevelCapacities,
+									 // Limits
+									 const OctreeParameters octreeParams,
+									 const uint32_t nodeCount,
+									 const uint32_t level)
+{
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	if(globalId >= nodeCount) return;
+
+	const CSVOLevel& currentLevel = gSVOLevels[level];
+	uint32_t voxPosPacked = currentLevel.gVoxId[globalId];
+	if(voxPosPacked != 0xFFFFFFFF)
 	{
 		uint32_t cascadeId = octreeParams.MaxSVOLevel - level;
 		int3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxPosPacked),
@@ -183,73 +395,30 @@ __global__ void LinkNeigbourPtrs(// SVO
 										octreeParams.CascadeCount,
 										octreeParams.CascadeBaseLevel);
 
-		// Currently node points (i)th level node
-		int levelSize = (0x1 << level);
-
 		// Force gen back neigbours		
 		nodePos.x -= 1;
-		if(nodePos.x >= 0 && nodePos.x < levelSize)
+		if(nodePos.x >= 0)
 		{
-			uint32_t traversedLevel;
-			uint32_t nodeLocation = TraverseNode(traversedLevel,
-												 reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
-												 nodePos, octreeParams, level);
-			if(traversedLevel == level) gSVOLevels[level].gLevelNodes[nodeLocation].neigbours[0] = globalId;
+			uint32_t nodeLocation = PunchThroughNode(gLevelAllocators, gLevelCapacities, gSVOLevels,
+													 nodePos, octreeParams, level, false);
+			gSVOLevels[level].gLevelNodes[nodeLocation].neigbours[0] = globalId;
 		}
 		nodePos.x += 1;
 		nodePos.y -= 1;
-		if(nodePos.y >= 0 && nodePos.y < levelSize)
+		if(nodePos.y >= 0)
 		{
-			uint32_t traversedLevel;
-			uint32_t nodeLocation = TraverseNode(traversedLevel,
-												 reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
-												 nodePos, octreeParams, level);
-			if(traversedLevel == level) gSVOLevels[level].gLevelNodes[nodeLocation].neigbours[1] = globalId;
+			uint32_t nodeLocation = PunchThroughNode(gLevelAllocators, gLevelCapacities, gSVOLevels,
+													 nodePos, octreeParams, level, false);
+			gSVOLevels[level].gLevelNodes[nodeLocation].neigbours[1] = globalId;
 		}
 		nodePos.y += 1;
 		nodePos.z -= 1;
-		if(nodePos.z >= 0 && nodePos.z < levelSize)
+		if(nodePos.z >= 0)
 		{
-			uint32_t traversedLevel;
-			uint32_t nodeLocation = TraverseNode(traversedLevel,
-												 reinterpret_cast<const CSVOLevelConst*>(gSVOLevels),
-												 nodePos, octreeParams, level);
-			if(traversedLevel == level) gSVOLevels[level].gLevelNodes[nodeLocation].neigbours[2] = globalId;
+			uint32_t nodeLocation = PunchThroughNode(gLevelAllocators, gLevelCapacities, gSVOLevels,
+													 nodePos, octreeParams, level, false);
+			gSVOLevels[level].gLevelNodes[nodeLocation].neigbours[2] = globalId;
 		}
-		currentLevel.gVoxId[globalId] = 0xFFFFFFFF;
-	}
-}
-
-__global__ void GenNeigbourPtrs(// SVO
-								const CSVOLevel* gSVOLevels,
-								uint32_t* gLevelAllocators,
-								const uint32_t* gLevelCapacities,
-								// Limits
-								const OctreeParameters octreeParams,
-								const uint32_t nodeCount,
-								const uint32_t level)
-{
-	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
-	if(globalId >= nodeCount) return;
-
-	const CSVOLevel& currentLevel = gSVOLevels[level];
-	uint32_t voxPosPacked = currentLevel.gVoxId[globalId];
-	if(voxPosPacked != 0xFFFFFFFF &&
-	   (voxPosPacked & 0x80000000) == 0x0)
-	{
-		uint32_t cascadeId = octreeParams.MaxSVOLevel - level;
-		const int3 nodePos = ExpandToSVODepth(ExpandVoxPos(voxPosPacked),
-											  cascadeId,
-											  octreeParams.CascadeCount,
-											  octreeParams.CascadeBaseLevel);
-
-		NodeReconstruct(gLevelAllocators,
-						gLevelCapacities,
-						gSVOLevels,
-						nodePos,
-						octreeParams,
-						level);
-		currentLevel.gVoxId[globalId] = 0xFFFFFFFF;
 	}
 }
 
@@ -359,17 +528,19 @@ __global__ void SVOReconstruct(// SVO
 
 	// Partial lighting calculation
 	float3 lightDir = {0.0f, 0.0f, 0.0f};
-	float3 irradianceDiffuse = TotalIrradiance(lightDir,
-											   // Node Params
-											   worldPos,
-											   Normalize(unpackNormal),
-											   unpackAlbedo,
-											   // Light Parameters
-											   liParams);
-	unpackAlbedo.x = irradianceDiffuse.x;
-	unpackAlbedo.y = irradianceDiffuse.y;
-	unpackAlbedo.z = irradianceDiffuse.z;
-
+	if(liParams.injectOn)
+	{
+		float3 irradianceDiffuse = TotalIrradiance(lightDir,
+												   // Node Params
+												   worldPos,
+												   Normalize(unpackNormal),
+												   unpackAlbedo,
+												   // Light Parameters
+												   liParams);
+		unpackAlbedo.x = irradianceDiffuse.x;
+		unpackAlbedo.y = irradianceDiffuse.y;
+		unpackAlbedo.z = irradianceDiffuse.z;
+	}
 
 	// Now we will start allocating all nodes
 	// Each node will generate multiple neigbouring nodes (8-neigbour filtering)

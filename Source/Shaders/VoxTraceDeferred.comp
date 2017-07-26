@@ -36,6 +36,7 @@
 U_RENDER_TYPE uniform uint renderType;
 U_FETCH_LEVEL uniform uint fetchLevel;
 
+
 LU_SVO_NODE buffer SVONode
 { 
 	uvec4 svoNode[];
@@ -120,10 +121,11 @@ uint DenseIndexToLinear(in ivec3 denseIndex, in uint level)
 ivec3 LevelVoxId(out vec3 offset, in vec3 worldPoint, in uint depth)
 {
 	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
-	vec3 voxId = (worldPoint - worldPos.xyz) / levelSpan;
-	vec3 voxIdBase = floor(voxId);
-	offset = voxId - voxIdBase;
-	return ivec3(voxIdBase);
+	float invLevelSpan = 1.0f / levelSpan;
+
+	vec3 relativeLoc = worldPoint - worldPos;
+	offset = mod(relativeLoc, levelSpan) * invLevelSpan;
+	return ivec3(floor(relativeLoc * invLevelSpan));
 }
 
 //vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
@@ -312,6 +314,36 @@ vec3 FetchFromIllum(out float occlusion,
 	return vec3(0.0f);
 }
 
+uint ResolveNeig(in uvec4 neigLo, in uvec4 neigHi, in uint index)
+{
+	if(index < 4) return neigLo[index];
+	else return neigHi[index - 4];
+}
+
+uvec4 FetchChildIllum(in uvec4 neigLo, in uvec4 neigHi, in ivec3 childNode, in uint offset)
+{
+	// We need to check node id to find out actual nodes
+	// If that level's voxelId is even (all nodes combined on first parent)
+	// For each bit next node moves a node
+	ivec3 childId = childNode % 2;
+	ivec3 parentOffset = childNode / 2;
+
+	uint childIdLinear = 0;
+	childIdLinear |= (childId.z << 2);
+	childIdLinear |= (childId.y << 1);
+	childIdLinear |= (childId.x << 0);
+
+	uint parentOffsetLinear = 0;
+	parentOffsetLinear |= (parentOffset.z << 2);
+	parentOffsetLinear |= (parentOffset.y << 1);
+	parentOffsetLinear |= (parentOffset.x << 0);
+
+	uint currentNeig = ResolveNeig(neigLo, neigHi, parentOffsetLinear);
+	if(currentNeig != 0xFFFFFFFF) 
+		return svoIllum[offset + currentNeig + childIdLinear];
+	return uvec4(0);
+}
+
 vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 {
 	vec3 offset;
@@ -347,7 +379,7 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 		uvec4 illum5 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 1), fetchLevel)];
 		uvec4 illum6 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 1), fetchLevel)];
 		uvec4 illum7 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 1), fetchLevel)];
-		
+				
 		// Data Fetch (return gray if no value is avail)
 		float dataOcclusion;
 		vec3 result = FetchFromIllum(dataOcclusion, 
@@ -382,27 +414,34 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 		// or missed but on cascade level		 
 		if(traversedLevel >= (minCascadeLevel - 1) ||
 		   traversedLevel == (fetchLevel - 1))
-		{
+		{			
+
 			// Quadlinear Interp
 			// Deferred do not require this but we will implement this
-			uvec4 neighborsLow, neighborsHi;
-			uvec4 illum0 = uvec4(0), illum1 = uvec4(0);
-			uvec4 illum2 = uvec4(0), illum3 = uvec4(0);
-			uvec4 illum4 = uvec4(0), illum5 = uvec4(0);
-			uvec4 illum6 = uvec4(0), illum7 = uvec4(0);
+			uvec4 neighborsLow = uvec4(0xFFFFFFFF);
+			uvec4 neighborsHi = uvec4(0xFFFFFFFF);
+			uvec4 illum0 = uvec4(0); //uvec4(0x00FF00FF, 0, 0, 0); //
+			uvec4 illum1 = uvec4(0); //uvec4(0x00FF00FF, 0, 0, 0); //
+			uvec4 illum2 = uvec4(0); //uvec4(0x00FF00FF, 0, 0, 0); //
+			uvec4 illum3 = uvec4(0); //uvec4(0x00FF00FF, 0, 0, 0); //
+			uvec4 illum4 = uvec4(0); //uvec4(0x00FF00FF, 0, 0, 0); //
+			uvec4 illum5 = uvec4(0); //uvec4(0x00FF00FF, 0, 0, 0); //
+			uvec4 illum6 = uvec4(0); //uvec4(0x00FF00FF, 0, 0, 0); //
+			uvec4 illum7 = uvec4(0); //uvec4(0x00FF00FF, 0, 0, 0); //
 			
 			// Parent Level
 			uint parentLevel = traversedLevel;
 			uint offset = svoLevelOffsets[parentLevel];
 			uint nodeOffset = svoLevelOffsets[parentLevel] - nodeOffsetDifference;
+			index = LevelVoxId(interp, worldPos, parentLevel);
 
 			// (0, 0, 0)
-			neighborsLow[0] = nodeIndex;
+			neighborsLow[0] = svoNode[nodeOffset + nodeIndex].x;
 			illum0 = svoIllum[offset + nodeIndex];
 
 			// Neigbours
 			uvec3 firstNeig = svoNode[nodeOffset + nodeIndex].yzw;
-			uvec3 secondNeig = uvec3(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+			uvec3 secondNeig = uvec3(0xFFFFFFFF);
 			uint thridNeig = 0xFFFFFFFF;
 
 			// First order neighbors
@@ -412,20 +451,23 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 			if(firstNeig.x != 0xFFFFFFFF)
 			{
 				neighborsLow[1] = svoNode[nodeOffset + firstNeig.x].x;
-				secondNeig.x = svoNode[nodeOffset + firstNeig.x].z;
 				illum1 = svoIllum[offset + firstNeig.x];
+
+				secondNeig.x = svoNode[nodeOffset + firstNeig.x].z;	// x -> y
 			}
 			if(firstNeig.y != 0xFFFFFFFF) 
 			{
-				neighborsLow[2] = svoNode[nodeOffset + firstNeig.y].x;
-				secondNeig.y = svoNode[nodeOffset + firstNeig.y].w;
+				neighborsLow[2] = svoNode[nodeOffset + firstNeig.y].x;				
 				illum2 = svoIllum[offset + firstNeig.y];
+
+				secondNeig.y = svoNode[nodeOffset + firstNeig.y].w;	// y -> z
 			}
 			if(firstNeig.z != 0xFFFFFFFF) 
 			{
-				neighborsHi[0] = svoNode[nodeOffset + firstNeig.z].x;
-				secondNeig.z = svoNode[nodeOffset + firstNeig.z].y;
+				neighborsHi[0] = svoNode[nodeOffset + firstNeig.z].x;				
 				illum4 = svoIllum[offset + firstNeig.z];
+
+				secondNeig.z = svoNode[nodeOffset + firstNeig.z].y;	// z -> x
 			}
 			
 			// Second order neighbors
@@ -435,45 +477,66 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir)
 			if(secondNeig.x != 0xFFFFFFFF)
 			{
 				neighborsLow[3] = svoNode[nodeOffset + secondNeig.x].x;
-				thridNeig = svoNode[nodeOffset + secondNeig.x].w;
-				illum4 = svoIllum[offset + secondNeig.x];
+				illum3 = svoIllum[offset + secondNeig.x];
+
+				thridNeig = svoNode[nodeOffset + secondNeig.x].w; // x -> y -> z				
 			}
 			if(secondNeig.y != 0xFFFFFFFF) 
 			{
-				neighborsLow[2] = svoNode[nodeOffset + secondNeig.y].x;
-				illum4 = svoIllum[offset + secondNeig.y];
+				neighborsHi[2] = svoNode[nodeOffset + secondNeig.y].x;
+				illum6 = svoIllum[offset + secondNeig.y];
 			}
 			if(secondNeig.z != 0xFFFFFFFF) 
 			{
-				neighborsHi[0] = svoNode[nodeOffset + secondNeig.z].x;
-				illum4 = svoIllum[offset + secondNeig.z];
+				neighborsHi[1] = svoNode[nodeOffset + secondNeig.z].x;
+				illum5 = svoIllum[offset + secondNeig.z];
 			}
-
+			
 			// Third order neighbors
 			// (1, 1, 1)
 			if(thridNeig != 0xFFFFFFFF)
 			{
 				neighborsHi[3] = svoNode[nodeOffset + thridNeig].x;
-				illum1 = svoIllum[offset + thridNeig];
+				illum7 = svoIllum[offset + thridNeig];
 			}
 
+			// Parent Fetch
+			float parentOcclusion;
+			vec3 parentResult = FetchFromIllum(parentOcclusion, 
+											   illum0, illum1, illum2, illum3,
+											   illum4, illum5, illum6, illum7,
+											   marchDir, interp);
+
+			// --------------------------//
 			// Child Level
 			uint childLevel = traversedLevel + 1;
 			offset = svoLevelOffsets[childLevel];
-			nodeOffset = svoLevelOffsets[childLevel] - nodeOffsetDifference;
+			//nodeOffset = svoLevelOffsets[childLevel] - nodeOffsetDifference;
+			index = LevelVoxId(interp, worldPos, childLevel);
+			ivec3 childBaseId = index; childBaseId &= 0x00000001;
 
-			// We need to check node id to find out actual nodes
-			// If that level's voxelId is even (all nodes combined on first parent)
-			// For each bit next node moves a node
+			illum0 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(0, 0, 0), offset);
+			illum1 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(1, 0, 0), offset);
+			illum2 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(0, 1, 0), offset);
+			illum3 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(1, 1, 0), offset);
+
+			illum4 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(0, 0, 1), offset);
+			illum5 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(1, 0, 1), offset);
+			illum6 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(0, 1, 1), offset);
+			illum7 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(1, 1, 1), offset);
 
 		
 			// Data Fetch (return gray if no value is avail)
-			float dataOcclusion;
-			vec3 result = FetchFromIllum(dataOcclusion, 
-										 illum0, illum1, illum2, illum3,
-										 illum4, illum5, illum6, illum7,
-										 marchDir, interp);
-			if (dataOcclusion == 0.0f) result = vec3(1.0f, 0.0f, 0.0f);
+			float childOcclusion;
+			vec3 childResult = FetchFromIllum(childOcclusion, 
+											  illum0, illum1, illum2, illum3,
+											  illum4, illum5, illum6, illum7,
+											  marchDir, interp);
+
+			// Quadlinear Interp
+			vec3 result = childResult;//mix(parentResult, childResult, 1.0f);
+			float dataOcclusion = childOcclusion;//mix(parentOcclusion, childOcclusion, 1.0f);
+			if (dataOcclusion == 0.0f) result = vec3(1.0f, 0.0f, 1.0f);
 			return result;
 		}
 	}

@@ -136,16 +136,8 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		depthRange[0], depthRange[1]
 	};
 
-
-
-	//GLuint texture = currentScene->getSceneLights().getShadowTextureArrayView();
-	//std::vector<float> shadowData(2048 * 2048, 0.0f);
-	//glGetTextureSubImage(texture, 0, 0, 0, 3, 2048, 2048, 1, GL_RED, GL_FLOAT, 2048 * 2048 * sizeof(float),
-	//					 shadowData.data());
-	//GI_LOG("%f", shadowData[1048 * 2048 + 800]);
-
-
-	injectOn = true;
+	//injectOn = true;
+	injectOn = false;
 	voxelOctree.UpdateSVO(svoReconTime, svoGenPtrTime, svoAverageTime, doTiming,
 						  voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),

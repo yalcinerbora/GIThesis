@@ -421,7 +421,6 @@ void GISparseVoxelOctree::MapOGLData()
 
 			// Clear used node pointers			
 			CUDA_CHECK(cudaMemset(nodePtr, 0xFF, size * sizeof(CSVONode)));
-			CUDA_CHECK(cudaMemset(nodePtr, 0xFF, size * sizeof(CSVONode)));
 		}
 		svoLevels[i].gLevelNodes = nodePtr;
 		svoLevels[i].gLevelIllum = illumPtr;
@@ -543,22 +542,33 @@ double GISparseVoxelOctree::GenNeigbourPointers(bool doTiming)
 	if(doTiming) t.Start();
 	
 	// Only Leaf node levels require this
-	//for(uint32_t i = octreeParams->MaxSVOLevel - 1; i >= octreeParams->CascadeBaseLevel - 1; i--)
-	for(uint32_t i = octreeParams->CascadeBaseLevel - 1; i < octreeParams->MaxSVOLevel; i++)
+	for(uint32_t i = octreeParams->DenseLevel; i < octreeParams->MaxSVOLevel; i++)
+	//for(uint32_t i = octreeParams->DenseLevel; i < 7; i++)
 	{
+		int denseLevelSize = (0x1 << i) * (0x1 << i) * (0x1 << i);
+		int levelSize = (i == octreeParams->DenseLevel) ? denseLevelSize : hLevelSizes[i];
+
 		// Kernel Call Pointer Generation
-		int gridSize = CudaInit::GenBlockSize(static_cast<int>(hLevelSizes[i]));
+		int gridSize = CudaInit::GenBlockSize(static_cast<int>(levelSize));
 		int blockSize = CudaInit::TBP;
 
 		// KC
-		GenNeigbourPtrs<<<gridSize, blockSize>>>(// SVO
+		GenBackNeighborPtrs<<<gridSize, blockSize>>>(// SVO
 												 dOctreeLevels,
 												 dLevelSizes,
 												 dLevelCapacities,
 												 // Limits
 												 *octreeParams,
-												 hLevelSizes[i],
+												 levelSize,
 												 i);
+		GenFrontNeighborPtrs<<<gridSize, blockSize>>>(// SVO
+												  dOctreeLevels,
+												  dLevelSizes,
+												  dLevelCapacities,
+												  // Limits
+												  *octreeParams,
+												  levelSize,
+												  i);
 		CUDA_KERNEL_CHECK();
 	}
 
@@ -567,32 +577,30 @@ double GISparseVoxelOctree::GenNeigbourPointers(bool doTiming)
 	// We need to check that
 
 	// Recieve Used Level Sizes
-	std::vector<uint32_t> extraLevelSizes(octreeParams->MaxSVOLevel + 1, 0);
-	CUDA_CHECK(cudaMemcpy(extraLevelSizes.data(), dLevelSizes,
+	//std::vector<uint32_t> extraLevelSizes(octreeParams->MaxSVOLevel + 1, 0);
+	CUDA_CHECK(cudaMemcpy(hLevelSizes.data(), dLevelSizes,
 						  (octreeParams->MaxSVOLevel + 1) * sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
 
-	// Make sure everything is connected
-	for(uint32_t i = octreeParams->DenseLevel; i >= octreeParams->DenseLevel; i--)
-	{
-		// Kernel Call Light Injection
-		int gridSize = CudaInit::GenBlockSize(extraLevelSizes[i]);
-		int blockSize = CudaInit::TBP;
+	//// Clear No
+	//for(uint32_t i = octreeParams->DenseLevel; i < octreeParams->MaxSVOLevel; i++)
+	//{
+	//	int denseLevelSize = (0x1 << i) * (0x1 << i) * (0x1 << i);
+	//	int levelSize = (i == octreeParams->DenseLevel) ? denseLevelSize : extraLevelSizes[i];
 
-		// KC
-		LinkNeigbourPtrs<<<gridSize, blockSize>>>(// SVO
-												  dOctreeLevels,
-												  dLevelSizes,
-												  dLevelCapacities,
-												  // Limits
-												  *octreeParams,
-												  extraLevelSizes[i],
-												  i);
-		CUDA_KERNEL_CHECK();
-	}
+	//	// Kernel Call Light Injection
+	//	int gridSize = CudaInit::GenBlockSize(levelSize);
+	//	int blockSize = CudaInit::TBP;
+
+	//	ClearList<<<gridSize, blockSize>>>(dOctreeLevels[i], levelSize);
+	//}
+
+
+	//	CUDA_KERNEL_CHECK();
+	//}
 
 	// Push Level Sizes
-	hLevelSizes = extraLevelSizes;
+	//hLevelSizes = extraLevelSizes;
 
 	if(doTiming)
 	{
@@ -851,6 +859,8 @@ double GISparseVoxelOctree::DebugSampleSVO(ConeTraceTexture& coneTex,
 										   uint32_t renderLevel,
 										   OctreeRenderType octreeRender)
 {
+	GI_LOG("%d", renderLevel);
+
 	// Light Intensity Texture
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);

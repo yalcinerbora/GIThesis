@@ -24,6 +24,7 @@ struct CSVONode
 // If i put CSVO node into packed pragma it fails on runtime (SVO Reconsrtuct kernel)
 // I've no idea why
 static_assert(sizeof(CSVONode) == sizeof(uint32_t) * 4, "CSVO Node should be packed");
+static_assert(offsetof(CSVONode, neigbours) == sizeof(uint32_t), "CSVO Node should be packed");
 
 typedef unsigned int CSVOIrradiance; // (rgb irradiance, a component specularity)
 typedef unsigned int CSVOLightDir;   // (xyz direction, w component used in average)
@@ -50,6 +51,7 @@ struct CSVOLevelConst
 {
 	const CSVONode* gLevelNodes;
 	const CSVOIllumination* gLevelIllum;
+	const uint32_t* gVoxId;
 };
 
 // Light Inject Related

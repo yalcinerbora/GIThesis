@@ -184,9 +184,9 @@ int main()
 	};
 	std::vector<std::string> sponzaSkeletal =
 	{
-		//"nyra.gfg"
+		"nyra.gfg"
 	};
-	ConstantScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
+	SponzaScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
 	scenes.push_back(&sponza);
 	// Cornell
 	std::vector<std::string> cornellRigid =

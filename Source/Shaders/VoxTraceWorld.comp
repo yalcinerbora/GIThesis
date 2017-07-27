@@ -6,8 +6,7 @@
 	Author		: Bora Yalciner
 	Description	:
 
-		Cuda does not support depth texture copy
-		we need to copy depth values of the gbuffer to depth
+		
 */
 
 // Definitions
@@ -26,7 +25,6 @@
 
 #define FLT_MAX 3.402823466e+38F
 #define EPSILON 0.00001f
-//#define SQRT_3 1.73205f
 
 #define IRRADIANCE 0
 #define SPECULAR_ALBEDO 1
@@ -38,9 +36,10 @@
 U_RENDER_TYPE uniform uint renderType;
 U_FETCH_LEVEL uniform uint fetchLevel;
 
+// Buffers
 LU_SVO_NODE buffer SVONode
 { 
-	uint svoNode[];
+	uvec4 svoNode[];
 };
 
 LU_SVO_ILLUM buffer SVOIllumination
@@ -71,7 +70,7 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 
 U_OCTREE_UNIFORMS uniform OctreeUniforms
 {
-	vec3 worldPos;
+	vec3 gridPos;
 	float baseSpan;
 
 	uint minSVOLevel;
@@ -82,37 +81,13 @@ U_OCTREE_UNIFORMS uniform OctreeUniforms
 	uint cascadeCount;
 	uint nodeOffsetDifference;
 	uint gridSize;
-	uint pad1;
+	uint pad0;
 };
 
 // Textures
 uniform I_OUT_TEXTURE image2D fbo;
 
 // Functions
-uint DenseIndexToLinear(in ivec3 denseIndex, in uint level)
-{
-	// TODO: Change to Morton (Z-order curve)
-	uint size = 1 << level;
-	return  denseIndex.z * size * size +
-			denseIndex.y * size +
-			denseIndex.x;
-}
-
-ivec3 LevelVoxId(out vec3 offset, in vec3 worldPoint, in uint depth)
-{
-	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
-	vec3 voxId = (worldPoint - worldPos.xyz) / levelSpan;
-	vec3 voxIdBase = floor(voxId);
-	offset = voxId - voxIdBase;
-	return ivec3(voxIdBase);
-}
-
-vec3 LevelVoxIdF(in vec3 worldPoint, in uint depth)
-{
-	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
-	return (worldPoint - worldPos.xyz) / levelSpan;
-}
-
 vec3 PixelToWorld()
 {
 	vec2 screenUV = (vec2(gl_GlobalInvocationID.xy) + vec2(0.5f) - vec2(viewport.xy)) / vec2(viewport.zw);
@@ -129,6 +104,25 @@ vec3 PixelToWorld()
 
 	// From Clip Space to World Space
 	return (invViewProjection * clip).xyz;
+}
+
+uint DenseIndexToLinear(in ivec3 denseIndex, in uint level)
+{
+	// TODO: Change to Morton (Z-order curve)
+	uint size = (0x1 << level);
+	return  denseIndex.z * size * size +
+			denseIndex.y * size +
+			denseIndex.x;
+}
+
+ivec3 LevelVoxId(out vec3 offset, in vec3 worldPoint, in uint depth)
+{
+	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
+	float invLevelSpan = 1.0f / levelSpan;
+
+	vec3 relativeLoc = worldPoint - gridPos;
+	offset = mod(relativeLoc, levelSpan) * invLevelSpan;
+	return ivec3(floor(relativeLoc * invLevelSpan));
 }
 
 uint CalculateLevelChildId(in ivec3 voxPos, in uint level)
@@ -178,7 +172,7 @@ float IntersectDistance(in vec3 position,
 	vec3 worldOffset = vec3(LevelVoxId(offset, position, traverseLevel)) * gridSpan;
 		
 	// Convert march position to voxel space
-	vec3 voxWorld = worldPos + worldOffset;
+	vec3 voxWorld = gridPos + worldOffset;
 	vec3 relativePos = position - voxWorld;
 	// 6 Plane intersection on cube normalized coordinates
 	// Since planes axis aligned writing code is optimized 
@@ -233,10 +227,7 @@ vec3 FetchFromIllum(out float occlusion, in uvec4 illum, in vec3 marchDir)
 	if(renderType == IRRADIANCE) return UnpackIrradianceSVO(illum.x).xyz;
 	else if(renderType == SPECULAR_ALBEDO) return UnpackIrradianceSVO(illum.x).www;
 	else if(renderType == NORMAL) return UnpackNormalSVO(illum.y);
-	else if(renderType == OCCLUSION)
-	{
-		return vec3(1.0f - occlusion);
-	}
+	else if(renderType == OCCLUSION) return vec3(1.0f - occlusion);
 	else if(renderType == LIGHT_DIR) return UnpackLightDirSVO(illum.w);
 	return vec3(0.0f);
 }
@@ -266,9 +257,10 @@ bool FindMarchLength(inout vec3 outData,
 	   fetchLevel <= denseLevel)
 	{
 		// Dense Fetch
-		vec3 interp;
+		vec3 interp;		
+		ivec3 index = LevelVoxId(interp, position, fetchLevel);
 		uint offset = svoLevelOffsets[fetchLevel];
-		ivec3 index = LevelVoxId(interp, worldPos, fetchLevel);
+		
 		uvec4 illum = svoIllum[offset + DenseIndexToLinear(index, fetchLevel)];
 
 		// Blend using occlusion values
@@ -276,7 +268,7 @@ bool FindMarchLength(inout vec3 outData,
 		vec3 data = FetchFromIllum(dataOcclusion, illum, marchDir);
 		outData += data * dataOcclusion * (1.0f - occlusion);
 		occlusion += dataOcclusion * (1.0f - occlusion);
-		if((1.0f - occlusion) <= 0.0f) 
+		if(occlusion >= 1.0f)
 		{
 			return false;
 		}
@@ -288,22 +280,14 @@ bool FindMarchLength(inout vec3 outData,
 	}
 	else
 	{
+		// Sparse Check
 		// Start tracing (stateless start from root (dense))
-		// Initialize Traverse
-		uint nodeIndex = 0;
-	
+		// Initialize Traverse	
 		// Dense Node Index Fetch
 		vec3 interp;
-		uint offset = svoLevelOffsets[fetchLevel] - nodeOffsetDifference;
-		ivec3 index = LevelVoxId(interp, worldPos, denseLevel);
-		nodeIndex = svoNode[offset + DenseIndexToLinear(index, denseLevel)];
-		if(nodeIndex == 0xFFFFFFFF) 
-		{
-			position += marchDir * IntersectDistance(position, marchDir, denseLevel);
-			return true;
-		}
-		nodeIndex += CalculateLevelChildId(voxPos, denseLevel + 1);
-
+		ivec3 index = LevelVoxId(interp, position, denseLevel);
+		uint nodeIndex = DenseIndexToLinear(index, denseLevel);
+	
 		uint traversedLevel = denseLevel;
 		while(traversedLevel < fetchLevel)
 		{			
@@ -311,11 +295,11 @@ bool FindMarchLength(inout vec3 outData,
 			uint nextNode = svoNode[offset + nodeIndex].x;
 			if(nextNode == 0xFFFFFFFF) break;
 			
-			traversedLevel++;			
+			traversedLevel++;
 			nodeIndex = nextNode + CalculateLevelChildId(voxPos, traversedLevel);			
 		}
 
-		//
+		// Fetch only node is on that level
 		if(traversedLevel >= minCascadeLevel || 
 		   traversedLevel == fetchLevel)
 		{
@@ -327,16 +311,12 @@ bool FindMarchLength(inout vec3 outData,
 			vec3 data = FetchFromIllum(dataOcclusion, illum, marchDir);
 			outData += data * dataOcclusion * (1.0f - occlusion);
 			occlusion += dataOcclusion * (1.0f - occlusion);
-			if((1.0f - occlusion) <= 0.0f) 
-			{
-				return false;
-			}
-			else
-			{
-				position += marchDir * IntersectDistance(position, marchDir, fetchLevel);
-				return true;
-			}
+			if(occlusion >= 1.0f) return false;
 		}
+
+		// Continue marching
+		position += marchDir * IntersectDistance(position, marchDir, traversedLevel);
+		return true;
 	}
 	// Code Should not Return from here ever
 	return false;
@@ -356,13 +336,12 @@ void main(void)
 	// Either ray is fully occluded
 	// Or ray is out of bounds
 	vec3 marchPos = rayPos;
-	vec3 outData = vec3(0.0f); float occlusion = 0.0f;	
+	vec3 outData = vec3(0.0f, 0.0f, 0.0f); float occlusion = 0.0f;	
 	while(FindMarchLength(outData, occlusion, marchPos, rayDir));
 	
 	// If directional type fit it into color space
-	if(renderType == NORMAL ||
-	   renderType == LIGHT_DIR) 
+	if(renderType == NORMAL || renderType == LIGHT_DIR) 
 		outData = (1.0f + outData) * 0.5f;
-	
+
 	imageStore(fbo, ivec2(globalId), vec4(outData, 1.0f)); 
 }

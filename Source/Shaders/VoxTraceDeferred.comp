@@ -2,16 +2,16 @@
 /*	
 	**Voxel Deferred Sampled Compute Shader**
 	
-	File Name	: VoxTraceAO.vert
+	File Name	: VoxTraceDeferred.vert
 	Author		: Bora Yalciner
 	Description	:
 
 		Instead of tracing camera rays it directly samples deferred depth buffer to
-		Sample positions from depth buffer
+		Sample positions of intersection points
 */
 
 // Definitions
-#define I_OUT_TEXTURE layout(rgba16f, binding = 0) restrict writeonly
+#define I_OUT_TEXTURE layout(rgba16f, binding = 0) restrict
 
 #define LU_SVO_NODE layout(std430, binding = 2) readonly
 #define LU_SVO_ILLUM layout(std430, binding = 3) readonly
@@ -32,11 +32,11 @@
 #define OCCLUSION 3
 #define LIGHT_DIR 4
 
-// Buffers
+// Uniforms
 U_RENDER_TYPE uniform uint renderType;
 U_FETCH_LEVEL uniform uint fetchLevel;
 
-
+// Buffers
 LU_SVO_NODE buffer SVONode
 { 
 	uvec4 svoNode[];
@@ -70,7 +70,7 @@ U_INVFTRANSFORM uniform InverseFrameTransform
 
 U_OCTREE_UNIFORMS uniform OctreeUniforms
 {
-	vec3 worldPos;
+	vec3 gridPos;
 	float baseSpan;
 
 	uint minSVOLevel;
@@ -123,7 +123,7 @@ ivec3 LevelVoxId(out vec3 offset, in vec3 worldPoint, in uint depth)
 	float levelSpan = baseSpan * (0x1 << (maxSVOLevel - depth));
 	float invLevelSpan = 1.0f / levelSpan;
 
-	vec3 relativeLoc = worldPoint - worldPos;
+	vec3 relativeLoc = worldPoint - gridPos;
 	offset = mod(relativeLoc, levelSpan) * invLevelSpan;
 	return ivec3(floor(relativeLoc * invLevelSpan));
 }
@@ -354,8 +354,8 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir, in uint maxLevel)
 	}
 
 	// Check Dense
-	if(maxLevel <= minSVOLevel) return vec3(0.0f, 1.0f, 0.0f);
-	else if(maxLevel > minSVOLevel && 
+	if(maxLevel < minSVOLevel) return vec3(0.0f, 1.0f, 0.0f);
+	else if(maxLevel >= minSVOLevel && 
 			maxLevel <= denseLevel)
 	{
 		// Dense Fetch
@@ -541,7 +541,7 @@ uint DetermineMaxLevel(in vec3 pos)
 	// Determine cascade no from distance of the camera
 	// And the min span for that cascade
 	float outerSpan = baseSpan * float(0x1 << (cascadeCount - 1));
-	vec3 gridCenter = worldPos.xyz + float(gridSize - 1) * 0.5f * outerSpan ;
+	vec3 gridCenter = gridPos.xyz + float(gridSize - 1) * 0.5f * outerSpan;
 	vec3 diff = abs(pos - gridCenter) / (float(gridSize - 1) * 0.5f);
 	float maxDiff = max(diff.x, max(diff.y, diff.z));
 
@@ -560,46 +560,10 @@ void main(void)
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
 	vec2 gBuffUV = vec2(globalId + vec2(0.5f) - viewport.xy) / viewport.zw;
 	vec3 pos = DepthToWorld(gBuffUV);
-	vec3 marchDir = normalize(worldPos - camPos.xyz);
+	vec3 marchDir = normalize(pos - camPos.xyz);
 	
 	// Actual Work
 	uint maxLevel = min(fetchLevel, DetermineMaxLevel(pos));
-
-	//if(maxLevel == 10)
-	//{
-	//	imageStore(fbo, ivec2(globalId), vec4(1.0f, 0.0f, 0.0f, 1.0f));
-	//}
-	//else if(maxLevel == 9)
-	//{
-	//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 0.0f, 1.0f));
-	//}
-	//else if(maxLevel == 8)
-	//{
-	//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 0.0f, 1.0f, 1.0f));
-	//}
-	//else if(maxLevel == 7)
-	//{
-	//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 1.0f, 1.0f));
-	//}
-
 	vec3 result = SampleSVO(pos, marchDir, maxLevel);
 	imageStore(fbo, ivec2(globalId), vec4(result, 1.0f));
-		
-	//uint linearId = globalId.y * imageSize(fbo).x + globalId.x;
-	//uint offset = svoLevelOffsets[9];		
-	//uint irradiance = svoIllum[offset + linearId].x;
-	//uint node = svoNode[offset - nodeOffsetDifference + linearId].x;
-	////if(linearId < 737792)
-	////if(linearId < (64*64*64))
-	//if(linearId < 100 * 1024)
-	//{
-	//	if(node != 0xFFFFFFFF) imageStore(fbo, ivec2(globalId), vec4(1.0f));
-	//	else imageStore(fbo, ivec2(globalId), vec4(0.0f));
-
-	//	//imageStore(fbo, ivec2(globalId), UnpackIrradianceSVO(irradiance));
-	//}
-	//else
-	//{
-	//	imageStore(fbo, ivec2(globalId), vec4(0.0f, 1.0f, 0.33f, 0.0f));
-	//}
 }

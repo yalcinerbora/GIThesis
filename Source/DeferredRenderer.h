@@ -184,16 +184,17 @@ class DeferredRenderer
 
 		void						Render(SceneI&, const Camera&, bool directLight, 
 										   const IEVector3& ambientColor,
-										   bool doTiming);
-		void						PopulateGBuffer(SceneI&, const Camera&, bool doTiming);
+										   bool doTiming);		
+		void						Present(const Camera&, bool doTiming);
 
-		// Do stuff by function
+
+		// Render Calls Individual
 		void						GenerateShadowMaps(SceneI&, const Camera&, bool doTiming);
 		void						DPass(SceneI&, const Camera&, bool doTiming);
 		void						GPass(SceneI&, const Camera&, bool doTiming);
+		void						PopulateGBuffer(SceneI&, const Camera&, bool doTiming);
 		void						ClearLI(const IEVector3& ambientColor);
 		void						LightPass(SceneI&, const Camera&, bool doTiming);
-		void						Present(const Camera&, bool doTiming);
 
 		// Directly Renders Buffers
 		void						ShowGBufferTexture(const Camera& camera, RenderScheme);
@@ -202,9 +203,6 @@ class DeferredRenderer
 												  SceneI& scene, int lightId, int layer);
 		void						ShowTexture(const Camera& camera, GLuint tex);
 		
-		// Gauss Pass
-		void						GaussianBlurPass(GLuint texture);
-
 		void						BindShadowMaps(SceneI&);
 		void						BindLightBuffers(SceneI&);
 		void						AttachSceneLightIndices(SceneI&);

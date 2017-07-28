@@ -271,8 +271,7 @@ class GISparseVoxelOctree
 		// Uses GBuffer to create inital rays (free camera to first bounce)
 		double							GlobalIllumination(ConeTraceTexture& coneTex,
 														   const DeferredRenderer&,
-														   const Camera& camera,
-														   const IndirectUniforms&,
+														   const Camera& camera,														   
 														   bool giOn,
 														   bool aoOn,
 														   bool specularOn);

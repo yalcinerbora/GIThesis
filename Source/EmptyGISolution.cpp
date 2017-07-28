@@ -74,12 +74,8 @@ void EmptyGISolution::Frame(const Camera& mainCam)
 	IEVector3 aColor = ambientLighting ? ambientColor : IEVector3::ZeroVector;
 	dRenderer.Render(*currentScene, mainCam, directLighting, aColor, doTiming);
 
-	// Get Timings
-	shadowTime = dRenderer.ShadowMapTime();
-	dPassTime = dRenderer.DPassTime();
-	gPassTime = dRenderer.GPassTime();
-	lPassTime = dRenderer.LPassTime();
-	mergeTime = dRenderer.MergeTime();
+	// Finally Present Buffer
+	dRenderer.Present(mainCam, doTiming);
 
 	if(scheme >= RenderScheme::G_DIFF_ALBEDO &&
 	   scheme <= RenderScheme::G_DEPTH)
@@ -96,6 +92,13 @@ void EmptyGISolution::Frame(const Camera& mainCam)
 								emptyGIBar.Light(),
 								emptyGIBar.LightLevel());
 	}
+
+	// Get Timings
+	shadowTime = dRenderer.ShadowMapTime();
+	dPassTime = dRenderer.DPassTime();
+	gPassTime = dRenderer.GPassTime();
+	lPassTime = dRenderer.LPassTime();
+	mergeTime = dRenderer.MergeTime();
 }
 
 void EmptyGISolution::SetFPS(double fpsMS)

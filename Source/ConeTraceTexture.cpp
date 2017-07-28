@@ -3,6 +3,7 @@
 #include "Macros.h"
 #include "GLSLBindPoints.h"
 #include "Camera.h"
+#include "OGLTimer.h"
 
 ConeTraceTexture::ConeTraceTexture()
 	: frontTexture(0)
@@ -86,8 +87,13 @@ GLuint ConeTraceTexture::Texture()
 	return frontTexture;
 }
 
-void ConeTraceTexture::BlurTexture(GLuint depthBuffer, const Camera& camera)
+double ConeTraceTexture::BlurTexture(GLuint depthBuffer, const Camera& camera)
 {	
+	// Timer
+	OGLTimer t;
+	t.Start();
+
+	// Call Size
 	GLuint blockX = 16;
 	GLuint blockY = 16;
 	GLuint gridX = (width + blockX - 1) / blockX;
@@ -128,6 +134,9 @@ void ConeTraceTexture::BlurTexture(GLuint depthBuffer, const Camera& camera)
 
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	}
+
+	t.Stop();
+	return t.ElapsedMS();
 }
 
 GLsizei ConeTraceTexture::Width() const

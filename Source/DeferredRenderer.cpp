@@ -775,10 +775,6 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLi
 	{
 		LightPass(scene, camera, doTiming);
 	}
-
-	// Light Intensity Merge
-	Present(camera, doTiming);
-
 	// All Done!
 }
 
@@ -908,71 +904,6 @@ void DeferredRenderer::ShowShadowMap(const Camera& camera,
 
 	// Draw
 	glDrawArrays(GL_TRIANGLES, 0, 3);
-}
-
-void DeferredRenderer::GaussianBlurPass(GLuint texture)
-{
-	//// Detect Edge
-	//computeEdge.Bind();
-	//glUniform2f(U_TRESHOLD, 0.007f, IEMath::CosF(IEMath::ToRadians(10.0f)));
-	//glUniform2f(U_NEAR_FAR, camera.near, camera.far);
-	//dRenderer.GetGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
-	//dRenderer.GetGBuffer().BindAsTexture(T_NORMAL, RenderTargetLocation::NORMAL);
-	//glBindImageTexture(I_OUT, edgeTex, 0, false, 0, GL_WRITE_ONLY, GL_RG8);
-	////glBindImageTexture(I_OUT, traceTexture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA16F);
-
-	//gridSize.x = (TraceWidth + 16 - 1) / 16;
-	//gridSize.y = (TraceHeight + 16 - 1) / 16;
-	//glDispatchCompute(gridSize.x, gridSize.y, 1);
-	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-	//// Edge Aware Gauss
-	//computeGauss32.Bind();
-	//glActiveTexture(GL_TEXTURE0 + T_EDGE);
-	//glBindTexture(GL_TEXTURE_2D, edgeTex);
-	//glBindSampler(T_EDGE, nodeSampler);
-
-	//// Call #1 (Vertical)
-	//GLuint inTex = traceTexture;
-	//GLuint outTex = gaussTex;
-	//for(unsigned int i = 0; i < 4; i++)
-	//{
-	//	glActiveTexture(GL_TEXTURE0 + T_IN);
-	//	glBindTexture(GL_TEXTURE_2D, inTex);
-	//	glBindSampler(T_IN, gaussSampler);
-	//	glBindImageTexture(I_OUT, outTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8/*GL_RGBA16*/);
-	//	glUniform1ui(U_DIRECTION, 0);
-	//	glDispatchCompute(gridSize.x, gridSize.y, 1);
-	//	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-	//	// Call #2 (Horizontal)
-	//	glActiveTexture(GL_TEXTURE0 + T_IN);
-	//	glBindTexture(GL_TEXTURE_2D, outTex);
-	//	glBindSampler(T_IN, gaussSampler);
-	//	glBindImageTexture(I_OUT, inTex, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8/*GL_RGBA16*/);
-	//	glUniform1ui(U_DIRECTION, 1);
-	//	glDispatchCompute(gridSize.x, gridSize.y, 1);
-
-	//}
-	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-	//// Apply to DRenderer Li Tex
-	//computeLIApply.Bind();
-
-	//// Uniform
-	//glUniform2ui(U_ON_OFF_SWITCH, aoOn ? 1u : 0u, giOn ? 1u : 0u);
-
-	//// Textures
-	//GLuint gBufferLITex = dRenderer.GetLightIntensityBufferGL();
-	//glBindImageTexture(I_LIGHT_INENSITY, gBufferLITex, 0, false, 0, GL_READ_WRITE, GL_RGBA16F);
-	//glActiveTexture(GL_TEXTURE0 + T_COLOR);
-	//glBindTexture(GL_TEXTURE_2D, traceTexture);
-	//glBindSampler(T_COLOR, nodeSampler);
-
-	//gridSize.x = (DeferredRenderer::gBuffWidth + 16 - 1) / 16;
-	//gridSize.y = (DeferredRenderer::gBuffHeight + 16 - 1) / 16;
-	//glDispatchCompute(gridSize.x, gridSize.y, 1);
-	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
 void DeferredRenderer::ShowLightIntensity(const Camera& camera)

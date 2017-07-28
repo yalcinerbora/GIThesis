@@ -27,6 +27,8 @@
 #define U_DIRECTION 0
 #define U_MAX_DISTANCE 0
 #define U_DEPTH_SIZE 0
+#define U_DO_AO 0
+#define U_DO_GI 1
 #define U_NEAR_FAR 1
 #define U_SPAN 1
 #define U_SHADOW_MAP_WH 1
@@ -37,7 +39,8 @@
 #define U_SAMPLE_DISTANCE 2
 #define U_DRAW_ID 2
 #define U_LIGHT_INDEX 2
-#define U_CAST_SPECULAR_CONE 3
+#define U_CAST_SPECULAR_CONE 2
+#define U_AMBIENT_COLOR 3
 #define U_IMAGE_SIZE 3
 #define U_TOTAL_VOX_DIM 3
 #define U_OBJ_ID 4

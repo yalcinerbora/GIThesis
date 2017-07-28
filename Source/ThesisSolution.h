@@ -58,11 +58,15 @@ class ThesisSolution : public SolutionI
 		bool						giOn;
 		bool						aoOn;
         bool                        injectOn;
+		bool						specularOn;
 
 		// Light Params
 		bool						directLighting;
 		bool						ambientLighting;
 		IEVector3					ambientColor;
+
+		// GI Params
+		IndirectUniforms			indirectUniforms;
 
 		// GUI
 		LightBar					lightBar;

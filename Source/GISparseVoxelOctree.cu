@@ -728,7 +728,6 @@ void GISparseVoxelOctree::UpdateIndirectUniforms(const IndirectUniforms& indirec
 double GISparseVoxelOctree::GlobalIllumination(ConeTraceTexture& coneTex,
 											   const DeferredRenderer& dRenderer,
 											   const Camera& camera,
-											   const IndirectUniforms&,
 											   bool giOn,
 											   bool aoOn,
 											   bool specularOn)
@@ -737,15 +736,16 @@ double GISparseVoxelOctree::GlobalIllumination(ConeTraceTexture& coneTex,
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
 	
-	// Timing Voxelization Process
-	GLuint queryID;
-	glGenQueries(1, &queryID);
-	glBeginQuery(GL_TIME_ELAPSED, queryID);
+	// Timer
+	OGLTimer t;
+	t.Start();
 		
 	// Shaders
 	compGI.Bind();
 
 	// Uniforms
+	glUniform1ui(U_DO_AO, (aoOn) ? 1u : 0u);
+	glUniform1ui(U_DO_GI, (giOn) ? 1u : 0u);
 	glUniform1ui(U_CAST_SPECULAR_CONE, (specularOn) ? 1u : 0u);
 	
 	// Uniform Buffers
@@ -779,14 +779,11 @@ double GISparseVoxelOctree::GlobalIllumination(ConeTraceTexture& coneTex,
 	glDispatchCompute(gridX, gridY, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	
-	// Timer
-	GLuint64 timeElapsed = 0;
-	glEndQuery(GL_TIME_ELAPSED);
-	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
-	
 	// I have to unbind the compute shader or weird things happen
 	Shader::Unbind(ShaderType::COMPUTE);
-	return timeElapsed / 1000000.0;
+
+	t.Stop();
+	return t.ElapsedMS();
 }
 
 double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
@@ -799,10 +796,9 @@ double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
 
-	// Timing Voxelization Process
-	GLuint queryID;
-	glGenQueries(1, &queryID);
-	glBeginQuery(GL_TIME_ELAPSED, queryID);
+	// Timer
+	OGLTimer t;
+	t.Start();
 
 	// Shaders
 	compVoxTraceWorld.Bind();
@@ -829,7 +825,7 @@ double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
 
 	// Textures
 	//dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::COLOR);
-	dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
+	//dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::DEPTH);
 	//dRenderer.getGBuffer().BindAsTexture(T_DEPTH, RenderTargetLocation::NORMAL);
 
 	// Images
@@ -841,12 +837,8 @@ double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,
 	glDispatchCompute(gridX, gridY, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	// Timer
-	GLuint64 timeElapsed = 0;
-	glEndQuery(GL_TIME_ELAPSED);
-	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
-
-	return timeElapsed / 1000000.0;
+	t.Stop();
+	return t.ElapsedMS();
 }
 
 double GISparseVoxelOctree::DebugSampleSVO(ConeTraceTexture& coneTex,
@@ -859,10 +851,9 @@ double GISparseVoxelOctree::DebugSampleSVO(ConeTraceTexture& coneTex,
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
 
-	// Timing Voxelization Process
-	GLuint queryID;
-	glGenQueries(1, &queryID);
-	glBeginQuery(GL_TIME_ELAPSED, queryID);
+	// Timer
+	OGLTimer t;
+	t.Start();
 
 	// Shaders
 	compVoxSampleWorld.Bind();
@@ -901,12 +892,8 @@ double GISparseVoxelOctree::DebugSampleSVO(ConeTraceTexture& coneTex,
 	glDispatchCompute(gridX, gridY, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	// Timer
-	GLuint64 timeElapsed = 0;
-	glEndQuery(GL_TIME_ELAPSED);
-	glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &timeElapsed);
-
-	return timeElapsed / 1000000.0;
+	t.Stop();
+	return t.ElapsedMS();
 }
 
 size_t GISparseVoxelOctree::MemoryUsage() const

@@ -1,5 +1,13 @@
 #include "IndirectBar.h"
 
+IndirectBar::IndirectBar(SceneLights& sceneLights,
+						 IndirectUniforms& iUniforms,
+						 bool& specularOn)
+	: AntBar("ConeParams")
+{
+
+}
+
 //// On off
 //TwAddSeparator(bar, NULL, NULL);	
 //TwAddVarRW(bar, "giOn", TW_TYPE_BOOLCPP,

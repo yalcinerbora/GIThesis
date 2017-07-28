@@ -4,40 +4,19 @@
 #include "IEUtility/IEVector3.h"
 #include "SceneLights.h"
 #include "RenderSelect.h"
+#include "GISparseVoxelOctree.h"
 
 class IndirectBar : public AntBar
 {
 	private:
 		static constexpr char*		IndirectBarName = "IndirectParams";
 
-		float		specularAngleMin;
-		float		specularAngleMax;
-		float		diffuseAngle;
-
-		float		angleDegree;
-		float		sampleFactor;
-		float		maxDistance;
-		float		falloffFactor;
-		float		intensityAO;
-		float		intensityGI;
-		bool		hidden;
-		bool		specular;
-
 	public:
-					// Constructors & Destructor
-					IndirectBar() = default;
-					IndirectBar(SceneLights& sceneLights,
-								
-								float& diffuseAngle,
-								float& specularAngle,
-
-								float& sampleFactor,
-								float& maxDistance,
-								float& falloffFactor,
-								float& intensityAO,
-								float& intensityGI,
-								bool& hidden,
-								bool& specular);
-		IndirectBar&			operator=(IndirectBar&&) = default;
-								~IndirectBar() = default;
+									// Constructors & Destructor
+									IndirectBar() = default;
+									IndirectBar(SceneLights& sceneLights,
+												IndirectUniforms& iUniforms,
+												bool& specularOn);
+		IndirectBar&				operator=(IndirectBar&&) = default;
+									~IndirectBar() = default;
 };

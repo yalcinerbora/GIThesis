@@ -363,15 +363,15 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir, in uint maxLevel)
 		ivec3 index = LevelVoxId(interp, worldPos, maxLevel);
 		uint offset = svoLevelOffsets[maxLevel];
 		
-		uvec4 illum0 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 0), fetchLevel)];
-		uvec4 illum1 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 0), fetchLevel)];
-		uvec4 illum2 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 0), fetchLevel)];
-		uvec4 illum3 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 0), fetchLevel)];
+		uvec4 illum0 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 0), maxLevel)];
+		uvec4 illum1 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 0), maxLevel)];
+		uvec4 illum2 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 0), maxLevel)];
+		uvec4 illum3 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 0), maxLevel)];
 
-		uvec4 illum4 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 1), fetchLevel)];
-		uvec4 illum5 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 1), fetchLevel)];
-		uvec4 illum6 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 1), fetchLevel)];
-		uvec4 illum7 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 1), fetchLevel)];
+		uvec4 illum4 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 1), maxLevel)];
+		uvec4 illum5 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 1), maxLevel)];
+		uvec4 illum6 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 1), maxLevel)];
+		uvec4 illum7 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 1), maxLevel)];
 				
 		// Data Fetch (return gray if no value is avail)
 		float dataOcclusion;
@@ -533,7 +533,6 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir, in uint maxLevel)
 			return result;
 		}
 	}
-	//return vec3(0.0f, 1.0f, 0.0f);
 }
 
 uint DetermineMaxLevel(in vec3 pos)

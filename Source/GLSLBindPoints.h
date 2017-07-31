@@ -59,6 +59,7 @@
 #define U_VOXEL_GRID_INFO 2
 #define U_OCTREE_UNIFORMS 3
 #define U_INDIRECT_UNIFORMS 4
+#define U_GRID_TRANSFORM 5
 
 // Large Uniform
 #define LU_LIGHT_MATRIX 0

@@ -32,6 +32,7 @@ class IEAxisAlignedBB3
 		IEAxisAlignedBB3&		TransformSelf(const IEMatrix4x4&);
 
 		bool					Intersects(const IERay& ray) const;
+		bool					Intersects(const IEAxisAlignedBB3& ray) const;
 		
 		IEVector3				Min() const;
 		IEVector3				Max() const;

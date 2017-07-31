@@ -12,6 +12,18 @@
 
 #define GI_MAX_JOINT_COUNT 63
 
+extern __global__ void FilterVoxels(// Voxel System
+									CVoxelPage* gVoxelPages,
+									// Dense Data from OGL
+									uint32_t& gAllocator,
+									const uint2* gDenseData,
+									// Limits
+									uint32_t cascadeId,
+									uint32_t segmentOffset)
+{
+
+}
+
 __global__ void InitializePage(unsigned char* emptySegments, const size_t pageCount)
 {
 	size_t sizePerPage = GIVoxelPages::PageSize *

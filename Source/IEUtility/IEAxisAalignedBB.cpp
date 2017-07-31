@@ -48,6 +48,13 @@ bool IEAxisAlignedBB3::Intersects(const IERay& ray) const
 	return ray.IntersectsAABB(min, max);
 }
 
+bool IEAxisAlignedBB3::Intersects(const IEAxisAlignedBB3& aabb) const
+{
+	return ((max[0] > aabb.min[0]) && (aabb.max[0] > min[0]) &&
+			(max[1] > aabb.min[1]) && (aabb.max[1] > min[1]) &&
+			(max[2] > aabb.min[2]) && (aabb.max[2] > min[2]));
+}
+
 //-----------------------------//
 //IEAxisAlignedBB2 IEAxisAlignedBB2::Transform(const IEMatrix4x4&) const
 //{

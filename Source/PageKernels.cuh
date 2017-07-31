@@ -4,6 +4,17 @@
 #include "CVoxelTypes.h"
 #include "COpenGLTypes.h"
 
+
+// Filter Valid Voxels
+extern __global__ void FilterVoxels(// Voxel System
+									CVoxelPage* gVoxelPages,
+									// Dense Data from OGL
+									uint32_t& gAllocator,
+									const uint2* gDenseData,
+									// Limits
+									uint32_t cascadeId,
+									uint32_t segmentOffset);
+
 // Initialize Pages
 // Call Logic "per segment per page"
 extern __global__ void InitializePage(unsigned char* emptySegments, 
@@ -19,7 +30,7 @@ extern __global__ void CopyPage(// OGL Buffer
 								const BatchVoxelCache* gBatchVoxelCache,
 								// Voxel Pages
 								const CVoxelPageConst* gVoxelPages,
-								//
+								// Limits
 								const uint32_t batchCount,
 								const uint32_t selectedCascade,
 								const VoxelRenderType renderType);

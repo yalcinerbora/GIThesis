@@ -120,12 +120,14 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	dRenderer.PopulateGBuffer(*currentScene, mainCam, doTiming);
 
 	// Do Page update
-	voxelPages.UpdateGridPositions(mainCam.pos);
-	voxelPages.MapOGLResources();
-	ioTime = voxelPages.VoxelIO(doTiming);
-	transTime = voxelPages.Transform(voxelCaches, doTiming);
-	voxelPages.UnmapOGLResources();
-	
+	bool useCache = true;
+	voxelPages.Update(ioTime,
+					  transTime,
+					  voxelCaches,
+					  mainCam.pos,
+					  doTiming,
+					  useCache);
+
 	// Do SVO update
 	float depthRange[2];
 	glGetFloatv(GL_DEPTH_RANGE, depthRange);

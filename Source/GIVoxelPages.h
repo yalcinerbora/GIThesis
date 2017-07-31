@@ -25,6 +25,50 @@ class OctreeParameters;
 class GIVoxelPages
 {
 	private:
+		class FastVoxelizer
+		{
+			private:
+				// Data Buffer that is used for fast voxelization
+				StructuredBuffer<uint8_t>	oglData;
+				cudaGraphicsResource_t		denseResource;
+				OctreeParameters*			octreeParams;
+				GLuint						gridTransformOffset;
+				GLuint						denseOffset;
+				GLuint						allocatorOffset;
+				
+
+				// Shaders
+				Shader						vertVoxelizeFast;
+				Shader						vertVoxelizeFastSkeletal;
+				Shader						fragVoxelizeFast;
+
+				double						Voxelize(const std::vector<MeshBatchI*>& batches,
+													 const IEVector3& gridCenter,
+													 const IEVector3& gridCorner,
+													 bool doTiming);
+				double						Filter(uint32_t& offset, CVoxelPage* dVoxelPages,
+												   uint32_t pageCapacity, uint32_t cascadeId,
+												   bool doTiming);
+
+			protected:
+			public:
+				// Constructors & Destructor
+											FastVoxelizer();
+											FastVoxelizer(OctreeParameters*);
+											FastVoxelizer(const FastVoxelizer&) = delete;
+											FastVoxelizer(FastVoxelizer&&);
+				FastVoxelizer&				operator=(const FastVoxelizer&) = delete;
+				FastVoxelizer&				operator=(FastVoxelizer&&);
+											~FastVoxelizer();
+
+				// Map
+				double						FastVoxelize(CVoxelPage* dVoxelPages, uint32_t pageCount,
+														 const CVoxelGrid* dVoxelGrids, uint32_t gridCount,
+														 const std::vector<MeshBatchI*>& batches,
+														 bool doTiming);
+		};
+
+		// Class that handles debug rendering of the page
 		class PageRenderer
 		{
 			private:
@@ -130,6 +174,17 @@ class GIVoxelPages
 		void									GenerateGPUData(const GIVoxelCache& cache);
 		void									AllocatePages(size_t voxelCapacity);
 
+		// Update Functions; should be called in this order		
+		void									UpdateGridPositions(const IEVector3& cameraPos);
+		void									MapOGLResources();
+		double									VoxelIO(bool doTiming);
+		double									Transform(const GIVoxelCache& cache,
+														  bool doTiming);
+		void									UnmapOGLResources();
+
+		// Instead of Trasform I-O pair this can be called also
+		double									VoxelizeFast();
+
 	protected:
 	public:
 		// Constrcutors & Destructor
@@ -143,17 +198,16 @@ class GIVoxelPages
 		GIVoxelPages&							operator=(GIVoxelPages&&);
 												~GIVoxelPages();
 
-		// Update Functions; should be called in this order		
-		void									UpdateGridPositions(const IEVector3& cameraPos);
-		void									MapOGLResources();
-		double									VoxelIO(bool doTiming);
-		double									Transform(const GIVoxelCache& cache,
-														  bool doTiming);
-		void									UnmapOGLResources();
-
+		void									Update(double& ioTime,
+													   double& transTime,
+													   const GIVoxelCache& caches,
+													   const IEVector3& camPos,
+													   bool doTiming,
+													   bool useCache);
+		
 		uint64_t								MemoryUsage() const;
 		uint32_t								PageCount() const;
-	
+
 		// Debug File
 		void									DumpPageSegments(const char*, size_t offset = 0, size_t pageCount = 0) const;
 		void									DumpPageEmptyPositions(const char*, size_t offset = 0, size_t pageCount = 0) const;

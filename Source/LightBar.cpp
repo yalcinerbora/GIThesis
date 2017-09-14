@@ -213,7 +213,12 @@ LightBar::LightBar(SceneLights& sceneLights,
 			params += " opened=false ";
 		TwDefine(params.c_str());
 	}
-	TwDefine((std::string(LightBarName) + " size='220 250' ").c_str());
-	TwDefine((std::string(LightBarName) + " valueswidth=fit ").c_str());
-	TwDefine((std::string(LightBarName) + " position='5 25' ").c_str());
+	Resize(220, 250);
+	TwDefine((std::string(LightBarName) + " valueswidth=90 ").c_str());
+	Move(5, 25);
+}
+
+void LightBar::CollapseLights(bool collapsed)
+{
+	TwDefine((std::string(LightBarName) + "/Lights opened=false ").c_str());
 }

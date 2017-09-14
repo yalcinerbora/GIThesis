@@ -76,9 +76,9 @@ ThesisBar::ThesisBar(const SceneLights& lights,
 	//}
 
 	TwDefine((std::string(ThesisBarName) + " refresh=0.01 ").c_str());
-	TwDefine((std::string(ThesisBarName) + " size='220 220' ").c_str());
-	TwDefine((std::string(ThesisBarName) + " valueswidth=fit ").c_str());
-	TwDefine((std::string(ThesisBarName) + " position='5 278' ").c_str());
+	Resize(220, 220);
+	TwDefine((std::string(ThesisBarName) + " valueswidth=65 ").c_str());
+	Move(5, 278);
 }
 
 bool ThesisBar::DoTiming() const

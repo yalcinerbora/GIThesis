@@ -32,6 +32,7 @@ class ConeTraceTexture
 							~ConeTraceTexture();
 
 		GLuint				Texture();
+		void				BindAsTexture(GLuint target);
 		double				BlurTexture(GLuint depthBuffer,
 										const Camera& camera);
 

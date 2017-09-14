@@ -115,22 +115,35 @@ inline __device__ uint32_t PunchThroughNode(// SVO
 	{
 		bool allocated;
 		uint32_t allocNode = AtomicAllocateNode(allocated, node, gLevelAllocators + i);
-
-		if(allocated && writeId)
-		{
-			// Write Nodeid to ParentLoc
-			uint32_t parentLoc = node - gSVOLevels[i - 1].gLevelNodes;
-			int3 parentVoxId = CalculateParentVoxId(voxelId, i - 1, level);
-			uint32_t packedParent = PackNodeId(parentVoxId, i - 1,
-											   octreeParams.CascadeCount,
-											   octreeParams.CascadeBaseLevel,
-											   octreeParams.MaxSVOLevel);
-			gSVOLevels[i - 1].gVoxId[parentLoc] = packedParent;
-		}
 		
 		assert(allocNode < gLevelCapacities[i]);
 		uint32_t childId = CalculateLevelChildId(voxelId, i, level);
 		node = gSVOLevels[i].gLevelNodes + allocNode + childId;
+
+		//if(allocated && writeId)
+		//{
+		//	// Write Nodeid to ParentLoc
+		//	uint32_t parentLoc = node - gSVOLevels[i - 1].gLevelNodes;
+		//	int3 parentVoxId = CalculateParentVoxId(voxelId, i - 1, level);
+		//	uint32_t packedParent = PackNodeId(parentVoxId, i - 1,
+		//									   octreeParams.CascadeCount,
+		//									   octreeParams.CascadeBaseLevel,
+		//									   octreeParams.MaxSVOLevel);
+		//	gSVOLevels[i - 1].gVoxId[parentLoc] = packedParent;
+		//}
+
+		if(allocated && writeId)
+		{
+			// Write Nodeid to ParentLoc
+			uint32_t loc = node - gSVOLevels[i].gLevelNodes;
+			int3 voxId = CalculateParentVoxId(voxelId, i, level);
+			uint32_t packedParent = PackNodeId(voxId, i,
+											   octreeParams.CascadeCount,
+											   octreeParams.CascadeBaseLevel,
+											   octreeParams.MaxSVOLevel);
+			gSVOLevels[i].gVoxId[loc] = packedParent;
+		}
+
 	}
 
 	return node - gSVOLevels[level].gLevelNodes;

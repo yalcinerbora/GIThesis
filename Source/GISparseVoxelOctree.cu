@@ -215,6 +215,7 @@ GISparseVoxelOctree::GISparseVoxelOctree(const OctreeParameters& octreeParams,
 	, hLevelSizes(octreeParams.MaxSVOLevel + 1, 0)
 	, nodeIllumDifference(0)
 	, shadowMaps(currentScene->getSceneLights())
+	, compApplyLI(ShaderType::COMPUTE, "Shaders/ApplyVoxLI.comp")
 	, compVoxTraceWorld(ShaderType::COMPUTE, "Shaders/VoxTraceWorld.comp")
 	, compVoxSampleWorld(ShaderType::COMPUTE, "Shaders/VoxTraceDeferred.comp")
 	, compGI(ShaderType::COMPUTE, "Shaders/VoxGI.comp")
@@ -352,6 +353,7 @@ GISparseVoxelOctree::GISparseVoxelOctree(GISparseVoxelOctree&& other)
 	, hIllumOffsetsAndCapacities(std::move(other.hIllumOffsetsAndCapacities))
 	, nodeIllumDifference(other.nodeIllumDifference)
 	, shadowMaps(std::move(other.shadowMaps))
+	, compApplyLI(std::move(other.compApplyLI))
 	, compVoxTraceWorld(std::move(other.compVoxTraceWorld))
 	, compVoxSampleWorld(std::move(other.compVoxSampleWorld))
 	, compGI(std::move(other.compGI))
@@ -381,6 +383,7 @@ GISparseVoxelOctree& GISparseVoxelOctree::operator=(GISparseVoxelOctree&& other)
 	hIllumOffsetsAndCapacities = std::move(other.hIllumOffsetsAndCapacities);
 	nodeIllumDifference = other.nodeIllumDifference;
 	shadowMaps = std::move(other.shadowMaps);
+	compApplyLI = std::move(other.compApplyLI);
 	compVoxTraceWorld = std::move(other.compVoxTraceWorld);
 	compVoxSampleWorld = std::move(other.compVoxSampleWorld);
 	compGI = std::move(other.compGI);
@@ -430,7 +433,7 @@ void GISparseVoxelOctree::MapOGLData()
 	}
 
 	// Print Allocator Usage
-	//PrintSVOLevelUsages(hLevelSizes);
+	PrintSVOLevelUsages(hLevelSizes);
 
 	// Clear level allocators
 	CUDA_CHECK(cudaMemset(dLevelSizes, 0x00, (octreeParams->MaxSVOLevel + 1) * sizeof(uint32_t)));
@@ -554,21 +557,13 @@ double GISparseVoxelOctree::GenNeigbourPointers(bool doTiming)
 
 		// KC
 		GenBackNeighborPtrs<<<gridSize, blockSize>>>(// SVO
-												 dOctreeLevels,
-												 dLevelSizes,
-												 dLevelCapacities,
-												 // Limits
-												 *octreeParams,
-												 levelSize,
-												 i);
-		GenFrontNeighborPtrs<<<gridSize, blockSize>>>(// SVO
-												  dOctreeLevels,
-												  dLevelSizes,
-												  dLevelCapacities,
-												  // Limits
-												  *octreeParams,
-												  levelSize,
-												  i);
+													 dOctreeLevels,
+													 dLevelSizes,
+													 dLevelCapacities,
+													 // Limits
+													 *octreeParams,
+													 levelSize,
+													 i);
 		CUDA_KERNEL_CHECK();
 	}
 
@@ -576,12 +571,11 @@ double GISparseVoxelOctree::GenNeigbourPointers(bool doTiming)
 	// However these empty nodes may be in forward of other valid nodes
 	// We need to check that
 
-	// Recieve Used Level Sizes
-	//std::vector<uint32_t> extraLevelSizes(octreeParams->MaxSVOLevel + 1, 0);
+	// Recieve Used Level Sizes (Total Used)
 	CUDA_CHECK(cudaMemcpy(hLevelSizes.data(), dLevelSizes,
 						  (octreeParams->MaxSVOLevel + 1) * sizeof(uint32_t),
 						  cudaMemcpyDeviceToHost));
-
+	
 	//// Clear No
 	//for(uint32_t i = octreeParams->DenseLevel; i < octreeParams->MaxSVOLevel; i++)
 	//{
@@ -719,10 +713,9 @@ void GISparseVoxelOctree::UpdateOctreeUniforms(const IEVector3& outerCascadePos)
 
 void GISparseVoxelOctree::UpdateIndirectUniforms(const IndirectUniforms& indirectUniforms)
 {
-	std::memcpy(oglData.CPUData().data() + indirectUniformsOffset,
-				&indirectUniforms,
-				sizeof(IndirectUniforms));
-	oglData.SendSubData(static_cast<uint32_t>(indirectUniformsOffset), sizeof(IndirectUniforms));
+	oglData.SendSubData(reinterpret_cast<const uint8_t*>(&indirectUniforms),
+						static_cast<uint32_t>(indirectUniformsOffset),
+						sizeof(IndirectUniforms));
 }
 
 double GISparseVoxelOctree::GlobalIllumination(ConeTraceTexture& coneTex,
@@ -730,15 +723,16 @@ double GISparseVoxelOctree::GlobalIllumination(ConeTraceTexture& coneTex,
 											   const Camera& camera,
 											   bool giOn,
 											   bool aoOn,
-											   bool specularOn)
+											   bool specularOn,
+											   bool doTiming)
 {
-	// Light Intensity Texture
+	// Cone Texture
 	static const GLubyte ff[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	glClearTexImage(coneTex.Texture(), 0, GL_RGBA, GL_UNSIGNED_BYTE, &ff);
 	
 	// Timer
 	OGLTimer t;
-	t.Start();
+	if(doTiming) t.Start();
 		
 	// Shaders
 	compGI.Bind();
@@ -780,10 +774,52 @@ double GISparseVoxelOctree::GlobalIllumination(ConeTraceTexture& coneTex,
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	
 	// I have to unbind the compute shader or weird things happen
-	Shader::Unbind(ShaderType::COMPUTE);
+	// Now no need i dunno
+	//Shader::Unbind(ShaderType::COMPUTE);
 
-	t.Stop();
-	return t.ElapsedMS();
+	if(doTiming)
+	{
+		t.Stop();
+		return t.ElapsedMS();
+	}
+	return 0.0;
+}
+
+double GISparseVoxelOctree::ApplyToLIBuffer(ConeTraceTexture& coneTex,
+											DeferredRenderer& dRenderer,
+											bool giOn,
+											bool aoOn,
+											bool doTiming)
+{
+	// Do timing
+	OGLTimer t;
+	if(doTiming) t.Start();
+
+	// Shader
+	compApplyLI.Bind();
+
+	// Uniforms
+	glUniform1ui(U_DO_AO, (aoOn) ? 1u : 0u);
+	glUniform1ui(U_DO_GI, (giOn) ? 1u : 0u);
+
+	// Images
+	dRenderer.BindLIBufferAsImage(I_OUT_TEXTURE);
+
+	// Textures
+	coneTex.BindAsTexture(T_COLOR);
+
+	// Dispatch
+	GLuint gridX = (DeferredRenderer::GBuffWidth + 16 - 1) / 16;
+	GLuint gridY = (DeferredRenderer::GBuffHeight + 16 - 1) / 16;
+	glDispatchCompute(gridX, gridY, 1);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	
+	if(doTiming)
+	{
+		t.Stop();
+		return t.ElapsedMS();
+	}
+	return 0.0;
 }
 
 double GISparseVoxelOctree::DebugTraceSVO(ConeTraceTexture& coneTex,

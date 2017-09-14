@@ -31,6 +31,12 @@ void AnimationBatch::ChangeAnimationParams(uint32_t animationIndex,
 										   float speedMod,
 										   AnimationType type)
 {
+	if(animationIndex >= animations.size())
+	{
+		GI_ERROR_LOG("Animation index out of range.");
+		return;
+	}
+
 	Animation& anim = animations[animationIndex];
 
 	assert(delay >= 0.0f);

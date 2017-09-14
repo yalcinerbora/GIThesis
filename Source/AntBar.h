@@ -36,4 +36,7 @@ class AntBar
 		AntBar&							operator=(const AntBar&) = delete;
 		AntBar&							operator=(AntBar&&);
 										~AntBar();
+
+		void							Resize(int x, int y);
+		void							Move(int x, int y);
 };

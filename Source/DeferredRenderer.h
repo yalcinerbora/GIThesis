@@ -90,12 +90,14 @@ class DeferredRenderer
 		static constexpr GLsizei	GBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*//*900;*/1080;/*1440;*///2160;
 
 	private:
-		static constexpr float		postProcessTriData[6] =
+		static constexpr float		PostProcessTriData[6] =
 		{
 			3.0f, -1.0f,
 			-1.0f, 3.0f,
 			-1.0f, -1.0f
 		};
+		
+		static constexpr GLenum		LIFormat = GL_RGBA16F;
 
 		// Geom Buffer Write Shaders
 		MeshBatchShaderArray		vertGBufferWrite;
@@ -203,6 +205,7 @@ class DeferredRenderer
 												  SceneI& scene, int lightId, int layer);
 		void						ShowTexture(const Camera& camera, GLuint tex);
 		
+		void						BindLIBufferAsImage(GLuint target);
 		void						BindShadowMaps(SceneI&);
 		void						BindLightBuffers(SceneI&);
 		void						AttachSceneLightIndices(SceneI&);

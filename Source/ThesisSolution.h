@@ -15,6 +15,7 @@ Solution implementtion
 #include "GIVoxelPages.h"
 #include "GISparseVoxelOctree.h"
 #include "ConeTraceTexture.h"
+#include "IEUtility/IEMath.h"
 
 class DeferredRenderer;
 class WindowInput;
@@ -28,6 +29,16 @@ class ThesisSolution : public SolutionI
 		static constexpr GLsizei	TraceWidth = 1280;
 		static constexpr GLsizei	TraceHeight = 720;
 
+		static constexpr float		DiffuseAngle = static_cast<float>(40.0 * IEMathConstants::DegToRadCoef);
+		static constexpr float		SpecularMin = static_cast<float>(4.0 * IEMathConstants::DegToRadCoef);
+		static constexpr float		SpecularMax = static_cast<float>(25.0 * IEMathConstants::DegToRadCoef);
+		static constexpr float		SampleRatio = 1.0f;
+		static constexpr float		OffsetBias = 2.0f;
+		static constexpr float		TotalDistance = 350.0f;
+		static constexpr float		AOIntensity = 1.0f;
+		static constexpr float		GIIntensity = 1.0f;
+		static constexpr float		AOFalloff = 1.0f;
+		
 	private:
 		// Entire Voxel Cache one Per Batch
 		GIVoxelCache				voxelCaches;

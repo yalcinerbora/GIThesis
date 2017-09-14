@@ -225,7 +225,7 @@ DeferredRenderer::DeferredRenderer()
 	glGenFramebuffers(1, &lightIntensityFBO);
 
 	glBindTexture(GL_TEXTURE_2D, lightIntensityTex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, GBuffWidth, GBuffHeight);
+	glTexStorage2D(GL_TEXTURE_2D, 1, LIFormat, GBuffWidth, GBuffHeight);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
 
@@ -268,8 +268,8 @@ DeferredRenderer::DeferredRenderer()
 	// Copy Data
 	gpuData.Resize(totalSize);
 	auto& cpuImage = gpuData.CPUData();
-	std::copy(reinterpret_cast<const uint8_t*>(postProcessTriData),
-			  reinterpret_cast<const uint8_t*>(postProcessTriData) + 6 * sizeof(float),
+	std::copy(reinterpret_cast<const uint8_t*>(PostProcessTriData),
+			  reinterpret_cast<const uint8_t*>(PostProcessTriData) + 6 * sizeof(float),
 			  cpuImage.data() + postTriOffset);
 	gpuData.SendSubData(static_cast<uint32_t>(postTriOffset), 6 * sizeof(float));
 	
@@ -909,6 +909,12 @@ void DeferredRenderer::ShowShadowMap(const Camera& camera,
 void DeferredRenderer::ShowLightIntensity(const Camera& camera)
 {
 	ShowTexture(camera, lightIntensityTex);
+}
+
+void DeferredRenderer::BindLIBufferAsImage(GLuint target)
+{
+	glBindImageTexture(I_OUT_TEXTURE, lightIntensityTex,
+					   0, false, 0, GL_READ_WRITE, LIFormat);
 }
 
 void DeferredRenderer::BindShadowMaps(SceneI& scene)

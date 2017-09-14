@@ -42,7 +42,7 @@ struct IndirectUniforms
 	float diffAngleTanHalf;
 	float sampleRatio;
 	
-	float startOffsetBias;
+	float startOffset;
 	float totalDistance;
 	float aoIntensity;
 	float giIntensity;
@@ -210,6 +210,7 @@ class GISparseVoxelOctree
 		ShadowMapsCUDA					shadowMaps;
 
 		// Trace Shaders
+		Shader							compApplyLI;
 		Shader							compVoxTraceWorld;
 		Shader							compVoxSampleWorld;
 		Shader							compGI;
@@ -271,10 +272,16 @@ class GISparseVoxelOctree
 		// Uses GBuffer to create inital rays (free camera to first bounce)
 		double							GlobalIllumination(ConeTraceTexture& coneTex,
 														   const DeferredRenderer&,
-														   const Camera& camera,														   
+														   const Camera& camera,
 														   bool giOn,
 														   bool aoOn,
-														   bool specularOn);
+														   bool specularOn,
+														   bool doTiming);
+		double							ApplyToLIBuffer(ConeTraceTexture& coneTex,
+														DeferredRenderer&,
+														bool giOn,
+														bool aoOn,
+														bool doTiming);
 		// Debug Tracing
 		double							DebugTraceSVO(ConeTraceTexture& coneTex,
 													  const DeferredRenderer&,

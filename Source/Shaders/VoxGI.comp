@@ -17,7 +17,6 @@
 #define U_DO_AO layout(location = 0)
 #define U_DO_GI layout(location = 1)
 #define U_CAST_SPECULAR_CONE layout(location = 2)
-#define U_AMBIENT_COLOR layout(location = 3)
 
 #define U_FTRANSFORM layout(std140, binding = 0)
 #define U_INVFTRANSFORM layout(std140, binding = 1)
@@ -30,7 +29,7 @@
 
 #define CONE_COUNT 1
 #define TRACE_NEIGBOUR 8
-#define NEIGBOURS 4
+#define NEIGHBORS 4	// 2x2 Square
 
 #define BLOCK_SIZE_X 16
 #define BLOCK_SIZE_Y 16
@@ -46,7 +45,6 @@
 U_DO_AO uniform bool aoOn;
 U_DO_GI uniform bool giOn;
 U_CAST_SPECULAR_CONE uniform bool specularOn;
-U_AMBIENT_COLOR uniform vec3 ambientColor;
 
 uniform vec2 CONE_ORTHO[4] =
 {
@@ -163,6 +161,7 @@ vec3 DepthToWorld(vec2 gBuffUV)
 	// Converts Depthbuffer Value to World Coords
 	// First Depthbuffer to Screen Space
 	vec3 ndc = vec3(gBuffUV, texture(gBuffDepth, gBuffUV).x);
+	if(ndc.z == 1.0f) return vec3(1.0e+10);
 
 	ndc.xy = 2.0f * ndc.xy - 1.0f;
 	ndc.z = ((2.0f * (ndc.z - depthNearFar.x) / (depthNearFar.y - depthNearFar.x)) - 1.0f);
@@ -179,7 +178,7 @@ vec3 DepthToWorld(vec2 gBuffUV)
 uint DenseIndexToLinear(in ivec3 denseIndex, in uint level)
 {
 	// TODO: Change to Morton (Z-order curve)
-	uint size = 1 << level;
+	uint size = (0x1 << level);
 	return  denseIndex.z * size * size +
 			denseIndex.y * size +
 			denseIndex.x;
@@ -198,12 +197,15 @@ ivec3 LevelVoxId(out vec3 offset, in vec3 worldPoint, in uint depth)
 uint DiameterToDepth(out float interp, in float diameter)
 {
 	float diameterRatio = diameter / baseSpan;
-	if(diameterRatio < 1.0f) return maxSVOLevel;
 	diameterRatio = max(diameterRatio, 1.0f);
+	uint svoLevelInverse = findMSB(uint(floor(diameterRatio))) + 1;
 
-	uint svoLevelInverse = findMSB(uint(diameterRatio)) + 1;
 	interp = diameterRatio - float(0x1 << svoLevelInverse);
-	interp /= float(0x1 << svoLevelInverse + 1) - float(0x1 << svoLevelInverse);
+	interp /= (float(0x1 << (svoLevelInverse + 1)) - float(0x1 << svoLevelInverse));
+	
+	
+	//interp = clamp(interp, 0.0f, 1.0f);
+
 	return maxSVOLevel - svoLevelInverse;
 }
 
@@ -328,6 +330,8 @@ void InterpIllum(out float occlusion, out vec3 irrad, out float gloss,
 						 value4, value5, value6, value7,
 						 interp);
 
+	//irrad = value0;
+
 	// Gloss
 	value0.x = UnpackIrradianceSVO(illum0.x).w;
 	value1.x = UnpackIrradianceSVO(illum1.x).w;
@@ -404,22 +408,23 @@ uvec4 FetchChildIllum(in uvec4 neigLo, in uvec4 neigHi, in ivec3 childNode, in u
 	uint currentNeig = ResolveNeig(neigLo, neigHi, parentOffsetLinear);
 	if(currentNeig != 0xFFFFFFFF) 
 		return svoIllum[offset + currentNeig + childIdLinear];
-	return uvec4(0);
+	return uvec4(0);	
 }
 
-void SampleSVO(out vec3 lightDir,
-			   out float occlusion,
-			   out vec4 irradiance,
-			   out vec3 normal,
+void SampleSVO(inout vec3 lightDir,
+			   inout float occlusion,
+			   inout vec4 irradiance,
+			   inout vec3 normal,
 
 			   in vec3 worldPos, 
 			   in vec3 direction, 
 			   in uint sampleLevel,
 			   in float depthInterp)
-{
-	vec3 offset;
-	ivec3 voxPos = LevelVoxId(offset, worldPos, maxSVOLevel);
+{	
+	vec3 interp;
+	ivec3 voxPos = LevelVoxId(interp, worldPos, maxSVOLevel);
 	ivec3 maxLevelSize = ivec3(0x1 << maxSVOLevel);
+	uint parentLevel = sampleLevel - 1;
 	
 	// Cull if out of bounds
 	if(	voxPos.x < 0 || voxPos.x >= maxLevelSize.x ||
@@ -431,24 +436,24 @@ void SampleSVO(out vec3 lightDir,
 
 	// Check Dense
 	if(sampleLevel < minSVOLevel) return; 
-	else if(sampleLevel >= minSVOLevel && 
-			sampleLevel < denseLevel)
+	else if(sampleLevel > minSVOLevel && 
+			sampleLevel <= denseLevel)
 	{
 		// Dense Fetch Parent
 		vec3 interp;
-		ivec3 index = LevelVoxId(interp, worldPos, sampleLevel);
-		uint offset = svoLevelOffsets[sampleLevel];
+		ivec3 index = LevelVoxId(interp, worldPos, parentLevel);
+		uint offset = svoLevelOffsets[parentLevel];
 		
-		uvec4 illum0 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 0), sampleLevel)];
-		uvec4 illum1 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 0), sampleLevel)];
-		uvec4 illum2 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 0), sampleLevel)];
-		uvec4 illum3 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 0), sampleLevel)];
+		uvec4 illum0 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 0), parentLevel)];
+		uvec4 illum1 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 0), parentLevel)];
+		uvec4 illum2 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 0), parentLevel)];
+		uvec4 illum3 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 0), parentLevel)];
 
-		uvec4 illum4 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 1), sampleLevel)];
-		uvec4 illum5 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 1), sampleLevel)];
-		uvec4 illum6 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 1), sampleLevel)];
-		uvec4 illum7 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 1), sampleLevel)];
-				
+		uvec4 illum4 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 1), parentLevel)];
+		uvec4 illum5 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 1), parentLevel)];
+		uvec4 illum6 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 1), parentLevel)];
+		uvec4 illum7 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 1), parentLevel)];
+		
 		float parentOcc, parentGloss;
 		vec3 parentIrrad, parentLightDir, parentNormal;
 		InterpIllum(parentOcc, parentIrrad, parentGloss,
@@ -458,7 +463,6 @@ void SampleSVO(out vec3 lightDir,
 					direction, interp);
 
 		// Dense Fetch Child
-		sampleLevel += 1;
 		index = LevelVoxId(interp, worldPos, sampleLevel);
 		offset = svoLevelOffsets[sampleLevel];
 		
@@ -490,29 +494,28 @@ void SampleSVO(out vec3 lightDir,
 	{
 		// Sparse Check
 		// Start tracing (stateless start from root (dense))
-		// Initialize Traverse	
-		// Dense Node Index Fetch
+		// Traverse to Parent
 		vec3 interp;
 		ivec3 index = LevelVoxId(interp, worldPos, denseLevel);
 		uint nodeIndex = DenseIndexToLinear(index, denseLevel);
-		uint parentIndex = 0xFFFFFFFF;
 
 		uint traversedLevel = denseLevel;
-		while(traversedLevel < sampleLevel)
+		while(traversedLevel < parentLevel)
 		{			
 			uint offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;
 			uint nextNode = svoNode[offset + nodeIndex].x;
 			if(nextNode == 0xFFFFFFFF) break;
 			
-			traversedLevel++;
-			parentIndex = nodeIndex;
-			nodeIndex = nextNode + CalculateLevelChildId(voxPos, traversedLevel);			
+			traversedLevel++;			
+			nodeIndex = nextNode + CalculateLevelChildId(voxPos, traversedLevel);
 		}
 
-		// Fetch data if either we are on any level
-		// with valid nodes
-		if(traversedLevel != denseLevel &&
-		   parentIndex != 0xFFFFFFFF)
+
+
+		// Fetch data if and only if from that level
+		// If we can traverse to that level we can sample from that level
+		// Otherwise it is impossible
+		if(traversedLevel == parentLevel)
 		{			
 			// Deferred do not require this but we will implement this
 			uvec4 neighborsLow = uvec4(0xFFFFFFFF);
@@ -527,24 +530,23 @@ void SampleSVO(out vec3 lightDir,
 			uvec4 illum7 = uvec4(0);
 			
 			// Parent Level
-			uint parentLevel = traversedLevel - 1;
 			uint offset = svoLevelOffsets[parentLevel];
 			uint nodeOffset = svoLevelOffsets[parentLevel] - nodeOffsetDifference;
 			index = LevelVoxId(interp, worldPos, parentLevel);
-
+			
 			// (0, 0, 0)
-			neighborsLow[0] = svoNode[nodeOffset + parentIndex].x;
-			illum0 = svoIllum[offset + parentIndex];
+			neighborsLow[0] = svoNode[nodeOffset + nodeIndex].x;
+			illum0 = svoIllum[offset + nodeIndex];
 
 			// Neigbours
-			uvec3 firstNeig = svoNode[nodeOffset + parentIndex].yzw;
+			uvec3 firstNeig = svoNode[nodeOffset + nodeIndex].yzw;
 			uvec3 secondNeig = uvec3(0xFFFFFFFF);
 			uint thridNeig = 0xFFFFFFFF;
 
 			// First order neighbors
 			// (1, 0, 0)
 			// (0, 1, 0)
-			// (0, 0, 1)			
+			// (0, 0, 1)
 			if(firstNeig.x != 0xFFFFFFFF)
 			{
 				neighborsLow[1] = svoNode[nodeOffset + firstNeig.x].x;
@@ -603,12 +605,22 @@ void SampleSVO(out vec3 lightDir,
 						illum4, illum5, illum6, illum7,
 						direction, interp);
 
+
 			// --------------------------//
 			// Child Level
-			uint childLevel = traversedLevel; 
+			uint childLevel = sampleLevel; 
 			offset = svoLevelOffsets[childLevel];
 			index = LevelVoxId(interp, worldPos, childLevel);
 			ivec3 childBaseId = index; childBaseId &= 0x00000001;
+
+			illum0 = uvec4(0);
+			illum1 = uvec4(0);
+			illum2 = uvec4(0);
+			illum3 = uvec4(0);
+			illum4 = uvec4(0);
+			illum5 = uvec4(0);
+			illum6 = uvec4(0);
+			illum7 = uvec4(0);
 
 			illum0 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(0, 0, 0), offset);
 			illum1 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(1, 0, 0), offset);
@@ -627,6 +639,10 @@ void SampleSVO(out vec3 lightDir,
 						illum0, illum1, illum2, illum3,
 						illum4, illum5, illum6, illum7,
 						direction, interp);
+
+			//// DEBUG Zero child
+			//float childOcc = 0.0f, childGloss = 0.0f;
+			//vec3 childIrrad = vec3(0.0f), childLightDir = vec3(0.0f), childNormal = vec3(0.0f);
 
 			// Quadlinear Interp
 			lightDir = mix(childLightDir, parentLightDir, depthInterp);
@@ -653,6 +669,7 @@ vec3 IllumFactor(in vec3 wo,
 	// stored in irradiance.xyz
 	// voxel specular power is stored in irradiance.w
 	// however we need to normalize that
+	wo = normalize(wo);
 	wi = normalize(wi);
 	normal = normalize(normal);
 	vec3 halfVec = normalize(wi + wo);
@@ -661,13 +678,19 @@ vec3 IllumFactor(in vec3 wo,
 	// Blinn - phong specular BRDF
 	float specularBRDF = pow(max(dot(normal, halfVec), 0.0f), specPower);
 	specularBRDF *= GI_ONE_OVER_PI * 0.125f * (specPower + 6.0f);
-	specularBRDF /= dot(normal, wi);
+	
+	// ???
+	//specularBRDF /= max(dot(normal, wi), 1.0f);
+	specularBRDF *= wiVariance;
 
 	// Lambert BRDF
 	float diffuseBRDF = GI_ONE_OVER_PI;
 
 	// Total Illumination Factor
 	vec3 illumination = (diffuseBRDF + specularBRDF) * irradiance.xyz;
+	//vec3 illumination = (diffuseBRDF) * irradiance.xyz;
+	
+	//illumination *= nVariance;
 
 	// Now We need to do the gaussian lobes
 	// For higher levels BRDF tends to become ill defined
@@ -675,25 +698,18 @@ vec3 IllumFactor(in vec3 wo,
 
 	// TODO:
 	// Light Intensity Relevant to the cone light angle (Lambert Factor)
-	// Toksvig 2005
-	//vec3 voxNormal = normalize(normalSVO.xyz);
-	//float normalAccuracy = length(normalSVO.xyz);
-	//float NDFstd2 = (1.0f - normalAccuracy) / normalAccuracy;
-	//float std2 = NDFstd2 * NDFstd2 + coneStd2 * coneStd2;
-	//float toksvigFactor = 1.0f / (1.0f + std2 * colorSVO.w);
-	//float toksvigFactor = 1.0f;
-
-	// Lambert Diffuse
-	//lightIntensity *= pow(max(dot(voxNormal.xyz, coneDir), 0.0f), toksvigFactor);
-	//lightIntensity *= (1.0f + toksvigFactor * colorSVO.w) / (1.0f + colorSVO.w);
+	// Toksvig 2005	
+	//float NDFstd2 = (1.0f - nVariance) / nVariance;
+	//float std2 = NDFstd2 * NDFstd2 + 1.0f;//coneStd2 * coneStd2;
+	//float toksvigFactor = 1.0f / (1.0f + std2 * irradiance.w);
+	float toksvigFactor = 1.0f;
+	//illumination *= pow(max(dot(normal.xyz, wo), 0.0f), toksvigFactor);
+	//illumination *= (1.0f + toksvigFactor * irradiance.w) / (1.0f + irradiance.w);
 
 	// Sampled Lobe Factor
-	//lightIntensity *= normalSVO.w;
-	//lightIntensity *= (1.0f - normalSVO.w);
+	//lightIntensity *= normal.w;
+	//lightIntensity *= (1.0f - normal.w);
 	//lightIntensity *= ((1.0f - lobeFactor) / lobeFactor);
-
-	//return lightIntensity * colorSVO.xyz;// * GI_ONE_OVER_PI;
-	//return abs(voxNormal.xyz) * 2.0f;//0.005f;
 
 	return illumination;
 }
@@ -722,6 +738,17 @@ void GenOrthoBasis(out vec3 ortho1, out vec3 ortho2, in vec3 vector)
 	//vec3 ortho2 = normalize(cross(worldNorm, ortho1));
 }
 
+uint DetermineCascade(in vec3 pos)
+{
+	// Determine cascade no from distance of the camera
+	float outerSpan = baseSpan * float(0x1 << (cascadeCount - 1));
+	vec3 gridCenter = gridPos.xyz + float(gridSize - 1) * 0.5f * outerSpan;
+	vec3 diff = abs(pos - gridCenter) / (float(gridSize - 1) * 0.25f);
+	float maxDiff = max(diff.x, max(diff.y, diff.z));
+	uint cascade = findMSB(uint(maxDiff)) + 1;
+	return min(cascade, cascadeCount - 1);
+}
+
 layout (local_size_x = BLOCK_SIZE_X, local_size_y = BLOCK_SIZE_Y, local_size_z = 1) in;
 void main(void)
 {
@@ -730,22 +757,19 @@ void main(void)
 	if(any(greaterThanEqual(globalId, imageSize(outTex).xy))) return;
 
 	// Fetch GBuffer and Interpolate Positions (if size is smaller than current gbuffer)
-	vec2 gBuffUV = vec2(globalId + vec2(0.5f) - viewport.xy) / viewport.zw;
+	//vec2 gBuffUV = vec2(globalId + vec2(0.5f) - viewport.xy) / viewport.zw;
+	vec2 gBuffUV = vec2(globalId) / vec2(imageSize(outTex).xy);
 	vec3 pos = DepthToWorld(gBuffUV);
 	vec3 worldNorm = UnpackNormalGBuff(texture(gBuffNormal, gBuffUV).xy);
 
-	// Determine cascade no from distance of the camera
-	// And the min span for that cascade
-	vec3 gridCenter = gridPos.xyz + baseSpan * gridSize * (0x1 << (cascadeCount - 1));
-	vec3 diff = abs(pos - gridCenter) / float(gridSize / 2);
-	float maxDiff = max(diff.x, max(diff.y, diff.z));
-	uint cascade = max(0, findMSB(uint(maxDiff)));
+	// Cascade for that start position
+	uint cascade = DetermineCascade(pos);
 	float cascadeSpan = baseSpan * float(0x1 << cascade);
 
 	// Specular cone
 	// Angle
 	float specularity = texture(gBuffColor, gBuffUV).a;
-	float specConeAngle = specAngleMin + specularity * (specAngleMax - specAngleMin);
+	float specConeAngle = specAngleMin + (1.0f - specularity) * (specAngleMax - specAngleMin);
 	float specConeAperture = tan(specConeAngle * 0.5f);
 	// Direction
 	vec3 worldEye = normalize(camPos.xyz - pos);
@@ -753,110 +777,135 @@ void main(void)
 	bool skipSpec = specularity < 0.5f;
 
 	// Diffuse Cone
-	// Determine Diffuse Cone ID (multiple Neigbours Fetch Different Cones then gets blurred)
-	uint dirId = ((globalId.x  % (NEIGBOURS / 2)) * (NEIGBOURS / 2)) + (globalId.y % (NEIGBOURS / 2));
+	// Determine Diffuse Cone ID (multiple Neighbors Fetch Different Cones then gets blurred)
+	uint neighborLength = (NEIGHBORS / 2);
+	uint dirId = ((globalId.y  % neighborLength) * neighborLength) + (globalId.x % neighborLength);
 
 	// Find Edge vectors from normal
 	vec3 ortho1, ortho2;
 	GenOrthoBasis(ortho1, ortho2, worldNorm);
 
 	float diffuseConeAperture = diffAngleTanHalf;
-	vec3 coneOffset = CalculateConeOffset(ortho1, ortho2, dirId * (2.0f * PI / NEIGBOURS));
+	vec3 coneOffset = CalculateConeOffset(ortho1, ortho2, dirId * (2.0f * PI / NEIGHBORS));
 	vec3 diffuseConeDir = normalize(worldNorm + diffuseConeAperture * coneOffset);
 
 	// Everything is generated now cone tracing
 	// Single specular cone and single diffuse cone
 	vec4 surfaceAccumulation = vec4(0.0f);
-	uint coneCount = (specularOn) ? CONE_COUNT : CONE_COUNT + 1;
+	uint coneCount = (specularOn && (!skipSpec)) ? (CONE_COUNT + 1) : CONE_COUNT;
 	for(uint i = 0; i < coneCount; i++)
 	{
+		diffuseConeDir = worldNorm;
+
 		// Chose the cone
 		float coneAperture = (i != CONE_COUNT) ? diffuseConeAperture : specConeAperture;
 		vec3 coneDir = (i != CONE_COUNT) ? diffuseConeDir : specConeDir;
-		if(skipSpec && i == CONE_COUNT) continue;
-
-		// Initally Start the cone away from the surface since
-		// voxel system and polygon system are not %100 aligned
-		vec3 initalTraceStart = pos + worldNorm * cascadeSpan * startOffsetBias;
 
 		// Total Illumination and Occlusion
 		vec3 totalIllumination = vec3(0.0f);
 		float totalAO = 0.0f;
 		float totalOcclusion = 0.0f;
 
+		// Initally Start the cone away from the surface since
+		// voxel system and polygon system are not %100 aligned
+		const float sqrt3 = 1.73205080757f;
+		//vec3 initalTraceStart = pos + coneDir * cascadeSpan * startOffsetBias;
+		//vec3 initalTraceStart = pos + worldNorm * sqrt3 * cascadeSpan * startOffsetBias;
+		vec3 initalTraceStart = pos + worldNorm * 50.0f * startOffsetBias;
+
 		// Start sampling towards that direction
 		// Loop Traverses until MaxDistance Exceeded
 		// March distance is variable per iteration
+
+		int j = 0;
 		float marchDistance = cascadeSpan;
 		for(float traversedDistance = 0.0f;
 			traversedDistance <= totalDistance;
 			traversedDistance += marchDistance)
 		{
 			vec3 currentPos = initalTraceStart + coneDir * traversedDistance;
-			float diameter = max(cascadeSpan, coneAperture * traversedDistance * 2.0f);
+			//float diameter = max(cascadeSpan, coneAperture * traversedDistance * 2.0f);
+
+			// Test diameter
+			float diameter = max(cascadeSpan, coneAperture * 2.0f * 50.0f * startOffsetBias);
 
 			// Sample from SVO (Quadlinear Interpolation)
 			vec4 irradiance = vec4(0.0f);
 			vec3 normal = vec3(0.0f), lightDir = vec3(0.0f);
 			float occlusion = 0.0f, depthOffset = 0.0f;
 			uint sampleDepth = DiameterToDepth(depthOffset, diameter);
+
+
+			sampleDepth = 11;
+			//depthOffset = totalDistance / 500.0f;
+			depthOffset = 1.0f;
+
 			SampleSVO(lightDir, occlusion, irradiance, normal,
 					  currentPos, coneDir, 
 					  sampleDepth, depthOffset);
+		
 
 			// Calculate Illumination
-			vec3 illumination = (giOn) ? IllumFactor(coneDir,
-													 irradiance,
-													 lightDir,
-													 normal) : vec3(0.0f);
+			//vec3 illumination = (giOn) ? IllumFactor(-coneDir,
+			//										 irradiance,
+			//										 lightDir,
+			//										 normal) : vec3(0.0f);
 
-			// Correction Term to prevent intersecting samples error
-			occlusion = 1.0f - pow(1.0f - occlusion, marchDistance / diameter);
-			illumination = vec3(1.0f) - pow(vec3(1.0f) - illumination, vec3(marchDistance / diameter));
+			////totalIllumination += illumination;
+			////totalIllumination += vec3(occlusion);
 
-			// Occlusion falloff (linear)
-			float falloff = (1.0f / (1.0f + aoFalloff * diameter));
-			//float falloff = (1.0f / (1.0f + aoFalloff * diameter));
-			//float falloff = (1.0f / (1.0f + aoFalloff * traversedDistance));
+			//// Correction Term to prevent intersecting samples error
+			////occlusion = 1.0f - pow(1.0f - occlusion, marchDistance / diameter);
+			////illumination = vec3(1.0f) - pow(vec3(1.0f) - illumination, vec3(marchDistance / diameter));
 
-			// Incorporation
-			//float factor = (i == CONE_COUNT) ? 1.0f : 4.0f;
-			illumination *= dot(worldNorm, coneDir);
-			//nodeOcclusion *= dot(worldNorm, coneDir);
+			//// Occlusion falloff (linear)
+			//float falloff = (1.0f / (1.0f + pow(traversedDistance, aoFalloff)));
+			////float falloff = (1.0f / (1.0f + aoFalloff * diameter));
+			////float falloff = (1.0f / (1.0f + aoFalloff * diameter));
+			////float falloff = (1.0f / (1.0f + aoFalloff * traversedDistance));
+			////float factor = (i == CONE_COUNT) ? 1.0f : 4.0f;
 
-			// Volume Occlusion Sampling
-			totalIllumination += (vec3(1.0f) - totalOcclusion) * illumination;
-			if(i != CONE_COUNT) totalAO = (1.0f - totalOcclusion) * occlusion * falloff;
-			totalOcclusion += (1.0f - totalOcclusion) * occlusion;			
+			//// Incorporation
+			//float lambertFactor = max(dot(worldNorm, coneDir), 0.0f);
+			//float nodeOcclusion = occlusion;// * lambertFactor;
+			////illumination *= lambertFactor;
+		
+			//// Volume Occlusion Sampling
+			////totalIllumination += (vec3(1.0f) - totalOcclusion) * illumination;
+			//if(i != CONE_COUNT) totalAO += (1.0f - totalOcclusion) * nodeOcclusion * falloff;
+			//totalOcclusion += (1.0f - totalOcclusion) * occlusion;			
 
-			// Advance sample point (from sampling diameter)
-			marchDistance = diameter * sampleRatio;
+			//// Advance sample point (from sampling diameter)
+			//marchDistance = diameter * sampleRatio;
 
-			// Break on early occlusion
-			if(abs(totalOcclusion - 1.0f) < 0.001f) break;
+			//// Break on early occlusion
+			//if(abs(totalOcclusion - 1.0f) < 0.001f) break;
+
+			// DEBUG
+			if(i != CONE_COUNT) totalAO += occlusion;
+			if(i != CONE_COUNT) totalIllumination += irradiance.xyz;
+			break;
+			//j++;
+			//if(j == 1) break;
+
 		}
 		// Add contrubution of this vec
 		surfaceAccumulation.xyz += totalIllumination;
-		surfaceAccumulation.w += totalOcclusion;
+		surfaceAccumulation.w += totalAO;
 	}
 	// Intensity incorporation
 	surfaceAccumulation.xyz *= giIntensity;
 	surfaceAccumulation.w *= aoIntensity;
 	surfaceAccumulation.w = 1.0f - surfaceAccumulation.w;
-
-	// Normal AO do not relate to indirect illumination
-	// we multiply it with AO anyway since it removes some bleed artefacts
-	surfaceAccumulation.xyz *= surfaceAccumulation.w;
-
-	// Ambient Color Incorporation
-	surfaceAccumulation.xyz  += ambientColor * surfaceAccumulation.w;
-	surfaceAccumulation.w = 1.0f;
-
-	// All Done!
-	//imageStore(outTex, ivec2(globalId), color);
-	//imageStore(outTex, ivec2(globalId), vec4(diffuseConeDir, 0.0f));
 	imageStore(outTex, ivec2(globalId), surfaceAccumulation);
+
+
+	// Debug
+	//imageStore(outTex, ivec2(globalId), color);
+	//imageStore(outTex, ivec2(globalId), vec4(specularity));
+	//imageStore(outTex, ivec2(globalId), vec4(diffuseConeDir, 0.0f));
 	//imageStore(outTex, ivec2(globalId), vec4(result.w));
 	//imageStore(outTex, ivec2(globalId), vec4(pos, 0.0f));
+	//imageStore(outTex, ivec2(globalId), vec4(gBuffUV, 0.0f, 0.0f));
 	//imageStore(outTex, ivec2(globalId), vec4(worldNorm, 0.0f));
 }

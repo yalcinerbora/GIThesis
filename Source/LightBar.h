@@ -46,4 +46,7 @@ class LightBar : public AntBar
 													 IEVector3& ambientColor);
 		LightBar&							operator=(LightBar&&) = default;
 											~LightBar() = default;
+
+		void								CollapseLights(bool collapsed);
+
 };

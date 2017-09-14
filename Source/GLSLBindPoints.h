@@ -15,7 +15,6 @@
 
 #define I_OUT_TEXTURE 0
 #define I_COLOR_FB 2
-#define I_LIGHT_INENSITY 2
 #define I_VOX_READ 2
 #define I_VOX_WRITE 2
 #define I_DEPTH_READ 0
@@ -40,7 +39,6 @@
 #define U_DRAW_ID 2
 #define U_LIGHT_INDEX 2
 #define U_CAST_SPECULAR_CONE 2
-#define U_AMBIENT_COLOR 3
 #define U_IMAGE_SIZE 3
 #define U_TOTAL_VOX_DIM 3
 #define U_OBJ_ID 4

@@ -87,6 +87,13 @@ GLuint ConeTraceTexture::Texture()
 	return frontTexture;
 }
 
+void ConeTraceTexture::BindAsTexture(GLuint target)
+{
+	glActiveTexture(GL_TEXTURE0 + target);
+	glBindSampler(target, linearSampler);
+	glBindTexture(GL_TEXTURE_2D, frontTexture);
+}
+
 double ConeTraceTexture::BlurTexture(GLuint depthBuffer, const Camera& camera)
 {	
 	// Timer

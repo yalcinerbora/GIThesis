@@ -27,9 +27,9 @@ EmptyGIBar::EmptyGIBar(const SceneLights& lights,
 			   " label='Merge' group='Timings (ms)' precision=2 help='Merge timing per frame.' ");
 
 	TwDefine((std::string(EmptyGIBarName) + " refresh=0.01 ").c_str());
-	TwDefine((std::string(EmptyGIBarName) + " size='220 180' ").c_str());
+	Resize(220, 180);
 	TwDefine((std::string(EmptyGIBarName) + " valueswidth=fit ").c_str());
-	TwDefine((std::string(EmptyGIBarName) + " position='5 278' ").c_str());
+	Move(5, 278);
 }
 
 bool EmptyGIBar::DoTiming() const

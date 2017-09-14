@@ -443,7 +443,7 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir, in uint maxLevel)
 			// First order neighbors
 			// (1, 0, 0)
 			// (0, 1, 0)
-			// (0, 0, 1)			
+			// (0, 0, 1)
 			if(firstNeig.x != 0xFFFFFFFF)
 			{
 				neighborsLow[1] = svoNode[nodeOffset + firstNeig.x].x;
@@ -527,8 +527,8 @@ vec3 SampleSVO(in vec3 worldPos, in vec3 marchDir, in uint maxLevel)
 											  marchDir, interp);
 
 			// Quadlinear Interp
-			vec3 result = childResult;//mix(parentResult, childResult, 1.0f);
-			float dataOcclusion = childOcclusion;//mix(parentOcclusion, childOcclusion, 1.0f);
+			vec3 result = mix(parentResult, childResult, 1.0f);
+			float dataOcclusion = mix(parentOcclusion, childOcclusion, 1.0f);
 			if (dataOcclusion == 0.0f) result = vec3(1.0f, 0.0f, 1.0f);
 			return result;
 		}
@@ -541,7 +541,7 @@ uint DetermineMaxLevel(in vec3 pos)
 	// And the min span for that cascade
 	float outerSpan = baseSpan * float(0x1 << (cascadeCount - 1));
 	vec3 gridCenter = gridPos.xyz + float(gridSize - 1) * 0.5f * outerSpan;
-	vec3 diff = abs(pos - gridCenter) / (float(gridSize - 1) * 0.5f);
+	vec3 diff = abs(pos - gridCenter) / (float(gridSize - 1) * 0.25f);
 	float maxDiff = max(diff.x, max(diff.y, diff.z));
 
 	uint cascade = findMSB(uint(maxDiff)) + 1;

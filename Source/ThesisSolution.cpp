@@ -21,12 +21,22 @@ ThesisSolution::ThesisSolution(uint32_t denseLevel,
 	, coneTex(TraceWidth, TraceHeight, GL_RGBA16F)
 	, currentScene(nullptr)
 	, dRenderer(deferredDenderer)
-	, giOn(false)
-	, aoOn(false)
-	, injectOn(false)
+	, giOn(true)
+	, aoOn(true)
+	, injectOn(true)
+	, specularOn(true)
 	, directLighting(true)
 	, ambientLighting(true)
 	, ambientColor(0.1f, 0.1f, 0.1f)
+	, indirectUniforms{SpecularMin,
+					   SpecularMax,
+					   std::tan(DiffuseAngle * 0.5f),
+					   SampleRatio,
+					   OffsetBias,
+					   TotalDistance,
+					   AOIntensity,
+					   GIIntensity,
+					   AOFalloff}
 {
 	inputManager.AddKeyCallback(GLFW_KEY_KP_ADD, GLFW_RELEASE, &ThesisSolution::Up, this);
 	inputManager.AddKeyCallback(GLFW_KEY_KP_SUBTRACT, GLFW_RELEASE, &ThesisSolution::Down, this);
@@ -87,10 +97,11 @@ void ThesisSolution::Load(SceneI& s)
 									octreeParams.CascadeCount,
 									octreeParams.MinSVOLevel,
 									octreeParams.MaxSVOLevel));
-
-	// Indirect Bar
-	// TODO:
-
+	indirectBar = std::move(IndirectBar(indirectUniforms,
+										specularOn, giOn, aoOn));
+	lightBar.CollapseLights(true);
+	lightBar.Resize(220, 115);
+	thesisBar.Move(5, 143);
 
 	// Print System Memory Usage
 	GI_LOG("Page Memory Usage %.2fMB", 
@@ -104,6 +115,7 @@ void ThesisSolution::Release()
 	voxelCaches = GIVoxelCache();
 	lightBar = LightBar();
 	thesisBar = ThesisBar();
+	indirectBar = IndirectBar();
 	voxelOctree = GISparseVoxelOctree();
 	currentScene = nullptr;
 }
@@ -138,7 +150,8 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		{camDir[0], camDir[1], camDir[2]},
 		depthRange[0], depthRange[1]
 	};
-	injectOn = true;
+
+	injectOn = false;
 	voxelOctree.UpdateSVO(svoReconTime, svoGenPtrTime, svoAverageTime, doTiming,
 						  voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),
@@ -146,24 +159,40 @@ void ThesisSolution::Frame(const Camera& mainCam)
 						  aColor,
 						  injectOn);
 
-	// Do GI
-	if(giOn && aoOn)
+
+	aoOn = false;
+	directLighting = false;
+	aColor = IEVector3(0.0f);
+	//indirectUniforms.startOffset = 20.0f;
+
+	// Do GI Pass
+	dRenderer.ClearLI(aColor);
+	if(giOn || aoOn)
 	{
+		// Uniform Updates
+		//dRenderer.RefreshFTransform(mainCam);
+		voxelOctree.UpdateIndirectUniforms(indirectUniforms);
+		voxelOctree.UpdateOctreeUniforms(voxelPages.getOutermostGridPosition());
+		dRenderer.RefreshInvFTransform(*currentScene, mainCam,
+									   coneTex.Width(), coneTex.Height());
+
+		// GI Cone Trace
 		coneTraceTime = 0.0;
-
-		//voxelOctree.UpdateIndirectUniforms(indirectUniforms);
-
-		//coneTraceTime += voxelOctree.GlobalIllumination(coneTex, dRenderer, mainCam,
-		// aColor,
-		//							   giOn, aoOn, specularOn);
-
+		coneTraceTime += voxelOctree.GlobalIllumination(coneTex, dRenderer, 
+														mainCam,
+														giOn, aoOn, specularOn,
+														doTiming);
+		// Blur the cone patches
 		//coneTraceTime += coneTex.BlurTexture(dRenderer.getGBuffer().getDepthGL(), mainCam);
-
-		//// TODO: Incorporate to light buffer
-		//dRenderer.ShowTexture(mainCam, coneTex.Texture());
-		//// coneTraceTime += dRenderer.AccumulateLIBuffer(coneTex, ...);
+		
+		// Application of Indirect Illumination		
+		coneTraceTime += voxelOctree.ApplyToLIBuffer(coneTex,
+													 dRenderer,
+													 giOn, aoOn,
+													 doTiming);
 	}
-	else dRenderer.ClearLI(aColor);
+
+	// Direct Light Pass
 	if(directLighting) dRenderer.LightPass(*currentScene, mainCam, doTiming);
 
 	// Finally Present Buffer
@@ -174,8 +203,6 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		dRenderer.GPassTime() + dRenderer.LPassTime() +
 		dRenderer.MergeTime();
 
-
-	// Rendering Choice
 	if(scheme >= RenderScheme::G_DIFF_ALBEDO &&
 	   scheme <= RenderScheme::G_DEPTH)
 	{

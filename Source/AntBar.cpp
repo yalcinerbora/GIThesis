@@ -97,3 +97,13 @@ AntBar::~AntBar()
 {
 	if(bar) TwDeleteBar(bar);
 }
+
+void AntBar::Resize(int x, int y)
+{
+	TwDefine((std::string(barName) + " size='" + std::to_string(x) + " " + std::to_string(y) + "' ").c_str());
+}
+
+void AntBar::Move(int x, int y)
+{
+	TwDefine((std::string(barName) + " position='" + std::to_string(x) + " " + std::to_string(y) + "' ").c_str());
+}

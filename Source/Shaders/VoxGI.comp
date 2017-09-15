@@ -198,15 +198,31 @@ uint DiameterToDepth(out float interp, in float diameter)
 {
 	float diameterRatio = diameter / baseSpan;
 	diameterRatio = max(diameterRatio, 1.0f);
-	uint svoLevelInverse = findMSB(uint(floor(diameterRatio))) + 1;
 
-	interp = diameterRatio - float(0x1 << svoLevelInverse);
-	interp /= (float(0x1 << (svoLevelInverse + 1)) - float(0x1 << svoLevelInverse));
+	float diameterFactor = log2(diameterRatio);
+	interp = fract(diameterRatio);
+
+	uint level = min(maxSVOLevel, uint(diameterRatio));
+	level = maxSVOLevel - level;
+
+	if(level <= minSVOLevel) 
+	{
+		interp = 1.0f;
+		level = minSVOLevel + 1;
+	}
+	return level;
+		
+	//uint svoLevelInverse = findMSB(uint(floor(diameterRatio))) + 1;
+
+	//float offset = diameterRatio - float(0x1 << svoLevelInverse);
+	//offset /= (float(0x1 << (svoLevelInverse + 1)) - float(0x1 << svoLevelInverse));
 	
 	
-	//interp = clamp(interp, 0.0f, 1.0f);
+	////offset = clamp(offset, 0.0f, 1.0f);
+	////offset = 1.0f;
 
-	return maxSVOLevel - svoLevelInverse;
+	//interp = offset;
+	//return maxSVOLevel - svoLevelInverse;
 }
 
 uint CalculateLevelChildId(in ivec3 voxPos, in uint levelDepth)
@@ -505,18 +521,16 @@ void SampleSVO(inout vec3 lightDir,
 			uint offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;
 			uint nextNode = svoNode[offset + nodeIndex].x;
 			if(nextNode == 0xFFFFFFFF) break;
-			
+						
 			traversedLevel++;			
 			nodeIndex = nextNode + CalculateLevelChildId(voxPos, traversedLevel);
 		}
-
-
-
+		
 		// Fetch data if and only if from that level
 		// If we can traverse to that level we can sample from that level
 		// Otherwise it is impossible
 		if(traversedLevel == parentLevel)
-		{			
+		{
 			// Deferred do not require this but we will implement this
 			uvec4 neighborsLow = uvec4(0xFFFFFFFF);
 			uvec4 neighborsHi = uvec4(0xFFFFFFFF);
@@ -529,6 +543,7 @@ void SampleSVO(inout vec3 lightDir,
 			uvec4 illum6 = uvec4(0);
 			uvec4 illum7 = uvec4(0);
 			
+			// Fetch
 			// Parent Level
 			uint offset = svoLevelOffsets[parentLevel];
 			uint nodeOffset = svoLevelOffsets[parentLevel] - nodeOffsetDifference;
@@ -687,10 +702,10 @@ vec3 IllumFactor(in vec3 wo,
 	float diffuseBRDF = GI_ONE_OVER_PI;
 
 	// Total Illumination Factor
-	vec3 illumination = (diffuseBRDF + specularBRDF) * irradiance.xyz;
-	//vec3 illumination = (diffuseBRDF) * irradiance.xyz;
+	//vec3 illumination = (diffuseBRDF + specularBRDF) * irradiance.xyz;
+	vec3 illumination = (diffuseBRDF) * irradiance.xyz;
 	
-	//illumination *= nVariance;
+	illumination *= nVariance;
 
 	// Now We need to do the gaussian lobes
 	// For higher levels BRDF tends to become ill defined
@@ -711,6 +726,7 @@ vec3 IllumFactor(in vec3 wo,
 	//lightIntensity *= (1.0f - normal.w);
 	//lightIntensity *= ((1.0f - lobeFactor) / lobeFactor);
 
+	illumination = clamp(illumination, 0.0f, 1.0f);
 	return illumination;
 }
 
@@ -743,7 +759,7 @@ uint DetermineCascade(in vec3 pos)
 	// Determine cascade no from distance of the camera
 	float outerSpan = baseSpan * float(0x1 << (cascadeCount - 1));
 	vec3 gridCenter = gridPos.xyz + float(gridSize - 1) * 0.5f * outerSpan;
-	vec3 diff = abs(pos - gridCenter) / (float(gridSize - 1) * 0.25f);
+	vec3 diff = abs(pos - gridCenter) / (float(gridSize - 1));
 	float maxDiff = max(diff.x, max(diff.y, diff.z));
 	uint cascade = findMSB(uint(maxDiff)) + 1;
 	return min(cascade, cascadeCount - 1);
@@ -795,8 +811,6 @@ void main(void)
 	uint coneCount = (specularOn && (!skipSpec)) ? (CONE_COUNT + 1) : CONE_COUNT;
 	for(uint i = 0; i < coneCount; i++)
 	{
-		diffuseConeDir = worldNorm;
-
 		// Chose the cone
 		float coneAperture = (i != CONE_COUNT) ? diffuseConeAperture : specConeAperture;
 		vec3 coneDir = (i != CONE_COUNT) ? diffuseConeDir : specConeDir;
@@ -810,8 +824,8 @@ void main(void)
 		// voxel system and polygon system are not %100 aligned
 		const float sqrt3 = 1.73205080757f;
 		//vec3 initalTraceStart = pos + coneDir * cascadeSpan * startOffsetBias;
-		//vec3 initalTraceStart = pos + worldNorm * sqrt3 * cascadeSpan * startOffsetBias;
-		vec3 initalTraceStart = pos + worldNorm * 50.0f * startOffsetBias;
+		vec3 initalTraceStart = pos + worldNorm * sqrt3 * cascadeSpan * startOffsetBias;
+		//vec3 initalTraceStart = pos + worldNorm * 50.0f * startOffsetBias;
 
 		// Start sampling towards that direction
 		// Loop Traverses until MaxDistance Exceeded
@@ -824,10 +838,7 @@ void main(void)
 			traversedDistance += marchDistance)
 		{
 			vec3 currentPos = initalTraceStart + coneDir * traversedDistance;
-			//float diameter = max(cascadeSpan, coneAperture * traversedDistance * 2.0f);
-
-			// Test diameter
-			float diameter = max(cascadeSpan, coneAperture * 2.0f * 50.0f * startOffsetBias);
+			float diameter = max(cascadeSpan, coneAperture * traversedDistance * 2.0f);
 
 			// Sample from SVO (Quadlinear Interpolation)
 			vec4 irradiance = vec4(0.0f);
@@ -835,58 +846,53 @@ void main(void)
 			float occlusion = 0.0f, depthOffset = 0.0f;
 			uint sampleDepth = DiameterToDepth(depthOffset, diameter);
 
-
-			sampleDepth = 11;
-			//depthOffset = totalDistance / 500.0f;
-			depthOffset = 1.0f;
-
 			SampleSVO(lightDir, occlusion, irradiance, normal,
 					  currentPos, coneDir, 
 					  sampleDepth, depthOffset);
 		
 
 			// Calculate Illumination
-			//vec3 illumination = (giOn) ? IllumFactor(-coneDir,
-			//										 irradiance,
-			//										 lightDir,
-			//										 normal) : vec3(0.0f);
+			vec3 illumination = (giOn) ? IllumFactor(-coneDir,
+													 irradiance,
+													 lightDir,
+													 normal) : vec3(0.0f);
 
-			////totalIllumination += illumination;
-			////totalIllumination += vec3(occlusion);
+			//totalIllumination += illumination;
+			//totalIllumination += vec3(occlusion);
 
-			//// Correction Term to prevent intersecting samples error
-			////occlusion = 1.0f - pow(1.0f - occlusion, marchDistance / diameter);
-			////illumination = vec3(1.0f) - pow(vec3(1.0f) - illumination, vec3(marchDistance / diameter));
+			// Correction Term to prevent intersecting samples error
+			occlusion = 1.0f - pow(1.0f - occlusion, marchDistance / diameter);
+			illumination = vec3(1.0f) - pow(vec3(1.0f) - illumination, vec3(marchDistance / diameter));
 
-			//// Occlusion falloff (linear)
-			//float falloff = (1.0f / (1.0f + pow(traversedDistance, aoFalloff)));
-			////float falloff = (1.0f / (1.0f + aoFalloff * diameter));
-			////float falloff = (1.0f / (1.0f + aoFalloff * diameter));
-			////float falloff = (1.0f / (1.0f + aoFalloff * traversedDistance));
-			////float factor = (i == CONE_COUNT) ? 1.0f : 4.0f;
+			// Occlusion falloff (linear)
+			float falloff = (1.0f / (1.0f + pow(traversedDistance, aoFalloff)));
+			//float falloff = (1.0f / (1.0f + aoFalloff * diameter));
+			//float falloff = (1.0f / (1.0f + aoFalloff * diameter));
+			//float falloff = (1.0f / (1.0f + aoFalloff * traversedDistance));
+			//float factor = (i == CONE_COUNT) ? 1.0f : 4.0f;
 
-			//// Incorporation
-			//float lambertFactor = max(dot(worldNorm, coneDir), 0.0f);
-			//float nodeOcclusion = occlusion;// * lambertFactor;
-			////illumination *= lambertFactor;
+			// Incorporation
+			float lambertFactor = max(dot(worldNorm, coneDir), 0.0f);
+			float nodeOcclusion = occlusion * lambertFactor;
+			illumination *= lambertFactor;
 		
-			//// Volume Occlusion Sampling
-			////totalIllumination += (vec3(1.0f) - totalOcclusion) * illumination;
-			//if(i != CONE_COUNT) totalAO += (1.0f - totalOcclusion) * nodeOcclusion * falloff;
-			//totalOcclusion += (1.0f - totalOcclusion) * occlusion;			
+			// Volume Occlusion Sampling
+			totalIllumination += (vec3(1.0f) - totalOcclusion) * illumination;
+			if(i != CONE_COUNT) totalAO += (1.0f - totalOcclusion) * nodeOcclusion * falloff;
+			totalOcclusion += (1.0f - totalOcclusion) * occlusion;			
 
-			//// Advance sample point (from sampling diameter)
-			//marchDistance = diameter * sampleRatio;
+			// Advance sample point (from sampling diameter)
+			marchDistance = diameter * sampleRatio;
 
-			//// Break on early occlusion
-			//if(abs(totalOcclusion - 1.0f) < 0.001f) break;
+			// Break on early occlusion
+			if(abs(totalOcclusion - 1.0f) < 0.001f) break;
 
-			// DEBUG
-			if(i != CONE_COUNT) totalAO += occlusion;
-			if(i != CONE_COUNT) totalIllumination += irradiance.xyz;
-			break;
-			//j++;
-			//if(j == 1) break;
+			//// DEBUG
+			//if(i != CONE_COUNT) totalAO += occlusion;
+			//if(i != CONE_COUNT) totalIllumination += irradiance.xyz;
+			//break;
+			////j++;
+			////if(j == 1) break;
 
 		}
 		// Add contrubution of this vec

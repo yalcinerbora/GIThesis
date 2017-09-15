@@ -22,7 +22,7 @@ Vao for rendering voxel debug
 class VoxelVAO
 {
 	public:
-		static constexpr char*			CubeGFGFileName = "cube.gfg";		
+		static constexpr const char*	CubeGFGFileName = "cube.gfg";		
 		struct CubeOGL
 		{
 			uint32_t					drawCount;

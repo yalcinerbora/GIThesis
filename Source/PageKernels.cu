@@ -46,7 +46,7 @@ __global__ void InitializePage(unsigned char* emptySegments, const size_t pageCo
 
 inline __device__ unsigned int WarpAggragateIndex(unsigned int& gAtomicIndex)
 {
-	unsigned int activeThreads = __ballot(0x1);
+	unsigned int activeThreads = __ballot_sync(0xFFFFFFFF, 0x1);
 	unsigned int incrementCount = __popc(activeThreads);
 	unsigned int leader = __ffs(activeThreads) - 1;
 	unsigned int warpLocalId = threadIdx.x % warpSize;
@@ -54,7 +54,7 @@ inline __device__ unsigned int WarpAggragateIndex(unsigned int& gAtomicIndex)
 	unsigned int baseIndex;
 	if(warpLocalId == leader)
 		baseIndex = atomicAdd(&gAtomicIndex, incrementCount);
-	baseIndex = __shfl(baseIndex, leader);
+	baseIndex = __shfl_sync(0xFFFFFFFF, baseIndex, leader);
 	return baseIndex + __popc(activeThreads & ((1 << warpLocalId) - 1));
 }
 

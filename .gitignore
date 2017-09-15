@@ -63,3 +63,5 @@ WorkingDir/*
 !Lib/**/*.dvlib
 !Lib/**/*.dll
 !Lib/**/*.pch
+*.db-shm
+*.db-wal

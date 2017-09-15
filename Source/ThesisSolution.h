@@ -26,13 +26,13 @@ class ThesisSolution : public SolutionI
 		const OctreeParameters		octreeParams;
 		const std::string			name;
 
-		static constexpr GLsizei	TraceWidth = 1280;
-		static constexpr GLsizei	TraceHeight = 720;
+		static constexpr GLsizei	TraceWidth = /*960;*/1280;//1920;
+		static constexpr GLsizei	TraceHeight = /*540;*/720;//1080;
 
 		static constexpr float		DiffuseAngle = static_cast<float>(40.0 * IEMathConstants::DegToRadCoef);
 		static constexpr float		SpecularMin = static_cast<float>(4.0 * IEMathConstants::DegToRadCoef);
 		static constexpr float		SpecularMax = static_cast<float>(25.0 * IEMathConstants::DegToRadCoef);
-		static constexpr float		SampleRatio = 1.0f;
+		static constexpr float		SampleRatio = 2.0f;
 		static constexpr float		OffsetBias = 2.0f;
 		static constexpr float		TotalDistance = 350.0f;
 		static constexpr float		AOIntensity = 1.0f;

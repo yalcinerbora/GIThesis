@@ -151,7 +151,11 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		depthRange[0], depthRange[1]
 	};
 
-	injectOn = false;
+	//aoOn = false;
+	//directLighting = false;
+	//aColor = IEVector3(0.0f);
+	//indirectUniforms.startOffset = 20.0f;
+
 	voxelOctree.UpdateSVO(svoReconTime, svoGenPtrTime, svoAverageTime, doTiming,
 						  voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),
@@ -159,14 +163,8 @@ void ThesisSolution::Frame(const Camera& mainCam)
 						  aColor,
 						  injectOn);
 
-
-	aoOn = false;
-	directLighting = false;
-	aColor = IEVector3(0.0f);
-	//indirectUniforms.startOffset = 20.0f;
-
 	// Do GI Pass
-	dRenderer.ClearLI(aColor);
+	//dRenderer.ClearLI(aColor);
 	if(giOn || aoOn)
 	{
 		// Uniform Updates
@@ -183,14 +181,15 @@ void ThesisSolution::Frame(const Camera& mainCam)
 														giOn, aoOn, specularOn,
 														doTiming);
 		// Blur the cone patches
-		//coneTraceTime += coneTex.BlurTexture(dRenderer.getGBuffer().getDepthGL(), mainCam);
+		coneTraceTime += coneTex.BlurTexture(dRenderer.getGBuffer().getDepthGL(), mainCam);
 		
-		// Application of Indirect Illumination		
+		// Application of Indirect Illumination
+		dRenderer.ClearLI(IEVector3(0.0f));
 		coneTraceTime += voxelOctree.ApplyToLIBuffer(coneTex,
 													 dRenderer,
 													 giOn, aoOn,
 													 doTiming);
-	}
+	} else dRenderer.ClearLI(aColor);
 
 	// Direct Light Pass
 	if(directLighting) dRenderer.LightPass(*currentScene, mainCam, doTiming);

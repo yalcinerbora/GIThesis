@@ -13,7 +13,7 @@ class IndirectBar : public AntBar
 
 		static constexpr float		DiffuseLo = 0.0f;
 		static constexpr float		DiffuseHi = 60.0f;
-		static constexpr float		SpecularMinRangeLo = 2.0f;
+		static constexpr float		SpecularMinRangeLo = 0.1f;
 		static constexpr float		SpecularMinRangeHi = 10.0f;
 		static constexpr float		SpecularMaxRangeLo = 10.0f;
 		static constexpr float		SpecularMaxRangeHi = 35.0f;

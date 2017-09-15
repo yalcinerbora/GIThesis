@@ -432,7 +432,7 @@ void GISparseVoxelOctree::MapOGLData()
 		CUDA_CHECK(cudaMemset(illumPtr, 0x00, size * sizeof(CSVOIllumination)));
 	}
 
-	// Print Allocator Usage
+	// Print Allocator Usage (Debug)
 	PrintSVOLevelUsages(hLevelSizes);
 
 	// Clear level allocators

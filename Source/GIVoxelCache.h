@@ -15,7 +15,7 @@ class MeshBatchI;
 class GIVoxelCache
 {
 	public:
-		static constexpr char*					CubeGFGFileName = "cube.gfg";
+		static constexpr const char*			CubeGFGFileName = "cube.gfg";
 		
 	private:
 		// Mesh Batch

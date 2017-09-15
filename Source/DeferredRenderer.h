@@ -41,42 +41,42 @@ using MeshBatchShaderArray = std::array<Shader, MeshBatchTypeCount>;
 class LightDrawBuffer
 {	
 	public:
-		static constexpr uint32_t	DirectionalCascadesCount = 6;
-		static constexpr uint32_t	ShadowMipSampleCount = 3;
-		static constexpr GLsizei	ShadowMapWH = /*512;*//*1024;*/2048;//4096;
-		static constexpr uint32_t	ShadowMapMipCount = 4;
+		static constexpr uint32_t		DirectionalCascadesCount = 6;
+		static constexpr uint32_t		ShadowMipSampleCount = 3;
+		static constexpr GLsizei		ShadowMapWH = /*512;*//*1024;*/2048;//4096;
+		static constexpr uint32_t		ShadowMapMipCount = 4;
 
 	private:
 		// Statics
-		static constexpr char*		LightAOIFileName = "lightAOI.gfg";
+		static constexpr const char*	LightAOIFileName = "lightAOI.gfg";
 
 		// Buffer Data
-		LightDrawArray				lightDrawParams;
+		LightDrawArray					lightDrawParams;
 
 		// Buffer Storage order
 		// 1- Draw Param (Static Depends on #LightTypes)
 		// 2- AOI Vertex (Static Depends on #LightTypes)
 		// 3- AOI Vertex Index (Static Depends on #LightTypes)
-		StructuredBuffer<uint8_t>	gpuData;
-		size_t						drawOffset;
-		size_t						vertexOffset;
-		size_t						indexOffset;
+		StructuredBuffer<uint8_t>		gpuData;
+		size_t							drawOffset;
+		size_t							vertexOffset;
+		size_t							indexOffset;
 
 		// Light AOI VAO
-		GLuint						lightVAO;
+		GLuint							lightVAO;
 
 	public:
 		// Constructors & Destructor
-									LightDrawBuffer();
-									LightDrawBuffer(const LightDrawBuffer&) = delete;
-		LightDrawBuffer&			operator=(const LightDrawBuffer&) = delete;
-									~LightDrawBuffer();
+										LightDrawBuffer();
+										LightDrawBuffer(const LightDrawBuffer&) = delete;
+		LightDrawBuffer&				operator=(const LightDrawBuffer&) = delete;
+										~LightDrawBuffer();
 
-		void						AttachSceneLights(SceneLights&);
+		void							AttachSceneLights(SceneLights&);
 
-		void						BindVAO();
-		void						BindDrawIndirectBuffer();		
-		void						DrawCall();
+		void							BindVAO();
+		void							BindDrawIndirectBuffer();		
+		void							DrawCall();
 
 };
 

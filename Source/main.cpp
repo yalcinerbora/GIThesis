@@ -184,7 +184,7 @@ int main()
 	};
 	std::vector<std::string> sponzaSkeletal =
 	{
-		//"nyra.gfg"
+		"nyra.gfg"
 	};
 	SponzaScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
 	scenes.push_back(&sponza);
@@ -221,9 +221,9 @@ int main()
 	EmptyGISolution emptySolution(inputManager, deferredRenderer, "No GI");
 	ThesisSolution thesisSolution(6,		// Dense Level
 								  3,		// Dense Count
-								  4,		// Cascade Count
-								  9,		// Base Level
-								  0.25f,		// Base Span
+								  2,		// Cascade Count
+								  8,		// Base Level
+								  1.0f,		// Base Span
 								  inputManager, deferredRenderer, "Thesis GI");
 	solutions.push_back(&emptySolution);
 	solutions.push_back(&thesisSolution);

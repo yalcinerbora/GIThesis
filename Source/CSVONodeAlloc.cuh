@@ -108,7 +108,8 @@ inline __device__ uint32_t PunchThroughNode(// SVO
 {
 	int3 denseLevelId = CalculateParentVoxId(voxelId, octreeParams.DenseLevel, level);
 	const CSVOLevel& denseLevel = gSVOLevels[octreeParams.DenseLevel];
-	CSVONode* node = denseLevel.gLevelNodes + DenseIndex(denseLevelId, octreeParams.DenseSize);
+	uint32_t denseIndex = DenseIndex(denseLevelId, octreeParams.DenseSize);
+	CSVONode* node = denseLevel.gLevelNodes + denseIndex;
 
 	// Iterate untill level (This portion's nodes should be allocated)
 	for(uint32_t i = octreeParams.DenseLevel + 1; i <= level; i++)
@@ -116,22 +117,73 @@ inline __device__ uint32_t PunchThroughNode(// SVO
 		bool allocated;
 		uint32_t allocNode = AtomicAllocateNode(allocated, node, gLevelAllocators + i);
 
-		if(allocated && writeId)
+		// Specical Case for Dense-Sparse transicion
+		if(i == octreeParams.DenseLevel + 1 && allocated)
 		{
-			// Write Nodeid to ParentLoc
-			uint32_t parentLoc = node - gSVOLevels[i - 1].gLevelNodes;
-			int3 parentVoxId = CalculateParentVoxId(voxelId, i - 1, level);
-			uint32_t packedParent = PackNodeId(parentVoxId, i - 1,
-											   octreeParams.CascadeCount,
-											   octreeParams.CascadeBaseLevel,
-											   octreeParams.MaxSVOLevel);
-			gSVOLevels[i - 1].gVoxId[parentLoc] = packedParent;
+			denseLevel.gVoxId[denseIndex] = PackNodeId(denseLevelId, i,
+													   octreeParams.CascadeCount,
+													   octreeParams.CascadeBaseLevel,
+													   octreeParams.MaxSVOLevel);
 		}
-		
+
 		assert(allocNode < gLevelCapacities[i]);
 		uint32_t childId = CalculateLevelChildId(voxelId, i, level);
 		node = gSVOLevels[i].gLevelNodes + allocNode + childId;
-	}
 
-	return node - gSVOLevels[level].gLevelNodes;
+		//if (allocated && writeId)
+		// Force Ptr generation on nodes that are usefull
+		if (writeId && i != octreeParams.MaxSVOLevel)
+		{
+			// Write Nodeid to ParentLoc
+			uint32_t loc = allocNode + childId;
+			int3 thisVoxId = CalculateParentVoxId(voxelId, i, level);
+			uint32_t packedParent = PackNodeId(thisVoxId, i,
+											   octreeParams.CascadeCount,
+											   octreeParams.CascadeBaseLevel,
+											   octreeParams.MaxSVOLevel);
+			gSVOLevels[i].gVoxId[loc] = packedParent;
+		}
+	}
+	return node - gSVOLevels[level].gLevelNodes;	
+	
+	//int3 denseLevelId = CalculateParentVoxId(voxelId, octreeParams.DenseLevel, level);
+	//const CSVOLevel& denseLevel = gSVOLevels[octreeParams.DenseLevel];
+	//CSVONode* node = denseLevel.gLevelNodes + DenseIndex (denseLevelId, octreeParams.DenseSize);
+
+	//// Iterate untill level (This portion's nodes should be allocated)
+	//#pragma unroll
+	//for(uint32_t i = octreeParams.DenseLevel + 1; i <= level; i++)
+	//{
+	//	bool allocated;
+	//	uint32_t allocNode = AtomicAllocateNode (allocated, node, gLevelAllocators + i);
+
+	//	if(allocated && writeId)
+	//	{
+	//		// Write Nodeid to ParentLoc
+	//		uint32_t parentLoc = node - gSVOLevels[i - 1].gLevelNodes;
+	//		int3 parentVoxId = CalculateParentVoxId(voxelId, i - 1, level);
+	//		uint32_t packedParent = PackNodeId (parentVoxId, i - 1,
+	//											octreeParams.CascadeCount,
+	//											octreeParams.CascadeBaseLevel,
+	//											octreeParams.MaxSVOLevel);
+	//		gSVOLevels[i - 1].gVoxId[parentLoc] = packedParent;
+	//	}
+
+	//	assert (allocNode < gLevelCapacities[i]);
+	//	uint32_t childId = CalculateLevelChildId (voxelId, i, level);
+	//	node = gSVOLevels[i].gLevelNodes + allocNode + childId;
+	//}
+
+	//uint32_t location = node - gSVOLevels[level].gLevelNodes;
+	//// Write leaf for pointer generation (only for middle-leafs)
+	////if(level != octreeParams.MaxSVOLevel)
+	////if(level == octreeParams.MaxSVOLevel - 1)
+	//if(level == octreeParams.MaxSVOLevel - 1)
+	//{
+	//	gSVOLevels[level].gVoxId[location] = PackNodeId(voxelId, level,
+	//													octreeParams.CascadeCount,
+	//													octreeParams.CascadeBaseLevel,
+	//													octreeParams.MaxSVOLevel);
+	//}
+	//return location;
 }

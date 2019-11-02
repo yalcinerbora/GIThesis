@@ -5,7 +5,7 @@ Currently, SurfInterpol is the most recent branch
 
 ## Dependencies
 
-Requires CUDA 7.5
+Requires CUDA 10.1
 
 Everything else are provided by the repository
 

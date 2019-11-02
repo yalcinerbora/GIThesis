@@ -14,6 +14,7 @@
 #define T_DENSE_MAT 6
 
 #define I_OUT_TEXTURE 0
+#define I_LOCK 0
 #define I_COLOR_FB 2
 #define I_VOX_READ 2
 #define I_VOX_WRITE 2
@@ -36,13 +37,16 @@
 #define U_FETCH_LEVEL 1
 #define U_PIX_COUNT 1
 #define U_SAMPLE_DISTANCE 2
+#define U_VOLUME_SIZE 2
 #define U_DRAW_ID 2
 #define U_LIGHT_INDEX 2
 #define U_CAST_SPECULAR_CONE 2
+#define U_VOLUME_CORNER 3
 #define U_IMAGE_SIZE 3
 #define U_TOTAL_VOX_DIM 3
 #define U_OBJ_ID 4
 #define U_TOTAL_OBJ_COUNT 4
+#define U_GRID_SIZE 4
 #define U_MIN_SPAN 5
 #define U_MAX_CACHE_SIZE 5
 #define U_MAX_GRID_DIM 6
@@ -64,6 +68,7 @@
 #define LU_VOXEL_NORM_POS 0
 #define LU_VOXEL_RENDER 1
 #define LU_LIGHT 1
+#define LU_ALLOCATOR 2
 #define LU_OBJECT_GRID_INFO 2
 #define LU_VOXEL_GRID_INFO 2
 #define LU_SVO_NODE 2

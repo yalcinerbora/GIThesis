@@ -57,7 +57,7 @@ class DynoScene : public ConstantScene
 	private:
 		static constexpr float				xStart = -150.0f;
 		static constexpr float				zStart = -150.0f;
-		static constexpr float				distance = 30.0f;
+		static constexpr float				distance = 20.0f;
 		static constexpr float				width = 300.0f;
 
 		const int							repeatCount;

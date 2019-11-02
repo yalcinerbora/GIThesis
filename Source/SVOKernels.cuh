@@ -60,3 +60,16 @@ extern __global__ void SVOReconstruct(// SVO
 									  // Limits			
 									  const OctreeParameters octreeParams,
 									  const uint32_t batchCount);
+
+extern __global__ void SVOReconstructCached(// SVO
+											const CSVOLevel* gSVOLevels,
+											uint32_t* gLevelAllocators,
+											const uint32_t* gLevelCapacities,
+											// Voxel Pages
+											const CVoxelPageConst* gVoxelPages,
+											const CVoxelGrid* gGridInfos,
+											// Inject Related									  
+											const CLightInjectParameters liParams,
+											// Limits			
+											const OctreeParameters octreeParams,
+											const uint32_t batchCount);

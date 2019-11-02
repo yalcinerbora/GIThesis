@@ -6,6 +6,7 @@
 #include "IEVector4.h"
 #include "IEQuaternion.h"
 #include "IEFunctions.h"
+#include <cmath>
 
 // Constants
 const IEMatrix4x4 IEMatrix4x4::IdentityMatrix = IEMatrix4x4();

@@ -421,16 +421,20 @@ __global__ void SVOReconstruct(// SVO
 		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
 		sCascadeId = ExpandOnlyCascadeNo(sSegInfo.packed);
 		sOccupation = ExpandOnlyOccupation(sSegInfo.packed);
-		sMeshVoxelOffset = gBatchVoxelCache[sCascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId].voxOffset;
-
-		sEdgePos = gGridInfos[sCascadeId].position;
-		sSpan = gGridInfos[sCascadeId].span;
 	}
 	__syncthreads();
 
 	// Full Block Cull
 	if(sOccupation == CSegmentOccupation::EMPTY) return;
 	assert(sOccupation != CSegmentOccupation::MARKED_FOR_CLEAR);
+
+	if(blockLocalId == 0)
+	{
+		sMeshVoxelOffset = gBatchVoxelCache[sCascadeId * batchCount + sSegInfo.batchId].dMeshVoxelInfo[sSegInfo.objId].voxOffset;
+		sEdgePos = gGridInfos[sCascadeId].position;
+		sSpan = gGridInfos[sCascadeId].span;
+	}
+	__syncthreads();
 
 	// Now we can cull invalid nodes
 	const CVoxelNorm voxelNormPacked = gVoxelPages[pageId].dGridVoxNorm[pageLocalId];
@@ -541,6 +545,7 @@ __global__ void SVOReconstruct(// SVO
 			volume.y = (ijk.y == 1) ? occup.y : (1.0f - occup.y);
 			volume.z = (ijk.z == 1) ? occup.z : (1.0f - occup.z);
 			float occupancy = volume.x * volume.y * volume.z;
+			//float occupancy = 1.0f;
 
 			// Atomic Average to Location		
 			CSVOIllumination* illumNode = gSVOLevels[cascadeMaxLevel].gLevelIllum + nodeLocation;
@@ -552,4 +557,130 @@ __global__ void SVOReconstruct(// SVO
 								  lightDirXYZNormalW, occupancy);
 		}
 	}
+}
+
+__global__ void SVOReconstructCached(// SVO
+									 const CSVOLevel* gSVOLevels,
+									 uint32_t* gLevelAllocators,
+									 const uint32_t* gLevelCapacities,
+									 // Voxel Pages
+									 const CVoxelPageConst* gVoxelPages,
+									 const CVoxelGrid* gGridInfos,
+									 // Inject Related									  
+									 const CLightInjectParameters liParams,
+									 // Limits			
+									 const OctreeParameters octreeParams,
+									 const uint32_t batchCount)
+{
+	// Shared Memory for generic data
+	__shared__ CSegmentInfo sSegInfo;
+	__shared__ CSegmentOccupation sOccupation;
+	__shared__ uint8_t sCascadeId;
+
+	__shared__ float sSpan;
+	__shared__ float3 sEdgePos;
+
+	// Local Ids
+	unsigned int blockLocalId = threadIdx.x;
+	unsigned int globalId = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int nodeId = globalId;
+	unsigned int pageId = nodeId / GIVoxelPages::PageSize;
+	unsigned int pageLocalId = nodeId % GIVoxelPages::PageSize;
+	unsigned int pageLocalSegmentId = pageLocalId / GIVoxelPages::SegmentSize;
+
+	if(blockLocalId == 0)
+	{
+		// Load to smem
+		// Todo split this into the threadss
+		sSegInfo = gVoxelPages[pageId].dSegmentInfo[pageLocalSegmentId];
+		sCascadeId = ExpandOnlyCascadeNo(sSegInfo.packed);
+		sOccupation = ExpandOnlyOccupation(sSegInfo.packed);
+	}
+	__syncthreads();
+
+	// Full Block Cull
+	if(sOccupation == CSegmentOccupation::EMPTY) return;
+	assert(sOccupation != CSegmentOccupation::MARKED_FOR_CLEAR);
+
+	if(blockLocalId == 0)
+	{
+		sEdgePos = gGridInfos[sCascadeId].position;
+		sSpan = gGridInfos[sCascadeId].span;
+	}
+	__syncthreads();
+
+	// Now we can cull invalid nodes
+	const CVoxelNorm voxelNormPacked = gVoxelPages[pageId].dGridVoxNorm[pageLocalId];
+	if(voxelNormPacked == 0xFFFFFFFF) return;
+
+	// Here occupancy holds color
+	const VoxelAlbedo albedoPacked = gVoxelPages[pageId].dGridVoxOccupancy[pageLocalId];
+
+	// Required Data
+	const CVoxelPos voxelPosPacked = gVoxelPages[pageId].dGridVoxPos[pageLocalId];
+
+	// World position reconstruction
+	const int3 voxPos = ExpandVoxPos(voxelPosPacked);
+	float3 worldPos;
+	worldPos.x = sEdgePos.x + static_cast<float>(voxPos.x) * sSpan;
+	worldPos.y = sEdgePos.y + static_cast<float>(voxPos.y) * sSpan;
+	worldPos.z = sEdgePos.z + static_cast<float>(voxPos.z) * sSpan;
+
+	// Unpack albedo and normal do the lighting calculation
+	float3 unpackNormal = ExpandVoxNormal(voxelNormPacked);
+	float4 unpackAlbedo = UnpackSVOIrradiance(albedoPacked);
+
+	// Partial lighting calculation
+	float3 lightDir = {0.0f, 0.0f, 0.0f};
+	if(liParams.injectOn)
+	{
+		float3 irradianceDiffuse = TotalIrradiance(lightDir,
+												   // Node Params
+												   worldPos,
+												   Normalize(unpackNormal),
+												   unpackAlbedo,
+												   // Light Parameters
+												   liParams);
+		unpackAlbedo.x = irradianceDiffuse.x;
+		unpackAlbedo.y = irradianceDiffuse.y;
+		unpackAlbedo.z = irradianceDiffuse.z;
+	}
+
+	int3 voxPosExpanded = ExpandVoxPos(voxelPosPacked);
+	int3 nodePos = ExpandToSVODepth(voxPosExpanded,
+									sCascadeId,
+									octreeParams.CascadeCount,
+									octreeParams.CascadeBaseLevel);
+
+	float2 normalXY;
+	float4 lightDirXYZNormalW;
+	normalXY.x = unpackNormal.x;
+	normalXY.y = unpackNormal.y;
+	lightDirXYZNormalW.x = lightDir.x;
+	lightDirXYZNormalW.y = lightDir.y;
+	lightDirXYZNormalW.z = lightDir.z;
+	lightDirXYZNormalW.w = unpackNormal.z;
+
+	// Allocate and Average Illumination Values
+	uint32_t cascadeMaxLevel = octreeParams.MaxSVOLevel - sCascadeId;
+	uint32_t nodeLocation = PunchThroughNode(// SVO
+											 gLevelAllocators,
+											 gLevelCapacities,
+											 gSVOLevels,
+											 // Node Related
+											 nodePos,
+											 // Constants
+											 octreeParams,
+											 cascadeMaxLevel,
+											 true);
+	float occupancy = 1.0f;
+
+	// Atomic Average to Location		
+	CSVOIllumination* illumNode = gSVOLevels[cascadeMaxLevel].gLevelIllum + nodeLocation;
+
+	// Irradiance Average
+	AtomicIllumPortionAvg(reinterpret_cast<uint64_t*>(illumNode),
+						  unpackAlbedo, normalXY, occupancy);
+	AtomicIllumPortionAvg(reinterpret_cast<uint64_t*>(illumNode) + 1,
+						  lightDirXYZNormalW, occupancy);
 }

@@ -7,6 +7,7 @@ Material Definition
 #ifndef __MATERIAL_H__
 #define __MATERIAL_H__
 
+#include <string>
 #include <vector>
 #include <cstdint>
 #include "GLHeader.h"

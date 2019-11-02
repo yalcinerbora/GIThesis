@@ -64,15 +64,14 @@ static constexpr size_t BigSizes[] =
 	32768,				// 5 Dense
 	262144,				// 6 Dense
 
-	1256	 * 1024,		// 7
-	11	 * 1024 * 1024,	// 8
-	14	 * 1024 * 1024,	// 9
-	18	 * 1024 * 1024,	// 10
-	16	 * 1024 * 1024,	// 11	
-	18	 * 1024 * 1024,	// 12
+	512	 * 1024,		// 7
+	4	 * 1024 * 1024,	// 8
+	9	 * 1024 * 1024,	// 9
+	14	 * 1024 * 1024,	// 10
+	14	 * 1024 * 1024,	// 11	
+	8	 * 1024 * 1024,	// 12
 	8	 * 1024 * 1024,	// 13
 };
-
 
 //static constexpr size_t BigSizes[] =
 //{
@@ -220,6 +219,7 @@ class GISparseVoxelOctree
 		void							UnmapOGLData();
 	
 		void							PrintSVOLevelUsages(const std::vector<uint32_t>& svoSizes) const;
+		void							PrintPseudoMemoryUsage(const std::vector<uint32_t>& svoSizes) const;
 		double							GenerateHierarchy(bool doTiming,
 														  // Page System
 														  const GIVoxelPages& pages,
@@ -230,7 +230,8 @@ class GISparseVoxelOctree
 														  // Light Injection Related
 														  const LightInjectParameters& injectParams,
 														  const IEVector3& ambientColor,
-														  bool injectOn);
+														  bool injectOn,
+														  bool useCache);
 		double							GenNeigbourPointers(bool doTiming);
 		double							AverageNodes(bool doTiming);
 
@@ -262,7 +263,8 @@ class GISparseVoxelOctree
 												  uint32_t batchCount,
 												  const LightInjectParameters& injectParams,
 												  const IEVector3& ambientColor,
-												  bool injectOn);
+												  bool injectOn,
+												  bool useCache);
 		
 		void							UpdateOctreeUniforms(const IEVector3& outerCascadePos);
 		void							UpdateIndirectUniforms(const IndirectUniforms& indirectUniforms);
@@ -296,4 +298,5 @@ class GISparseVoxelOctree
 
 		// Misc
 		size_t							MemoryUsage() const;
+		static size_t					PseudoMemoryUsage(size_t voxelCount);
 };

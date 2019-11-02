@@ -5,6 +5,7 @@
 #include "IEVector3.h"
 #include "IEVector4.h"
 #include "IEFunctions.h"
+#include <cmath>
 
 // Constants
 const IEVector3 IEVector3::XAxis = IEVector3(1.0f, 0.0f, 0.0f);

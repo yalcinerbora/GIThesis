@@ -27,13 +27,13 @@ IEAxisAlignedBB3 IEAxisAlignedBB3::Transform(const IEMatrix4x4& t) const
 		data[2] = aabbLookupTable[i][2] * max[2] + (1.0f - aabbLookupTable[i][2]) * min[2];
 
 		data = t * data;
-		newMax[0] = fmax(newMax[0], data[0]);
-		newMax[1] = fmax(newMax[1], data[1]);
-		newMax[2] = fmax(newMax[2], data[2]);
+		newMax[0] = std::max(newMax[0], data[0]);
+		newMax[1] = std::max(newMax[1], data[1]);
+		newMax[2] = std::max(newMax[2], data[2]);
 
-		newMin[0] = fmin(newMin[0], data[0]);
-		newMin[1] = fmin(newMin[1], data[1]);
-		newMin[2] = fmin(newMin[2], data[2]);
+		newMin[0] = std::min(newMin[0], data[0]);
+		newMin[1] = std::min(newMin[1], data[1]);
+		newMin[2] = std::min(newMin[2], data[2]);
 	}
 	return IEAxisAlignedBB3(newMin, newMax);
 }

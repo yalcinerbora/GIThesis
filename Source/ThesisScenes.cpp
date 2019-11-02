@@ -52,6 +52,7 @@ void SponzaScene::PatrolNyra(double elapsedS)
 	DrawBuffer& dBuffer = skeletalBatch.getDrawBuffer();
 	currentPos += velocity * static_cast<float>(elapsedS);
 
+	// TODO: this is not robust on low frame-rates (high deltaT)
 	if((currentPos - maxDistance).Length() < 10.0f)
 	{
 		currentOrientation *= IEQuaternion(static_cast<float>(IEMathConstants::DegToRadCoef) * 180.0f,
@@ -180,25 +181,26 @@ void DynoScene::Update(double elapsedS)
 	static constexpr uint32_t torusEnd = 192;
 
 	DrawBuffer& dBuffer = rigidBatch.getDrawBuffer();
-
-	// Rotation
-	// Torus Rotation (Degrees per second)
-	static constexpr float torusSmallSpeed = 90.5f;
-	static constexpr float torusMidSpeed = 50.33f;
-	static constexpr float torusLargeSpeed = 33.25f;
-
-	static constexpr float cubeSpeedRGB = 130.123f;
-
-	for(int i = 0; i < 64; i++)
+	if(dBuffer.getDrawPointCount() != 0)
 	{
-		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(torusStart + i * 3 + 0), torusSmallSpeed * elapsedS, IEVector3::XAxis);
-		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(torusStart + i * 3 + 1), torusMidSpeed * elapsedS, IEVector3::ZAxis);
-		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(torusStart + i * 3 + 2), torusLargeSpeed * elapsedS, IEVector3::ZAxis);
+		// Rotation
+		// Torus Rotation (Degrees per second)
+		static constexpr float torusSmallSpeed = 90.5f;
+		static constexpr float torusMidSpeed = 50.33f;
+		static constexpr float torusLargeSpeed = 33.25f;
 
-		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(boxStart + i), cubeSpeedRGB * elapsedS, IEVector3::XAxis);
-		BatchFunctors::ApplyRotation(dBuffer.getModelTransform(boxStart + i), cubeSpeedRGB * elapsedS, IEVector3::YAxis);
+		static constexpr float cubeSpeedRGB = 130.123f;
+
+		for(int i = 0; i < 64; i++)
+		{
+			BatchFunctors::ApplyRotation(dBuffer.getModelTransform(torusStart + i * 3 + 0), torusSmallSpeed * elapsedS, IEVector3::XAxis);
+			BatchFunctors::ApplyRotation(dBuffer.getModelTransform(torusStart + i * 3 + 1), torusMidSpeed * elapsedS, IEVector3::ZAxis);
+			BatchFunctors::ApplyRotation(dBuffer.getModelTransform(torusStart + i * 3 + 2), torusLargeSpeed * elapsedS, IEVector3::ZAxis);
+
+			BatchFunctors::ApplyRotation(dBuffer.getModelTransform(boxStart + i), cubeSpeedRGB * elapsedS, IEVector3::XAxis);
+			BatchFunctors::ApplyRotation(dBuffer.getModelTransform(boxStart + i), cubeSpeedRGB * elapsedS, IEVector3::YAxis);
+		}
+		dBuffer.SendModelTransformToGPU();
 	}
-	dBuffer.SendModelTransformToGPU();
-
 	ConstantScene::Update(elapsedS);
 }

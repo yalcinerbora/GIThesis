@@ -5,6 +5,7 @@
 #include "IEVector4.h"
 #include "IEVector3.h"
 #include "IEFunctions.h"
+#include <cmath>
 
 const IEVector4 IEVector4::ZeroVector = IEVector4(0.0f, 0.0f, 0.0f, 0.0f);
 const IEVector4 IEVector4::XAxis = IEVector4(1.0f, 0.0f, 0.0f, 0.0f);

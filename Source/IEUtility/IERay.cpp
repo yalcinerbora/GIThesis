@@ -3,6 +3,7 @@
 #include "IERay.h"
 #include "IEMatrix3x3.h"
 #include "IEMatrix4x4.h"
+#include <cmath>
 
 bool IERay::IntersectsSphere(IEVector3& intersectPos,
 							 float& t,

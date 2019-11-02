@@ -26,7 +26,7 @@ in IN_UV vec2 gUV[];
 in IN_POS vec3 gPos[];
 in gl_PerVertex 
 {
-    vec4  gl_Position;
+    vec4 gl_Position;
     //float gl_PointSize;
     //float gl_ClipDistance[];
 } gl_in[];
@@ -37,7 +37,7 @@ out OUT_POS vec3 fPos;
 
 out gl_PerVertex
 {
-    vec4  gl_Position;
+    vec4 gl_Position;
     //float gl_PointSize;
     //float gl_ClipDistance[];
 };

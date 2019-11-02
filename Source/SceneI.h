@@ -10,6 +10,7 @@ class SceneLights;
 
 #include <vector>
 #include <cstdint>
+#include <string>
 
 class SceneI 
 {

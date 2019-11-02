@@ -105,7 +105,6 @@ void main(void)
 	else if(renderType == NORMAL)
 	{
 		// voxRender is normal
-		//fColor = (UnpackNormal(voxRender) + 1.0f) * 0.5f;
-		fColor = vec3(0.0f, 0.0f, ((UnpackNormal(voxRender) + 1.0f) * 0.5f).y);
+		fColor = (UnpackNormal(voxRender) + 1.0f) * 0.5f;
 	}
 }

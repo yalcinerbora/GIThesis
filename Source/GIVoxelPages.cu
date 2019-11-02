@@ -29,234 +29,6 @@ inline static std::ostream& operator<<(std::ostream& ostr, const CSegmentInfo& s
 	return ostr;
 }
 
-GIVoxelPages::FastVoxelizer::FastVoxelizer()
-	: denseResource(nullptr)
-	, octreeParams(nullptr)
-{}
-
-GIVoxelPages::FastVoxelizer::FastVoxelizer(OctreeParameters* octreeParams)
-	: denseResource(nullptr)
-	, octreeParams(octreeParams)
-{
-	size_t offset = 0;
-	
-	// Grid Transform
-	offset += DeviceOGLParameters::UBOAlignOffset(offset);
-	gridTransformOffset = static_cast<GLuint>(offset);
-	offset += sizeof(FrameTransformData);
-	// Dense
-	offset += DeviceOGLParameters::SSBOAlignOffset(offset);
-	denseOffset = static_cast<GLuint>(offset);
-	offset += octreeParams->CascadeBaseLevelSize *
-			  octreeParams->CascadeBaseLevelSize *
-			  octreeParams->CascadeBaseLevelSize * sizeof(uint2);
-	// Allocator
-	allocatorOffset = static_cast<GLuint>(offset);
-	offset += sizeof(uint32_t);
-
-	// Gen OGL Buffers
-	oglData.Resize(offset, false);
-	
-	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&denseResource,
-											oglData.getGLBuffer(),
-											cudaGraphicsRegisterFlagsReadOnly));
-}
-
-GIVoxelPages::FastVoxelizer::FastVoxelizer(FastVoxelizer&& other)
-	: oglData(std::move(other.oglData))
-	, denseResource(other.denseResource)
-	, octreeParams(other.octreeParams)
-{
-	other.denseResource = nullptr;
-}
-
-GIVoxelPages::FastVoxelizer& GIVoxelPages::FastVoxelizer::operator=(FastVoxelizer&& other)
-{
-	assert(this != &other);
-	if(denseResource) CUDA_CHECK(cudaGraphicsUnregisterResource(denseResource));
-	oglData = std::move(other.oglData);
-	denseResource = other.denseResource;
-	octreeParams = other.octreeParams;
-	other.denseResource = nullptr;
-	return *this;
-}
-
-GIVoxelPages::FastVoxelizer::~FastVoxelizer()
-{
-	if(denseResource) CUDA_CHECK(cudaGraphicsUnregisterResource(denseResource));
-}
-
-double GIVoxelPages::FastVoxelizer::Voxelize(const std::vector<MeshBatchI*>& batches,
-										   const IEVector3& gridCenter,
-										   const IEVector3& gridCorner,
-										   bool doTiming)
-{
-	OGLTimer t;
-	if(doTiming) t.Start();
-
-	// States
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
-	glEnable(GL_MULTISAMPLE);
-	//glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
-	glDepthMask(false);
-	glStencilMask(0x0000);
-	glColorMask(false, false, false, false);
-
-	GLsizei totalSize = static_cast<GLsizei>(octreeParams->CascadeBaseLevelSize);
-	glViewport(0, 0, totalSize, totalSize);
-
-	// Generate GridAABB
-	float worldWidthHeight = gridCenter[0] - gridCorner[0];
-	IEVector3 gridMin = gridCorner;
-	IEVector3 gridMax = gridMin + (worldWidthHeight * 2.0f);
-	IEAxisAlignedBB3 gridAABB(gridMin, gridMax);
-
-	// Generate Ortho Projection and View
-	IEMatrix4x4 projectionAndView[2];
-	projectionAndView[0] = IEMatrix4x4::Ortogonal(worldWidthHeight, worldWidthHeight,
-												  worldWidthHeight * 0.5f,
-												  worldWidthHeight * 0.5f);
-	projectionAndView[1] = IEMatrix4x4::LookAt(gridCenter,
-											   gridCenter - IEVector3::ZAxis,
-											   IEVector3::YAxis);
-	oglData.SendSubData(reinterpret_cast<const uint8_t*>(projectionAndView),
-						gridTransformOffset,
-						sizeof(FrameTransformData));
-
-	
-	// Dense Buffer & GridTransform buffer
-	oglData.BindAsUniformBuffer(U_GRID_TRANSFORM, gridTransformOffset, sizeof(FrameTransformData));
-	oglData.BindAsShaderStorageBuffer(LU_VOXEL_RENDER, denseOffset,
-									  octreeParams->CascadeBaseLevelSize *
-									  octreeParams->CascadeBaseLevelSize *
-									  octreeParams->CascadeBaseLevelSize);
-
-	// Shaders
-	Shader::Unbind(ShaderType::GEOMETRY);
-	fragVoxelizeFast.Bind();
-
-	for(MeshBatchI* batch : batches)
-	{
-		DrawBuffer& drawBuffer = batch->getDrawBuffer();
-		VertexBuffer& vertexBuffer = batch->getVertexBuffer();
-
-		// Batch Binds
-		vertexBuffer.Bind();
-		drawBuffer.BindModelTransform(LU_MTRANSFORM);
-		drawBuffer.BindAsDrawIndirectBuffer();
-		if(batch->MeshType() == MeshBatchType::SKELETAL)
-		{
-			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batch);
-			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
-			vertVoxelizeFastSkeletal.Bind();
-		}
-		else vertVoxelizeFast.Bind();
-		
-		// For each object
-		for(uint32_t drawId = 0; drawId < batch->DrawCount(); drawId++)
-		{
-			// Do a AABB check with grid and skip if out of bounds
-			const auto& aabbData = drawBuffer.getAABB(drawId);
-			IEAxisAlignedBB3 objectAABB(aabbData.min, aabbData.max);
-			if(!objectAABB.Intersects(gridAABB)) continue;
-			
-			// Bind material and draw
-			drawBuffer.BindMaterialForDraw(drawId);
-			drawBuffer.DrawCallSingle(drawId);
-		}		
-	}
-
-	if(doTiming)
-	{
-		t.Stop();
-		return t.ElapsedMS();
-	}
-	return 0.0;
-}
-
-double GIVoxelPages::FastVoxelizer::Filter(uint32_t& offset, CVoxelPage* dVoxelPages,
-										   uint32_t pageCapacity, uint32_t cascadeId,
-										   bool doTiming)
-{
-	CudaTimer t;
-	if(doTiming) t.Start();
-
-	// Map to CUDA
-	uint8_t* oglDataCUDA; size_t size = 0;
-	CUDA_CHECK(cudaGraphicsMapResources(1, &denseResource));
-	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&oglDataCUDA),
-													&size, denseResource));
-	uint2* dDenseData = reinterpret_cast<uint2*>(oglDataCUDA + denseOffset);
-	uint32_t& dAllocator = reinterpret_cast<uint32_t&>(oglDataCUDA[allocatorOffset]);
-
-	// Filter valid voxels to page system
-	int totalSize = octreeParams->CascadeBaseLevelSize *
-					octreeParams->CascadeBaseLevelSize *
-					octreeParams->CascadeBaseLevelSize;
-	int gridSize = CudaInit::GenBlockSize(totalSize);
-	int blockSize = CudaInit::TBP;
-
-	// KC
-	FilterVoxels<<<gridSize, blockSize>>>(// Voxel System
-										  dVoxelPages,
-										  // Dense Data from OGL
-										  dAllocator,
-										  dDenseData,
-										  // Limits
-										  cascadeId,
-										  offset);
-
-	// Fetch Allocator for total voxel count
-	// then determine offset
-	//offset += ??;
-
-	// Unmap
-	CUDA_CHECK(cudaGraphicsUnmapResources(1, &denseResource));
-
-	if(doTiming)
-	{
-		t.Stop();
-		return t.ElapsedMilliS();
-	}
-	return 0.0;
-}
-
-double GIVoxelPages::FastVoxelizer::FastVoxelize(CVoxelPage* dVoxelPages, uint32_t pageCount,
-												 const CVoxelGrid* dVoxelGrids, uint32_t gridCount,
-												 const std::vector<MeshBatchI*>& batches,
-												 bool doTiming)
-{
-	assert(denseResource);
-
-	// Copy new positions
-	std::vector<IEVector3> gridPos(gridCount, IEVector3::ZeroVector);
-	CUDA_CHECK(cudaMemcpy2D(gridPos.data(), sizeof(IEVector3),
-							dVoxelPages, sizeof(CVoxelGrid),
-							sizeof(IEVector3), gridCount,
-							cudaMemcpyDeviceToHost));
-
-	double totalTime = 0.0f;
-
-	// Find Center Pos
-	uint32_t usedSegmentCount = 0;
-	for(uint32_t i = 0; i < gridCount; i++)
-	{
-		// Clear oglData
-		oglData.Memset(static_cast<uint32_t>(0x0));
-
-		// Voxelize to Center Grid
-		IEVector3 gridCenter = gridPos[i] + (octreeParams->BaseSpan *
-											 octreeParams->CascadeBaseLevel *
-											 (0x1 << (gridCount - i - 1)));
-		totalTime += Voxelize(batches, gridCenter, gridPos[i], doTiming);
-
-		// Filter valid voxel to page system
-		totalTime += Filter(usedSegmentCount, dVoxelPages, pageCount, i, doTiming);
-	}
-	return totalTime;
-}
-
 GIVoxelPages::PageRenderer::PageRenderer()
 	: debugBufferResource(nullptr)
 	, debugBufferCUDA(nullptr)
@@ -402,7 +174,8 @@ double GIVoxelPages::PageRenderer::Draw(bool doTiming,
 										VoxelRenderType renderType,
 										const Camera& camera,
 										const GIVoxelCache& cache,
-										const GIVoxelPages& pages)
+										const GIVoxelPages& pages,
+										bool useCache)
 {
 	// Skip if not allocated
 	if(!Allocated()) return 0.0;
@@ -448,7 +221,8 @@ double GIVoxelPages::PageRenderer::Draw(bool doTiming,
 								      //
 								      static_cast<uint32_t>(pages.batches->size()),
 								      cascade,
-								      renderType);
+								      renderType,
+									  useCache);
 	CUDA_KERNEL_CHECK();
 
 	//// DEBUG
@@ -754,30 +528,17 @@ void GIVoxelPages::UnmapOGLResources()
 	CUDA_CHECK(cudaGraphicsUnmapResources(static_cast<int>(batchOGLResources.size()), batchOGLResources.data()));
 }
 
-double GIVoxelPages::VoxelizeFast()
-{
-	return 0.0f;
-}
-
 void GIVoxelPages::Update(double& ioTime,
-											   double& transTime,
-											   const GIVoxelCache& caches,
-											   const IEVector3& camPos,
-											   bool doTiming,
-											   bool useCache)
+					      double& transTime,
+					      const GIVoxelCache& caches,
+					      const IEVector3& camPos,
+					      bool doTiming)
 {
 	UpdateGridPositions(camPos);
-	if(useCache)
-	{
-		MapOGLResources();
-		ioTime = VoxelIO(doTiming);
-		transTime = Transform(caches, doTiming);
-		UnmapOGLResources();
-	}
-	else
-	{
-		transTime = VoxelizeFast();
-	}
+	MapOGLResources();
+	ioTime = VoxelIO(doTiming);
+	transTime = Transform(caches, doTiming);
+	UnmapOGLResources();
 }
 
 GIVoxelPages::GIVoxelPages()
@@ -879,13 +640,26 @@ GIVoxelPages::~GIVoxelPages()
 
 void GIVoxelPages::UpdateGridPositions(const IEVector3& cameraPos)
 {
+	std::vector<IEVector3> positions;
+	GenerateGridPositions(positions, cameraPos);
+
+	// Copy new positions
+	CUDA_CHECK(cudaMemcpy2D(dVoxelGrids, sizeof(CVoxelGrid),
+							positions.data(), sizeof(IEVector3),
+							sizeof(IEVector3), svoParams->CascadeCount,
+							cudaMemcpyHostToDevice));
+}
+
+void GIVoxelPages::GenerateGridPositions(std::vector<IEVector3>& gridPositions,
+										 const IEVector3& cameraPos)
+{
 	// Calculate outermost span position
 	float outerSpan = svoParams->BaseSpan * static_cast<float>(1 << (svoParams->CascadeCount - 1));
 	IEVector3 voxelCornerPos = cameraPos - outerSpan * (svoParams->CascadeBaseLevelSize - 1) * 0.5f;
 
 	// Align outermost cascade
 	// TODO: Better solution for higher level voxel jittering
-    float rootSnapLevelMultiplier = static_cast<float>(0x1 << 4);
+	float rootSnapLevelMultiplier = static_cast<float>(0x1 << 4);
 
 	// Removes Jitterin on base cascade level
 	float snapSpan = outerSpan * rootSnapLevelMultiplier;
@@ -904,25 +678,18 @@ void GIVoxelPages::UpdateGridPositions(const IEVector3& cameraPos)
 
 	// Now align inner cascades according to outermost
 	// In all system cacades and its data lied from inner to outer
+	gridPositions.resize(svoParams->CascadeCount);
 	float baseHalf = svoParams->BaseSpan * 0.5f * svoParams->CascadeBaseLevelSize;
 	float seriesTotal = IEMathFunctions::GeomSeries(svoParams->CascadeCount - 2, 2.0f);
-	std::vector<IEVector3> positions(svoParams->CascadeCount);
 	for(uint32_t i = 0; i < svoParams->CascadeCount; i++)
 	{
 		int32_t termLast = i - 1;
-		float lastTermSum = (termLast >= 0) ?  IEMathFunctions::GeomSeries(termLast, 2.0f) : 0;
+		float lastTermSum = (termLast >= 0) ? IEMathFunctions::GeomSeries(termLast, 2.0f) : 0;
 		float subSeries = seriesTotal - lastTermSum;
 		float displacement = subSeries * baseHalf;
-		positions[i] = voxelCornerPos + displacement;
+		gridPositions[i] = voxelCornerPos + displacement;
 	}
-
-	outermostGridPosition = positions.back();
-
-	// Copy new positions
-	CUDA_CHECK(cudaMemcpy2D(dVoxelGrids, sizeof(CVoxelGrid),
-							positions.data(), sizeof(IEVector3),
-							sizeof(IEVector3), svoParams->CascadeCount,
-							cudaMemcpyHostToDevice));
+	outermostGridPosition = gridPositions.back();
 }
 
 double GIVoxelPages::VoxelIO(bool doTiming)
@@ -1125,7 +892,7 @@ double GIVoxelPages::Draw(bool doTiming,
 						  const Camera& camera,
 						  const GIVoxelCache& cache)
 {
-	return pageRenderer.Draw(doTiming, cascadeCount, renderType, camera, cache, *this);
+	return pageRenderer.Draw(doTiming, cascadeCount, renderType, camera, cache, *this, false);
 }
 
 void GIVoxelPages::DeallocateDraw()
@@ -1149,4 +916,371 @@ const CVoxelGrid* GIVoxelPages::getVoxelGridsDevice() const
 const IEVector3& GIVoxelPages::getOutermostGridPosition() const
 {
 	return outermostGridPosition;
+}
+
+size_t GIVoxelPages::VoxelCountInCirculation(const GIVoxelCache& cache) const
+{
+	CudaVector<uint32_t> dCounter(1);
+	dCounter.Memset(0, 0, 1);
+	std::vector<uint32_t> hCounter(1, 0);
+	
+	// KC
+	int gridSize = CudaInit::GenBlockSizeSmall(static_cast<int>(dPages.Size() * PageSize));
+	int blockSize = CudaInit::TBPSmall;
+	CountVoxelsInPageSystem<<<gridSize, blockSize>>>(dCounter.Data(),
+													 // Voxel Cache
+													 cache.getDeviceCascadePointersDevice().Data(),
+													 // Voxel Pages
+													 reinterpret_cast<const CVoxelPageConst*>(dPages.Data()),
+													 // Limits
+													 static_cast<uint32_t>(batches->size()));
+
+	CUDA_CHECK(cudaMemcpy(hCounter.data(), dCounter.Data(), sizeof(uint32_t),
+						  cudaMemcpyDeviceToHost));
+	return hCounter[0];
+}
+
+GIVoxelPagesFrame::FastVoxelizer::FastVoxelizer()
+	: denseResource(nullptr)
+	, octreeParams(nullptr)
+{}
+
+GIVoxelPagesFrame::FastVoxelizer::FastVoxelizer(const OctreeParameters* octreeParams)
+	: denseResource(nullptr)
+	, octreeParams(octreeParams)
+	, lockTexture(0)
+	, vertVoxelizeFast(ShaderType::VERTEX, "Shaders/VoxelizeFast.vert")
+	, vertVoxelizeFastSkeletal(ShaderType::VERTEX, "Shaders/VoxelizeFastSkel.vert")
+	, geomVoxelize(ShaderType::GEOMETRY, "Shaders/VoxelizeGeom.geom")
+	, fragVoxelizeFast(ShaderType::FRAGMENT, "Shaders/VoxelizeFast.frag")
+{
+	size_t offset = 0;
+
+	// Dense
+	incrementOffset = offset;
+	offset += sizeof(uint32_t);
+	// Increment
+	offset = DeviceOGLParameters::SSBOAlignOffset(offset);
+	denseOffset = offset;
+	offset += octreeParams->CascadeBaseLevelSize *
+			  octreeParams->CascadeBaseLevelSize *
+			  octreeParams->CascadeBaseLevelSize * sizeof(uint32_t) * 2;
+
+	// Gen OGL Buffers
+	oglData.Resize(offset, false);
+	oglData.Memset(0x0u);
+
+	// Lock texture
+	uint32_t zero = 0;
+	glGenTextures(1, &lockTexture);
+	glBindTexture(GL_TEXTURE_3D, lockTexture);
+	glTexStorage3D(GL_TEXTURE_3D, 1, GL_R32UI,
+				   octreeParams->CascadeBaseLevelSize,
+				   octreeParams->CascadeBaseLevelSize,
+				   octreeParams->CascadeBaseLevelSize);
+	glClearTexImage(lockTexture, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero);
+
+	// Register only buffer texture is not used on cuda portion
+	CUDA_CHECK(cudaGraphicsGLRegisterBuffer(&denseResource,
+											oglData.getGLBuffer(),
+											cudaGraphicsRegisterFlagsNone));
+}
+
+GIVoxelPagesFrame::FastVoxelizer::FastVoxelizer(FastVoxelizer&& other)
+	: oglData(std::move(other.oglData))
+	, lockTexture(other.lockTexture)
+	, denseResource(other.denseResource)	
+	, octreeParams(other.octreeParams)
+	, incrementOffset(other.incrementOffset)
+	, denseOffset(other.denseOffset)
+	, vertVoxelizeFast(std::move(other.vertVoxelizeFast))
+	, vertVoxelizeFastSkeletal(std::move(other.vertVoxelizeFastSkeletal))
+	, geomVoxelize(std::move(other.geomVoxelize))
+	, fragVoxelizeFast(std::move(other.fragVoxelizeFast))
+{
+	other.lockTexture = 0;
+	other.denseResource = nullptr;
+}
+
+GIVoxelPagesFrame::FastVoxelizer& GIVoxelPagesFrame::FastVoxelizer::operator=(FastVoxelizer&& other)
+{
+	assert(this != &other);
+	if(denseResource) CUDA_CHECK(cudaGraphicsUnregisterResource(denseResource));
+	oglData = std::move(other.oglData);
+	lockTexture = other.lockTexture;
+	denseResource = other.denseResource;
+	octreeParams = other.octreeParams;
+	incrementOffset = other.incrementOffset;
+	denseOffset = other.denseOffset;
+	vertVoxelizeFast = std::move(other.vertVoxelizeFast);
+	vertVoxelizeFastSkeletal = std::move(other.vertVoxelizeFastSkeletal);
+	geomVoxelize = std::move(other.geomVoxelize);
+	fragVoxelizeFast = std::move(other.fragVoxelizeFast);
+	other.denseResource = nullptr;
+	other.lockTexture = 0;
+	return *this;
+}
+
+GIVoxelPagesFrame::FastVoxelizer::~FastVoxelizer()
+{
+	if(lockTexture) glDeleteTextures(1, &lockTexture);
+	if(denseResource) CUDA_CHECK(cudaGraphicsUnregisterResource(denseResource));
+}
+
+double GIVoxelPagesFrame::FastVoxelizer::Voxelize(const std::vector<MeshBatchI*>& batches,
+												  const IEVector3& gridCorner, float span,
+												  bool doTiming)
+{
+	OGLTimer t;
+	if(doTiming) t.Start();
+
+	// States
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glEnable(GL_MULTISAMPLE);
+	//glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
+	glDepthMask(false);
+	glStencilMask(0x0000);
+	glColorMask(false, false, false, false);
+
+	//DEBUG
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glColorMask(true, true, true, true);
+
+	// Viewport (Voxel Dim)
+	GLsizei totalSize = static_cast<GLsizei>(octreeParams->CascadeBaseLevelSize);
+	glViewport(0, 0, totalSize, totalSize);
+
+	// Volume Size
+	float volumeSize = static_cast<float>(octreeParams->CascadeBaseLevelSize) * span;
+
+	// Images
+	glBindImageTexture(I_LOCK, lockTexture, 0, false, 0, GL_READ_WRITE, GL_R32UI);
+
+	// Shaders and shader uniforms
+	vertVoxelizeFast.Bind();
+	glUniform3f(U_VOLUME_SIZE, volumeSize, volumeSize, volumeSize);
+	glUniform3f(U_VOLUME_CORNER, gridCorner[0], gridCorner[1], gridCorner[2]);
+	vertVoxelizeFastSkeletal.Bind();
+	glUniform3f(U_VOLUME_SIZE, volumeSize, volumeSize, volumeSize);
+	glUniform3f(U_VOLUME_CORNER, gridCorner[0], gridCorner[1], gridCorner[2]);
+	geomVoxelize.Bind();
+	//Shader::Unbind(ShaderType::GEOMETRY);
+	fragVoxelizeFast.Bind();
+	glUniform1f(U_SPAN, span);
+	glUniform3ui(U_GRID_SIZE, octreeParams->CascadeBaseLevelSize,
+				 octreeParams->CascadeBaseLevelSize,
+				 octreeParams->CascadeBaseLevelSize);
+	glUniform3f(U_VOLUME_CORNER, gridCorner[0], gridCorner[1], gridCorner[2]);
+
+	// Dense Buffer & GridTransform buffer
+	oglData.BindAsShaderStorageBuffer(LU_ALLOCATOR, static_cast<GLuint>(incrementOffset), 
+									  sizeof(uint32_t));
+	oglData.BindAsShaderStorageBuffer(LU_VOXEL_RENDER, static_cast<GLuint>(denseOffset),
+									  octreeParams->CascadeBaseLevelSize *
+									  octreeParams->CascadeBaseLevelSize *
+									  octreeParams->CascadeBaseLevelSize * sizeof(uint64_t));
+
+	for(MeshBatchI* batch : batches)
+	{
+		if(batch->DrawCount() == 0) continue;
+
+		DrawBuffer& drawBuffer = batch->getDrawBuffer();
+		VertexBuffer& vertexBuffer = batch->getVertexBuffer();
+
+		// Batch Binds
+		vertexBuffer.Bind();
+		drawBuffer.BindModelTransform(LU_MTRANSFORM);
+		drawBuffer.BindAsDrawIndirectBuffer();
+		if(batch->MeshType() == MeshBatchType::SKELETAL)
+		{
+			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batch);
+			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
+			vertVoxelizeFastSkeletal.Bind();
+		}
+		else vertVoxelizeFast.Bind();
+
+		// For each object
+		for(uint32_t drawId = 0; drawId < batch->DrawCount(); drawId++)
+		{
+			// TODO: do aabb check here
+			//// Do a AABB check with grid and skip if out of bounds
+			//const auto& aabbData = drawBuffer.getAABB(drawId);
+			//IEAxisAlignedBB3 objectAABB(aabbData.min, aabbData.max);
+			//if(!objectAABB.Intersects(gridAABB)) continue;
+
+			// Bind material and draw
+			drawBuffer.BindMaterialForDraw(drawId);
+			drawBuffer.DrawCallSingle(drawId);
+		}
+	}
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+	if(doTiming)
+	{
+		t.Stop();
+		return t.ElapsedMS();
+	}
+	return 0.0;
+}
+
+double GIVoxelPagesFrame::FastVoxelizer::Filter(uint32_t& voxelCount,
+												uint32_t segmentOffset,
+												CudaVector<CVoxelPage>& dVoxelPages,
+												uint32_t cascadeId,
+												bool doTiming)
+{
+	CudaTimer t;
+	if(doTiming) t.Start();
+
+	// Map to CUDA
+	uint8_t* oglDataCUDA; size_t size = 0;
+	CUDA_CHECK(cudaGraphicsMapResources(1, &denseResource));
+	CUDA_CHECK(cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&oglDataCUDA),
+													&size, denseResource));
+	uint2* dDenseData = reinterpret_cast<uint2*>(oglDataCUDA + denseOffset);
+	uint32_t& dAllocator = *reinterpret_cast<uint32_t*>(oglDataCUDA + incrementOffset);
+	uint32_t hAllocatedVoxels;
+	CUDA_CHECK(cudaMemcpy(&hAllocatedVoxels, &dAllocator, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+
+
+	GI_LOG("Voxel Count %d", hAllocatedVoxels);
+
+	// Clear 
+	// Clearing using cuda is faster
+	CUDA_CHECK(cudaMemset(&dAllocator, 0x0, sizeof(uint32_t)));
+
+	// Filter valid voxels to page system
+	int totalSize = octreeParams->CascadeBaseLevelSize *
+					octreeParams->CascadeBaseLevelSize *
+					octreeParams->CascadeBaseLevelSize;
+	int gridSize = CudaInit::GenBlockSize(totalSize);
+	int blockSize = CudaInit::TBP;
+
+	// KC
+	FilterVoxels<<<gridSize, blockSize>>>(// Voxel System
+										  dVoxelPages.Data(),
+										  // Dense Data from OGL
+										  dAllocator,
+										  dDenseData,
+										  segmentOffset,
+										  // Limits
+										  cascadeId,
+										  octreeParams->CascadeBaseLevelSize);
+	CUDA_KERNEL_CHECK();
+
+	// Assertion for
+	CUDA_CHECK(cudaMemcpy(&voxelCount, &dAllocator, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+	//assert(voxelCount == hAllocatedVoxels);
+	GI_LOG("Voxel Count2 %d", voxelCount);
+
+	if(voxelCount != hAllocatedVoxels) 
+		GI_ERROR_LOG("Mismatch of voxel counts in page system!");
+
+	// Clear Again (for next ogl usage)
+	CUDA_CHECK(cudaMemset(&dAllocator, 0x0, sizeof(uint32_t)));
+
+	// Unmap
+	CUDA_CHECK(cudaGraphicsUnmapResources(1, &denseResource));
+
+	if(doTiming)
+	{
+		t.Stop();
+		return t.ElapsedMilliS();
+	}
+	return 0.0;
+}
+
+double GIVoxelPagesFrame::FastVoxelizer::FastVoxelize(uint32_t& usedSegmentCount,
+													  CudaVector<CVoxelPage>& dVoxelPages,
+													  const std::vector<MeshBatchI*>& batches,
+													  const std::vector<IEVector3>& gridPositions,
+													  bool doTiming)
+{
+	assert(denseResource);
+	double voxelTime = 0.0;
+	double filterTime = 0.0;
+
+	// Initial State
+	uint32_t usedSegmentOffset = 0;
+	for(uint32_t i = 0; i < octreeParams->CascadeCount; i++)
+	{
+		// Do Voxelization
+		float span = octreeParams->BaseSpan * static_cast<float>(1 << i);
+
+		// Voxelization Fills Dense Array
+		voxelTime += Voxelize(batches, gridPositions[i], span, doTiming);
+
+		// Filter uses dense array and count to fake create
+		uint32_t voxelCount;
+		filterTime += Filter(voxelCount,
+							 usedSegmentOffset,
+							 dVoxelPages,
+							 i,
+							 doTiming);
+
+		GI_LOG("----------");
+
+		// Find used segments by this voxelization
+		uint32_t cascadeUsedSegments = (voxelCount + GIVoxelPages::SegmentSize - 1) / GIVoxelPages::SegmentSize;
+		usedSegmentOffset += cascadeUsedSegments;
+	}
+
+	GI_LOG("Voxel Time %f", voxelTime);
+	GI_LOG("Filer Time %f", filterTime);
+	GI_LOG("----------");
+
+	usedSegmentCount = usedSegmentOffset;
+	return voxelTime + filterTime;
+}
+
+GIVoxelPagesFrame::GIVoxelPagesFrame(const GIVoxelCache& cache, 
+									 const std::vector<MeshBatchI*>* batches,
+									 const OctreeParameters& octreeParams)
+	: GIVoxelPages(cache, batches, octreeParams)
+	, fastVoxelizer(&octreeParams)
+	, usedSegmentCount(0)
+{}
+
+void GIVoxelPagesFrame::ClearPages()
+{
+	if(usedSegmentCount == 0) return;
+
+	// Filter valid voxels to page system
+	int totalSize = usedSegmentCount * GIVoxelPages::SegmentSize;
+	int gridSize = CudaInit::GenBlockSize(totalSize);
+	int blockSize = CudaInit::TBP;
+
+	// KC
+	::ClearPages<<<gridSize, blockSize>>>(dPages.Data());
+	CUDA_KERNEL_CHECK();
+}
+
+
+void GIVoxelPagesFrame::Update(double& ioTime,
+							   double& transTime,
+							   const GIVoxelCache& caches,
+							   const IEVector3& camPos,
+							   bool doTiming)
+{
+	std::vector<IEVector3> gridPositions;
+	GenerateGridPositions(gridPositions, camPos);
+
+	// Clear pages from previous frame
+	ClearPages();
+
+	transTime = fastVoxelizer.FastVoxelize(usedSegmentCount, dPages, *batches,
+										   gridPositions,
+										   doTiming);
+
+	ioTime = 0.0f;
+}
+
+double GIVoxelPagesFrame::Draw(bool doTiming,
+						  uint32_t cascadeCount,
+						  VoxelRenderType renderType,
+						  const Camera& camera,
+						  const GIVoxelCache& cache)
+{
+	return pageRenderer.Draw(doTiming, cascadeCount, renderType, camera, cache, *this, false);
 }

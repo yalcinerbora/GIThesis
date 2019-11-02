@@ -790,7 +790,7 @@ void main(void)
 	// Direction
 	vec3 worldEye = normalize(camPos.xyz - pos);
 	vec3 specConeDir = normalize(-reflect(worldEye, worldNorm));
-	bool skipSpec = specularity < 0.5f;
+	bool skipSpec = false;// specularity < 0.5f;
 
 	// Diffuse Cone
 	// Determine Diffuse Cone ID (multiple Neighbors Fetch Different Cones then gets blurred)

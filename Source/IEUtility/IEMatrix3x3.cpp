@@ -5,6 +5,7 @@
 #include "IEVector4.h"
 #include "IEQuaternion.h"
 #include "IEFunctions.h"
+#include <cmath>
 
 const IEMatrix3x3 IEMatrix3x3::IdentityMatrix = { 1.0f, 0.0f, 0.0f,
 												  0.0f, 1.0f, 0.0f,

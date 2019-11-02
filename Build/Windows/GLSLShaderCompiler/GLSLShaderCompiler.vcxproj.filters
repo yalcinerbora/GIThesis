@@ -25,6 +25,9 @@
     <Filter Include="Voxelization\Skeletal">
       <UniqueIdentifier>{bd9d1388-1676-4298-b9b0-cd67c89c8a0c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Voxelization\Fast">
+      <UniqueIdentifier>{f4600ef5-2b1e-41de-9a77-b4b899b5c4d0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\Common\shaders.ninja" />
@@ -146,6 +149,15 @@
     </Text>
     <Text Include="..\..\..\Source\Shaders\GaussBlur16x16.comp">
       <Filter>ConeTracing</Filter>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeFastSkel.vert">
+      <Filter>Voxelization\Fast</Filter>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeFast.frag">
+      <Filter>Voxelization\Fast</Filter>
+    </Text>
+    <Text Include="..\..\..\Source\Shaders\VoxelizeFast.vert">
+      <Filter>Voxelization\Fast</Filter>
     </Text>
   </ItemGroup>
 </Project>

@@ -45,21 +45,21 @@ IndirectBar::IndirectBar(IndirectUniforms& iUniforms,
 			   " label='Specular Cone' help='Specular Cone On Off' ");
 	// Cone Angles Section
 	TwAddSeparator(bar, "Cone Angles", NULL);
-	paramString = " label='Diffuse' help='Diffuse Cone Angle' precision=2 step=0.05";
+	paramString = " label='Diffuse' help='Diffuse Cone Angle' precision=2 step=0.01";
 	paramString += std::string(" min=") + std::to_string(DiffuseLo) + " max=" + std::to_string(DiffuseHi);
 	TwAddVarCB(bar, "diffTan", TW_TYPE_FLOAT,
 			   SetDiffuseTangent,
 			   GetDiffuseTangent,
 			   &iUniforms.diffAngleTanHalf,			  
 			   paramString.c_str());
-	paramString = " label='Specular Min' help='Specular minimum cone angle' precision=2 step=0.05";
+	paramString = " label='Specular Min' help='Specular minimum cone angle' precision=2 step=0.01";
 	paramString += std::string(" min=") + std::to_string(SpecularMinRangeLo) + " max=" + std::to_string(SpecularMinRangeHi);
 	TwAddVarCB(bar, "specMin", TW_TYPE_FLOAT,
 			   SetSpecularTangent,
 			   GetSpecularTangent,
 			   &iUniforms.specularAngleMin,
 			   paramString.c_str());
-	paramString = " label='Specular Max' help='Specular maximum cone angle' precision=2 step=0.05";
+	paramString = " label='Specular Max' help='Specular maximum cone angle' precision=2 step=0.01";
 	paramString += std::string(" min=") + std::to_string(SpecularMaxRangeLo) + " max=" + std::to_string(SpecularMaxRangeHi);
 	TwAddVarCB(bar, "specMax", TW_TYPE_FLOAT,
 			   SetSpecularTangent,

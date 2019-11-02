@@ -42,8 +42,13 @@ class ThesisSolution : public SolutionI
 	private:
 		// Entire Voxel Cache one Per Batch
 		GIVoxelCache				voxelCaches;
-		GIVoxelPages				voxelPages;
 		GISparseVoxelOctree			voxelOctree;
+
+		// Page System
+		GIVoxelPages				voxelPagesCache;
+		GIVoxelPagesFrame			voxelPagesFrame;
+		GIVoxelPages*				voxelPages;
+		bool						useCache;
 
 		// Texture that is used for tracing
 		ConeTraceTexture			coneTex;
@@ -93,6 +98,7 @@ class ThesisSolution : public SolutionI
 												   uint32_t cascadeCont,
 												   uint32_t cascadeBaseLevel,
 												   float baseSpan,
+												   bool useCache,
 												   WindowInput&,
 												   DeferredRenderer&,
 												   const std::string& name);

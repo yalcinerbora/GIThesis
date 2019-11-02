@@ -31,6 +31,10 @@ build $outFolder/VoxelizeGeomCount.frag.spirv : glsl $srcFolder/VoxelizeGeomCoun
 build $outFolder/VoxelizeGeomSkel.frag.spirv : glsl $srcFolder/VoxelizeGeomSkel.frag
 build $outFolder/VoxRender.frag.spirv : glsl $srcFolder/VoxRender.frag
 
+build $outFolder/VoxelizeFast.vert.spirv : glsl $srcFolder/VoxelizeFast.vert
+build $outFolder/VoxelizeFastSkel.vert.spirv : glsl $srcFolder/VoxelizeFastSkel.vert
+build $outFolder/VoxelizeFast.frag.spirv : glsl $srcFolder/VoxelizeFast.frag
+
 build $outFolder/ShadowMapA.geom.spirv : glsl $srcFolder/ShadowMapA.geom
 build $outFolder/ShadowMapD.geom.spirv : glsl $srcFolder/ShadowMapD.geom
 build $outFolder/ShadowMapP.geom.spirv : glsl $srcFolder/ShadowMapP.geom
@@ -89,7 +93,10 @@ build all : phony $
   $outFolder/VoxelizeGeomSkel.vert.spirv $
   $outFolder/VoxRender.vert.spirv $
   $outFolder/VoxRenderSkeletal.vert.spirv $
-  $outFolder/VoxRenderWorld.vert.spirv
+  $outFolder/VoxRenderWorld.vert.spirv $
+  $outFolder/VoxelizeFast.vert.spirv $
+  $outFolder/VoxelizeFastSkel.vert.spirv $
+  $outFolder/VoxelizeFast.frag.spirv 
 
 # $outFolder/VoxelizeGeom.frag.spirv
 # $outFolder/VoxelizeGeomSkel.frag.spirv

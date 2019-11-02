@@ -3,6 +3,7 @@
 
 #include "IEVector2.h"
 #include "IEFunctions.h"
+#include <cmath>
 
 // Constants
 const IEVector2 IEVector2::Xaxis = IEVector2(1.0f, 0.0f);

@@ -434,6 +434,7 @@ void GISparseVoxelOctree::MapOGLData()
 
 	// Print Allocator Usage (Debug)
 	PrintSVOLevelUsages(hLevelSizes);
+	PrintPseudoMemoryUsage(hLevelSizes);
 
 	// Clear level allocators
 	CUDA_CHECK(cudaMemset(dLevelSizes, 0x00, (octreeParams->MaxSVOLevel + 1) * sizeof(uint32_t)));
@@ -468,6 +469,15 @@ void GISparseVoxelOctree::PrintSVOLevelUsages(const std::vector<uint32_t>& svoSi
 	GI_LOG("----------");
 }
 
+void GISparseVoxelOctree::PrintPseudoMemoryUsage(const std::vector<uint32_t>& svoSizes) const
+{
+	uint32_t totalVox = std::accumulate(svoSizes.cbegin(), svoSizes.cend(), 0);
+	size_t dataPerVoxel = sizeof(CSVONode) + sizeof(CSVOIllumination) + sizeof(uint32_t);
+	GI_LOG("Pseudo SVO Memory Usage %fMiB", 
+		   static_cast<float>(totalVox * dataPerVoxel) / 1024.0f / 1024.0f);
+	GI_LOG("----------");
+}
+
 double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 											  // Page System
 											  const GIVoxelPages& pages,
@@ -478,7 +488,8 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 											  // Light Injection Related
 											  const LightInjectParameters& injectParams,
 											  const IEVector3& ambientColor,
-											  bool injectOn)
+											  bool injectOn,
+											  bool useCache)
 {
 	shadowMaps.Map();
 
@@ -507,20 +518,40 @@ double GISparseVoxelOctree::GenerateHierarchy(bool doTiming,
 	uint32_t totalCount = pages.PageCount() * GIVoxelPages::PageSize;
 	int gridSize = CudaInit::GenBlockSize(static_cast<int>(totalCount));
 	int blockSize = CudaInit::TBP;
-	SVOReconstruct<<<gridSize, blockSize>>>(// SVO
-											dOctreeLevels,
-											dLevelSizes,
-											dLevelCapacities,
-											// Voxel Pages
-											pages.getVoxelPagesDevice(),
-											pages.getVoxelGridsDevice(),
-											// Cache System
-											caches.getDeviceCascadePointersDevice().Data(),
-											// LightInjectRelated
-											liParams,
-											// Limits
-											*octreeParams,
-											batchCount);
+
+	if(useCache)
+	{
+		SVOReconstruct<<<gridSize, blockSize>>>(// SVO
+											    dOctreeLevels,
+											    dLevelSizes,
+											    dLevelCapacities,
+											    // Voxel Pages
+											    pages.getVoxelPagesDevice(),
+											    pages.getVoxelGridsDevice(),
+											    // Cache System
+											    caches.getDeviceCascadePointersDevice().Data(),
+											    // LightInjectRelated
+											    liParams,
+											    // Limits
+											    *octreeParams,
+											    batchCount);
+		
+	}
+	else
+	{
+		SVOReconstructCached<<<gridSize, blockSize>>>(// SVO
+													  dOctreeLevels,
+													  dLevelSizes,
+													  dLevelCapacities,
+													  // Voxel Pages
+													  pages.getVoxelPagesDevice(),
+													  pages.getVoxelGridsDevice(),													  
+													  // LightInjectRelated
+													  liParams,
+													  // Limits
+													  *octreeParams,
+													  batchCount);
+	}
 	CUDA_KERNEL_CHECK();
 
 	// Recieve level sizess
@@ -679,12 +710,13 @@ void GISparseVoxelOctree::UpdateSVO(// Timing Related
 									uint32_t batchCount,
 									const LightInjectParameters& injectParams,
 									const IEVector3& ambientColor,
-									bool injectOn)
+									bool injectOn,
+									bool useCache)
 {
 	MapOGLData();
 	reconstructTime = GenerateHierarchy(doTiming, pages, caches, 
 										batchCount, injectParams,
-										ambientColor, injectOn);
+										ambientColor, injectOn, useCache);
 	averageTime = AverageNodes(doTiming);
 	genPtrTime = GenNeigbourPointers(doTiming);
 	

@@ -30,4 +30,5 @@ void main(void)
 {
 	fboColor = vec4(texture(gBuffColor, fUV).rgb * 
 				    texture(intensityTex, fUV).rgb, 1.0f);
+	//fboColor = pow(fboColor, vec4(1.0f/2.2f));
 }

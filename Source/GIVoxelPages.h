@@ -25,49 +25,6 @@ class OctreeParameters;
 class GIVoxelPages
 {
 	private:
-		class FastVoxelizer
-		{
-			private:
-				// Data Buffer that is used for fast voxelization
-				StructuredBuffer<uint8_t>	oglData;
-				cudaGraphicsResource_t		denseResource;
-				OctreeParameters*			octreeParams;
-				GLuint						gridTransformOffset;
-				GLuint						denseOffset;
-				GLuint						allocatorOffset;
-				
-
-				// Shaders
-				Shader						vertVoxelizeFast;
-				Shader						vertVoxelizeFastSkeletal;
-				Shader						fragVoxelizeFast;
-
-				double						Voxelize(const std::vector<MeshBatchI*>& batches,
-													 const IEVector3& gridCenter,
-													 const IEVector3& gridCorner,
-													 bool doTiming);
-				double						Filter(uint32_t& offset, CVoxelPage* dVoxelPages,
-												   uint32_t pageCapacity, uint32_t cascadeId,
-												   bool doTiming);
-
-			protected:
-			public:
-				// Constructors & Destructor
-											FastVoxelizer();
-											FastVoxelizer(OctreeParameters*);
-											FastVoxelizer(const FastVoxelizer&) = delete;
-											FastVoxelizer(FastVoxelizer&&);
-				FastVoxelizer&				operator=(const FastVoxelizer&) = delete;
-				FastVoxelizer&				operator=(FastVoxelizer&&);
-											~FastVoxelizer();
-
-				// Map
-				double						FastVoxelize(CVoxelPage* dVoxelPages, uint32_t pageCount,
-														 const CVoxelGrid* dVoxelGrids, uint32_t gridCount,
-														 const std::vector<MeshBatchI*>& batches,
-														 bool doTiming);
-		};
-
 		// Class that handles debug rendering of the page
 		class PageRenderer
 		{
@@ -106,7 +63,8 @@ class GIVoxelPages
 													 VoxelRenderType renderType,
 													 const Camera& camera,
 													 const GIVoxelCache& cache,
-													 const GIVoxelPages& pages);
+													 const GIVoxelPages& pages,
+													 bool useCache);
 				bool							Allocated() const;
 		};
 
@@ -139,12 +97,6 @@ class GIVoxelPages
 		static constexpr uint32_t				SegmentPerBlock = SegmentSize / CudaInit::TBP;
 
 	private:
-		// Batch
-		const std::vector<MeshBatchI*>*			batches;
-		const OctreeParameters*					svoParams;
-		uint32_t								segmentAmount;
-		IEVector3								outermostGridPosition;
-
 		// Static GPU Data
 		CudaVector<uint8_t>						gpuData;
 		// All these pointers are offseted on the gpuData
@@ -156,17 +108,9 @@ class GIVoxelPages
 		CSegmentInfo*							dSegmentInfo;
 		ushort2*								dSegmentAllocInfo;
 
-		//Page System (Theoretically Dynamic Data)
-		std::vector<MultiPage>					hPages;
-		CudaVector<CVoxelPage>					dPages;
-
 		// OGL Buffer Resources (Model, Transform Index, AABB)
 		std::vector<cudaGraphicsResource_t>		batchOGLResources;
-
-		// Debug Rednering Related
-		PageRenderer							pageRenderer;
 		
-
 		uint16_t								PackSegmentInfo(const uint8_t cascadeId,
 																const CObjectType type,
 																const CSegmentOccupation occupation,
@@ -182,10 +126,23 @@ class GIVoxelPages
 														  bool doTiming);
 		void									UnmapOGLResources();
 
-		// Instead of Trasform I-O pair this can be called also
-		double									VoxelizeFast();
-
 	protected:
+		// Batch
+		const std::vector<MeshBatchI*>*			batches;
+		const OctreeParameters*					svoParams;
+		uint32_t								segmentAmount;
+		IEVector3								outermostGridPosition;
+
+		//Page System (Theoretically Dynamic Data)
+		std::vector<MultiPage>					hPages;
+		CudaVector<CVoxelPage>					dPages;
+
+		// Debug Rednering Related
+		PageRenderer							pageRenderer;
+
+		void									GenerateGridPositions(std::vector<IEVector3>& gridPositions,
+																	  const IEVector3& cameraPos);
+
 	public:
 		// Constrcutors & Destructor
 												GIVoxelPages();
@@ -198,12 +155,11 @@ class GIVoxelPages
 		GIVoxelPages&							operator=(GIVoxelPages&&);
 												~GIVoxelPages();
 
-		void									Update(double& ioTime,
+		virtual void							Update(double& ioTime,
 													   double& transTime,
 													   const GIVoxelCache& caches,
 													   const IEVector3& camPos,
-													   bool doTiming,
-													   bool useCache);
+													   bool doTiming);
 		
 		uint64_t								MemoryUsage() const;
 		uint32_t								PageCount() const;
@@ -216,7 +172,7 @@ class GIVoxelPages
 
 		// Debug Draw
 		void									AllocateDraw();
-		double									Draw(bool doTiming, 
+		virtual double							Draw(bool doTiming, 
 													 uint32_t cascade,
 													 VoxelRenderType renderType,
 													 const Camera& camera,
@@ -226,8 +182,91 @@ class GIVoxelPages
 		const CVoxelPageConst*					getVoxelPagesDevice() const;
 		const CVoxelGrid*						getVoxelGridsDevice() const;
 		const IEVector3&						getOutermostGridPosition() const;
+		size_t									VoxelCountInCirculation(const GIVoxelCache& cache) const;
 };
 
 static_assert(GIVoxelPages::PageSize % CudaInit::TBP == 0, "Page size must be divisible by thread per block");
-static_assert(GIVoxelPages::SegmentPerBlock != 0, "Segment should be bigger(or equal) than block");
-static_assert(GIVoxelPages::SegmentSize < 2048, "Segment size should fit on SegmentPacked Structure, requires 10 bits at most");
+static_assert(GIVoxelPages::SegmentPerBlock != 0, "Segment should be bigger(or equal) than a block");
+static_assert(GIVoxelPages::SegmentSize <= 1024, "Segment size should fit on SegmentPacked Structure, requires 10 bits at most");
+
+class GIVoxelPagesFrame : public GIVoxelPages
+{
+	private:
+		class FastVoxelizer
+		{
+			private:
+				// Data Buffer that is used for fast voxelization
+				StructuredBuffer<uint8_t>	oglData;
+				GLuint						lockTexture;
+				cudaGraphicsResource_t		denseResource;				
+				// Offsets
+				size_t						incrementOffset;
+				size_t						denseOffset;
+
+				const OctreeParameters*		octreeParams;
+
+				// Shaders
+				Shader						vertVoxelizeFast;
+				Shader						vertVoxelizeFastSkeletal;
+				Shader						geomVoxelize;
+				Shader						fragVoxelizeFast;
+				
+				double						Voxelize(const std::vector<MeshBatchI*>& batches,
+													 const IEVector3& gridCorner, float span,
+													 bool doTiming);
+				double						Filter(uint32_t& voxelCount,
+												   uint32_t segmentOffset,
+												   CudaVector<CVoxelPage>& dVoxelPages,
+												   uint32_t cascadeId,
+												   bool doTiming);
+
+			protected:
+			public:
+				// Constructors & Destructor
+											FastVoxelizer();
+											FastVoxelizer(const OctreeParameters*);
+											FastVoxelizer(const FastVoxelizer&) = delete;
+											FastVoxelizer(FastVoxelizer&&);
+				FastVoxelizer&				operator=(const FastVoxelizer&) = delete;
+				FastVoxelizer&				operator=(FastVoxelizer&&);
+											~FastVoxelizer();
+
+				// Map
+				double						FastVoxelize(uint32_t& usedSegmentCount,
+														 CudaVector<CVoxelPage>& dVoxelPages,
+														 const std::vector<MeshBatchI*>& batches,
+														 const std::vector<IEVector3>& gridPositions,								 
+														 bool doTiming);
+		};
+
+	private:
+		// Comparison between hardware rasterizer based voxelization
+		FastVoxelizer						fastVoxelizer;
+		uint32_t							usedSegmentCount;
+		
+	protected:
+	public:
+											// Constrcutors & Destructor
+											GIVoxelPagesFrame() = default;
+											GIVoxelPagesFrame(const GIVoxelCache& cache,
+															  const std::vector<MeshBatchI*>* batches,
+															  const OctreeParameters& octreeParams);
+											GIVoxelPagesFrame(const GIVoxelPagesFrame&) = delete;
+											GIVoxelPagesFrame(GIVoxelPagesFrame&&) = default;
+		GIVoxelPagesFrame&					operator=(const GIVoxelPagesFrame&) = delete;
+		GIVoxelPagesFrame&					operator=(GIVoxelPagesFrame&&) = default;
+											~GIVoxelPagesFrame() = default;
+
+
+		void								ClearPages();
+		virtual void						Update(double& ioTime,
+												   double& transTime,
+												   const GIVoxelCache& caches,
+												   const IEVector3& camPos,
+												   bool doTiming) override;
+		virtual double						Draw(bool doTiming,
+												 uint32_t cascadeCount,
+												 VoxelRenderType renderType,
+												 const Camera& camera,
+												 const GIVoxelCache& cache) override;
+};

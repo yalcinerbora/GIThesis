@@ -10,6 +10,7 @@ Requires Input Management Interface to get the incoming Data
 #ifndef __WINDOW_H__
 #define __WINDOW_H__
 
+#include <string>
 #include <map>
 #include "GLHeaderLite.h"
 

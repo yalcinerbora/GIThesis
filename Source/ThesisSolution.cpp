@@ -11,6 +11,7 @@ ThesisSolution::ThesisSolution(uint32_t denseLevel,
 							   uint32_t cascadeCount,
 							   uint32_t cascadeBaseLevel,
 							   float baseSpan,
+							   bool useCache,
 							   WindowInput& inputManager,
 							   DeferredRenderer& deferredDenderer,
 							   const std::string& name)
@@ -20,7 +21,9 @@ ThesisSolution::ThesisSolution(uint32_t denseLevel,
 	, name(name)
 	, coneTex(TraceWidth, TraceHeight, GL_RGBA16F)
 	, currentScene(nullptr)
+	, voxelPages(nullptr)
 	, dRenderer(deferredDenderer)
+	, useCache(useCache)
 	, giOn(true)
 	, aoOn(true)
 	, injectOn(true)
@@ -42,6 +45,8 @@ ThesisSolution::ThesisSolution(uint32_t denseLevel,
 	inputManager.AddKeyCallback(GLFW_KEY_KP_SUBTRACT, GLFW_RELEASE, &ThesisSolution::Down, this);
 	inputManager.AddKeyCallback(GLFW_KEY_KP_MULTIPLY, GLFW_RELEASE, &ThesisSolution::Next, this);
 	inputManager.AddKeyCallback(GLFW_KEY_KP_DIVIDE, GLFW_RELEASE, &ThesisSolution::Previous, this);
+
+
 }
 
 bool ThesisSolution::IsCurrentScene(SceneI& scene)
@@ -57,6 +62,7 @@ void ThesisSolution::Load(SceneI& s)
 	// Attach new Scene's Light Indices
 	dRenderer.AttachSceneLightIndices(s);
 
+
 	// Load Voxel Caches
 	const auto& batches = currentScene->getBatches();
 	std::vector<std::vector<std::string>> batchNames;
@@ -70,9 +76,20 @@ void ThesisSolution::Load(SceneI& s)
 							   batchNames);
 
 	// Initialize Voxel Page System
-	voxelPages = GIVoxelPages(voxelCaches,
-							  &currentScene->getBatches(), 
-							  octreeParams);
+	if(useCache)
+	{
+		voxelPagesCache = GIVoxelPages(voxelCaches,
+									   &currentScene->getBatches(),
+									   octreeParams);
+		voxelPages = &voxelPagesCache;
+	}
+	else
+	{
+		voxelPagesFrame = GIVoxelPagesFrame(voxelCaches,
+											&currentScene->getBatches(),
+											octreeParams);
+		voxelPages = &voxelPagesFrame;
+	}
 
 	// Initialize SVO System
 	voxelOctree = GISparseVoxelOctree(octreeParams,
@@ -105,7 +122,7 @@ void ThesisSolution::Load(SceneI& s)
 
 	// Print System Memory Usage
 	GI_LOG("Page Memory Usage %.2fMB", 
-		   static_cast<double>(voxelPages.MemoryUsage()) / 1024.0f / 1024.0f);
+		   static_cast<double>(voxelPages->MemoryUsage()) / 1024.0f / 1024.0f);
 	GI_LOG("SVO Memory Usage %.2fMB", 
 		   static_cast<double>(voxelOctree.MemoryUsage()) / 1024.0f / 1024.0f);
 }
@@ -132,13 +149,15 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	dRenderer.PopulateGBuffer(*currentScene, mainCam, doTiming);
 
 	// Do Page update
-	bool useCache = true;
-	voxelPages.Update(ioTime,
-					  transTime,
-					  voxelCaches,
-					  mainCam.pos,
-					  doTiming,
-					  useCache);
+	voxelPages->Update(ioTime,
+					   transTime,
+					   voxelCaches,
+					   mainCam.pos,
+					   doTiming);
+
+	// Print 
+	//size_t voxelCount = voxelPages->VoxelCountInCirculation(voxelCaches);
+	//GI_LOG("Voxel Count %d", voxelCount);
 
 	// Do SVO update
 	float depthRange[2];
@@ -155,22 +174,23 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	//directLighting = false;
 	//aColor = IEVector3(0.0f);
 	//indirectUniforms.startOffset = 20.0f;
+	//injectOn = false;
 
 	voxelOctree.UpdateSVO(svoReconTime, svoGenPtrTime, svoAverageTime, doTiming,
-						  voxelPages, voxelCaches,
+						  *voxelPages, voxelCaches,
 						  static_cast<uint32_t>(currentScene->getBatches().size()),
 						  liParams,
 						  aColor,
-						  injectOn);
-
+						  injectOn,
+						  useCache);
+	
 	// Do GI Pass
-	//dRenderer.ClearLI(aColor);
 	if(giOn || aoOn)
 	{
 		// Uniform Updates
 		//dRenderer.RefreshFTransform(mainCam);
 		voxelOctree.UpdateIndirectUniforms(indirectUniforms);
-		voxelOctree.UpdateOctreeUniforms(voxelPages.getOutermostGridPosition());
+		voxelOctree.UpdateOctreeUniforms(voxelPages->getOutermostGridPosition());
 		dRenderer.RefreshInvFTransform(*currentScene, mainCam,
 									   coneTex.Width(), coneTex.Height());
 
@@ -184,7 +204,8 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		coneTraceTime += coneTex.BlurTexture(dRenderer.getGBuffer().getDepthGL(), mainCam);
 		
 		// Application of Indirect Illumination
-		dRenderer.ClearLI(IEVector3(0.0f));
+		//dRenderer.ClearLI(IEVector3(0.0f));
+		dRenderer.ClearLI(aColor);
 		coneTraceTime += voxelOctree.ApplyToLIBuffer(coneTex,
 													 dRenderer,
 													 giOn, aoOn,
@@ -199,8 +220,8 @@ void ThesisSolution::Frame(const Camera& mainCam)
 	
 	// Direct Lighting Timings
 	directTime = dRenderer.ShadowMapTime() + dRenderer.DPassTime() +
-		dRenderer.GPassTime() + dRenderer.LPassTime() +
-		dRenderer.MergeTime();
+				 dRenderer.GPassTime() + dRenderer.LPassTime() +
+				 dRenderer.MergeTime();
 
 	if(scheme >= RenderScheme::G_DIFF_ALBEDO &&
 	   scheme <= RenderScheme::G_DEPTH)
@@ -228,8 +249,8 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		voxelCaches.DeallocateGL();
 		if(scheme == RenderScheme::VOXEL_PAGE)
 		{
-			voxelPages.AllocateDraw();
-			miscTime = voxelPages.Draw(doTiming,
+			voxelPages->AllocateDraw();
+			miscTime = voxelPages->Draw(doTiming,
 									   thesisBar.PageCascade(),
 									   thesisBar.PageRenderType(),
 									   mainCam,
@@ -237,14 +258,14 @@ void ThesisSolution::Frame(const Camera& mainCam)
 		}
 		else 
 		{
-			voxelPages.DeallocateDraw();
+			voxelPages->DeallocateDraw();
 			if(scheme == RenderScheme::SVO_VOXELS)
 			{
 				// Uniform Updates
 				//dRenderer.RefreshFTransform(mainCam);
 				dRenderer.RefreshInvFTransform(*currentScene, mainCam,
 											   coneTex.Width(), coneTex.Height());
-				voxelOctree.UpdateOctreeUniforms(voxelPages.getOutermostGridPosition());
+				voxelOctree.UpdateOctreeUniforms(voxelPages->getOutermostGridPosition());
 
 				// Actual Render
 				miscTime = voxelOctree.DebugTraceSVO(coneTex, dRenderer, mainCam,
@@ -259,7 +280,7 @@ void ThesisSolution::Frame(const Camera& mainCam)
 				//dRenderer.RefreshFTransform(mainCam);
 				dRenderer.RefreshInvFTransform(*currentScene, mainCam,
 											   coneTex.Width(), coneTex.Height());
-				voxelOctree.UpdateOctreeUniforms(voxelPages.getOutermostGridPosition());
+				voxelOctree.UpdateOctreeUniforms(voxelPages->getOutermostGridPosition());
 
 				// Actual Render
 				miscTime = voxelOctree.DebugSampleSVO(coneTex, dRenderer, mainCam,

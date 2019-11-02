@@ -84,25 +84,19 @@ void WindowInput::WindowFBChangedFunc(int width, int height)
 }
 
 void WindowInput::WindowSizeChangedFunc(int width, int height)
-{
-}
+{}
 
 void WindowInput::WindowClosedFunc()
-{
-}
+{}
 
 void WindowInput::WindowRefreshedFunc()
-{
-}
+{}
 
 void WindowInput::WindowFocusedFunc(bool focused)
-{
-
-}
+{}
 
 void WindowInput::WindowMinimizedFunc(bool minimized)
-{
-}
+{}
 
 void WindowInput::KeyboardUsedFunc(int key, int osKey, int action, int modifier)
 {	

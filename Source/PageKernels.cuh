@@ -10,10 +10,22 @@ extern __global__ void FilterVoxels(// Voxel System
 									CVoxelPage* gVoxelPages,
 									// Dense Data from OGL
 									uint32_t& gAllocator,
-									const uint2* gDenseData,
+									uint2* gDenseData,
+									uint32_t segmentOffset,
 									// Limits
 									uint32_t cascadeId,
-									uint32_t segmentOffset);
+									uint32_t gridSize);
+
+extern __global__ void ClearPages(// Voxel System
+								  CVoxelPage* gVoxelPages);
+
+extern __global__ void CountVoxelsInPageSystem(uint32_t* gCounter,
+											   // Voxel Cache
+											   const BatchVoxelCache* gBatchVoxelCache,
+											   // Voxel Pages
+											   const CVoxelPageConst* gVoxelPages,
+											   // Limits
+											   const uint32_t batchCount);
 
 // Initialize Pages
 // Call Logic "per segment per page"
@@ -33,7 +45,8 @@ extern __global__ void CopyPage(// OGL Buffer
 								// Limits
 								const uint32_t batchCount,
 								const uint32_t selectedCascade,
-								const VoxelRenderType renderType);
+								const VoxelRenderType renderType,
+								bool useCache);
 
 // Voxel Allocate - Deallocate
 // Allocates-Deallocates Voxels withn pages segment by segment

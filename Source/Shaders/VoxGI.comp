@@ -27,7 +27,7 @@
 #define T_NORMAL layout(binding = 1)
 #define T_DEPTH layout(binding = 2)
 
-#define CONE_COUNT 1
+#define CONE_COUNT 4
 #define TRACE_NEIGBOUR 8
 #define NEIGHBORS 4	// 2x2 Square
 
@@ -123,7 +123,7 @@ U_OCTREE_UNIFORMS uniform SVOConstants
 	uint denseLevel;
 	uint minCascadeLevel;
 	uint maxSVOLevel;
-	
+
 	uint cascadeCount;
 	uint nodeOffsetDifference;
 	uint gridSize;
@@ -205,19 +205,19 @@ uint DiameterToDepth(out float interp, in float diameter)
 	uint level = min(maxSVOLevel, uint(diameterRatio));
 	level = maxSVOLevel - level;
 
-	if(level <= minSVOLevel) 
+	if(level <= minSVOLevel)
 	{
 		interp = 1.0f;
 		level = minSVOLevel + 1;
 	}
 	return level;
-		
+
 	//uint svoLevelInverse = findMSB(uint(floor(diameterRatio))) + 1;
 
 	//float offset = diameterRatio - float(0x1 << svoLevelInverse);
 	//offset /= (float(0x1 << (svoLevelInverse + 1)) - float(0x1 << svoLevelInverse));
-	
-	
+
+
 	////offset = clamp(offset, 0.0f, 1.0f);
 	////offset = 1.0f;
 
@@ -288,7 +288,7 @@ vec4 Interp3DVec4(in vec4 i0, in vec4 i1, in vec4 i2, in vec4 i3,
 	vec4 x1 = mix(i2, i3, weight.x);
 	vec4 x2 = mix(i4, i5, weight.x);
 	vec4 x3 = mix(i6, i7, weight.x);
-		   
+
 	vec4 y0 = mix(x0, x1, weight.y);
 	vec4 y1 = mix(x2, x3, weight.y);
 
@@ -296,8 +296,8 @@ vec4 Interp3DVec4(in vec4 i0, in vec4 i1, in vec4 i2, in vec4 i3,
 	return z;
 }
 
-float AnisotropicOcclusion(in vec4 occ0, in vec4 occ1, in vec4 occ2, in vec4 occ3, 
-						   in vec4 occ4, in vec4 occ5, in vec4 occ6, in vec4 occ7, 
+float AnisotropicOcclusion(in vec4 occ0, in vec4 occ1, in vec4 occ2, in vec4 occ3,
+						   in vec4 occ4, in vec4 occ5, in vec4 occ6, in vec4 occ7,
 						   in vec3 direction, in vec3 interp)
 {
 	// Interp Occlusion
@@ -325,7 +325,7 @@ void InterpIllum(out float occlusion, out vec3 irrad, out float gloss,
 	vec4 occ5 = UnpackOccupancySVO(illum5.z);
 	vec4 occ6 = UnpackOccupancySVO(illum6.z);
 	vec4 occ7 = UnpackOccupancySVO(illum7.z);
-	occlusion = AnisotropicOcclusion(occ0, occ1, occ2, occ3, 
+	occlusion = AnisotropicOcclusion(occ0, occ1, occ2, occ3,
 								     occ4, occ5, occ6, occ7,
 									 marchDir, interp);
 
@@ -342,7 +342,7 @@ void InterpIllum(out float occlusion, out vec3 irrad, out float gloss,
 	value6 = UnpackIrradianceSVO(illum6.x).xyz;
 	value7 = UnpackIrradianceSVO(illum7.x).xyz;
 
-	irrad = Interp3DVec3(value0, value1, value2, value3, 
+	irrad = Interp3DVec3(value0, value1, value2, value3,
 						 value4, value5, value6, value7,
 						 interp);
 
@@ -365,7 +365,7 @@ void InterpIllum(out float occlusion, out vec3 irrad, out float gloss,
 
 	float y0 = mix(x0, x1, interp.y);
 	float y1 = mix(x2, x3, interp.y);
-	
+
 	gloss = mix(y0, y1, interp.z);
 
 	// Normal
@@ -378,7 +378,7 @@ void InterpIllum(out float occlusion, out vec3 irrad, out float gloss,
 	value6 = (UnpackNormalSVO(illum6.y) + 1.0f) * 0.5f;
 	value7 = (UnpackNormalSVO(illum7.y) + 1.0f) * 0.5f;
 
-	normal = Interp3DVec3(value0, value1, value2, value3, 
+	normal = Interp3DVec3(value0, value1, value2, value3,
 						  value4, value5, value6, value7,
 						  interp);
 
@@ -392,7 +392,7 @@ void InterpIllum(out float occlusion, out vec3 irrad, out float gloss,
 	value6 = (UnpackLightDirSVO(illum6.w) + 1.0f) * 0.5f;
 	value7 = (UnpackLightDirSVO(illum7.w) + 1.0f) * 0.5f;
 
-	lightDir = Interp3DVec3(value0, value1, value2, value3, 
+	lightDir = Interp3DVec3(value0, value1, value2, value3,
 							value4, value5, value6, value7,
 							interp);
 }
@@ -422,9 +422,9 @@ uvec4 FetchChildIllum(in uvec4 neigLo, in uvec4 neigHi, in ivec3 childNode, in u
 	parentOffsetLinear |= (parentOffset.x << 0);
 
 	uint currentNeig = ResolveNeig(neigLo, neigHi, parentOffsetLinear);
-	if(currentNeig != 0xFFFFFFFF) 
+	if(currentNeig != 0xFFFFFFFF)
 		return svoIllum[offset + currentNeig + childIdLinear];
-	return uvec4(0);	
+	return uvec4(0);
 }
 
 void SampleSVO(inout vec3 lightDir,
@@ -432,16 +432,16 @@ void SampleSVO(inout vec3 lightDir,
 			   inout vec4 irradiance,
 			   inout vec3 normal,
 
-			   in vec3 worldPos, 
-			   in vec3 direction, 
+			   in vec3 worldPos,
+			   in vec3 direction,
 			   in uint sampleLevel,
 			   in float depthInterp)
-{	
+{
 	vec3 interp;
 	ivec3 voxPos = LevelVoxId(interp, worldPos, maxSVOLevel);
 	ivec3 maxLevelSize = ivec3(0x1 << maxSVOLevel);
 	uint parentLevel = sampleLevel - 1;
-	
+
 	// Cull if out of bounds
 	if(	voxPos.x < 0 || voxPos.x >= maxLevelSize.x ||
 		voxPos.y < 0 || voxPos.y >= maxLevelSize.y ||
@@ -451,15 +451,15 @@ void SampleSVO(inout vec3 lightDir,
 	}
 
 	// Check Dense
-	if(sampleLevel < minSVOLevel) return; 
-	else if(sampleLevel > minSVOLevel && 
+	if(sampleLevel < minSVOLevel) return;
+	else if(sampleLevel > minSVOLevel &&
 			sampleLevel <= denseLevel)
 	{
 		// Dense Fetch Parent
 		vec3 interp;
 		ivec3 index = LevelVoxId(interp, worldPos, parentLevel);
 		uint offset = svoLevelOffsets[parentLevel];
-		
+
 		uvec4 illum0 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 0), parentLevel)];
 		uvec4 illum1 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 0), parentLevel)];
 		uvec4 illum2 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 0), parentLevel)];
@@ -469,7 +469,7 @@ void SampleSVO(inout vec3 lightDir,
 		uvec4 illum5 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 1), parentLevel)];
 		uvec4 illum6 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 1), parentLevel)];
 		uvec4 illum7 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 1), parentLevel)];
-		
+
 		float parentOcc, parentGloss;
 		vec3 parentIrrad, parentLightDir, parentNormal;
 		InterpIllum(parentOcc, parentIrrad, parentGloss,
@@ -481,7 +481,7 @@ void SampleSVO(inout vec3 lightDir,
 		// Dense Fetch Child
 		index = LevelVoxId(interp, worldPos, sampleLevel);
 		offset = svoLevelOffsets[sampleLevel];
-		
+
 		illum0 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 0, 0), sampleLevel)];
 		illum1 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 0), sampleLevel)];
 		illum2 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 0), sampleLevel)];
@@ -491,7 +491,7 @@ void SampleSVO(inout vec3 lightDir,
 		illum5 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 0, 1), sampleLevel)];
 		illum6 = svoIllum[offset + DenseIndexToLinear(index + ivec3(0, 1, 1), sampleLevel)];
 		illum7 = svoIllum[offset + DenseIndexToLinear(index + ivec3(1, 1, 1), sampleLevel)];
-				
+
 		float childOcc, childGloss;
 		vec3 childIrrad, childLightDir, childNormal;
 		InterpIllum(childOcc, childIrrad, childGloss,
@@ -502,7 +502,7 @@ void SampleSVO(inout vec3 lightDir,
 
 		lightDir = mix(childLightDir, parentLightDir, depthInterp);
 		normal = mix(childNormal, parentLightDir, depthInterp);
-		occlusion = mix(childOcc, parentOcc, depthInterp);		
+		occlusion = mix(childOcc, parentOcc, depthInterp);
 		irradiance.xyz = mix(childIrrad, parentIrrad, depthInterp);
 		irradiance.w = mix(childGloss, parentGloss, depthInterp);
 	}
@@ -517,15 +517,15 @@ void SampleSVO(inout vec3 lightDir,
 
 		uint traversedLevel = denseLevel;
 		while(traversedLevel < parentLevel)
-		{			
+		{
 			uint offset = svoLevelOffsets[traversedLevel] - nodeOffsetDifference;
 			uint nextNode = svoNode[offset + nodeIndex].x;
 			if(nextNode == 0xFFFFFFFF) break;
-						
-			traversedLevel++;			
+
+			traversedLevel++;
 			nodeIndex = nextNode + CalculateLevelChildId(voxPos, traversedLevel);
 		}
-		
+
 		// Fetch data if and only if from that level
 		// If we can traverse to that level we can sample from that level
 		// Otherwise it is impossible
@@ -542,13 +542,13 @@ void SampleSVO(inout vec3 lightDir,
 			uvec4 illum5 = uvec4(0);
 			uvec4 illum6 = uvec4(0);
 			uvec4 illum7 = uvec4(0);
-			
+
 			// Fetch
 			// Parent Level
 			uint offset = svoLevelOffsets[parentLevel];
 			uint nodeOffset = svoLevelOffsets[parentLevel] - nodeOffsetDifference;
 			index = LevelVoxId(interp, worldPos, parentLevel);
-			
+
 			// (0, 0, 0)
 			neighborsLow[0] = svoNode[nodeOffset + nodeIndex].x;
 			illum0 = svoIllum[offset + nodeIndex];
@@ -569,16 +569,16 @@ void SampleSVO(inout vec3 lightDir,
 
 				secondNeig.x = svoNode[nodeOffset + firstNeig.x].z;	// x -> y
 			}
-			if(firstNeig.y != 0xFFFFFFFF) 
+			if(firstNeig.y != 0xFFFFFFFF)
 			{
-				neighborsLow[2] = svoNode[nodeOffset + firstNeig.y].x;				
+				neighborsLow[2] = svoNode[nodeOffset + firstNeig.y].x;
 				illum2 = svoIllum[offset + firstNeig.y];
 
 				secondNeig.y = svoNode[nodeOffset + firstNeig.y].w;	// y -> z
 			}
-			if(firstNeig.z != 0xFFFFFFFF) 
+			if(firstNeig.z != 0xFFFFFFFF)
 			{
-				neighborsHi[0] = svoNode[nodeOffset + firstNeig.z].x;				
+				neighborsHi[0] = svoNode[nodeOffset + firstNeig.z].x;
 				illum4 = svoIllum[offset + firstNeig.z];
 
 				secondNeig.z = svoNode[nodeOffset + firstNeig.z].y;	// z -> x
@@ -592,14 +592,14 @@ void SampleSVO(inout vec3 lightDir,
 				neighborsLow[3] = svoNode[nodeOffset + secondNeig.x].x;
 				illum3 = svoIllum[offset + secondNeig.x];
 
-				thridNeig = svoNode[nodeOffset + secondNeig.x].w; // x -> y -> z				
+				thridNeig = svoNode[nodeOffset + secondNeig.x].w; // x -> y -> z
 			}
-			if(secondNeig.y != 0xFFFFFFFF) 
+			if(secondNeig.y != 0xFFFFFFFF)
 			{
 				neighborsHi[2] = svoNode[nodeOffset + secondNeig.y].x;
 				illum6 = svoIllum[offset + secondNeig.y];
 			}
-			if(secondNeig.z != 0xFFFFFFFF) 
+			if(secondNeig.z != 0xFFFFFFFF)
 			{
 				neighborsHi[1] = svoNode[nodeOffset + secondNeig.z].x;
 				illum5 = svoIllum[offset + secondNeig.z];
@@ -623,7 +623,7 @@ void SampleSVO(inout vec3 lightDir,
 
 			// --------------------------//
 			// Child Level
-			uint childLevel = sampleLevel; 
+			uint childLevel = sampleLevel;
 			offset = svoLevelOffsets[childLevel];
 			index = LevelVoxId(interp, worldPos, childLevel);
 			ivec3 childBaseId = index; childBaseId &= 0x00000001;
@@ -646,7 +646,7 @@ void SampleSVO(inout vec3 lightDir,
 			illum5 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(1, 0, 1), offset);
 			illum6 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(0, 1, 1), offset);
 			illum7 = FetchChildIllum(neighborsLow, neighborsHi, childBaseId + ivec3(1, 1, 1), offset);
-		
+
 			float childOcc, childGloss;
 			vec3 childIrrad, childLightDir, childNormal;
 			InterpIllum(childOcc, childIrrad, childGloss,
@@ -662,7 +662,7 @@ void SampleSVO(inout vec3 lightDir,
 			// Quadlinear Interp
 			lightDir = mix(childLightDir, parentLightDir, depthInterp);
 			normal = mix(childNormal, parentLightDir, depthInterp);
-			occlusion = mix(childOcc, parentOcc, depthInterp);		
+			occlusion = mix(childOcc, parentOcc, depthInterp);
 			irradiance.xyz = mix(childIrrad, parentIrrad, depthInterp);
 			irradiance.w = mix(childGloss, parentGloss, depthInterp);
 		}
@@ -693,7 +693,7 @@ vec3 IllumFactor(in vec3 wo,
 	// Blinn - phong specular BRDF
 	float specularBRDF = pow(max(dot(normal, halfVec), 0.0f), specPower);
 	specularBRDF *= GI_ONE_OVER_PI * 0.125f * (specPower + 6.0f);
-	
+
 	// ???
 	//specularBRDF /= max(dot(normal, wi), 1.0f);
 	specularBRDF *= wiVariance;
@@ -704,7 +704,7 @@ vec3 IllumFactor(in vec3 wo,
 	// Total Illumination Factor
 	//vec3 illumination = (diffuseBRDF + specularBRDF) * irradiance.xyz;
 	vec3 illumination = (diffuseBRDF) * irradiance.xyz;
-	
+
 	illumination *= nVariance;
 
 	// Now We need to do the gaussian lobes
@@ -713,7 +713,7 @@ vec3 IllumFactor(in vec3 wo,
 
 	// TODO:
 	// Light Intensity Relevant to the cone light angle (Lambert Factor)
-	// Toksvig 2005	
+	// Toksvig 2005
 	//float NDFstd2 = (1.0f - nVariance) / nVariance;
 	//float std2 = NDFstd2 * NDFstd2 + 1.0f;//coneStd2 * coneStd2;
 	//float toksvigFactor = 1.0f / (1.0f + std2 * irradiance.w);
@@ -847,9 +847,9 @@ void main(void)
 			uint sampleDepth = DiameterToDepth(depthOffset, diameter);
 
 			SampleSVO(lightDir, occlusion, irradiance, normal,
-					  currentPos, coneDir, 
+					  currentPos, coneDir,
 					  sampleDepth, depthOffset);
-		
+
 
 			// Calculate Illumination
 			vec3 illumination = (giOn) ? IllumFactor(-coneDir,
@@ -875,11 +875,11 @@ void main(void)
 			float lambertFactor = max(dot(worldNorm, coneDir), 0.0f);
 			float nodeOcclusion = occlusion * lambertFactor;
 			illumination *= lambertFactor;
-		
+
 			// Volume Occlusion Sampling
 			totalIllumination += (vec3(1.0f) - totalOcclusion) * illumination;
 			if(i != CONE_COUNT) totalAO += (1.0f - totalOcclusion) * nodeOcclusion * falloff;
-			totalOcclusion += (1.0f - totalOcclusion) * occlusion;			
+			totalOcclusion += (1.0f - totalOcclusion) * occlusion;
 
 			// Advance sample point (from sampling diameter)
 			marchDistance = diameter * sampleRatio;

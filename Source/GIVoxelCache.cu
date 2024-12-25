@@ -21,7 +21,7 @@ const std::string GIVoxelCache::GenVoxelGFGFileName(const std::string& fileName,
 
 	std::string fileNameOnly = fileName.substr(startPos, endPos);
 	std::ostringstream voxPrefix;
-	voxPrefix << fileNameOnly << "_vox_" << span << ".gfg";	
+	voxPrefix << fileNameOnly << "_vox_" << span << ".gfg";
 	return voxPrefix.str();
 }
 
@@ -57,7 +57,7 @@ size_t GIVoxelCache::LoadBatchVoxels(size_t gpuBufferOffset, float currentSpan,
 		cascadeVoxelSizes.push_back(0);
 		return gpuBufferOffset;
 	}
-	
+
 	// Batch Data
 	std::vector<MeshVoxelInfo> voxelInfo;
 	std::vector<CVoxelPos> voxelPos;
@@ -68,10 +68,10 @@ size_t GIVoxelCache::LoadBatchVoxels(size_t gpuBufferOffset, float currentSpan,
 	// Load each GFG one by one to temp vectors then push to gpu
 	uint32_t voxelBatchOffset = 0;
 	uint32_t totalVoxelCount = 0;
-	for(const std::string& fileName : gfgFiles)	
+	for(const std::string& fileName : gfgFiles)
 	{
 		const auto voxelFile = GenVoxelGFGFileName(fileName, currentSpan);
-		
+
 		std::ifstream stream(voxelFile, std::ios_base::in | std::ios_base::binary);
 		GFGFileReaderSTL stlFileReader(stream);
 		GFGFileLoader gfgFile(&stlFileReader);
@@ -116,12 +116,12 @@ size_t GIVoxelCache::LoadBatchVoxels(size_t gpuBufferOffset, float currentSpan,
 			else
 			{
 				voxelInfo.insert(voxelInfo.end(), objectInfoData.begin(), objectInfoData.end());
-				voxelCount = static_cast<uint32_t>(gfgFile.Header().meshes.front().headerCore.vertexCount);				
+				voxelCount = static_cast<uint32_t>(gfgFile.Header().meshes.front().headerCore.vertexCount);
 			}
 			voxelBatchOffset += voxelCount;
 			totalVoxelCount += voxelCount;
 
-			// Now Load Actual Voxels		
+			// Now Load Actual Voxels
 			std::vector<uint8_t> voxelData(gfgFile.MeshVertexDataSize(0));
 			gfgFile.MeshVertexData(voxelData.data(), 0);
 
@@ -166,7 +166,7 @@ size_t GIVoxelCache::LoadBatchVoxels(size_t gpuBufferOffset, float currentSpan,
 	// All Loaded to CPU
 	// Now load it to GPU
 	BatchVoxelCache cBatch = {};
-	size_t newOffset = gpuBufferOffset;	
+	size_t newOffset = gpuBufferOffset;
 	// Mesh Voxel Info
 	cBatch.dMeshVoxelInfo = reinterpret_cast<CMeshVoxelInfo*>(gpuData.Data() + newOffset);
 	cudaMemcpy(gpuData.Data() + newOffset, voxelInfo.data(),
@@ -232,7 +232,7 @@ GIVoxelCache::GIVoxelCache(float baseSpan, uint32_t levelCount,
 	, vRenderVoxel(ShaderType::VERTEX, "Shaders/VoxRender.vert")
 	, fRenderVoxel(ShaderType::FRAGMENT, "Shaders/VoxRender.frag")
 	, currentCascade(-1)
-{		
+{
 	GI_LOG("Loading Voxel Caches...");
 	IETimer t;
 	t.Start();
@@ -352,12 +352,12 @@ void GIVoxelCache::AllocateGL(uint32_t cascade)
 											cascadeVoxelSizes.begin() + cascade * batches->size(),
 											size_t(0u));
 		const uint8_t* readPointer = gpuData.Data() + readOffset;
-		CUDA_CHECK(cudaMemcpy(glCudaPointer, 
+		CUDA_CHECK(cudaMemcpy(glCudaPointer,
 							  cube.data.data(),
 							  cube.data.size(),
 							  cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(glCudaPointer + cube.data.size(),
-							  readPointer, 
+							  readPointer,
 							  bufferSize - cube.data.size(),
 							  cudaMemcpyDeviceToDevice));
 		// Unmap and unregister we are done
@@ -417,43 +417,43 @@ void GIVoxelCache::DeallocateGL()
 	{
 		debugVAO.clear();
 		meshData = std::move(std::vector<std::vector<MeshVoxelInfo>>());
-		debugDrawBuffer = std::move(StructuredBuffer<uint8_t>());		
+		debugDrawBuffer = std::move(StructuredBuffer<uint8_t>());
 		currentCascade = -1;
 	}
 }
 
-double GIVoxelCache::Draw(bool doTiming, 
+double GIVoxelCache::Draw(bool doTiming,
 						  const Camera& camera,
 						  VoxelRenderType renderType)
 {
 	// Timing
 	OGLTimer t;
 	if(doTiming) t.Start();
-	
+
 	// Framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0,
 			   static_cast<GLsizei>(camera.width),
 			   static_cast<GLsizei>(camera.height));
-	
+
 	// State
 	glDisable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);
 	glDepthMask(true);
-	glColorMask(true, true, true, true);	
+	glColorMask(true, true, true, true);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	
+
 	// Shaders
 	Shader::Unbind(ShaderType::GEOMETRY);
 	fRenderVoxel.Bind();
-			
+
 	// Buffers
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
 	for(unsigned int i = 0; i < batches->size(); i++)
-	{		
+	{
 		if((*batches)[i]->DrawCount() == 0) continue;
 
 		(*batches)[i]->getDrawBuffer().BindAABB(LU_AABB);
@@ -466,7 +466,7 @@ double GIVoxelCache::Draw(bool doTiming,
 			vRenderVoxelSkel.Bind();
 			glUniform1ui(U_RENDER_TYPE, static_cast<GLuint>(renderType));
 			glUniform1f(U_SPAN, baseSpan * static_cast<float>(1 << currentCascade));
-	
+
 			// Joint Transforms
 			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>((*batches)[i]);
 			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);

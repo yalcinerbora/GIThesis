@@ -18,7 +18,7 @@ LightDrawBuffer::LightDrawBuffer()
 	GFGFileLoader gfgFile(&stlFileReader);
 	gfgFile.ValidateAndOpen();
 
-	assert(gfgFile.Header().meshes.size() == LightTypeCount);
+	//assert(gfgFile.Header().meshes.size() == LightTypeCount);
 	std::vector<uint8_t> vData(gfgFile.AllMeshVertexDataSize());
 	std::vector<uint8_t> viData(gfgFile.AllMeshIndexDataSize());
 	gfgFile.AllMeshVertexData(vData.data());
@@ -40,7 +40,7 @@ LightDrawBuffer::LightDrawBuffer()
 		vOffset += static_cast<uint32_t>(mesh.headerCore.vertexCount);
 		viOffset += static_cast<uint32_t>(mesh.headerCore.indexCount);
 	}
-	
+
 	// Offset and Total Buffer Size Calculation
 	size_t totalSize = 0;
 	// DP
@@ -67,10 +67,10 @@ LightDrawBuffer::LightDrawBuffer()
 	std::copy(reinterpret_cast<uint8_t*>(lightDrawParams.data()),
 			  reinterpret_cast<uint8_t*>(lightDrawParams.data() + lightDrawParams.size()),
 			  cpuImage.data() + drawOffset);
-	std::copy(vData.data(), 
+	std::copy(vData.data(),
 			  vData.data() + vOffset * sizeof(float) * 3,
 			  cpuImage.data() + vertexOffset);
-	std::copy(viData.data(), viData.data() + viOffset * sizeof(uint32_t),			  
+	std::copy(viData.data(), viData.data() + viOffset * sizeof(uint32_t),
 			  cpuImage.data() + indexOffset);
 	gpuData.SendData();
 
@@ -141,15 +141,15 @@ void LightDrawBuffer::DrawCall()
 
 void DeferredRenderer::BindInvFrameTransform(GLuint bindingPoint) const
 {
-	gpuData.BindAsUniformBuffer(bindingPoint, 
-								static_cast<GLuint>(iOffset), 
+	gpuData.BindAsUniformBuffer(bindingPoint,
+								static_cast<GLuint>(iOffset),
 								sizeof(InvFrameTransform));
 }
 
 void DeferredRenderer::BindFrameTransform(GLuint bindingPoint) const
 {
 	gpuData.BindAsUniformBuffer(bindingPoint,
-								static_cast<GLuint>(fOffset), 
+								static_cast<GLuint>(fOffset),
 								sizeof(FrameTransformData));
 }
 
@@ -167,7 +167,7 @@ void DeferredRenderer::UpdateInvFTransformBuffer()
 	std::copy(reinterpret_cast<uint8_t*>(&ifTransform),
 			  reinterpret_cast<uint8_t*>(&ifTransform) + sizeof(InvFrameTransform),
 			  gpuData.CPUData().data() + iOffset);
-	gpuData.SendSubData(static_cast<uint32_t>(iOffset), 
+	gpuData.SendSubData(static_cast<uint32_t>(iOffset),
 						sizeof(InvFrameTransform));
 }
 
@@ -246,18 +246,18 @@ DeferredRenderer::DeferredRenderer()
 
 	// Validate sRGB Encoding
 	GLint encoding;
-	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, 
+	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER,
 										  GL_COLOR_ATTACHMENT0,
-										  GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, 
+										  GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING,
 										  &encoding);
 	assert(encoding == GL_SRGB);
-	
+
 	// Pack to GPU Buffer
 	size_t totalSize = 0;
 	// Light AOI Vertices
 	postTriOffset = totalSize;
 	totalSize += 6 * sizeof(float);
-	// Frame Transform 
+	// Frame Transform
 	totalSize = DeviceOGLParameters::UBOAlignOffset(totalSize);
 	fOffset = totalSize;
 	totalSize += sizeof(FrameTransformData);
@@ -272,7 +272,7 @@ DeferredRenderer::DeferredRenderer()
 			  reinterpret_cast<const uint8_t*>(PostProcessTriData) + 6 * sizeof(float),
 			  cpuImage.data() + postTriOffset);
 	gpuData.SendSubData(static_cast<uint32_t>(postTriOffset), 6 * sizeof(float));
-	
+
 	// PostProcess VAO
 	glGenVertexArrays(1, &postProcessTriVao);
 	glBindVertexArray(postProcessTriVao);
@@ -308,7 +308,7 @@ DeferredRenderer::~DeferredRenderer()
 {
 	glDeleteTextures(1, &lightIntensityTex);
 	glDeleteFramebuffers(1, &lightIntensityFBO);
-	glDeleteTextures(1, &sRGBEndTex);	
+	glDeleteTextures(1, &sRGBEndTex);
 	glDeleteFramebuffers(1, &sRGBEndFBO);
 	glDeleteVertexArrays(1, &postProcessTriVao);
 	glDeleteSamplers(1, &flatSampler);
@@ -337,7 +337,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera, b
 
 	SceneLights& sLights = scene.getSceneLights();
 	uint32_t lightCount = static_cast<uint32_t>(sLights.getLightCount());
-	
+
 	// State
 	// Rendering with polygon offset to eliminate shadow acne
 	glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
@@ -354,7 +354,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera, b
 	sLights.GenerateMatrices(camera);
 	sLights.SendVPMatricesToGPU();
 	sLights.BindViewProjectionMatrices(LU_LIGHT_MATRIX);
-	
+
 	// Shaders
 	fragShadowMap.Bind();
 
@@ -395,7 +395,7 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera, b
 			LightType t = sLights.getLightType(i);
 			geomShadowMap[static_cast<int>(t)].Bind();
 			switch(t)
-			{				
+			{
 				case LightType::POINT:
 					// Base poly offset gives ok results on point lights
 					glPolygonOffset(2.64f, 512.0f);
@@ -403,13 +403,13 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera, b
 				case LightType::DIRECTIONAL:
 					// Higher offset req since camera span is large
 					glPolygonOffset(6.12f, 2048.0f);
-					//glPolygonOffset(6.12f, static_cast<float>(LightDrawBuffer::ShadowMapWH)); 
+					//glPolygonOffset(6.12f, static_cast<float>(LightDrawBuffer::ShadowMapWH));
 					break;
 			}
 			glUniform1ui(U_LIGHT_ID, static_cast<GLuint>(i));
 
 			currentDrawBuffer.BindModelTransform(LU_MTRANSFORM);
-			
+
 			// Draw Call
 			currentDrawBuffer.DrawCallMulti();
 		}
@@ -428,13 +428,13 @@ void DeferredRenderer::GenerateShadowMaps(SceneI& scene, const Camera& camera, b
 		// TODO:
 		GLuint depthSize = LightDrawBuffer::ShadowMapWH >> (i + 1);
 		GLuint totalPixelCount = (depthSize * depthSize) * lightCount * 6;
-		
+
 		glUniform1ui(U_DEPTH_SIZE, depthSize);
 		glUniform1ui(U_PIX_COUNT, totalPixelCount);
-		
+
 		glBindImageTexture(I_DEPTH_READ, lightTex, i, true, 0, GL_READ_ONLY, GL_R32F);
 		glBindImageTexture(I_DEPTH_WRITE, lightTex, i + 1, true, 0, GL_WRITE_ONLY, GL_R32F);
-				
+
 		// Dispatch
 		unsigned int gridSize = (totalPixelCount + 256 - 1) / 256;
 		glDispatchCompute(gridSize, 1, 1);
@@ -458,16 +458,16 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera, bool doTiming)
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDisable(GL_MULTISAMPLE);
-	
+
 	// With Depth Prepass
 	glDepthMask(false);
 	glDepthFunc(GL_EQUAL);
 	glColorMask(true, true, true, true);
-	
-	// Without Depth Prepass
-	glDepthMask(true);
-	glDepthFunc(GL_LEQUAL);
-	
+
+	//// Without Depth Prepass
+	//glDepthMask(true);
+	//glDepthFunc(GL_LEQUAL);
+
 	// Camera Transform
 	BindFrameTransform(U_FTRANSFORM);
 
@@ -488,7 +488,7 @@ void DeferredRenderer::GPass(SceneI& scene, const Camera& camera, bool doTiming)
 			MeshBatchSkeletal* batchPtr = static_cast<MeshBatchSkeletal*>(batches[i]);
 			batchPtr->getJointTransforms().BindAsShaderStorageBuffer(LU_JOINT_TRANS);
 		}
-		
+
 		VertexBuffer& currentVertexBuffer = batches[i]->getVertexBuffer();
 		DrawBuffer& currentDrawBuffer = batches[i]->getDrawBuffer();
 
@@ -539,7 +539,7 @@ void DeferredRenderer::LightPass(SceneI& scene, const Camera& camera, bool doTim
 	RefreshInvFTransform(scene, camera, GBuffWidth, GBuffHeight);
 	BindInvFrameTransform(U_INVFTRANSFORM);
 	BindFrameTransform(U_FTRANSFORM);
-	
+
 	// Bind LightIntensity Buffer as framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, lightIntensityFBO);
 	glViewport(0, 0, GBuffWidth, GBuffHeight);
@@ -591,8 +591,8 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera, bool doTiming)
 	glDisable(GL_MULTISAMPLE);
 	glDepthMask(true);
 	glColorMask(false, false, false, false);
-	glDepthFunc(GL_LEQUAL);	
-	
+	glDepthFunc(GL_LEQUAL);
+
 	// Camera Transform
 	BindFrameTransform(U_FTRANSFORM);
 
@@ -632,7 +632,7 @@ void DeferredRenderer::DPass(SceneI& scene, const Camera& camera, bool doTiming)
 }
 
 void DeferredRenderer::Present(const Camera& camera, bool doTiming)
-{	
+{
 	if(doTiming) oglTimer.Start();
 
 	// Render to main framebuffer as post process
@@ -650,7 +650,7 @@ void DeferredRenderer::Present(const Camera& camera, bool doTiming)
 
 	// FBO
 	glBindFramebuffer(GL_FRAMEBUFFER, sRGBEndFBO);
-	glViewport(0, 0, 
+	glViewport(0, 0,
 			   static_cast<GLsizei>(GBuffWidth),
 			   static_cast<GLsizei>(GBuffHeight));
 
@@ -669,7 +669,7 @@ void DeferredRenderer::Present(const Camera& camera, bool doTiming)
 
 	// DrawCall
 	glDrawArrays(GL_TRIANGLES, 0, 3);
-	
+
 	// Passthrough to Default FBO
 	//
 	// SRGB Texture
@@ -687,7 +687,7 @@ void DeferredRenderer::Present(const Camera& camera, bool doTiming)
 	glViewport(0, 0,
 			   static_cast<GLsizei>(camera.width),
 			   static_cast<GLsizei>(camera.height));
-	
+
 	// States
 	glDisable(GL_FRAMEBUFFER_SRGB);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -745,7 +745,7 @@ void DeferredRenderer::PopulateGBuffer(SceneI& scene, const Camera& camera, bool
 
 
 	// Depth Pre-Pass
-	//DPass(scene, camera, doTiming);
+	DPass(scene, camera, doTiming);
 
 	// Actual Render
 	// G Pass
@@ -766,7 +766,7 @@ void DeferredRenderer::Render(SceneI& scene, const Camera& camera, bool directLi
 
 	// GPass
 	PopulateGBuffer(scene, camera, doTiming);
-	
+
 	// Clear LI with ambient color
 	ClearLI(ambientColor);
 

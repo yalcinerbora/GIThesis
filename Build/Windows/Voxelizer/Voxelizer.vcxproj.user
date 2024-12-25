@@ -3,11 +3,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)..\..\WorkingDir\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-f dynamicScene.gfg -span 0.25 -cas 5</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-fs nyra.gfg -span 1 -cas 5</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)..\..\WorkingDir\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-f dynamicScene.gfg -span 0.25 -cas 5</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-fs nyra.gfg -span 1 -cas 5</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

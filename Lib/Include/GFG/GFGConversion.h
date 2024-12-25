@@ -24,7 +24,7 @@ namespace GFGConversions
 	int8_t				DoubleToNorm8(double);
 	int16_t				DoubleToNorm16(double);
 	int32_t				DoubleToNorm32(double);
-	
+
 	uint8_t				FloatToUnorm8(float);
 	uint16_t			FloatToUnorm16(float);
 	uint32_t			FloatToUnorm32(float);
@@ -48,7 +48,7 @@ namespace GFGConversions
 	// Normal Packing
 	uint32_t			FloatsToCustom_1_15N_16N(const float[3]);
 	uint32_t			DoublesToCustom_1_15N_16N(const double[3]);
-		
+
 	// Tangent Packing
 	void				FloatsToCustom_Tang_H_2N(uint32_t result[3],
 												 const float normal[3],
@@ -81,19 +81,19 @@ namespace GFGConversions
 	void				DoubleToHalfV(uint8_t dataOut[], size_t dataCapacity, const double data[], size_t dataAmount);
 	void				DoubleToFloatV(uint8_t dataOut[], size_t dataCapacity, const double data[], size_t dataAmount);
 	void				DoubleToQuadV(uint8_t dataOut[], size_t dataCapacity, const double data[], size_t dataAmount);
-	   
+
 	void				DoubleToUnorm8V(uint8_t dataOut[], size_t dataCapacity, const double data[], size_t dataAmount);
 	void				DoubleToUnorm16V(uint8_t dataOut[], size_t dataCapacity, const double data[], size_t dataAmount);
 	void				DoubleToUnorm32V(uint8_t dataOut[], size_t dataCapacity, const double data[], size_t dataAmount);
-	   
+
 	void				DoubleToNorm8V(uint8_t dataOut[], size_t dataCapacity, const double data[], size_t dataAmount);
 	void				DoubleToNorm16V(uint8_t dataOut[], size_t dataCapacity, const double data[], size_t dataAmount);
 	void				DoubleToNorm32V(uint8_t dataOut[], size_t dataCapacity, const double data[], size_t dataAmount);
-	   
+
 	void				UIntToUInt8V(uint8_t dataOut[], size_t dataCapacity, const unsigned int data[], size_t dataAmount);
 	void				UIntToUInt16V(uint8_t dataOut[], size_t dataCapacity, const unsigned int data[], size_t dataAmount);
 	void				UIntToUInt32V(uint8_t dataOut[], size_t dataCapacity, const unsigned int data[], size_t dataAmount);
-	   
+
 	void				IntToInt8V(uint8_t dataOut[], size_t dataCapacity, const int data[], size_t dataAmount);
 	void				IntToInt16V(uint8_t dataOut[], size_t dataCapacity, const int data[], size_t dataAmount);
 	void				IntToInt32V(uint8_t dataOut[], size_t dataCapacity, const int data[], size_t dataAmount);

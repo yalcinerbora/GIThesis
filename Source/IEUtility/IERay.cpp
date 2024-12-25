@@ -14,7 +14,7 @@ bool IERay::IntersectsSphere(IEVector3& intersectPos,
 	IEVector3 normDir = direction.Normalize();
 	IEVector3 centerDir = sphereCenter - position;
 	float beamCenterDistance = centerDir.DotProduct(normDir);
-	float beamNormalLengthSqr = centerDir.DotProduct(centerDir) - 
+	float beamNormalLengthSqr = centerDir.DotProduct(centerDir) -
 								beamCenterDistance * beamCenterDistance;
 	float beamHalfLengthSqr = sphereRadius * sphereRadius - beamNormalLengthSqr;
 	if(beamHalfLengthSqr > 0.0f)
@@ -48,7 +48,7 @@ bool IERay::IntersectsSphere(IEVector3& intersectPos,
 	//	rayT0 = q / a;
 
 	//	// Mullers formula
-	//	rayT1 = c / q;		
+	//	rayT1 = c / q;
 	//}
 	//else if(delta == 0.0f)
 	//{
@@ -97,7 +97,7 @@ bool IERay::IntersectsTriangle(IEVector3& baryCoords,
 	float rayT = tA.Determinant() * aDetInv;
 
 	if(beta >= 0.0f && beta <= 1.0f &&
-	   gamma >= 0.0f && gamma <= 1.0f && 
+	   gamma >= 0.0f && gamma <= 1.0f &&
 	   alpha >= 0.0f && alpha <= 1.0f &&
 	   rayT >= 0.0f)
 	{
@@ -180,7 +180,7 @@ IERay& IERay::AdvanceSelf(float t)
 
 IERay IERay::Transform(const IEMatrix4x4& mat) const
 {
-	return IERay(mat * IEVector4(direction, 0.0f), 
+	return IERay(mat * IEVector4(direction, 0.0f),
 				 mat * position);
 }
 
@@ -205,7 +205,6 @@ bool IERay::IntersectsAABB(const IEVector3& min, const IEVector3& max) const
 	float tMin = -std::numeric_limits<float>::max();
 	float tMax = std::numeric_limits<float>::max();
 
-	#pragma unroll
 	for(int i = 0; i < 3; i++)
 	{
 		tMin = std::max(tMin, std::min(t0[i], t1[i]));

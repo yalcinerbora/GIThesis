@@ -39,9 +39,9 @@ using MeshBatchShaderArray = std::array<Shader, MeshBatchTypeCount>;
 
 // Deferred Renderer Light Shape
 class LightDrawBuffer
-{	
+{
 	public:
-		static constexpr uint32_t		DirectionalCascadesCount = 6;
+		static constexpr uint32_t		DirectionalCascadesCount = 3;
 		static constexpr uint32_t		ShadowMipSampleCount = 3;
 		static constexpr GLsizei		ShadowMapWH = /*512;*//*1024;*/2048;//4096;
 		static constexpr uint32_t		ShadowMapMipCount = 4;
@@ -75,7 +75,7 @@ class LightDrawBuffer
 		void							AttachSceneLights(SceneLights&);
 
 		void							BindVAO();
-		void							BindDrawIndirectBuffer();		
+		void							BindDrawIndirectBuffer();
 		void							DrawCall();
 
 };
@@ -86,8 +86,8 @@ class DeferredRenderer
 {
 	public:
 		// Geometry Buffer Dimensions
-		static constexpr GLsizei	GBuffWidth = /*160;*//*320;*//*640;*//*800;*//*1280;*//*1600;*/1920;/*2560;*///3840;
-		static constexpr GLsizei	GBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*//*900;*/1080;/*1440;*///2160;
+		static constexpr GLsizei	GBuffWidth = /*160;*//*320;*//*640;*//*800;*//*1280;*//*1600;*//*1920;*//*2560;*/3840;
+		static constexpr GLsizei	GBuffHeight = /*90;*//*180;*//*360;*//*450;*//*720;*//*900;*//*1080;*//*1440;*/2160;
 
 	private:
 		static constexpr float		PostProcessTriData[6] =
@@ -96,7 +96,7 @@ class DeferredRenderer
 			-1.0f, 3.0f,
 			-1.0f, -1.0f
 		};
-		
+
 		static constexpr GLenum		LIFormat = GL_RGBA16F;
 
 		// Geom Buffer Write Shaders
@@ -127,7 +127,7 @@ class DeferredRenderer
 		// Geometry Buffer
 		GBuffer						gBuffer;
 
-		// Light AOI Buffer			
+		// Light AOI Buffer
 		LightDrawBuffer				lightAOI;
 
 		// Frame Transform
@@ -144,14 +144,14 @@ class DeferredRenderer
 		GLuint						sRGBEndTex;
 		GLuint						sRGBEndFBO;
 
-		// Post Process Triangle 
+		// Post Process Triangle
 		GLuint						postProcessTriVao;
 
 		// Timings
 		OGLTimer					oglTimer;
 		double						shadowMapTime;
 		double						dPassTime;
-		double						gPassTime;		
+		double						gPassTime;
 		double						lPassTime;
 		double						mergeTime;
 
@@ -159,7 +159,7 @@ class DeferredRenderer
 		GLuint						flatSampler;
 		GLuint						linearSampler;
 		GLuint						shadowMapSampler;
-				
+
 		void						UpdateFTransformBuffer();
 		void						UpdateInvFTransformBuffer();
 
@@ -184,9 +184,9 @@ class DeferredRenderer
 		void						BindInvFrameTransform(GLuint bindingPoint) const;
 		void						BindFrameTransform(GLuint bindingPoint) const;
 
-		void						Render(SceneI&, const Camera&, bool directLight, 
+		void						Render(SceneI&, const Camera&, bool directLight,
 										   const IEVector3& ambientColor,
-										   bool doTiming);		
+										   bool doTiming);
 		void						Present(const Camera&, bool doTiming);
 
 
@@ -201,10 +201,10 @@ class DeferredRenderer
 		// Directly Renders Buffers
 		void						ShowGBufferTexture(const Camera& camera, RenderScheme);
 		void						ShowLightIntensity(const Camera& camera);
-		void						ShowShadowMap(const Camera& camera, 
+		void						ShowShadowMap(const Camera& camera,
 												  SceneI& scene, int lightId, int layer);
 		void						ShowTexture(const Camera& camera, GLuint tex);
-		
+
 		void						BindLIBufferAsImage(GLuint target);
 		void						BindShadowMaps(SceneI&);
 		void						BindLightBuffers(SceneI&);

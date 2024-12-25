@@ -26,8 +26,8 @@ class ThesisSolution : public SolutionI
 		const OctreeParameters		octreeParams;
 		const std::string			name;
 
-		static constexpr GLsizei	TraceWidth = /*960;*/1280;//1920;
-		static constexpr GLsizei	TraceHeight = /*540;*/720;//1080;
+		static constexpr GLsizei	TraceWidth = /*960;*//*1280;*/1920;
+		static constexpr GLsizei	TraceHeight = /*540;*//*720;*/1080;
 
 		static constexpr float		DiffuseAngle = static_cast<float>(40.0 * IEMathConstants::DegToRadCoef);
 		static constexpr float		SpecularMin = static_cast<float>(4.0 * IEMathConstants::DegToRadCoef);
@@ -38,7 +38,7 @@ class ThesisSolution : public SolutionI
 		static constexpr float		AOIntensity = 1.0f;
 		static constexpr float		GIIntensity = 1.0f;
 		static constexpr float		AOFalloff = 1.0f;
-		
+
 	private:
 		// Entire Voxel Cache one Per Batch
 		GIVoxelCache				voxelCaches;
@@ -69,7 +69,7 @@ class ThesisSolution : public SolutionI
 
 		DeferredRenderer&			dRenderer;
 		SceneI*						currentScene;
-		
+
 		// On/Off Switches
 		bool						giOn;
 		bool						aoOn;
@@ -90,7 +90,7 @@ class ThesisSolution : public SolutionI
 		IndirectBar					indirectBar;
 
 	protected:
-		
+
 	public:
 		// Constructors & Destructor
 									ThesisSolution(uint32_t denseLevel,

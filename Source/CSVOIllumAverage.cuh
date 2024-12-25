@@ -29,7 +29,7 @@ inline __device__ uint64_t AvgIllumPortion(const uint64_t& illumPortion,
 	// Unpack Illumination
 	uint2 illumSplit = UnpackWords(illumPortion);
 	float4 avgLower = UnpackLightDirLeaf(illumSplit.x);
-	float counter = uint_as_float(illumSplit.y);
+	float counter = __uint_as_float(illumSplit.y);
 
 	// Divisors
 	float invCounter = 1.0f / (counter + occlusion);
@@ -56,7 +56,7 @@ inline __device__ uint64_t AvgIllumPortion(const uint64_t& illumPortion,
 	uint2 illumSplit = UnpackWords(illumPortion);
 	float4 avgLower = UnpackSVOIrradiance(illumSplit.x);
 	float3 avgUpper = UnpackSVOUpperLeaf(illumSplit.y);
-	
+
 	// Divisors
 	float counter = avgUpper.z;
 	float invCounter = 1.0f / (avgUpper.z + occlusion);

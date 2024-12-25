@@ -28,7 +28,7 @@ struct OctreeUniforms
 	uint32_t	denseLevel;
 	uint32_t	minCascadeLevel;
 	uint32_t	maxSVOLevel;
-	
+
 	uint32_t	cascadeCount;
 	uint32_t	nodeOffsetDifference;
 	uint32_t	gridSize;
@@ -41,7 +41,7 @@ struct IndirectUniforms
 	float specularAngleMax;
 	float diffAngleTanHalf;
 	float sampleRatio;
-	
+
 	float startOffset;
 	float totalDistance;
 	float aoIntensity;
@@ -68,7 +68,7 @@ static constexpr size_t BigSizes[] =
 	4	 * 1024 * 1024,	// 8
 	9	 * 1024 * 1024,	// 9
 	14	 * 1024 * 1024,	// 10
-	14	 * 1024 * 1024,	// 11	
+	14	 * 1024 * 1024,	// 11
 	8	 * 1024 * 1024,	// 12
 	8	 * 1024 * 1024,	// 13
 };
@@ -87,7 +87,7 @@ static constexpr size_t BigSizes[] =
 //	64 * 1024,	// 8
 //	100 * 1024,	// 9
 //	100 * 1024,	// 10
-//	100 * 1024,	// 11	
+//	100 * 1024,	// 11
 //	64 * 1024,	// 12
 //	64 * 1024,	// 13
 //};
@@ -126,7 +126,7 @@ class OctreeParameters
 			, MinSVOLevel(denseLevel - denseLevelCount + 1)
 			, MaxSVOLevel(cascadeBaseLevel + cascadeCount - 1)
 		{
-			assert(static_cast<int>(DenseLevel) - static_cast<int>(DenseLevelCount) > 0);
+			//assert(static_cast<int>(DenseLevel) - static_cast<int>(DenseLevelCount) > 0);
 			assert(DenseLevelCount >= 1);
 			assert(CascadeBaseLevel <= 10);
 			assert(CascadeCount <= 4);
@@ -160,7 +160,7 @@ class GISparseVoxelOctree
 
 				const CLight*			dLightParamArray;
 				const CMatrix4x4* 		dLightVPMatrixArray;
-				
+
 			public:
 				// Constructors & Destructor
 										ShadowMapsCUDA();
@@ -177,7 +177,7 @@ class GISparseVoxelOctree
 				uint32_t				LightCount() const;
 				const CLight*			LightParamArray() const;
 				const CMatrix4x4*		LightVPMatrices() const;
-				cudaTextureObject_t		ShadowMapArray() const;				
+				cudaTextureObject_t		ShadowMapArray() const;
 		};
 
 	private:
@@ -191,7 +191,7 @@ class GISparseVoxelOctree
 		size_t							illumOffsetsOffset;
 		size_t							nodeOffset;
 		size_t							illumOffset;
-		
+
 		// Cuda Image of SVO Tree (Generated from OGL Data)
 		// Valid only when
 		cudaGraphicsResource_t			gpuResource;
@@ -217,7 +217,7 @@ class GISparseVoxelOctree
 		//
 		void							MapOGLData();
 		void							UnmapOGLData();
-	
+
 		void							PrintSVOLevelUsages(const std::vector<uint32_t>& svoSizes) const;
 		void							PrintPseudoMemoryUsage(const std::vector<uint32_t>& svoSizes) const;
 		double							GenerateHierarchy(bool doTiming,
@@ -265,7 +265,7 @@ class GISparseVoxelOctree
 												  const IEVector3& ambientColor,
 												  bool injectOn,
 												  bool useCache);
-		
+
 		void							UpdateOctreeUniforms(const IEVector3& outerCascadePos);
 		void							UpdateIndirectUniforms(const IndirectUniforms& indirectUniforms);
 

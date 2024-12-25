@@ -56,9 +56,9 @@ int main()
 	cameraInputSchemes.push_back(&fpsInput);
 
 	// Acutal Input
-	WindowInput inputManager(mainRenderCamera, 
-							 cameraInputSchemes, 
-							 solutions, 
+	WindowInput inputManager(mainRenderCamera,
+							 cameraInputSchemes,
+							 solutions,
 							 scenes);
 	// Window Init
 	WindowProperties winProps
@@ -78,12 +78,12 @@ int main()
 			 "\t\t Input Scheme#2 : Maya Input. (MouseBTN1 to rotate around COI. Mouse BTN3 to translate COI)\n"
 			 "\t\t Input Scheme#3 : FPS Input. (WASD to move MouseBTN1 to look around)\n"
 			 "' ");
-	
+
 	// DeferredRenderer
 	DeferredRenderer deferredRenderer;
 
 	// Scenes
-	IEVector3 lightDir = IEQuaternion(static_cast<float>(IEMathConstants::DegToRadCoef * -84.266), 
+	IEVector3 lightDir = IEQuaternion(static_cast<float>(IEMathConstants::DegToRadCoef * -84.266),
 									  IEVector3::XAxis).ApplyRotation(-IEVector3::ZAxis);
 	std::vector<Light> sponzaLights =
 	{
@@ -123,9 +123,9 @@ int main()
 		{
 			{0.0f, 0.0f, 0.0f, static_cast<float>(LightType::DIRECTIONAL)},
 			{
-				std::sin(static_cast<float>(IEMathConstants::DegToRadCoef * 45.0)), 
+				std::sin(static_cast<float>(IEMathConstants::DegToRadCoef * 45.0)),
 				-std::cos(static_cast<float>(IEMathConstants::DegToRadCoef * 45.0)),
-				0.0f, 
+				0.0f,
 				std::numeric_limits<float>::infinity()
 			},
 			IEVector4(1.0f, 1.0f, 1.0f, 4.2f)
@@ -176,7 +176,7 @@ int main()
 
 	// Scene Files
 	// Sponza Atrium
-	std::vector<std::string> sponzaRigid = 
+	std::vector<std::string> sponzaRigid =
 	{
 		"sponza.gfg",
 		"sponzaDynamic.gfg",
@@ -187,45 +187,45 @@ int main()
 	};
 	SponzaScene sponza("Sponza Atrium", sponzaRigid, sponzaSkeletal, sponzaLights);
 	scenes.push_back(&sponza);
-	// Cornell
-	std::vector<std::string> cornellRigid =
-	{
-		"cornell.gfg"
-	};
-	std::vector<std::string> cornellSkeletal = {};
-	CornellScene cornell("Cornell Box", cornellRigid, cornellSkeletal, cornellLights);
-	scenes.push_back(&cornell);
-	// Sibernik Cathedral
-	std::vector<std::string> sibernikRigid =
-	{
-		"sibernik.gfg"
-	};
-	std::vector<std::string> sibernikSkeletal = {};
-	ConstantScene sibernik("Sibernik Cathedral", sibernikRigid, sibernikSkeletal, sibernikLights);
-	scenes.push_back(&sibernik);
-	// Nyra Single
-	std::vector<std::string> nyraStatic = {};
-	ConstantScene nyraSingle("Nyra Single", nyraStatic, sponzaSkeletal, sponzaLights);
-	scenes.push_back(&nyraSingle);
-	// Dynamic Scene
-	std::vector<std::string> dynamicRigid =
-	{
-		"dynamicScene.gfg"
-	};
-	static constexpr int repeatCount = 256;
-	std::vector<std::string> dynamicSkeletal
-	{
-		"nyra.gfg"
-	};
-	DynoScene dynamic("Dynamic Scene", dynamicRigid, dynamicSkeletal, sponzaLights, repeatCount);
-	scenes.push_back(&dynamic);
+	//// Cornell
+	//std::vector<std::string> cornellRigid =
+	//{
+	//	"cornell.gfg"
+	//};
+	//std::vector<std::string> cornellSkeletal = {};
+	//CornellScene cornell("Cornell Box", cornellRigid, cornellSkeletal, cornellLights);
+	//scenes.push_back(&cornell);
+	//// Sibernik Cathedral
+	//std::vector<std::string> sibernikRigid =
+	//{
+	//	"sibernik.gfg"
+	//};
+	//std::vector<std::string> sibernikSkeletal = {};
+	//ConstantScene sibernik("Sibernik Cathedral", sibernikRigid, sibernikSkeletal, sibernikLights);
+	//scenes.push_back(&sibernik);
+	//// Nyra Single
+	//std::vector<std::string> nyraStatic = {};
+	//ConstantScene nyraSingle("Nyra Single", nyraStatic, sponzaSkeletal, sponzaLights);
+	//scenes.push_back(&nyraSingle);
+	//// Dynamic Scene
+	//std::vector<std::string> dynamicRigid =
+	//{
+	//	"dynamicScene.gfg"
+	//};
+	//static constexpr int repeatCount = 256;
+	//std::vector<std::string> dynamicSkeletal
+	//{
+	//	"nyra.gfg"
+	//};
+	//DynoScene dynamic("Dynamic Scene", dynamicRigid, dynamicSkeletal, sponzaLights, repeatCount);
+	//scenes.push_back(&dynamic);
 
 	// Solutio ns
 	EmptyGISolution emptySolution(inputManager, deferredRenderer, "No GI");
-	ThesisSolution thesisSolution(6,		// Dense Level
-								  6,		// Dense Count
-								  1,		// Cascade Count
-								  10,		// Base Level
+	ThesisSolution thesisSolution(5,		// Dense Level
+								  5,		// Dense Count
+								  3,		// Cascade Count
+								  8,		// Base Level
 								  1.00f,	// Base Span
 								  true,		// Use cache
 								  inputManager, deferredRenderer, "Thesis GI");
@@ -234,7 +234,7 @@ int main()
 	// All Done
 	// Initialize First Scene and Solution
 	inputManager.Initialize();
-	
+
 	// FPS Timer
 	IETimer t;
 	t.Start();
@@ -244,14 +244,14 @@ int main()
 	//IEVector3 camPos = IEVector3(-223.717896f, 69.1969299f, -131.224045f);
 	//IEVector3 camLook = IEVector3(-73.4765625f, 40.8114090f, -304.566162f);
 	// Sample test, walking nyra
-	IEVector3 camPos = IEVector3(3.94091797, 40.0365143, 63.8204422);
-	IEVector3 camLook = IEVector3(2.62701273, -17.8482475, -159.956665);
+	//IEVector3 camPos = IEVector3(3.94091797f, 40.0365143f, 63.8204422f);
+	//IEVector3 camLook = IEVector3(2.62701273f, -17.8482475f, -159.956665f);
 	// Dyno test
-	//IEVector3 camPos = IEVector3(-18.1055393, 103.491150, 318.622131);
-	//IEVector3 camLook = IEVector3(-20.4996319, 33.3934479, 98.3792267);	
+	//IEVector3 camPos = IEVector3(-18.1055393f, 103.491150f, 318.622131f);
+	//IEVector3 camLook = IEVector3(-20.4996319f, 33.3934479f, 98.3792267f);
 	// Center Dyno
-	//IEVector3 camPos = IEVector3(-44.2577820, 101.216194, 26.8820076);
-	//IEVector3 camLook = IEVector3(-41.6408730, -63.8801727, -73.3516541);
+	IEVector3 camPos = IEVector3(-44.2577820f, 101.216194f, 26.8820076f);
+	IEVector3 camLook = IEVector3(-41.6408730f, -63.8801727f, -73.3516541f);
 
 	mainRenderCamera.centerOfInterest = camLook;
 	mainRenderCamera.pos = camPos;
@@ -260,14 +260,14 @@ int main()
 	while(!mainWindow.WindowClosed())
 	{
         double elapsedTime = t.ElapsedS();
-		
+
 		auto solution = inputManager.Solution();
 		auto scene = inputManager.Scene();
 
 		// Moving light test
-		constexpr double speed = 2.5 * IEMathConstants::DegToRadCoef; // Radians / sec
+		constexpr double speed = 2.5f * IEMathConstants::DegToRadCoef; // Radians / sec
 		IEVector3 direction = scene->getSceneLights().getLightDir(0);
-		direction = IEMatrix4x4::Rotate(static_cast<float>(speed * elapsedTime), 
+		direction = IEMatrix4x4::Rotate(static_cast<float>(speed * elapsedTime),
 										-IEVector3::XAxis) * direction;
 		//scene->getSceneLights().ChangeLightDir(0, direction);
 

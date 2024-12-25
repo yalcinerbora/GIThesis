@@ -32,8 +32,8 @@ https://github.com/yalcinerbora/GFGFileFormat/blob/master/LICENSE
 
 // FourCC Code
 static const uint32_t GFGFourCC = ' ' << 24 |
-								  'G' << 16 | 
-								  'F' << 8 | 
+								  'G' << 16 |
+								  'F' << 8 |
 								  'G' << 0;
 
 struct GFGTransform
@@ -97,7 +97,7 @@ struct GFGMeshMatPair
 	uint32_t	meshIndex;
 	uint32_t	materialIndex;
 	uint64_t	indexOffset;	// Sub portion of the mesh which will be rendered with this mat
-	uint64_t	indexCount;		// Index Count 
+	uint64_t	indexCount;		// Index Count
 								// If mesh is not indexed these shows vertex offsets
 								// and vertex counts
 };
@@ -138,13 +138,13 @@ class GFGHeader
 		GFGMaterialJumpList				materialList;		// Fast Jumping to the headers (since headers are variable sized)
 		GFGSkeletonJumpList				skeletonList;		// Fast Jumping to the headers (since headers are variable sized)
 		GFGAnimationJumpList			animationList;		// Future Compat always zero atm
-	
+
 		GFGHierarchy					sceneHierarchy;		// Scene Hierarchy
 
 		// Data Connections
 		GFGMeshMatPairList				meshMaterialConnections;
 		GFGMeshSkeletonPairList			meshSkeletonConnections;
-	
+
 		// Data References
 		std::vector<GFGMeshHeader>		meshes;
 		std::vector<GFGMaterialHeader>	materials;
@@ -156,7 +156,8 @@ class GFGHeader
 		GFGTransformList				bonetransformData;			// This should be "bind pose"
 
 		// Utility
-		void							CalculateDataOffsets();
+		void							CalculateDataOffsets(const std::vector<size_t>& meshVerticesByteSizeList,
+															 const std::vector<size_t>& meshIndicesByteSizeList);
 		void							Clear();
 };
 #endif //__GFG_HEADER_H__

@@ -60,9 +60,10 @@ class GFGFileReaderSTL : public GFGFileReaderI
 enum class GFGFileError
 {
 	OK,
-	FILE_CANNOT_CONTAIN_HEADER, // HeaderSize > FileSize
-	DATA_OFFSET_WRONG,			// Absolute data offset > FileSize
-	FILE_FOURCC_MISMATCH		// FourCC code is not 'GFG '
+	FILE_CANNOT_CONTAIN_HEADER, 	// HeaderSize > FileSize
+	DATA_OFFSET_WRONG,				// Absolute data offset > FileSize
+	FILE_FOURCC_MISMATCH,			// FourCC code is not 'GFG '
+	MESH_DOES_NOT_HAVE_THAT_LOGIC	// Mesh does not have the requested logic
 };
 
 class GFGFileLoader
@@ -98,6 +99,24 @@ class GFGFileLoader
 		GFGFileError					AllMeshVertexData(uint8_t data[]);
 		GFGFileError					MeshIndexData(uint8_t data[], uint32_t meshIndex);
 		GFGFileError					AllMeshIndexData(uint8_t data[]);
+		// Loading "Structure of Arrays" segments
+		// If pos & normal is packed
+		// For Example:
+		// struct A
+		// {
+		//	 float3 pos;
+		//   float3 normal;
+		// };
+		// Mesh Data also have uv but its layout is sequential
+		// Mesh is laid out in the file memory like this
+		// A* 		posNormal;
+		// float2*	uv;
+		// If you call this  function with GFGVertexComponent::POSITION or ::NORMAL
+		// this function will write all of the posNormal array to the data pointer
+		GFGFileError					MeshVertexComponentDataGroup(uint8_t data[], uint32_t meshIndex,
+													   				 GFGVertexComponentLogic);
+		size_t							MeshVertexComponentDataGroupSize(uint32_t meshIndex,
+													   				     GFGVertexComponentLogic);
 
 		// Material Importing
 		GFGFileError					MaterialTextureData(uint8_t data[], uint32_t materialIndex);
